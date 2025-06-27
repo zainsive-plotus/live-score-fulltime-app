@@ -1,0 +1,3247 @@
+// ===== src\app\admin\banners\page.tsx =====
+// src/app/admin/banners/page.tsx
+"use client";
+
+import { useMemo, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
+import toast from "react-hot-toast";
+import { PlusCircle, Edit, Trash2 } from "lucide-react";
+import Image from "next/image";
+import { IBanner } from "@/models/Banner";
+import BannerFormModal from "@/components/admin/BannerFormModal";
+import { AD_SLOTS } from "@/config/adSlots";
+
+const fetchBanners = async (): Promise<IBanner[]> => {
+  const { data } = await axios.get("/api/banners");
+  return data;
+};
+
+export default function AdminBannersPage() {
+  const queryClient = useQueryClient();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingBanner, setEditingBanner] = useState<IBanner | null>(null);
+
+  // Create a lookup map for user-friendly location names
+  const locationNameMap = useMemo(
+    () => new Map(AD_SLOTS.map((s) => [s.id, s.name])),
+    []
+  );
+
+  const {
+    data: banners,
+    isLoading,
+    error,
+  } = useQuery<IBanner[]>({
+    queryKey: ["adminBanners"],
+    queryFn: fetchBanners,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (bannerId: string) => axios.delete(`/api/banners/${bannerId}`),
+    onSuccess: () => {
+      toast.success("Banner deleted successfully!");
+      queryClient.invalidateQueries({ queryKey: ["adminBanners"] });
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || "Failed to delete banner.");
+    },
+  });
+
+  const handleOpenCreateModal = () => {
+    setEditingBanner(null);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEditModal = (banner: IBanner) => {
+    setEditingBanner(banner);
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = (bannerId: string) => {
+    if (
+      window.confirm(
+        "Are you sure you want to delete this banner? This action cannot be undone."
+      )
+    ) {
+      deleteMutation.mutate(bannerId);
+    }
+  };
+
+  if (isLoading) return <p className="text-brand-muted">Loading banners...</p>;
+  if (error) return <p className="text-red-400">Failed to load banners.</p>;
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-white">Manage Ad Banners</h1>
+        <button
+          onClick={handleOpenCreateModal}
+          className="flex items-center gap-2 bg-brand-purple text-white font-bold py-2 px-4 rounded-lg hover:opacity-90"
+        >
+          <PlusCircle size={20} />
+          <span>New Banner</span>
+        </button>
+      </div>
+
+      <div className="bg-brand-secondary rounded-lg overflow-x-auto">
+        <table className="w-full text-left text-brand-light">
+          <thead className="bg-gray-800/50 text-sm text-brand-muted uppercase">
+            <tr>
+              <th className="p-4">Preview</th>
+              <th className="p-4">Title</th>
+              <th className="p-4">Location</th> {/* <-- NEW COLUMN */}
+              <th className="p-4">Status</th>
+              <th className="p-4">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {banners?.map((banner) => (
+              <tr
+                key={banner._id as string}
+                className="border-t border-gray-700/50"
+              >
+                <td className="p-4">
+                  {/* --- THE FIX IS HERE --- */}
+                  <Image
+                    src={banner.imageUrl}
+                    alt={banner.title}
+                    width={120}
+                    height={60}
+                    // Add the objectFit="contain" property here as well.
+                    // This was the missing piece from my previous implementation.
+                    objectFit="contain"
+                    className="rounded-md bg-gray-700"
+                  />
+                </td>
+                <td className="p-4 font-medium">{banner.title}</td>
+                <td className="p-4 font-semibold text-brand-light">
+                  {locationNameMap.get(banner.location) || banner.location}
+                </td>
+                <td className="p-4">
+                  <span
+                    className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                      banner.isActive
+                        ? "bg-green-500/20 text-green-400"
+                        : "bg-red-500/20 text-red-400"
+                    }`}
+                  >
+                    {banner.isActive ? "Active" : "Inactive"}
+                  </span>
+                </td>
+                <td className="p-4 flex gap-3 items-center h-full">
+                  <button
+                    onClick={() => handleOpenEditModal(banner)}
+                    className="text-blue-400 hover:text-blue-300"
+                  >
+                    <Edit size={18} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(banner._id as string)}
+                    className="text-red-400 hover:text-red-300"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {banners?.length === 0 && (
+          <p className="text-center p-8 text-brand-muted">
+            No banners found. Click "New Banner" to create one.
+          </p>
+        )}
+      </div>
+
+      <BannerFormModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        banner={editingBanner}
+      />
+    </div>
+  );
+}
+
+
+// ===== src\app\admin\dashboard\page.tsx =====
+"use client"
+import { useTranslation } from '@/hooks/useTranslation';
+
+// This can be a simple server component for now
+export default function AdminDashboardPage() {
+  const { t } = useTranslation();
+
+  return (
+    <div>
+      <h1 className="text-3xl font-bold text-white mb-4">{t('admin_dashboard')}</h1>
+      <p className="text-brand-muted">{t('welcome_to_admin_area')}</p>
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="p-6 bg-brand-secondary rounded-lg">
+          <h3 className="font-bold text-white">{t('manage_users')}</h3>
+          <p className="text-sm text-brand-muted mt-2">{t('view_and_edit_user_roles')}</p>
+        </div>
+        <div className="p-6 bg-brand-secondary rounded-lg">
+          <h3 className="font-bold text-white">{t('manage_matches')}</h3>
+          <p className="text-sm text-brand-muted mt-2">{t('update_match_details')}</p>
+        </div>
+        <div className="p-6 bg-brand-secondary rounded-lg">
+          <h3 className="font-bold text-white">{t('view_analytics')}</h3>
+          <p className="text-sm text-brand-muted mt-2">{t('check_site_traffic')}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ===== src\app\admin\layout.tsx =====
+// src/app/admin/layout.tsx
+
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { redirect } from "next/navigation";
+import AdminSidebar from "@/components/admin/AdminSidebar";
+import { LanguageProvider } from "@/context/LanguageContext";
+
+export default async function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const session = await getServerSession(authOptions);
+
+  // 1. UNCOMMENT THIS BLOCK
+  if (!session) {
+    // Redirect to the login page with an error message indicating forbidden access
+    redirect("/login?error=Forbidden");
+  }
+
+  // 2. If user is an admin, render the layout...
+  return (
+     <LanguageProvider>
+    <div className="flex min-h-screen">
+      <AdminSidebar />
+      <main className="flex-1 p-8 bg-brand-dark">
+        {children}
+      </main>
+    </div>
+    </LanguageProvider>
+  );
+}
+
+// ===== src\app\admin\news\create\page.tsx =====
+// src/app/admin/news/create/page.tsx
+"use client";
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useMutation } from '@tanstack/react-query';
+import axios from 'axios';
+import toast from 'react-hot-toast';
+import Link from '@/components/StyledLink'; 
+import Image from 'next/image';
+import { UploadCloud, XCircle } from 'lucide-react';
+
+import RichTextEditor from '@/components/admin/RichTextEditor';
+
+export default function CreateNewsPostPage() {
+  const router = useRouter();
+  // --- STATE FOR NEW FIELDS ---
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [status, setStatus] = useState<'draft' | 'published'>('draft');
+  const [metaTitle, setMetaTitle] = useState('');
+  const [metaDescription, setMetaDescription] = useState('');
+  const [featuredImage, setFeaturedImage] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [imageTitle, setImageTitle] = useState('');
+  const [imageAltText, setImageAltText] = useState('');
+  const [sport, setSport] = useState('football');
+
+  // --- IMAGE UPLOAD HANDLER ---
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const { data } = await axios.post('/api/upload', formData);
+      setFeaturedImage(data.url);
+      toast.success('Image uploaded!');
+    } catch (error) {
+      toast.error('Image upload failed.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // --- MUTATION TO CREATE POST (NOW INCLUDES NEW FIELDS) ---
+  const createPostMutation = useMutation({
+    mutationFn: (newPost: {
+      title: string;
+      content: string;
+      status: string;
+      metaTitle?: string;
+      metaDescription?: string;
+      featuredImage?: string | null;
+      featuredImageTitle?: string;
+      featuredImageAltText?: string;
+      sport: string,
+
+    }) => {
+      return axios.post('/api/posts', newPost);
+    },
+    onSuccess: () => {
+      toast.success('Post created successfully!');
+      router.push('/admin/news');
+      router.refresh();
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Failed to create post.');
+    }
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim() || !content.trim()) {
+        toast.error('Title and content cannot be empty.');
+        return;
+    }
+    createPostMutation.mutate({
+      title,
+      content,
+      status,
+      featuredImage,
+      metaTitle,
+      metaDescription,
+      featuredImageTitle: imageTitle,
+      featuredImageAltText: imageAltText,
+      sport,
+    });
+  };
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-white">Create New Post</h1>
+      </div>
+
+      <form onSubmit={handleSubmit} className="bg-brand-secondary p-6 rounded-lg space-y-6">
+        
+        {/* --- ENHANCED: FEATURED IMAGE SECTION --- */}
+        <div className="p-4 border border-gray-600 rounded-lg">
+          <label className="block text-sm font-medium text-brand-light mb-2">Featured Image</label>
+          <div className="mt-2 flex justify-center rounded-lg border border-dashed border-gray-600 px-6 py-10">
+            {featuredImage ? (
+              <div className="relative group w-full h-64">
+                <Image src={featuredImage} alt={imageAltText || 'Featured preview'} layout="fill" objectFit="contain" />
+                <button
+                  type="button"
+                  onClick={() => setFeaturedImage(null)}
+                  className="absolute top-2 right-2 bg-red-600 rounded-full p-1 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <XCircle size={20} />
+                </button>
+              </div>
+            ) : (
+              <div className="text-center">
+                <UploadCloud className="mx-auto h-12 w-12 text-gray-500" />
+                <div className="mt-4 flex text-sm leading-6 text-gray-400">
+                  <label htmlFor="file-upload" className="relative cursor-pointer rounded-md font-semibold text-brand-purple focus-within:outline-none focus-within:ring-2 focus-within:ring-brand-purple focus-within:ring-offset-2 focus-within:ring-offset-brand-dark hover:text-brand-purple/80">
+                    <span>{isUploading ? 'Uploading...' : 'Upload a file'}</span>
+                    <input id="file-upload" name="file-upload" type="file" className="sr-only" onChange={handleImageUpload} disabled={isUploading} accept="image/*" />
+                  </label>
+                  <p className="pl-1">or drag and drop</p>
+                </div>
+                <p className="text-xs leading-5 text-gray-500">PNG, JPG, GIF up to 10MB</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {featuredImage && (
+            <div className="mt-4 space-y-4">
+              <div>
+                <label htmlFor="imageTitle" className="block text-sm font-medium text-brand-light mb-2">Image Title (Tooltip)</label>
+                <input id="imageTitle" type="text" value={imageTitle} onChange={(e) => setImageTitle(e.target.value)} placeholder="e.g., Team celebrating a goal" className="w-full p-3 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-purple" />
+              </div>
+              <div>
+                <label htmlFor="imageAltText" className="block text-sm font-medium text-brand-light mb-2">Image Alt Text (Accessibility & SEO)</label>
+                <input id="imageAltText" type="text" value={imageAltText} onChange={(e) => setImageAltText(e.target.value)} placeholder="e.g., Player in red jersey kicking a football" className="w-full p-3 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-purple" />
+                 <p className="text-xs text-brand-muted mt-1">Describe the image for screen readers and search engines.</p>
+              </div>
+            </div>
+          )}
+
+        {/* Title Field (No change) */}
+        <div>
+          <label htmlFor="title" className="block text-sm font-medium text-brand-light mb-2">Title</label>
+          <input id="title" type="text" value={title} onChange={(e) => setTitle(e.target.value)} required className="w-full p-3 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-purple" />
+        </div>
+
+        {/* Content Field (No change) */}
+        <div>
+          <label className="block text-sm font-medium text-brand-light mb-2">Content</label>
+          <RichTextEditor value={content} onChange={setContent} />
+        </div>
+
+        {/* --- SEO & META FIELDS SECTION --- */}
+        <div className="space-y-4 p-4 border border-gray-600 rounded-lg">
+            <h3 className="text-lg font-semibold text-white">SEO Settings</h3>
+            <div>
+              <label htmlFor="metaTitle" className="block text-sm font-medium text-brand-light mb-2">Meta Title</label>
+              <input id="metaTitle" type="text" value={metaTitle} onChange={(e) => setMetaTitle(e.target.value)} placeholder="e.g., Ultimate Guide to Sunday's Match" className="w-full p-3 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-purple" />
+              <p className="text-xs text-brand-muted mt-1">Recommended: 50-60 characters.</p>
+            </div>
+            <div>
+              <label htmlFor="metaDescription" className="block text-sm font-medium text-brand-light mb-2">Meta Description</label>
+              <textarea id="metaDescription" rows={3} value={metaDescription} onChange={(e) => setMetaDescription(e.target.value)} placeholder="A brief summary for search engines..." className="w-full p-3 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-purple" />
+              <p className="text-xs text-brand-muted mt-1">Recommended: 150-160 characters.</p>
+            </div>
+        </div>
+
+        {/* Status Field (No change) */}
+        <div>
+          <label htmlFor="status" className="block text-sm font-medium text-brand-light mb-2">Status</label>
+          <select id="status" value={status} onChange={(e) => setStatus(e.target.value as 'draft' | 'published')} className="w-full p-3 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-purple">
+            <option value="draft">Draft</option>
+            <option value="published">Published</option>
+          </select>
+        </div>
+
+                  <div>
+            <label htmlFor="sport" className="block text-sm font-medium text-brand-light mb-2">Sport Category</label>
+            <select 
+              id="sport" 
+              value={sport} 
+              onChange={(e) => setSport(e.target.value)} 
+              className="w-full p-3 rounded bg-gray-700 text-white ..."
+            >
+              <option value="football">Football</option>
+              <option value="basketball">Basketball</option>
+              <option value="tennis">Tennis</option>
+              <option value="general">General</option>
+            </select>
+          </div>
+
+        {/* Action Buttons (No change) */}
+        <div className="flex justify-end gap-4 pt-4 border-t border-gray-600">
+          <Link href="/admin/news" className="bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:opacity-90">Cancel</Link>
+          <button type="submit" disabled={createPostMutation.isPending || isUploading} className="bg-brand-purple text-white font-bold py-2 px-4 rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed">
+            {createPostMutation.isPending ? 'Saving...' : 'Save Post'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// ===== src\app\admin\news\edit\[postId]\page.tsx =====
+// src/app/admin/news/edit/[postId]/page.tsx
+"use client";
+
+import { useState, useEffect } from 'react';
+import { useRouter, useParams } from 'next/navigation';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import axios from 'axios';
+import toast from 'react-hot-toast';
+import Link from '@/components/StyledLink'; 
+import RichTextEditor from '@/components/admin/RichTextEditor';
+import { IPost } from '@/models/Post';
+
+// Fetcher function for a single post
+const fetchPost = async (postId: string): Promise<IPost> => {
+    const { data } = await axios.get(`/api/posts/${postId}`);
+    return data;
+};
+
+export default function EditNewsPostPage() {
+  const router = useRouter();
+  const params = useParams();
+  const postId = params.postId as string;
+
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [status, setStatus] = useState<'draft' | 'published'>('draft');
+
+  // 1. Fetch the existing post data
+  const { data: postData, isLoading, isError } = useQuery<IPost>({
+    queryKey: ['post', postId],
+    queryFn: () => fetchPost(postId),
+    enabled: !!postId, // Only run query if postId exists
+  });
+
+  // 2. Pre-fill the form once data is fetched
+  useEffect(() => {
+    if (postData) {
+      setTitle(postData.title);
+      setContent(postData.content);
+      setStatus(postData.status);
+    }
+  }, [postData]);
+
+  // 3. Mutation to update the post
+  const updatePostMutation = useMutation({
+    mutationFn: (updatedPost: { title: string; content: string; status: string; }) => {
+      return axios.put(`/api/posts/${postId}`, updatedPost);
+    },
+    onSuccess: () => {
+      toast.success('Post updated successfully!');
+      router.push('/admin/news');
+      router.refresh();
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.error || 'Failed to update post.';
+      toast.error(errorMessage);
+    }
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim() || !content.trim()) {
+        toast.error('Title and content cannot be empty.');
+        return;
+    }
+    updatePostMutation.mutate({ title, content, status });
+  };
+  
+  if (isLoading) return <p className="text-brand-muted">Loading post data...</p>;
+  if (isError) return <p className="text-red-400">Failed to load post data.</p>;
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-white">Edit Post</h1>
+        <Link href="/admin/news" className="text-sm text-brand-muted hover:text-white">
+          ← Back to News List
+        </Link>
+      </div>
+
+      <form onSubmit={handleSubmit} className="bg-brand-secondary p-6 rounded-lg space-y-6">
+        {/* Title Field */}
+        <div>
+          <label htmlFor="title" className="block text-sm font-medium text-brand-light mb-2">Title</label>
+          <input id="title" type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full p-3 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-purple" required/>
+        </div>
+        
+        {/* Content Field (Rich Text Editor) */}
+        <div>
+          <label className="block text-sm font-medium text-brand-light mb-2">Content</label>
+          {/* We must wait for content to be loaded before rendering the editor */}
+          {content && <RichTextEditor value={content} onChange={setContent} />}
+        </div>
+
+        {/* Status Field */}
+        <div>
+          <label htmlFor="status" className="block text-sm font-medium text-brand-light mb-2">Status</label>
+          <select id="status" value={status} onChange={(e) => setStatus(e.target.value as 'draft' | 'published')} className="w-full p-3 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-purple">
+            <option value="draft">Draft</option>
+            <option value="published">Published</option>
+          </select>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex justify-end gap-4">
+          <Link href="/admin/news" className="bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:opacity-90 transition-opacity">Cancel</Link>
+          <button type="submit" disabled={updatePostMutation.isPending} className="bg-brand-purple text-white font-bold py-2 px-4 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
+            {updatePostMutation.isPending ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// ===== src\app\admin\news\page.tsx =====
+"use client";
+
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
+import Link from '@/components/StyledLink'; 
+import { PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { format } from 'date-fns';
+import { IPost } from '@/models/Post';
+import toast from 'react-hot-toast'; 
+
+// Fetcher function
+const fetchPosts = async (): Promise<IPost[]> => {
+    const { data } = await axios.get('/api/posts');
+    return data;
+};
+
+export default function AdminNewsPage() {
+    const queryClient = useQueryClient();
+
+    const { data: posts, isLoading, error } = useQuery<IPost[]>({
+        queryKey: ['adminPosts'],
+        queryFn: fetchPosts,
+    });
+
+        const deleteMutation = useMutation({
+        mutationFn: (postId: string) => axios.delete(`/api/posts/${postId}`),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['adminPosts'] });
+            // BEFORE: alert('Post deleted!');
+            toast.success('Post deleted successfully!'); //
+        },
+        onError: (error: any) => {
+            // BEFORE: alert('Error deleting post.');
+            const message = error.response?.data?.message || 'Error deleting post.';
+            toast.error(message); //
+        }
+    });
+
+    const handleDelete = (postId: string) => {
+        if (window.confirm('Are you sure you want to delete this post?')) {
+            deleteMutation.mutate(postId);
+        }
+    };
+
+    if (isLoading) return <p className="text-brand-muted">Loading posts...</p>;
+    if (error) return <p className="text-red-400">Failed to load posts.</p>;
+
+    return (
+        <div>
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-3xl font-bold text-white">Manage News</h1>
+                <Link href="/admin/news/create" className="flex items-center gap-2 bg-brand-purple text-white font-bold py-2 px-4 rounded-lg hover:opacity-90 transition-opacity">
+                    <PlusCircle size={20} />
+                    <span>New Post</span>
+                </Link>
+            </div>
+            
+            <div className="bg-brand-secondary rounded-lg overflow-hidden">
+                <table className="w-full text-left text-brand-light">
+                    <thead className="bg-gray-800/50 text-sm text-brand-muted uppercase">
+                        <tr>
+                            <th className="p-4">Title</th>
+                            <th className="p-4">Status</th>
+                            <th className="p-4">Created At</th>
+                            <th className="p-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {posts?.map(post => (
+                            <tr key={post._id as string} className="border-t border-gray-700/50">
+                                <td className="p-4 font-medium">{post.title}</td>
+                                <td className="p-4">
+                                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${post.status === 'published' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                                        {post.status}
+                                    </span>
+                                </td>
+                                <td className="p-4 text-brand-muted">{format(new Date(post.createdAt), 'dd MMM yyyy')}</td>
+                                <td className="p-4 flex gap-3">
+                                    <Link href={`/admin/news/edit/${post._id}`} className="text-blue-400 hover:text-blue-300"><Edit size={18} /></Link>
+                                    <button onClick={() => handleDelete(post._id as string)} className="text-red-400 hover:text-red-300"><Trash2 size={18} /></button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+}
+
+// ===== src\app\api\auth\[...nextauth]\route.ts =====
+// src/app/api/auth/[...nextauth]/route.ts
+
+import NextAuth, { NextAuthOptions } from "next-auth";
+// --- Adapter Imports ---
+import { MongoDBAdapter } from "@auth/mongodb-adapter";
+import clientPromise from "@/lib/mongoClient";
+
+// --- Provider Imports ---
+import GoogleProvider from "next-auth/providers/google";
+import CredentialsProvider from "next-auth/providers/credentials";
+
+// --- Mongoose Imports (for Credentials Provider) ---
+import dbConnect from "@/lib/dbConnect";
+import User, { IUser } from "@/models/User"; // <-- Import IUser
+import bcrypt from "bcrypt";
+
+export const authOptions: NextAuthOptions = {
+  adapter: MongoDBAdapter(clientPromise),
+
+  providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
+    CredentialsProvider({
+      name: 'Credentials',
+      credentials: { },
+      async authorize(credentials: any) {
+        if (!credentials?.email || !credentials.password) {
+          throw new Error('Please enter an email and password');
+        }
+        
+        await dbConnect(); 
+        
+        const user = await User.findOne({ email: credentials.email }).select('+password');
+        
+        if (!user || !user.password) {
+          throw new Error('Invalid credentials');
+        }
+
+        const isPasswordCorrect = await bcrypt.compare(
+          credentials.password,
+          user.password
+        );
+
+        if (!isPasswordCorrect) {
+          throw new Error('Invalid credentials');
+        }
+
+        // Return the full user object on success
+        return user;
+      }
+    })
+  ],
+  
+  session: { strategy: "jwt" },
+
+  // --- THIS IS THE NEW/UPDATED PART ---
+  callbacks: {
+    // This callback is called whenever a JWT is created or updated.
+    // We want to add the user's role and ID to the token.
+    jwt: async ({ token, user }) => {
+      if (user) {
+        const u = user as IUser; // Cast to our user type
+        token.role = u.role;
+        token.id = u.id;
+      }
+      return token;
+    },
+
+    // This callback is called whenever a session is checked.
+    // We want to add the role and ID from the token to the session object.
+    session: async ({ session, token }) => {
+      if (session?.user) {
+        session.user.role = token.role as 'user' | 'admin';
+        session.user.id = token.id as string;
+      }
+      return session;
+    },
+  },
+  // --- END OF NEW/UPDATED PART ---
+
+  pages: { signIn: "/login" },
+  secret: process.env.NEXT_PUBLIC_NEXTAUTH_SECRET,
+};
+
+const handler = NextAuth(authOptions);
+export { handler as GET, handler as POST };
+
+// ===== src\app\api\banners\route.ts =====
+// src/app/api/banners/route.ts
+
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import dbConnect from "@/lib/dbConnect";
+import Banner, { IBanner } from "@/models/Banner";
+
+// GET handler remains the same...
+export async function GET(request: Request) {
+  // ... no changes here
+  const { searchParams } = new URL(request.url);
+  const activeOnly = searchParams.get("active") === "true";
+  const location = searchParams.get("location");
+
+  const query: { isActive?: boolean; location?: string } = {};
+  if (activeOnly) {
+    query.isActive = true;
+  }
+  if (location) {
+    query.location = location;
+  }
+
+  try {
+    await dbConnect();
+    const banners = await Banner.find(query).sort({ createdAt: -1 });
+    return NextResponse.json(banners);
+  } catch (error) {
+    console.error("Failed to fetch banners:", error);
+    return NextResponse.json(
+      { error: "Server error fetching banners" },
+      { status: 500 }
+    );
+  }
+}
+
+// --- POST a New Banner ---
+export async function POST(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (session?.user?.role !== "admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  try {
+    const body: Partial<IBanner> = await request.json();
+
+    console.log(
+      "[API/Banners] Received POST request with body:",
+      JSON.stringify(body, null, 2)
+    );
+
+    const { title, imageUrl, linkUrl, isActive, location } = body;
+
+    if (!title || !imageUrl || !linkUrl || !location) {
+      console.error(
+        "[API/Banners] Validation failed. Missing required fields."
+      );
+      return NextResponse.json(
+        { error: "Title, Image URL, Link URL, and Location are required" },
+        { status: 400 }
+      );
+    }
+
+    await dbConnect();
+
+    // Mongoose will now correctly use the schema that includes 'location'
+    const newBanner = new Banner({
+      title,
+      imageUrl,
+      linkUrl,
+      isActive,
+      location,
+    });
+
+    await newBanner.save(); // This would throw an error if location was missing and the schema was loaded correctly
+    console.log("[API/Banners] New banner created successfully:", newBanner);
+    return NextResponse.json(newBanner, { status: 201 });
+  } catch (error: any) {
+    console.error("[API/Banners] Failed to create banner:", error.message);
+    return NextResponse.json(
+      { error: "Server error creating banner" },
+      { status: 500 }
+    );
+  }
+}
+
+
+// ===== src\app\api\banners\[bannerId]\route.ts =====
+// src/app/api/banners/[bannerId]/route.ts
+
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import dbConnect from "@/lib/dbConnect";
+import Banner, { IBanner } from "@/models/Banner";
+
+interface Params {
+  params: { bannerId: string };
+}
+
+// --- PUT (Update) a Banner ---
+// Protected: Only admins can update.
+export async function PUT(request: Request, { params }: Params) {
+  const session = await getServerSession(authOptions);
+  if (session?.user?.role !== "admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { bannerId } = params;
+  try {
+    const body: Partial<IBanner> = await request.json();
+    // --- THE FIX IS HERE ---
+    // Destructure ALL fields from the body that you intend to update.
+    const { title, imageUrl, linkUrl, isActive, location } = body;
+
+    await dbConnect();
+
+    const updatedBanner = await Banner.findByIdAndUpdate(
+      bannerId,
+      {
+        // Pass an explicit object with all the fields to Mongoose.
+        // This ensures 'location' is included in the update.
+        title,
+        imageUrl,
+        linkUrl,
+        isActive,
+        location,
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedBanner) {
+      return NextResponse.json({ error: "Banner not found" }, { status: 404 });
+    }
+
+    return NextResponse.json(updatedBanner);
+  } catch (error) {
+    console.error("Error updating banner:", error);
+    return NextResponse.json(
+      { error: "Server error updating banner" },
+      { status: 500 }
+    );
+  }
+}
+
+// --- DELETE a Banner ---
+// (No changes needed for the DELETE handler)
+export async function DELETE(request: Request, { params }: Params) {
+  const session = await getServerSession(authOptions);
+  if (session?.user?.role !== "admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { bannerId } = params;
+  try {
+    await dbConnect();
+    const deletedBanner = await Banner.findByIdAndDelete(bannerId);
+    if (!deletedBanner) {
+      return NextResponse.json({ error: "Banner not found" }, { status: 404 });
+    }
+    return NextResponse.json({ message: "Banner deleted successfully" });
+  } catch (error) {
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
+}
+
+
+// ===== src\app\api\countries\route.ts =====
+import { NextResponse } from 'next/server';
+import axios from 'axios';
+import { Country } from '@/types/api-football'; // We will define this type
+
+// This function handles GET requests to /api/countries
+export async function GET() {
+  const options = {
+    method: 'GET',
+    url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/countries`,
+    headers: {
+      // Securely read API key and host from environment variables
+      'x-apisports-key': process.env.NEXT_PUBLIC_API_FOOTBALL_KEY,
+    },
+  };
+
+
+  try {
+    const response = await axios.request(options);
+
+    // --- Data Transformation ---
+    // We will clean and simplify the data before sending it to the frontend.
+    const transformedCountries: Country[] = response.data.response
+      // 1. Filter out any countries that are missing essential data
+      .filter((country: any) => country.name && country.code && country.flag)
+      // 2. Map the raw data to our clean, simplified `Country` type
+      .map((country: any) => ({
+        name: country.name,
+        code: country.code,
+        flagUrl: country.flag,
+      }));
+
+    // 3. Sort the countries alphabetically for a better user experience
+    transformedCountries.sort((a, b) => a.name.localeCompare(b.name));
+    
+
+    return NextResponse.json(transformedCountries);
+
+  } catch (error) {
+    console.error("Error fetching countries:", error);
+    return NextResponse.json(
+      { error: 'Failed to fetch country data.' },
+      { status: 500 }
+    );
+  }
+}
+
+// ===== src\app\api\directory\teams\route.ts =====
+import { NextResponse } from 'next/server';
+import axios from 'axios';
+
+// A curated list of popular league IDs to source teams from.
+const POPULAR_LEAGUE_IDS = [
+  39,  // England - Premier League
+  140, // Spain - La Liga
+  135, // Italy - Serie A
+  78,  // Germany - Bundesliga
+  61,  // France - Ligue 1
+  88,  // Netherlands - Eredivisie
+  94,  // Portugal - Primeira Liga
+  253, // USA - MLS
+  2,   // UEFA Champions League
+];
+
+const season = new Date().getFullYear();
+
+// This function handles GET requests to /api/directory/teams
+export async function GET() {
+  const options = (leagueId: number) => ({
+    method: 'GET',
+    url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/teams`,
+    params: { league: leagueId, season: season },
+    headers: { 'x-apisports-key': process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
+  });
+
+  try {
+    // 1. Fetch all teams from all popular leagues in parallel
+    const teamPromises = POPULAR_LEAGUE_IDS.map(id => axios.request(options(id)));
+    const responses = await Promise.allSettled(teamPromises);
+
+    // 2. Aggregate all teams and filter out any failed requests
+    const allTeamsResponses = responses
+      .filter(result => result.status === 'fulfilled')
+      .flatMap(result => (result as PromiseFulfilledResult<any>).value.data.response);
+
+    // 3. De-duplicate the teams using a Map (a team can be in a league and a cup)
+    const uniqueTeams = Array.from(new Map(allTeamsResponses.map(item => [item.team.id, item])).values());
+
+    // 4. Sort the final list alphabetically for a better user experience
+    uniqueTeams.sort((a, b) => a.team.name.localeCompare(b.team.name));
+    
+    return NextResponse.json(uniqueTeams);
+
+  } catch (error) {
+    console.error("Error fetching teams for directory:", error);
+    return NextResponse.json(
+      { error: 'Failed to fetch teams data.' },
+      { status: 500 }
+    );
+  }
+}
+
+// ===== src\app\api\find-live-matches\route.ts =====
+import { NextResponse } from 'next/server';
+import axios from 'axios';
+
+// This function handles GET requests to /api/live-matches
+export async function GET() {
+  const options = {
+    method: 'GET',
+    url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/fixtures`,
+    params: { live: 'all' },
+    headers: {
+      'x-apisports-key': process.env.NEXT_PUBLIC_API_FOOTBALL_KEY,
+    },
+  };
+
+  try {
+    const response = await axios.request(options);
+    // Directly return the array of live fixtures
+    
+    return NextResponse.json(response.data.response);
+  } catch (error) {
+    console.error("Error fetching live matches:", error);
+    return NextResponse.json({ error: 'Failed to fetch live matches' }, { status: 500 });
+  }
+}
+
+// ===== src\app\api\fixtures\route.ts =====
+
+import { NextResponse } from 'next/server';
+import axios from 'axios';
+import { format, addDays } from 'date-fns';
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const leagueId = searchParams.get('league');
+  const date = searchParams.get('date');
+  const season = searchParams.get('season');
+
+  // Base options for axios requests
+  const axiosOptions = (params: object) => ({
+    method: 'GET',
+    url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/fixtures`,
+    params,
+    headers: {
+      'x-apisports-key': process.env.NEXT_PUBLIC_API_FOOTBALL_KEY,
+    },
+  });
+
+  try {
+    // --- PATTERN 1: Get all fixtures for a specific LEAGUE and SEASON ---
+    // Used by the new "Season View" in the LeagueFixturesTab.
+    if (leagueId && season) {
+      console.log(`API: Fetching all fixtures for league ${leagueId}, season ${season}`);
+      const response = await axios.request(axiosOptions({
+        league: leagueId,
+        season: season,
+      }));
+      // Sort matches by date, as the API might not return them in chronological order
+      const sortedMatches = response.data.response.sort((a: any, b: any) => 
+        new Date(a.fixture.date).getTime() - new Date(b.fixture.date).getTime()
+      );
+      return NextResponse.json(sortedMatches);
+    }
+
+    // --- PATTERN 2: Get all fixtures for a specific LEAGUE and DATE ---
+    // Used by the original day-by-day fixtures tab.
+    if (leagueId && date) {
+      console.log(`API: Fetching fixtures for league ${leagueId}, date ${date}`);
+      const response = await axios.request(axiosOptions({
+        league: leagueId,
+        season: new Date(date).getFullYear().toString(), // Use the year from the date for the season
+        date: date,
+      }));
+      return NextResponse.json(response.data.response);
+    }
+
+    // --- PATTERN 3: Get upcoming matches for a specific LEAGUE ---
+    // Used by the homepage slider when a league is selected.
+    if (leagueId) {
+      console.log(`API: Fetching upcoming fixtures for league ${leagueId}`);
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const nextSevenDays = format(addDays(new Date(), 7), 'yyyy-MM-dd');
+      const response = await axios.request(axiosOptions({
+        league: leagueId,
+        season: new Date().getFullYear().toString(),
+        from: today,
+        to: nextSevenDays,
+      }));
+      return NextResponse.json(response.data.response);
+    }
+
+    // --- PATTERN 4: Get GLOBAL matches (live, today, tomorrow) if no league is specified ---
+    // This is the default for the homepage.
+    if (!leagueId) {
+      // If a specific date is provided for the global view, use it.
+      if (date) {
+        console.log(`API: Fetching global fixtures for date ${date}`);
+        const response = await axios.request(axiosOptions({ date: date }));
+        return NextResponse.json(response.data.response);
+      }
+
+      // Fallback to the original "live, today, tomorrow" logic if no date is provided.
+      console.log('API: Fetching global matches (live, today, tomorrow)');
+      const todayStr = format(new Date(), 'yyyy-MM-dd');
+      const tomorrowStr = format(addDays(new Date(), 1), 'yyyy-MM-dd');
+
+      const [liveResponse, todayResponse, tomorrowResponse] = await Promise.all([
+        axios.request(axiosOptions({ live: 'all' })),
+        axios.request(axiosOptions({ date: todayStr })),
+        axios.request(axiosOptions({ date: tomorrowStr })),
+      ]);
+      
+      const allMatches = [
+        ...liveResponse.data.response,
+        ...todayResponse.data.response,
+        ...tomorrowResponse.data.response
+      ];
+      
+      const uniqueMatches = Array.from(new Map(allMatches.map(m => [m.fixture.id, m])).values());
+      return NextResponse.json(uniqueMatches);
+    }
+
+    return NextResponse.json([]);
+
+  } catch (error) {
+    console.error("Error in /api/fixtures:", error);
+    return NextResponse.json({ error: 'Failed to fetch fixture data.' }, { status: 500 });
+  }
+}
+
+// ===== src\app\api\global-live\route.ts =====
+// src/app/api/global-live/route.ts
+import { NextResponse } from 'next/server';
+import axios from 'axios';
+
+// This function handles GET requests to /api/global-live
+export async function GET() {
+  const options = {
+    method: 'GET',
+    url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/fixtures`,
+    // The key is to use the `live: 'all'` parameter
+    params: { live: 'all' },
+    headers: {
+      'x-apisports-key': process.env.NEXT_PUBLIC_API_FOOTBALL_KEY,
+    },
+  };
+
+  try {
+    const response = await axios.request(options);
+    // Directly return the array of live fixtures
+    return NextResponse.json(response.data.response);
+  } catch (error) {
+    console.error("Error fetching global live matches:", error);
+    return NextResponse.json({ error: 'Failed to fetch live matches' }, { status: 500 });
+  }
+}
+
+// ===== src\app\api\leagues\route.ts =====
+import { NextResponse } from 'next/server';
+import axios from 'axios';
+import { League } from '@/types/api-football';
+import { generateLeagueSlug } from '@/lib/generate-league-slug';
+
+// --- DEFINE CURATED LISTS OF POPULAR COMPETITIONS ---
+// This is a list of well-known league IDs used for the sidebar's default view.
+const POPULAR_LEAGUE_IDS = new Set([
+  39,  // England - Premier League
+  140, // Spain - La Liga
+  135, // Italy - Serie A
+  78,  // Germany - Bundesliga
+  61,  // France - Ligue 1
+  88,  // Netherlands - Eredivisie
+  94,  // Portugal - Primeira Liga
+  253, // USA - MLS
+  203, // Turkey - Süper Lig
+]);
+
+const POPULAR_CUP_IDS = new Set([
+  2,   // UEFA Champions League
+  3,   // UEFA Europa League
+  531, // UEFA Conference League
+  45,  // England - FA Cup
+  9,   // Copa Libertadores
+  11,  // Copa Sudamericana
+]);
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const country = searchParams.get('country');
+  const type = searchParams.get('type'); // Can be 'league' or 'cup'
+  const fetchAll = searchParams.get('fetchAll'); // <-- NEW PARAMETER
+
+  const params: { current: string; country?: string, type?: string } = {
+    current: 'true',
+  };
+
+  if (country) {
+    params.country = country;
+  }
+  if (type) {
+    params.type = type;
+  }
+
+  const options = {
+    method: 'GET',
+    url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/leagues`,
+    params: params, 
+    headers: {
+      'x-apisports-key': process.env.NEXT_PUBLIC_API_FOOTBALL_KEY,
+    },
+  };
+
+  try {
+    const response = await axios.request(options);
+    let allLeagues = response.data.response;
+
+    // --- UPDATED FILTERING LOGIC ---
+    // If we are on the global view (no country selected) AND we are NOT fetching for a directory page,
+    // then filter the results to only show popular competitions.
+    if (!country && !fetchAll) {
+      const popularIds = type === 'cup' ? POPULAR_CUP_IDS : POPULAR_LEAGUE_IDS;
+      allLeagues = allLeagues.filter((item: any) => popularIds.has(item.league.id));
+    }
+    
+    // Perform data transformation for all cases
+    const transformedData: League[] = allLeagues
+      .filter((item: any) => item.league.id && item.league.name && item.league.logo)
+      .map((item: any) => ({
+        id: item.league.id,
+        name: item.league.name,
+        logoUrl: item.league.logo,
+        countryName: item.country.name,
+        countryFlagUrl: item.country.flag,
+        type: item.league.type,    
+        href: generateLeagueSlug(item.league.name, item.league.id),
+      }));
+    
+    // Sort the results alphabetically for a consistent order
+    transformedData.sort((a, b) => a.name.localeCompare(b.name));
+
+    return NextResponse.json(transformedData);
+
+  } catch (error) {
+    console.error("Error fetching leagues:", error);
+    return NextResponse.json(
+      { error: 'Failed to fetch league data.' },
+      { status: 500 }
+    );
+  }
+}
+
+// ===== src\app\api\live-matches\route.ts =====
+import { NextResponse } from 'next/server';
+import axios from 'axios';
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const leagueId = searchParams.get('league');
+
+  if (!leagueId) {
+    return NextResponse.json({ error: 'League ID is required' }, { status: 400 });
+  }
+
+  const options = {
+    method: 'GET',
+    url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/fixtures`,
+    params: {
+      league: leagueId,
+      live: 'all',
+    },
+    headers: {
+      'x-apisports-key': process.env.NEXT_PUBLIC_API_FOOTBALL_KEY,
+    },
+  };
+
+  try {
+    const response = await axios.request(options);
+    // Directly return the response data, which is an array of live fixtures
+    return NextResponse.json(response.data.response);
+  } catch (error) {
+    console.error("Error fetching live matches:", error);
+    return NextResponse.json({ error: 'Failed to fetch live matches' }, { status: 500 });
+  }
+}
+
+// ===== src\app\api\live-odds\route.ts =====
+import { NextResponse } from 'next/server';
+import axios from 'axios';
+
+/**
+ * API route to fetch LIVE odds for all currently live matches.
+ * This is a bulk fetch operation. It returns a map-like object
+ * where keys are fixture IDs and values are the odds for that match.
+ * This is far more efficient than fetching odds for each live match individually.
+ */
+export async function GET() {
+    // Configure the request to the external API.
+    // We are optimizing by only asking for the "Match Winner" bet type (id: 1).
+    const options = {
+        method: 'GET',
+        url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/odds/live`,
+        params: { bet: '1' }, 
+        headers: { 'x-apisports-key': process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
+    };
+
+    try {
+        const response = await axios.request(options);
+
+        // If the external API returns no live odds, we successfully found that out.
+        // Return a 200 OK status with an empty object.
+        if (!response.data.response || response.data.response.length === 0) {
+            return NextResponse.json({}, { status: 200 });
+        }
+
+        // Transform the array response into a more efficient key-value object (a map).
+        // This allows our frontend to look up odds by fixture ID in O(1) time.
+        // The final object will look like: { "12345": { home: "1.50", ... }, "67890": { ... } }
+        const liveOddsObject = response.data.response.reduce((acc: any, fixtureData: any) => {
+            const fixtureId = fixtureData.fixture.id;
+            const bookmaker = fixtureData.bookmakers?.[0]; // Get the first available bookmaker
+            const matchWinnerBet = bookmaker?.bets.find((bet: any) => bet.id === 1);
+
+            // Ensure we found a valid "Match Winner" bet
+            if (matchWinnerBet) {
+                const odds = matchWinnerBet.values.reduce((oddAcc: any, curr: any) => {
+                    if (curr.value === 'Home') oddAcc.home = curr.odd;
+                    if (curr.value === 'Draw') oddAcc.draw = curr.odd;
+                    if (curr.value === 'Away') oddAcc.away = curr.odd;
+                    return oddAcc;
+                }, {});
+                acc[fixtureId] = odds;
+            }
+            return acc;
+        }, {});
+
+        // Return the successfully transformed odds object.
+        return NextResponse.json(liveOddsObject, { status: 200 });
+
+    } catch (error) {
+        console.error('[API/LIVE-ODDS] Error fetching live odds:', error);
+        return NextResponse.json(
+            { error: 'Failed to fetch live odds data from the provider.' },
+            { status: 500 }
+        );
+    }
+}
+
+// ===== src\app\api\match-details\route.ts =====
+// src/app/api/match-details/route.ts
+
+import { NextResponse } from 'next/server';
+import axios from 'axios';
+
+// This is the only fetcher we need now. It's the original, efficient one.
+const fetchAllDataForFixture = async (fixtureId: string | number) => {
+    const options = (endpoint: string, params: object) => ({
+      method: 'GET',
+      url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/${endpoint}`,
+      params,
+      headers: { 'x-apisports-key': process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
+    });
+  
+    const fixtureResponse = await axios.request(options('fixtures', { id: fixtureId }));
+    const fixtureData = fixtureResponse.data.response[0];
+    
+    if (!fixtureData) {
+        throw new Error(`Fixture not found with ID: ${fixtureId}`);
+    }
+
+    const { league, teams } = fixtureData;
+    const { home: homeTeam, away: awayTeam } = teams;
+  
+    const [eventsResponse, statsResponse, h2hResponse, predictionResponse, homeStatsResponse, awayStatsResponse] = await Promise.all([
+      axios.request(options('fixtures/events', { fixture: fixtureId })),
+      axios.request(options('fixtures/statistics', { fixture: fixtureId })),
+      axios.request(options('fixtures/headtohead', { h2h: `${homeTeam.id}-${awayTeam.id}` })),
+      axios.request(options('predictions', { fixture: fixtureId })),
+      axios.request(options('teams/statistics', { league: league.id, season: league.season, team: homeTeam.id })),
+      axios.request(options('teams/statistics', { league: league.id, season: league.season, team: awayTeam.id })),
+    ]);
+  
+    return {
+      fixture: fixtureData,
+      events: eventsResponse.data.response,
+      statistics: statsResponse.data.response,
+      h2h: h2hResponse.data.response,
+      analytics: {
+        prediction: predictionResponse.data.response[0] ?? null,
+        homeTeamStats: homeStatsResponse.data.response ?? null,
+        awayTeamStats: awayStatsResponse.data.response ?? null,
+      }
+    };
+};
+
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  // The API now ONLY cares about the fixture ID.
+  const fixtureId = searchParams.get('fixture');
+
+  if (!fixtureId) {
+    return NextResponse.json({ error: 'Fixture ID is required' }, { status: 400 });
+  }
+
+  try {
+    const matchDetails = await fetchAllDataForFixture(fixtureId);
+    return NextResponse.json(matchDetails);
+  } catch (error: any) {
+    console.error(`[API /match-details] Error for fixture ${fixtureId}:`, error.message);
+    return NextResponse.json({ error: 'Failed to fetch match details.' }, { status: 500 });
+  }
+}
+
+// ===== src\app\api\odds\route.ts =====
+import { NextResponse } from 'next/server';
+import axios from 'axios';
+
+/**
+ * API route to fetch pre-match odds for a specific fixture.
+ * It is optimized to only request the "Match Winner" bet from a single, major bookmaker
+ * to ensure a fast response and minimal data transfer.
+ */
+export async function GET(request: Request) {
+    const { searchParams } = new URL(request.url);
+    const fixtureId = searchParams.get('fixture');
+
+    // 1. Validate input: Ensure a fixture ID was provided.
+    if (!fixtureId) {
+        return NextResponse.json({ error: 'Fixture ID is required' }, { status: 400 });
+    }
+
+    // 2. Configure the optimized request to the external API.
+    const options = {
+        method: 'GET',
+        url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/odds`,
+        params: { 
+            fixture: fixtureId, 
+            bookmaker: '8', // A major, commonly available bookmaker (e.g., Bet365)
+            bet: '1'        // The ID for the "Match Winner" bet (1X2)
+        },
+        headers: { 'x-apisports-key': process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
+    };
+
+    try {
+        // 3. Make the external API call.
+        const response = await axios.request(options);
+        
+        // 4. Handle the "No Data" case gracefully.
+        // If the external API has no odds, it's not an error. We successfully found that there's no data.
+        // We return a 200 OK status with a null body to signal this to the frontend.
+        if (!response.data.response || response.data.response.length === 0) {
+            console.log(`No odds found for fixture ${fixtureId}. Returning null.`);
+            return NextResponse.json(null, { status: 200 }); 
+        }
+        
+        const bookmaker = response.data.response[0].bookmakers[0];
+        
+        const matchWinnerBet = bookmaker.bets.find((bet: any) => bet.id === 1);
+
+        // Also handle the case where the bookmaker doesn't offer this specific bet type.
+        if (!matchWinnerBet || !matchWinnerBet.values) {
+            console.log(`"Match Winner" odds not available for fixture ${fixtureId}. Returning null.`);
+            return NextResponse.json(null, { status: 200 });
+        }
+
+        // 5. Transform the data into a clean, simple object for the frontend.
+        // The API returns an array, but the frontend just needs a { home, draw, away } object.
+        const odds = matchWinnerBet.values.reduce((acc: any, curr: any) => {
+            if (curr.value === 'Home') acc.home = curr.odd;
+            if (curr.value === 'Draw') acc.draw = curr.odd;
+            if (curr.value === 'Away') acc.away = curr.odd;
+            return acc;
+        }, {});
+        
+        // 6. Return the successfully transformed odds.
+        return NextResponse.json(odds, { status: 200 });
+
+    } catch (error) {
+        // 7. Handle actual server or network errors.
+        console.error(`[API/ODDS] Error fetching odds for fixture ${fixtureId}:`, error);
+        return NextResponse.json(
+            { error: 'Failed to fetch odds data from the provider.' }, 
+            { status: 500 }
+        );
+    }
+}
+
+// ===== src\app\api\posts\route.ts =====
+// src/app/api/posts/route.ts
+
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import dbConnect from '@/lib/dbConnect';
+import Post, { IPost } from '@/models/Post';
+import slugify from 'slugify';
+
+// --- GET All Posts ---
+// Publicly accessible, but can be filtered by status (e.g., for the public site)
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const status = searchParams.get('status');
+
+  const query: { status?: string } = {};
+  if (status) {
+    query.status = status;
+  }
+
+  try {
+    await dbConnect();
+    const posts = await Post.find(query).sort({ createdAt: -1 }); // Newest first
+    return NextResponse.json(posts);
+  } catch (error) {
+    console.error("Failed to fetch posts:", error);
+    return NextResponse.json({ error: 'Server error fetching posts' }, { status: 500 });
+  }
+}
+
+
+// --- POST a New Post ---
+// Protected: Only admins can create posts.
+export async function POST(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (session?.user?.role !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  try {
+    const body: Partial<IPost> = await request.json();
+    const { title, content, status, featuredImage, metaTitle, metaDescription, featuredImageTitle, featuredImageAltText } = body;
+
+    if (!title || !content) {
+      return NextResponse.json({ error: 'Title and content are required' }, { status: 400 });
+    }
+
+    await dbConnect();
+
+    // Create a unique slug from the title
+    const slug = slugify(title, { lower: true, strict: true });
+    const slugExists = await Post.findOne({ slug });
+    if (slugExists) {
+        return NextResponse.json({ error: `A post with the slug '${slug}' already exists. Please use a different title.` }, { status: 409 });
+    }
+
+    const newPost = new Post({
+      title,
+      content,
+      status,
+      slug,
+      author: session.user.name || 'Admin',
+      featuredImage,
+      metaTitle,
+      metaDescription,
+      featuredImageTitle,
+      featuredImageAltText,
+    });
+
+    await newPost.save();
+    return NextResponse.json(newPost, { status: 201 });
+
+  } catch (error) {
+    console.error("Failed to create post:", error);
+    return NextResponse.json({ error: 'Server error creating post' }, { status: 500 });
+  }
+}
+
+// ===== src\app\api\posts\[postId]\route.ts =====
+// src/app/api/posts/[postId]/route.ts
+
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import dbConnect from '@/lib/dbConnect';
+import Post, { IPost } from '@/models/Post';
+
+interface Params {
+  params: { postId: string };
+}
+
+// --- GET a Single Post (by ID) ---
+// Publicly accessible for the edit page pre-fill and potentially public view.
+export async function GET(request: Request, { params }: Params) {
+  const { postId } = params;
+  try {
+    await dbConnect();
+    const post = await Post.findById(postId);
+    if (!post) {
+      return NextResponse.json({ error: 'Post not found' }, { status: 404 });
+    }
+    return NextResponse.json(post);
+  } catch (error) {
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  }
+}
+
+// --- PUT (Update) a Post ---
+// Protected: Only admins can update.
+export async function PUT(request: Request, { params }: Params) {
+  const session = await getServerSession(authOptions);
+  if (session?.user?.role !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const { postId } = params;
+  try {
+    const body: Partial<IPost> = await request.json();
+    const { title, content, status, featuredImage, metaTitle, metaDescription, featuredImageTitle, featuredImageAltText } = body;
+    
+    await dbConnect();
+    
+    const updatedPost = await Post.findByIdAndUpdate(
+        postId,
+        { title, content, status },
+        { new: true, runValidators: true }
+    );
+    
+    if (!updatedPost) {
+        return NextResponse.json({ error: 'Post not found' }, { status: 404 });
+    }
+    
+    return NextResponse.json(updatedPost);
+  } catch (error) {
+    return NextResponse.json({ error: 'Server error updating post' }, { status: 500 });
+  }
+}
+
+// --- DELETE a Post ---
+// Protected: Only admins can delete.
+export async function DELETE(request: Request, { params }: Params) {
+  const session = await getServerSession(authOptions);
+  if (session?.user?.role !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const { postId } = params;
+  try {
+    await dbConnect();
+    const deletedPost = await Post.findByIdAndDelete(postId);
+    if (!deletedPost) {
+      return NextResponse.json({ error: 'Post not found' }, { status: 404 });
+    }
+    return NextResponse.json({ message: 'Post deleted successfully' });
+  } catch (error) {
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  }
+}
+
+// ===== src\app\api\predictions\route.ts =====
+import { NextResponse } from 'next/server';
+import axios from 'axios';
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const fixtureId = searchParams.get('fixture');
+
+  if (!fixtureId) {
+    return NextResponse.json({ error: 'Fixture ID is required' }, { status: 400 });
+  }
+
+  const options = {
+    method: 'GET',
+    url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/predictions`,
+    params: { fixture: fixtureId },
+    headers: {
+      'x-apisports-key': process.env.NEXT_PUBLIC_API_FOOTBALL_KEY,
+    },
+  };
+
+  try {
+    const response = await axios.request(options);
+    if (!response.data.response || response.data.response.length === 0) {
+      return NextResponse.json({ error: 'No prediction available.' }, { status: 404 });
+    }
+
+    const predictionData = response.data.response[0];
+
+    // --- THE FIX ---
+    // We now extract and return the entire `teams` object from the prediction,
+    // along with the percentages.
+    const transformedPrediction = {
+      teams: {
+        home: {
+          id: predictionData.teams.home.id,
+          name: predictionData.teams.home.name,
+          logo: predictionData.teams.home.logo, // <-- Pass the logo URL
+        },
+        away: {
+          id: predictionData.teams.away.id,
+          name: predictionData.teams.away.name,
+          logo: predictionData.teams.away.logo, // <-- Pass the logo URL
+        }
+      },
+      percent: {
+        home: parseInt(predictionData.predictions.percent.home.replace('%', '')),
+        draw: parseInt(predictionData.predictions.percent.draw.replace('%', '')),
+        away: parseInt(predictionData.predictions.percent.away.replace('%', '')),
+      }
+    };
+
+    return NextResponse.json(transformedPrediction);
+
+  } catch (error) {
+    console.error("Error fetching prediction:", error);
+    return NextResponse.json({ error: 'Failed to fetch prediction data.' }, { status: 500 });
+  }
+}
+
+// ===== src\app\api\sports\[sport]\fixtures\route.ts =====
+import { NextResponse } from 'next/server';
+import { getSportService } from '@/services/sports';
+
+export async function GET(
+  request: Request,
+  { params }: { params: { sport: string } }
+) {
+  const { searchParams } = new URL(request.url);
+  const sport = params.sport;
+  
+  // Convert searchParams to a plain object
+  const queryParams: { [key: string]: any } = {};
+  searchParams.forEach((value, key) => {
+    queryParams[key] = value;
+  });
+
+  try {
+    // 1. Get the correct service for the requested sport
+    const sportService = getSportService(sport);
+    
+    // 2. Call the generic method
+    const fixtures = await sportService.getFixtures(queryParams);
+
+    // 3. Return the data
+    return NextResponse.json(fixtures);
+
+  } catch (error: any) {
+    console.error(`[API /${sport}/fixtures] Error:`, error.message);
+    return NextResponse.json(
+      { error: `Failed to fetch fixture data for ${sport}.` },
+      { status: 500 }
+    );
+  }
+}
+
+// ===== src\app\api\standings\route.ts =====
+import { NextResponse } from 'next/server';
+import axios from 'axios';
+
+// Define a type for the team standing data for clarity
+type TeamStanding = {
+  rank: number;
+  team: { id: number; name: string; logo: string; };
+  points: number;
+  goalsDiff: number;
+  all: { played: number; win: number; draw: number; lose: number; };
+  description: string | null;
+};
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const leagueId = searchParams.get('league');
+  const season = searchParams.get('season') || new Date().getFullYear().toString();
+
+  if (!leagueId) {
+    return NextResponse.json({ error: 'League ID is required' }, { status: 400 });
+  }
+
+  const options = {
+    method: 'GET',
+    url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/standings`,
+    params: { league: leagueId, season: season },
+    headers: {
+      'x-apisports-key': process.env.NEXT_PUBLIC_API_FOOTBALL_KEY,
+    },
+  };
+
+  try {
+    const response = await axios.request(options);
+       if (!response.data.response || response.data.response.length === 0) {
+      return NextResponse.json({ league: null, standings: [] });
+    }
+
+
+    const data = response.data.response[0];
+
+    // --- Data Transformation ---
+    // Extract only the data our frontend needs to keep the payload light.
+    const leagueInfo = {
+      id: data.league.id,
+      name: data.league.name,
+      logo: data.league.logo,
+    };
+    
+    const standings: TeamStanding[] = data.league.standings[0];
+
+    return NextResponse.json({ league: leagueInfo, standings });
+  } catch (error) {
+    console.error("Error fetching standings:", error);
+    return NextResponse.json({ error: 'Failed to fetch standings data' }, { status: 500 });
+  }
+}
+
+// ===== src\app\api\team-details\route.ts =====
+// src/app/api/team-details/route.ts
+import { NextResponse } from 'next/server';
+import { fetchTeamDetails } from '@/lib/data/team'; // <-- IMPORT THE NEW FUNCTION
+
+export async function GET(request: Request) {
+    const { searchParams } = new URL(request.url);
+    const teamId = searchParams.get('team');
+
+    if (!teamId) {
+        return NextResponse.json({ error: 'Team ID is required' }, { status: 400 });
+    }
+
+    // Call the reusable function
+    const teamData = await fetchTeamDetails(teamId);
+
+    if (!teamData) {
+        // This handles cases where the team isn't found or an error occurred in the lib function.
+        return NextResponse.json({ error: 'Failed to fetch team details or team not found' }, { status: 500 });
+    }
+
+    return NextResponse.json(teamData);
+}
+
+// ===== src\app\api\teams\route.ts =====
+// src/app/api/teams/route.ts
+import { NextResponse } from 'next/server';
+import axios from 'axios';
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const leagueId = searchParams.get('league');
+  const season = searchParams.get('season');
+
+  if (!leagueId || !season) {
+    return NextResponse.json(
+      { error: 'League ID and season are required' },
+      { status: 400 }
+    );
+  }
+
+  const options = {
+    method: 'GET',
+    url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/teams`,
+    params: {
+      league: leagueId,
+      season: season,
+    },
+    headers: {
+      'x-apisports-key': process.env.NEXT_PUBLIC_API_FOOTBALL_KEY,
+    },
+  };
+
+  try {
+    const response = await axios.request(options);
+    
+    // The response is an array of objects, each containing a `team` and `venue` object.
+    // We can pass it directly to the frontend.
+    return NextResponse.json(response.data.response);
+
+  } catch (error) {
+    console.error("Error fetching teams:", error);
+    return NextResponse.json(
+      { error: 'Failed to fetch teams data.' },
+      { status: 500 }
+    );
+  }
+}
+
+// ===== src\app\api\teams-by-country\route.ts =====
+import { NextResponse } from 'next/server';
+import axios from 'axios';
+
+const season = new Date().getFullYear();
+
+const apiRequest = async (endpoint: string, params: object) => {
+    const options = {
+        method: 'GET',
+        url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/${endpoint}`,
+        params,
+        headers: { 'x-apisports-key': process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
+    };
+    const response = await axios.request(options);
+    return response.data.response;
+};
+
+// This function handles GET requests to /api/teams-by-country?country=...
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const country = searchParams.get('country');
+
+  if (!country) {
+    return NextResponse.json({ error: 'Country parameter is required' }, { status: 400 });
+  }
+
+  try {
+    // 1. First, find all leagues for the specified country.
+    const leagues = await apiRequest('leagues', { country: country });
+    if (!leagues || leagues.length === 0) {
+        return NextResponse.json([]); // No leagues, so no teams.
+    }
+
+    const leagueIds = leagues.map((l: any) => l.league.id);
+
+    // 2. Fetch all teams from all found leagues in parallel.
+    const teamPromises = leagueIds.map(id => apiRequest('teams', { league: id, season: season }));
+    const responses = await Promise.allSettled(teamPromises);
+
+    // 3. Aggregate all teams and filter out any failed requests.
+    const allTeamsResponses = responses
+      .filter(result => result.status === 'fulfilled' && result.value)
+      .flatMap(result => (result as PromiseFulfilledResult<any>).value);
+
+    // 4. De-duplicate the teams using a Map (a team can be in multiple leagues).
+    const uniqueTeams = Array.from(new Map(allTeamsResponses.map(item => [item.team.id, item])).values());
+
+    // 5. Sort the final list alphabetically for a better user experience.
+    uniqueTeams.sort((a, b) => a.team.name.localeCompare(b.team.name));
+    
+    return NextResponse.json(uniqueTeams);
+
+  } catch (error) {
+    console.error(`Error fetching teams for country "${country}":`, error);
+    return NextResponse.json(
+      { error: 'Failed to fetch teams data for this country.' },
+      { status: 500 }
+    );
+  }
+}
+
+// ===== src\app\api\top-scorers\route.ts =====
+// src/app/api/top-scorers/route.ts
+
+import { NextResponse } from 'next/server';
+import axios from 'axios';
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const leagueId = searchParams.get('league');
+  const season = searchParams.get('season');
+
+  if (!leagueId || !season) {
+    return NextResponse.json(
+      { error: 'League ID and season are required' },
+      { status: 400 }
+    );
+  }
+
+  const options = {
+    method: 'GET',
+    url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/players/topscorers`,
+    params: {
+      league: leagueId,
+      season: season,
+    },
+    headers: {
+      'x-apisports-key': process.env.NEXT_PUBLIC_API_FOOTBALL_KEY,
+    },
+  };
+
+  try {
+    const response = await axios.request(options);
+    
+    // The API returns an array of players with their stats. We can pass it directly.
+    return NextResponse.json(response.data.response);
+
+  } catch (error) {
+    console.error("Error fetching top scorers:", error);
+    return NextResponse.json(
+      { error: 'Failed to fetch top scorers data.' },
+      { status: 500 }
+    );
+  }
+}
+
+// ===== src\app\api\upcoming-matches\route.ts =====
+// src/app/api/upcoming-matches/route.ts
+import { NextResponse } from 'next/server';
+import axios from 'axios';
+import { format, subDays, addDays } from 'date-fns';
+
+// This is your existing API route for upcoming matches. Let's rename it
+// to something more generic as it will now handle more than just "upcoming".
+// The file path remains the same for backward compatibility.
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const leagueId = searchParams.get('league');
+
+  if (!leagueId) {
+    // If no leagueId, this route should do nothing or return an error.
+    // Your global fetching is handled by the /api/fixtures route.
+    return NextResponse.json({ error: 'League ID is required' }, { status: 400 });
+  }
+
+  const season = new Date().getFullYear().toString();
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const nextSevenDays = format(addDays(new Date(), 7), 'yyyy-MM-dd');
+
+  const options = (params: object) => ({
+    method: 'GET',
+    url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/fixtures`,
+    params,
+    headers: { 'x-apisports-key': process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
+  });
+
+  try {
+    // --- 1. First, try to fetch UPCOMING matches ---
+    const upcomingResponse = await axios.request(options({
+      league: leagueId,
+      season: season,
+      from: today,
+      to: nextSevenDays,
+    }));
+    
+    let matches = upcomingResponse.data.response;
+
+    // --- 2. If NO upcoming matches are found, fetch RECENT finished matches ---
+    if (matches.length === 0) {
+      console.log(`No upcoming matches for league ${leagueId}. Fetching recent results...`);
+      const finishedResponse = await axios.request(options({
+        league: leagueId,
+        season: season,
+        last: 5, // Get the last 5 finished fixtures
+        status: 'FT', // Only get matches with a status of "Finished"
+      }));
+      matches = finishedResponse.data.response;
+    }
+    
+    return NextResponse.json(matches);
+
+  } catch (error) {
+    console.error(`Error fetching matches for league ${leagueId}:`, error);
+    return NextResponse.json({ error: 'Failed to fetch match data' }, { status: 500 });
+  }
+}
+
+// ===== src\app\api\upload\route.ts =====
+// src/app/api/upload/route.ts
+
+import { NextResponse } from "next/server";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import sharp from "sharp";
+import crypto from "crypto";
+
+// --- S3 Client configuration remains the same ---
+const s3Client = new S3Client({
+  region: process.env.NEXT_PUBLIC_AWS_S3_REGION as string,
+  credentials: {
+    accessKeyId: process.env.NEXT_PUBLIC_AWS_ACCESS_KEY_ID as string,
+    secretAccessKey: process.env.NEXT_PUBLIC_AWS_SECRET_ACCESS_KEY as string,
+  },
+});
+
+const generateFileName = (bytes = 32) =>
+  crypto.randomBytes(bytes).toString("hex");
+
+export async function POST(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (session?.user?.role !== "admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  try {
+    const formData = await request.formData();
+    const file = formData.get("file") as File;
+    const uploadType = formData.get("uploadType") as string | null;
+
+    if (!file) {
+      return NextResponse.json({ error: "No file provided." }, { status: 400 });
+    }
+
+    // --- NEW, MORE ROBUST LOGIC ---
+    let finalBuffer: Buffer;
+    let finalContentType: string = file.type; // Default to original file type
+    const fileName = generateFileName();
+
+    // Check if the file is a GIF and is intended for a banner slot.
+    if (uploadType === "banner" && file.type === "image/gif") {
+      // --- 1. GIF BANNER PATH ---
+      // It's a GIF for a banner, so we bypass Sharp completely to preserve animation.
+      console.log("GIF Banner detected. Bypassing image processing.");
+      finalBuffer = Buffer.from(await file.arrayBuffer());
+      // The contentType is already correctly set to 'image/gif'.
+    } else {
+      // --- 2. STANDARD IMAGE PROCESSING PATH ---
+      // For all other images (JPG, PNG, or post images), we process them with Sharp.
+      console.log("Standard image detected. Processing with Sharp.");
+      const inputBuffer = Buffer.from(await file.arrayBuffer());
+      let sharpInstance = sharp(inputBuffer);
+
+      if (uploadType === "banner") {
+        // For non-GIF banners, resize without cropping.
+        sharpInstance = sharpInstance.resize(1200, 1200, {
+          fit: "inside",
+          withoutEnlargement: true,
+        });
+      } else {
+        // For posts (default), resize with cropping.
+        sharpInstance = sharpInstance.resize(1200, 630, { fit: "cover" });
+      }
+
+      // Convert the final processed image to WebP.
+      finalBuffer = await sharpInstance.webp({ quality: 80 }).toBuffer();
+      finalContentType = "image/webp"; // Update the content type for S3.
+    }
+
+    // --- UNIFIED UPLOAD TO S3 ---
+    // This part now uses the dynamically determined buffer and content type.
+    const bucketName = process.env.NEXT_PUBLIC_AWS_S3_BUCKET_NAME as string;
+
+    const putObjectCommand = new PutObjectCommand({
+      Bucket: bucketName,
+      Key: fileName,
+      Body: finalBuffer,
+      ContentType: finalContentType, // Use the correct final content type
+    });
+
+    await s3Client.send(putObjectCommand);
+
+    const publicUrl = `https://${bucketName}.s3.${process.env.NEXT_PUBLIC_AWS_S3_REGION}.amazonaws.com/${fileName}`;
+
+    return NextResponse.json({
+      message: "Image uploaded successfully",
+      url: publicUrl,
+    });
+  } catch (error) {
+    console.error("Error uploading to S3:", error);
+    return NextResponse.json(
+      { error: "Failed to upload image." },
+      { status: 500 }
+    );
+  }
+}
+
+
+// ===== src\app\api\votes\route.ts =====
+import { NextResponse } from 'next/server';
+import dbConnect from '@/lib/dbConnect';
+import Vote from '@/models/Vote';
+
+// --- GET Handler: Fetches vote counts for a fixture ---
+export async function GET(request: Request) {
+    console.log("requested here");
+    
+    const { searchParams } = new URL(request.url);
+    const fixtureId = searchParams.get('fixture');
+
+    if (!fixtureId) {
+        return NextResponse.json({ error: 'Fixture ID is required' }, { status: 400 });
+    }
+
+    try {
+        await dbConnect();
+        const votes = await Vote.findOne({ fixtureId: Number(fixtureId) });
+        console.log(votes);
+        
+
+        if (!votes) {
+            // If no votes yet, return a default object
+            return NextResponse.json({ homeVotes: 0, drawVotes: 0, awayVotes: 0 });
+        }
+
+        return NextResponse.json(votes);
+    } catch (error) {
+        console.log(error);
+        
+        return NextResponse.json({ error: 'Server error fetching votes' }, { status: 500 });
+    }
+}
+
+
+// --- POST Handler: Submits a new vote ---
+export async function POST(request: Request) {
+    const { fixtureId, vote } = await request.json(); // vote should be 'home', 'draw', or 'away'
+
+    if (!fixtureId || !['home', 'draw', 'away'].includes(vote)) {
+        return NextResponse.json({ error: 'Valid fixtureId and vote type are required' }, { status: 400 });
+    }
+    
+    try {
+        await dbConnect();
+        
+        // Atomically find and update the document, or create it if it doesn't exist.
+        // The $inc operator is crucial for preventing race conditions.
+        const updatedVote = await Vote.findOneAndUpdate(
+            { fixtureId: Number(fixtureId) },
+            { $inc: { [`${vote}Votes`]: 1 } },
+            { 
+                upsert: true, // Create the document if it doesn't exist
+                new: true     // Return the updated document
+            }
+        );
+
+        return NextResponse.json(updatedVote);
+    } catch (error) {
+        return NextResponse.json({ error: 'Server error submitting vote' }, { status: 500 });
+    }
+}
+
+// ===== src\app\football\league\[...slug]\page.tsx =====
+// src/app/league/[...slug]/page.tsx
+import Header from '@/components/Header';
+import Sidebar from '@/components/Sidebar';
+import LeagueDetailView from '@/components/league-detail-view';
+import { League } from '@/types/api-football';
+import axios from 'axios';
+import { notFound } from 'next/navigation';
+
+// Helper to extract the ID from the slug (e.g., "premier-league-39" -> "39")
+const getLeagueIdFromSlug = (slug: string): string | null => {
+    if (!slug) return null;
+    const parts = slug.split('-');
+    const lastPart = parts[parts.length - 1];
+    return /^\d+$/.test(lastPart) ? lastPart : null;
+};
+
+// It will now return the raw API response object.
+async function getLeagueData(leagueId: string): Promise<any | null> {
+    try {
+        const { data } = await axios.get(`${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/leagues?id=${leagueId}`, {
+            headers: { 'x-apisports-key': process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
+        });
+        
+        if (!data.response || data.response.length === 0) {
+            return null;
+        }
+        
+        // Return the first item from the response array directly.
+        // This object contains league, country, and seasons.
+        return data.response[0];
+
+    } catch (error) {
+        console.error("Failed to fetch single league data:", error);
+        return null;
+    }
+}
+
+// Generate metadata for the page for SEO
+export async function generateMetadata({ params }: { params: { slug: string[] }}) {
+    const slug = params.slug.join('/');
+    const leagueId = getLeagueIdFromSlug(slug);
+    if (!leagueId) return { title: 'League Not Found' };
+    
+    const leagueData = await getLeagueData(leagueId);
+    if (!leagueData) return { title: 'League Not Found' };
+
+    return {
+      title: `${leagueData.league.name} - Info, Fixtures & Standings`,
+      description: `All information about the ${leagueData.league.name}, including available seasons, fixtures, and full standings.`,
+    };
+}
+
+// --- THE MAIN PAGE COMPONENT ---
+export default async function LeaguePage({ params }: { params: { slug: string[] } }) {
+    const slug = params.slug.join('/');
+    const leagueId = getLeagueIdFromSlug(slug);
+
+    if (!leagueId) {
+        notFound();
+    }
+
+    const leagueData = await getLeagueData(leagueId);
+
+    if (!leagueData) {
+        notFound();
+    }
+
+    return (
+        <div className="min-h-screen flex flex-col">
+            <Header />
+            <div className="flex flex-1">
+                <Sidebar />
+                <main className="flex-1 p-4 lg:p-8">
+                    {/* Pass the entire raw leagueData object as a prop */}
+                    <LeagueDetailView leagueData={leagueData} />
+                </main>
+            </div>
+        </div>
+    );
+}
+
+// ===== src\app\football\leagues\page.tsx =====
+"use client";
+
+import { useState, useMemo, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
+import { League } from '@/types/api-football';
+import Header from '@/components/Header';
+import Sidebar from '@/components/Sidebar';
+import DirectoryCard, { DirectoryCardSkeleton } from '@/components/DirectoryCard';
+import Pagination from '@/components/Pagination';
+
+// --- THE FIX ---
+// This line tells Next.js to always render this page dynamically on the server
+// at request time, which resolves the conflict with client-side hooks.
+export const dynamic = 'force-dynamic';
+
+const ITEMS_PER_PAGE = 15;
+
+const fetchAllLeagues = async (): Promise<League[]> => {
+    const { data } = await axios.get('/api/leagues?fetchAll=true');
+    return data;
+};
+
+export default function LeaguesPage() {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filter, setFilter] = useState<'all' | 'league' | 'cup'>('all');
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const { data: leagues, isLoading } = useQuery<League[]>({
+        queryKey: ['allLeaguesDirectory'],
+        queryFn: fetchAllLeagues,
+        staleTime: 1000 * 60 * 60,
+    });
+    
+    const { paginatedData, totalPages } = useMemo(() => {
+        if (!leagues) return { paginatedData: [], totalPages: 0 };
+
+        const filtered = leagues.filter(league => {
+            const matchesSearch = league.name.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesFilter = filter === 'all' || league.type.toLowerCase() === filter;
+            return matchesSearch && matchesFilter;
+        });
+
+        const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        const endIndex = startIndex + ITEMS_PER_PAGE;
+        const paginatedData = filtered.slice(startIndex, endIndex);
+
+        return { paginatedData, totalPages };
+
+    }, [leagues, searchTerm, filter, currentPage]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, filter]);
+
+    return (
+        <div className="min-h-screen flex flex-col">
+            <Header />
+            <div className="flex flex-1">
+                <Sidebar />
+                <main className="flex-1 p-4 lg:p-8">
+                    <h1 className="text-4xl font-extrabold text-white mb-6">Leagues & Cups</h1>
+                    
+                    <div className="flex flex-col md:flex-row gap-4 mb-8">
+                        <input
+                            type="text"
+                            placeholder="Search by name..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full md:w-1/3 p-3 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                        />
+                        <div className="flex items-center gap-2 p-1 rounded-lg" style={{backgroundColor: 'var(--color-secondary)'}}>
+                            <button onClick={() => setFilter('all')} className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-colors ${filter === 'all' ? 'bg-brand-purple text-white' : 'text-text-muted hover:bg-gray-700/50'}`}>All</button>
+                            <button onClick={() => setFilter('league')} className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-colors ${filter === 'league' ? 'bg-brand-purple text-white' : 'text-text-muted hover:bg-gray-700/50'}`}>Leagues</button>
+                            <button onClick={() => setFilter('cup')} className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-colors ${filter === 'cup' ? 'bg-brand-purple text-white' : 'text-text-muted hover:bg-gray-700/50'}`}>Cups</button>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                        {isLoading ? (
+                            Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => <DirectoryCardSkeleton key={i} />)
+                        ) : (
+                            paginatedData.map(league => <DirectoryCard key={league.id} {...league} />)
+                        )}
+                    </div>
+                    
+                    {!isLoading && paginatedData.length > 0 && (
+                        <Pagination 
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            onPageChange={setCurrentPage}
+                        />
+                    )}
+
+                     {!isLoading && paginatedData.length === 0 && (
+                        <div className="text-center py-20 bg-brand-secondary rounded-lg">
+                            <p className="text-xl font-bold text-white">No Results Found</p>
+                            <p className="text-brand-muted mt-2">Try adjusting your search or filter.</p>
+                        </div>
+                     )}
+                </main>
+            </div>
+        </div>
+    );
+}
+
+// ===== src\app\football\match\[...slug]\page.tsx =====
+// src/app/football/match/[...slug]/page.tsx
+"use client";
+
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useParams } from "next/navigation";
+import axios from "axios";
+import Header from "@/components/Header";
+
+// Import all the separated components for the page
+import MatchHeader from "@/components/match/MatchHeader";
+import MatchStatusBanner from "@/components/match/MatchStatusBanner";
+import MatchEventsWidget from "@/components/match/MatchEventsWidget";
+import MatchStatsWidget from "@/components/match/MatchStatsWidget";
+import MatchH2HWidget from "@/components/match/MatchH2HWidget";
+import MatchAnalyticsWidget from "@/components/match/MatchAnalyticsWidget";
+import MatchLineupsWidget from "@/components/match/MatchLineupsWidget";
+import BettingPromotionWidget from "@/components/BettingPromotionWidget";
+import AdSlotWidget from "@/components/AdSlotWidget"; // The newly added Ad Widget
+
+const getFixtureIdFromSlug = (slug: string): string | null => {
+  if (!slug) return null;
+  const parts = slug.split("-");
+  const lastPart = parts[parts.length - 1];
+  // Check if the last part is a number
+  return /^\d+$/.test(lastPart) ? lastPart : null;
+};
+
+// The fetcher now only ever uses the fixture ID
+const fetchMatchDetails = async (fixtureId: string) => {
+  const { data } = await axios.get(`/api/match-details?fixture=${fixtureId}`);
+  return data;
+};
+
+// --- Skeleton Component for Initial Loading ---
+const PageSkeleton = () => (
+  <div className="animate-pulse container mx-auto p-4 md:p-8">
+    {/* Skeleton for MatchHeader */}
+    <div className="h-48 w-full bg-brand-secondary rounded-lg mb-2"></div>
+    {/* Skeleton for MatchStatusBanner */}
+    <div className="h-10 w-full bg-brand-secondary rounded-b-lg mb-8"></div>
+    {/* Skeleton for the main content grid */}
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="lg:col-span-2 space-y-6">
+        <div className="h-64 w-full bg-brand-secondary rounded-lg"></div>
+        <div className="h-96 w-full bg-brand-secondary rounded-lg"></div>
+      </div>
+      <div className="lg:col-span-1 space-y-6">
+        <div className="h-40 w-full bg-brand-secondary rounded-lg"></div>
+        <div className="h-80 w-full bg-brand-secondary rounded-lg"></div>
+      </div>
+    </div>
+  </div>
+);
+
+// --- Main Page Component ---
+export default function MatchDetailPage() {
+  const params = useParams();
+  const slug = Array.isArray(params.slug)
+    ? params.slug.join("/")
+    : (params.slug as string);
+  const fixtureId = useMemo(() => getFixtureIdFromSlug(slug), [slug]);
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["matchDetails", fixtureId],
+    queryFn: () => fetchMatchDetails(fixtureId!),
+    enabled: !!fixtureId,
+    staleTime: 1000 * 60, // Refetch data every 60 seconds
+    refetchOnWindowFocus: true,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="bg-brand-dark min-h-screen">
+        <Header />
+        <PageSkeleton />
+      </div>
+    );
+  }
+
+  if (error || !data || !data.fixture) {
+    return (
+      <div className="bg-brand-dark min-h-screen">
+        <Header />
+        <div className="container mx-auto p-8 text-center">
+          <h1 className="text-2xl font-bold text-red-400">Match Not Found</h1>
+          <p className="text-brand-muted mt-2">
+            Could not load the details for this match. It may have been removed
+            or the ID is incorrect.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const { fixture, events, statistics, h2h, analytics } = data;
+
+  return (
+    <div className="bg-brand-dark min-h-screen">
+      <Header />
+      <div className="container mx-auto p-2 md:p-4 lg:p-6 text-brand-light">
+        {/* Header components */}
+        <MatchHeader fixture={fixture} />
+        <MatchStatusBanner fixture={fixture} />
+
+        {/* --- RESPONSIVE WIDGET GRID --- */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+          {/* Main Content Column (2/3 width on desktop) */}
+          <div className="lg:col-span-2 space-y-6">
+            <MatchEventsWidget events={events} teams={fixture.teams} />
+            <MatchStatsWidget statistics={statistics} teams={fixture.teams} />
+            <MatchH2HWidget
+              h2h={h2h}
+              teams={fixture.teams}
+              currentFixtureId={fixtureId!}
+            />
+          </div>
+
+          {/* Sidebar Column (1/3 width on desktop) */}
+          <div className="lg:col-span-1 space-y-6">
+            <AdSlotWidget location="match_sidebar" />
+            <MatchAnalyticsWidget analytics={analytics} />
+            <MatchLineupsWidget lineups={fixture.lineups} />
+            <BettingPromotionWidget />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+// ===== src\app\football\news\page.tsx =====
+"use client";
+
+import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
+import { IPost } from '@/models/Post';
+import Header from '@/components/Header';
+import Sidebar from '@/components/Sidebar';
+import Pagination from '@/components/Pagination';
+import NewsListItem, { NewsListItemSkeleton } from '@/components/NewsListItem';
+
+// --- THE FIX ---
+// This line tells Next.js to always render this page dynamically on the server at request time,
+// instead of trying to create a static HTML file at build time.
+// This resolves the conflict with client-side hooks like useSearchParams.
+export const dynamic = 'force-dynamic';
+
+const ITEMS_PER_PAGE = 8;
+
+const fetchNews = async (): Promise<IPost[]> => {
+    const { data } = await axios.get('/api/posts?status=published');
+    return data;
+};
+
+export default function NewsPage() {
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const { data: allNews, isLoading } = useQuery<IPost[]>({
+        queryKey: ['allNewsArticles'],
+        queryFn: fetchNews,
+        staleTime: 1000 * 60 * 5,
+    });
+
+    const { paginatedData, totalPages } = useMemo(() => {
+        if (!allNews) return { paginatedData: [], totalPages: 0 };
+
+        const totalPages = Math.ceil(allNews.length / ITEMS_PER_PAGE);
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        const endIndex = startIndex + ITEMS_PER_PAGE;
+        const paginatedData = allNews.slice(startIndex, endIndex);
+
+        return { paginatedData, totalPages };
+
+    }, [allNews, currentPage]);
+
+    return (
+        <div className="min-h-screen flex flex-col">
+            <Header />
+            <div className="flex flex-1">
+                <Sidebar />
+                <main className="flex-1 p-4 lg:p-8">
+                    <h1 className="text-4xl font-extrabold text-white mb-8">Latest News</h1>
+
+                    <div className="space-y-6">
+                        {isLoading ? (
+                            Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => <NewsListItemSkeleton key={i} />)
+                        ) : paginatedData.length > 0 ? (
+                            paginatedData.map(post => <NewsListItem key={post._id} post={post} />)
+                        ) : (
+                            <div className="text-center py-20 bg-brand-secondary rounded-lg">
+                                <p className="text-xl font-bold text-white">No News Available</p>
+                                <p className="text-brand-muted mt-2">There are no news articles to display at the moment.</p>
+                            </div>
+                        )}
+                    </div>
+                    
+                    {!isLoading && paginatedData.length > 0 && (
+                        <Pagination 
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            onPageChange={setCurrentPage}
+                        />
+                    )}
+                </main>
+            </div>
+        </div>
+    );
+}
+
+// ===== src\app\football\news\[slug]\page.tsx =====
+import { notFound } from 'next/navigation';
+import dbConnect from '@/lib/dbConnect';
+import Post from '@/models/Post';
+import { format } from 'date-fns';
+import Header from '@/components/Header';
+import Image from 'next/image'; // <-- Import next/image
+import SocialShareButtons from '@/components/SocialShareButtons'; // We will create this next
+import NewsSidebar from '@/components/NewsSidebar';
+
+// This function fetches the data on the server
+async function getPost(slug: string) {
+  await dbConnect();
+  const post = await Post.findOne({ slug: slug, status: 'published' }).lean();
+  if (!post) {
+    return null;
+  }
+  return post;
+}
+
+// Update generateMetadata to use the new meta fields if they exist
+export async function generateMetadata({ params }: { params: { slug: string } }) {
+    const post = await getPost(params.slug);
+    if (!post) {
+      return { title: 'Not Found' };
+    }
+    return {
+      // Use specific meta title if available, otherwise fall back to post title
+      title: post.metaTitle || `${post.title} | Fulltime News`,
+      // Use specific meta description if available
+      description: post.metaDescription || post.content.replace(/<[^>]*>?/gm, '').substring(0, 160),
+    };
+}
+
+
+// --- The Main Page Component ---
+export default async function NewsArticlePage({ params }: { params: { slug: string } }) {
+  const post = await getPost(params.slug);
+
+  if (!post) {
+    notFound();
+  }
+
+  // We need to construct the full URL for sharing
+  const postUrl = `${process.env.NEXTAUTH_URL}/news/${post.slug}`;
+
+  return (
+     <div className="bg-brand-dark min-h-screen">
+      <Header />
+      {/* --- UPDATED LAYOUT --- */}
+      <main className="container mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-3 gap-12">
+        
+        {/* Main Content (Article) - Spans 2 columns on large screens */}
+        <div className="lg:col-span-2">
+          <article className="bg-brand-secondary rounded-lg overflow-hidden">
+            {post.featuredImage && (
+              <div className="relative w-full h-64 md:h-96">
+                <Image
+                  src={post.featuredImage}
+                  alt={post.featuredImageAltText || post.title}
+                  title={post.featuredImageTitle || post.title}
+                  layout="fill"
+                  objectFit="cover"
+                  priority
+                />
+              </div>
+            )}
+            
+            <div className="p-8">
+              <div className="mb-8 text-center border-b border-gray-700/50 pb-8">
+                <h1 className="text-4xl md:text-5xl font-extrabold text-white leading-tight mb-4">
+                  {post.title}
+                </h1>
+                <p className="text-brand-muted">
+                  Published by {post.author} on {format(new Date(), 'MMMM dd, yyyy')}
+                </p>
+              </div>
+              
+              <div 
+                className="prose prose-invert lg:prose-xl max-w-none"
+                dangerouslySetInnerHTML={{ __html: post.content }} 
+              />
+
+              <div className="mt-12 pt-8 border-t border-gray-700/50">
+                  <h3 className="text-lg font-bold text-center text-brand-muted mb-4">Share this article</h3>
+                  <SocialShareButtons url={postUrl} title={post.title} />
+              </div>
+            </div>
+          </article>
+        </div>
+
+        {/* Sidebar - Spans 1 column on large screens */}
+        <div className="lg:col-span-1">
+          <NewsSidebar />
+        </div>
+
+      </main>
+    </div>
+  );
+}
+// Optional: For better performance in production, generate static pages for each post at build time.
+export async function generateStaticParams() {
+  await dbConnect();
+  const posts = await Post.find({ status: 'published' }).select('slug').lean();
+  return posts.map(post => ({
+    slug: post.slug,
+  }));
+}
+
+// ===== src\app\football\team\[...slug]\page.tsx =====
+// src/app/team/[...slug]/page.tsx
+import Header from '@/components/Header';
+import Sidebar from '@/components/Sidebar';
+import TeamDetailView from '@/components/TeamDetailView';
+import { notFound } from 'next/navigation';
+import { fetchTeamDetails } from '@/lib/data/team'; // <-- IMPORT THE NEW FUNCTION
+
+// Helper to extract the ID from the slug (unchanged)
+const getTeamIdFromSlug = (slug: string): string | null => {
+    if (!slug) return null;
+    const parts = slug.split('-');
+    const lastPart = parts[parts.length - 1];
+    return /^\d+$/.test(lastPart) ? lastPart : null;
+};
+
+// The data fetching function is now just a wrapper around our new library function
+async function getTeamData(teamId: string) {
+    // No more axios. No more invalid URLs. Just a direct, efficient function call.
+    return await fetchTeamDetails(teamId);
+}
+
+// generateMetadata now works perfectly because getTeamData is a direct server function call.
+export async function generateMetadata({ params }: { params: { slug:string[] } }) {
+    const slug = params.slug.join('/');
+    const teamId = getTeamIdFromSlug(slug);
+    if (!teamId) return { title: 'Team Not Found' };
+    
+    const data = await getTeamData(teamId);
+    if (!data?.teamInfo) return { title: 'Team Not Found' };
+
+    return {
+      title: `${data.teamInfo.team.name} - Squad, Fixtures & Standings`,
+      description: `View the full squad, recent fixtures, and current standings for ${data.teamInfo.team.name}.`,
+    };
+}
+
+
+// --- THE MAIN PAGE COMPONENT ---
+export default async function TeamPage({ params }: { params: { slug: string[] } }) {
+    const slug = params.slug.join('/');
+    const teamId = getTeamIdFromSlug(slug);
+
+    if (!teamId) {
+        notFound();
+    }
+
+    const teamData = await getTeamData(teamId);
+
+    // If fetchTeamDetails returned null (error or not found), trigger a 404 page.
+    if (!teamData) {
+        notFound();
+    }
+
+    return (
+        <div className="min-h-screen flex flex-col">
+            <Header />
+            <div className="flex flex-1">
+                <Sidebar />
+                <main className="flex-1 p-4 lg:p-8">
+                    <TeamDetailView teamData={teamData} />
+                </main>
+            </div>
+        </div>
+    );
+}
+
+// ===== src\app\football\teams\page.tsx =====
+"use client";
+
+import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
+import Header from '@/components/Header';
+import Sidebar from '@/components/Sidebar';
+import StyledLink from '@/components/StyledLink';
+import { Country } from '@/types/api-football';
+import { ChevronRight, Search } from 'lucide-react';
+import Image from 'next/image';
+
+// --- THE FIX ---
+// This line instructs Next.js to always render this page dynamically on the server
+// at request time, resolving the conflict with client-side hooks in the layout.
+export const dynamic = 'force-dynamic';
+
+const fetchAllCountries = async (): Promise<Country[]> => {
+    const { data } = await axios.get('/api/countries');
+    return data;
+};
+
+const CountryCard = ({ country }: { country: Country }) => (
+    <StyledLink href={`/football/teams/${country.name}`} className="block group">
+        <div className="bg-brand-secondary rounded-lg p-4 flex items-center justify-between transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg hover:shadow-purple-900/20">
+            <div className="flex items-center gap-4 min-w-0">
+                <Image 
+                    src={country.flagUrl} 
+                    alt={country.name}
+                    width={32}
+                    height={32}
+                    className="flex-shrink-0"
+                />
+                <h3 className="font-bold text-white truncate group-hover:text-brand-purple transition-colors">{country.name}</h3>
+            </div>
+            <ChevronRight className="text-brand-muted group-hover:text-brand-purple transition-colors flex-shrink-0" />
+        </div>
+    </StyledLink>
+);
+
+const CountryCardSkeleton = () => (
+    <div className="bg-brand-secondary rounded-lg p-4 flex items-center justify-between animate-pulse">
+        <div className="flex items-center gap-4 w-full">
+            <div className="w-8 h-8 rounded-full bg-gray-700/50"></div>
+            <div className="h-5 w-3/4 rounded bg-gray-600/50"></div>
+        </div>
+    </div>
+);
+
+export default function BrowseTeamsByCountryPage() {
+    const [searchTerm, setSearchTerm] = useState('');
+
+    const { data: countries, isLoading, error } = useQuery<Country[]>({
+        queryKey: ['allCountriesDirectory'],
+        queryFn: fetchAllCountries,
+        staleTime: 1000 * 60 * 60 * 24,
+        refetchOnWindowFocus: false,
+    });
+
+    const filteredCountries = useMemo(() => {
+        if (!countries) return [];
+        return countries.filter(country => 
+            country.name.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }, [countries, searchTerm]);
+
+    return (
+        <div className="min-h-screen flex flex-col">
+            <Header />
+            <div className="flex flex-1">
+                <Sidebar />
+                <main className="flex-1 p-4 lg:p-8">
+                    <h1 className="text-4xl font-extrabold text-white mb-2">Browse Teams by Country</h1>
+                    <p className="text-brand-muted mb-8">Select a country to view all associated professional teams.</p>
+                    
+                    <div className="relative mb-8 max-w-lg">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-brand-muted" size={20} />
+                        <input
+                            type="text"
+                            placeholder="Search for a country..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full bg-brand-secondary border border-gray-700/50 rounded-lg p-3 pl-12 text-white focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                        />
+                    </div>
+
+                    {isLoading ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            {Array.from({ length: 16 }).map((_, i) => <CountryCardSkeleton key={i} />)}
+                        </div>
+                    ) : error ? (
+                        <div className="text-center py-20 bg-brand-secondary rounded-lg">
+                            <p className="text-xl font-bold text-red-400">Error Loading Countries</p>
+                            <p className="text-brand-muted mt-2">Could not fetch the list of countries. Please try again later.</p>
+                        </div>
+                    ) : filteredCountries.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            {filteredCountries.map(country => (
+                                <CountryCard key={country.code || country.name} country={country} />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center py-20 bg-brand-secondary rounded-lg">
+                            <p className="text-xl font-bold text-white">No Results Found</p>
+                            <p className="text-brand-muted mt-2">Your search for "{searchTerm}" did not match any countries.</p>
+                        </div>
+                    )}
+                </main>
+            </div>
+        </div>
+    );
+}
+
+// ===== src\app\football\teams\[countryName]\page.tsx =====
+"use client";
+
+import { useState, useMemo, useEffect } from 'react';
+import { useParams } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
+import Header from '@/components/Header';
+import Sidebar from '@/components/Sidebar';
+import Pagination from '@/components/Pagination';
+import TeamDirectoryCard, { TeamDirectoryCardSkeleton } from '@/components/TeamDirectoryCard';
+
+const ITEMS_PER_PAGE = 18;
+
+const fetchTeamsByCountry = async (countryName: string): Promise<any[]> => {
+    const { data } = await axios.get(`/api/teams-by-country?country=${encodeURIComponent(countryName)}`);
+    return data;
+};
+
+export default function TeamsByCountryPage() {
+    const params = useParams();
+    const countryName = decodeURIComponent(params.countryName as string);
+
+    const [searchTerm, setSearchTerm] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const { data: teams, isLoading } = useQuery({
+        queryKey: ['teamsByCountry', countryName],
+        queryFn: () => fetchTeamsByCountry(countryName),
+        staleTime: 1000 * 60 * 60, // Cache for 1 hour
+    });
+    
+    const { paginatedData, totalPages } = useMemo(() => {
+        if (!teams) return { paginatedData: [], totalPages: 0 };
+
+        const filtered = teams.filter(teamData => 
+            teamData.team.name.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+
+        const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        const endIndex = startIndex + ITEMS_PER_PAGE;
+        const paginatedData = filtered.slice(startIndex, endIndex);
+
+        return { paginatedData, totalPages };
+    }, [teams, searchTerm, currentPage]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm]);
+
+    return (
+        <div className="min-h-screen flex flex-col">
+            <Header />
+            <div className="flex flex-1">
+                <Sidebar />
+                <main className="flex-1 p-4 lg:p-8">
+                    <h1 className="text-4xl font-extrabold text-white mb-6">Teams in {countryName}</h1>
+                    
+                    <div className="flex flex-col md:flex-row gap-4 mb-8">
+                        <input
+                            type="text"
+                            placeholder="Search by team name..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full md:w-1/3 p-3 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                        {isLoading ? (
+                            Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => <TeamDirectoryCardSkeleton key={i} />)
+                        ) : (
+                            paginatedData.map(teamData => <TeamDirectoryCard key={teamData.team.id} {...teamData} />)
+                        )}
+                    </div>
+                    
+                    {!isLoading && paginatedData.length > 0 && (
+                        <Pagination 
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            onPageChange={setCurrentPage}
+                        />
+                    )}
+
+                     {!isLoading && paginatedData.length === 0 && (
+                        <div className="text-center py-20 bg-brand-secondary rounded-lg">
+                            <p className="text-xl font-bold text-white">No Results Found</p>
+                            <p className="text-brand-muted mt-2">Try adjusting your search term or check back later.</p>
+                        </div>
+                     )}
+                </main>
+            </div>
+        </div>
+    );
+}
+
+// ===== src\app\layout.tsx =====
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "./globals.css";
+import Providers from "./providers";
+import { LeagueProvider } from "@/context/LeagueContext";
+import "slick-carousel/slick/slick.css";
+import "slick-carousel/slick/slick-theme.css";
+import { LanguageProvider } from "@/context/LanguageContext";
+import NextAuthProvider from "./NextAuthProvider";
+import { Suspense } from "react";
+import StickyFooterAd from "@/components/StickyFooterAd";
+
+const inter = Inter({ subsets: ["latin"] });
+
+export const metadata: Metadata = {
+  title: "Fan Skor | Türkiye'nin 1 numaralı Canlı Skor sitesi",
+  description:
+    "Oyuntaktik.com, Türkiye'nin bir numaralı inceleme sitesi, en iyi oyun rehberleri, taktikler ve güncel değerlendirmelerle oyuncuların yanında!",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", type: "image/png" }, // For modern browsers
+    ],
+    apple: [
+      { url: "/favicon.ico" }, // For iOS
+    ],
+  },
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body
+        className={`${inter.className} bg-background text-text-primary`}
+        suppressHydrationWarning={true}
+      >
+        <Suspense fallback={<div>Loading...</div>}>
+          <NextAuthProvider>
+            <Providers>
+              <LanguageProvider>
+                <LeagueProvider>
+                  <main>{children}</main>
+                  <StickyFooterAd />
+                </LeagueProvider>
+              </LanguageProvider>
+            </Providers>
+          </NextAuthProvider>
+        </Suspense>
+      </body>
+    </html>
+  );
+}
+
+
+// ===== src\app\login\page.tsx =====
+"use client";
+
+import { useState } from 'react';
+import { signIn } from 'next-auth/react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useTranslation } from '@/hooks/useTranslation';
+
+
+export const dynamic = 'force-dynamic';
+
+export default function LoginPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { t } = useTranslation();
+  
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState(searchParams.get('error') || '');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    const result = await signIn('credentials', {
+      redirect: false,
+      email,
+      password,
+    });
+
+    if (result?.error) {
+      setError(t('invalid_credentials'));
+    } else if (result?.ok) {
+      router.push('/admin/dashboard');
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-brand-dark">
+      <form onSubmit={handleSubmit} className="p-8 rounded-lg shadow-lg bg-brand-secondary w-full max-w-sm">
+        <h1 className="text-2xl font-bold mb-6 text-center text-white">{t('admin_login')}</h1>
+        {error && <p className="bg-red-500/20 text-red-400 p-3 rounded mb-4 text-sm">{error}</p>}
+        <div className="space-y-4">
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder={t('email')}
+            required
+            className="w-full p-3 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-purple"
+          />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder={t('password')}
+            required
+            className="w-full p-3 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-purple"
+          />
+        </div>
+        <button type="submit" className="w-full mt-6 bg-brand-purple text-white font-bold py-3 rounded-lg hover:opacity-90 transition-opacity">
+          {t('sign_in')}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+// ===== src\app\NextAuthProvider.tsx =====
+// src/app/NextAuthProvider.tsx
+"use client";
+
+import { SessionProvider } from "next-auth/react";
+
+// This is a new wrapper component
+export default function NextAuthProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return <SessionProvider>{children}</SessionProvider>;
+}
+
+// ===== src\app\not-found.tsx =====
+"use client";
+
+import { Suspense } from 'react'; // <-- IMPORT Suspense
+import Link from 'next/link';
+import Header from '@/components/Header';
+import { HeaderSkeleton } from '@/components/LayoutSkeletons'; // <-- IMPORT Skeleton
+import { Frown } from 'lucide-react';
+
+export default function NotFound() {
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Suspense fallback={<HeaderSkeleton />}>
+        <Header />
+      </Suspense>
+
+      <main className="flex-1 flex flex-col items-center justify-center text-center p-4">
+        <Frown className="w-16 h-16 text-text-muted mb-4" />
+        <h1 className="text-4xl font-extrabold text-white">404 - Page Not Found</h1>
+        <p className="text-lg text-text-secondary mt-2 mb-6">
+          The page you are looking for does not exist or has been moved.
+        </p>
+        <Link 
+            href="/"
+            className="px-6 py-3 bg-brand-purple text-white font-bold rounded-lg hover:opacity-90 transition-opacity"
+        >
+          Go back to Homepage
+        </Link>
+      </main>
+    </div>
+  )
+}
+
+// ===== src\app\page.tsx =====
+import { Suspense } from 'react'; // <-- IMPORT Suspense
+import Header from '@/components/Header';
+import Sidebar from '@/components/Sidebar';
+import MainContent from '@/components/MainContent';
+import { HeaderSkeleton, SidebarSkeleton } from '@/components/LayoutSkeletons'; // <-- IMPORT Skeletons
+
+export default async function HomePage() {
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Suspense fallback={<HeaderSkeleton />}>
+        <Header />
+      </Suspense>
+      
+      <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr] lg:gap-8 lg:items-start">
+        
+        {/* --- THE FIX --- */}
+        {/* Wrap the Sidebar in a Suspense boundary */}
+        <Suspense fallback={<SidebarSkeleton />}>
+          <Sidebar />
+        </Suspense>
+
+        <main className="min-w-0">
+          <MainContent />
+        </main>
+        
+      </div>
+    </div>
+  );
+}
+
+// ===== src\app\providers.tsx =====
+"use client";
+
+import ProgressBar from "@/components/ProgressBar";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { useState } from "react";
+import { Toaster } from "react-hot-toast";
+
+export default function Providers({ children }: { children: React.ReactNode }) {
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            staleTime: 60 * 1000,
+          },
+        },
+      })
+  );
+
+ return (
+    <QueryClientProvider client={queryClient}>
+      {/* Add Toaster here. You can customize its position and style. */}
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          style: {
+            background: '#333',
+            color: '#fff',
+          },
+        }}
+      />
+      <ProgressBar />
+      {children}
+      <ReactQueryDevtools initialIsOpen={false} />
+    </QueryClientProvider>
+  );
+}
+
