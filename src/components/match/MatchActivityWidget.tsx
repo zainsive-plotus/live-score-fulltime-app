@@ -13,8 +13,9 @@ import {
   Users,
   Filter,
   Info,
+  Calendar,
   CalendarFold,
-} from "lucide-react"; // Ensure Info is imported
+} from "lucide-react";
 
 interface MatchActivityWidgetProps {
   fixtureId: string;
@@ -57,7 +58,7 @@ const fetchMatchEvents = async (fixtureId: string) => {
   return data.response;
 };
 
-// --- MODIFIED: Helper to get event display details (now robust against missing 'time') ---
+// Helper to get event display details
 const getEventDisplayDetails = (
   event: any,
   homeTeamId: number,
@@ -74,7 +75,7 @@ const getEventDisplayDetails = (
   let description = "";
   let scoreDisplay = event.comments || "";
 
-  // Safely get elapsed time, defaulting to 0 or '-' if not present
+  // Safely get elapsed time, defaulting to 0 if not present
   const elapsed = event.time?.elapsed ?? 0;
 
   switch (event.type) {
@@ -111,11 +112,11 @@ const getEventDisplayDetails = (
     teamLogo,
     description,
     scoreDisplay,
-    eventType: event.type.toLowerCase(),
+    eventType: event.type.toLowerCase(), // For filtering
   };
 };
 
-// Skeleton component (unchanged)
+// Skeleton component
 const ActivityWidgetSkeleton = () => (
   <div className="bg-brand-secondary p-4 rounded-lg animate-pulse">
     <div className="h-6 w-1/2 mb-4 bg-gray-700 rounded"></div>
@@ -193,7 +194,7 @@ export default function MatchActivityWidget({
     awayTeamLogo,
   ]);
 
-  // Calculate summary stats (unchanged)
+  // Calculate summary stats
   const summaryStats = useMemo(() => {
     if (!events)
       return {
@@ -311,15 +312,14 @@ export default function MatchActivityWidget({
           processedEvents.map((event: any, index: number) => (
             <div
               key={event.eventTime + "-" + index}
-              className="mb-4 flex items-start -ml-3"
+              className="mb-4 flex items-start -ml-3 relative"
             >
-              {" "}
-              {/* Use eventTime for key */}
               {/* Timeline Dot & Icon */}
               <div className="absolute left-0 -translate-x-1/2 flex flex-col items-center">
                 <div className="w-3 h-3 rounded-full bg-brand-purple ring-2 ring-brand-secondary mt-1.5"></div>
                 <CalendarFold size={16} className={`${event.color} mt-1`} />
               </div>
+
               {/* Event Content */}
               <div className="flex-1 ml-6 bg-gray-800/30 p-3 rounded-lg flex items-center justify-between">
                 {/* Time & Team Logo */}
