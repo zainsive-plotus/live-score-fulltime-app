@@ -9,6 +9,7 @@ import { LanguageProvider } from "@/context/LanguageContext";
 import NextAuthProvider from "./NextAuthProvider";
 import { Suspense } from "react";
 import StickyFooterAd from "@/components/StickyFooterAd";
+import Loading from "./loading";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -37,7 +38,7 @@ export default function RootLayout({
         className={`${inter.className} bg-background text-text-primary`}
         suppressHydrationWarning={true}
       >
-        <Suspense fallback={<div>Loading...</div>}>
+        <Suspense fallback={<Loading />}>
           <NextAuthProvider>
             <Providers>
               <LanguageProvider>
