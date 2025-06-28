@@ -5,7 +5,7 @@ import LottiePreloader from "@/components/LottiePreloader"; // Import the new co
 
 export default function Loading() {
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-brand-dark">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#1F1D2B]">
       {/* 
         We render the LottiePreloader component here. 
         Next.js will handle rendering the client component within this server component shell.

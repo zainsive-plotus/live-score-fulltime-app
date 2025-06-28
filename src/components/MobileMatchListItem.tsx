@@ -10,9 +10,10 @@ import axios from "axios";
 import { useVoteStorage } from "@/hooks/useVoteStorage";
 import { Star, ChevronDown } from "lucide-react";
 import { generateMatchSlug } from "@/lib/generate-match-slug";
-import OddsDisplay from "./OddsDisplay";
+import OddsDisplay from "./OddsDisplay"; // This is likely for API/general odds
+import { proxyImageUrl } from "@/lib/image-proxy"; // Assuming proxyImageUrl is needed for TeamRow
 
-// --- Type Definitions & API Helpers ---
+// --- Type Definitions & API Helpers (Unchanged) ---
 type Odds = { home: string; draw: string; away: string } | undefined | null;
 interface VoteData {
   homeVotes: number;
@@ -39,7 +40,6 @@ const submitVote = async ({
 };
 
 // --- Reusable TeamRow sub-component ---
-// --- ENHANCEMENT: It now accepts the isLive prop ---
 const TeamRow = ({
   team,
   score,
@@ -53,11 +53,17 @@ const TeamRow = ({
   onVote: (e: React.MouseEvent) => void;
   isVotedFor: boolean;
   isDisabled: boolean;
-  isLive: boolean; // <-- New prop
+  isLive: boolean;
 }) => (
   <div className="flex items-center justify-between">
     <div className="flex items-center gap-3 min-w-0">
-      <Image src={team.logo} alt={team.name} width={24} height={24} />
+      <Image
+        src={proxyImageUrl(team.logo)}
+        alt={team.name}
+        width={24}
+        height={24}
+      />{" "}
+      {/* Ensure proxyImageUrl is used */}
       <span
         className={`font-semibold text-sm truncate ${
           team.winner ? "text-text-primary" : "text-text-secondary"
@@ -67,7 +73,6 @@ const TeamRow = ({
       </span>
     </div>
     <div className="flex items-center gap-3">
-      {/* --- FIX: The score is now conditionally colored green --- */}
       <span
         className={`font-bold text-sm ${
           isLive
@@ -100,9 +105,11 @@ const TeamRow = ({
 export default function MobileMatchListItem({
   match,
   liveOdds,
+  customOdds,
 }: {
   match: any;
   liveOdds?: Odds;
+  customOdds?: Odds;
 }) {
   const { fixture, teams, goals } = match;
   const slug = generateMatchSlug(teams.home, teams.away, fixture.id);
@@ -138,7 +145,7 @@ export default function MobileMatchListItem({
     setVotedFor(choice);
     setVote(fixture.id, choice);
     voteMutation.mutate({ fixtureId: fixture.id, vote: choice });
-    if (!isExpanded) setIsExpanded(true);
+    if (!isExpanded) setIsExpanded(true); // Automatically expand on vote
   };
 
   const totalVotes = (voteData?.homeVotes || 0) + (voteData?.awayVotes || 0);
@@ -158,7 +165,6 @@ export default function MobileMatchListItem({
           className="flex-1 flex items-center gap-3"
         >
           <div className="w-12 flex-shrink-0 text-center text-xs font-bold">
-            {/* --- FIX: The status text is now conditionally colored green --- */}
             {isLive ? (
               <div className="flex items-center justify-center gap-1.5 text-green-400">
                 <span className="h-1.5 w-1.5 rounded-full bg-green-500"></span>
@@ -171,7 +177,6 @@ export default function MobileMatchListItem({
             )}
           </div>
           <div className="flex-1 flex flex-col gap-2">
-            {/* --- ENHANCEMENT: Pass isLive down to the sub-component --- */}
             <TeamRow
               team={teams.home}
               score={goals.home}
@@ -217,8 +222,31 @@ export default function MobileMatchListItem({
               ></div>
             </div>
           )}
+
+          {/* Existing OddsDisplay (likely for API/general odds) */}
+          {/* Only show if not finished and if OddsDisplay has content */}
           {!isFinished && (
             <OddsDisplay fixtureId={fixture.id} initialOdds={liveOdds} />
+          )}
+
+          {/* --- NEW: Fanskor Odds Display --- */}
+          {customOdds && !isFinished && (
+            <div className="space-y-1">
+              <h4 className="text-xs font-semibold text-brand-light">
+                Fanskor Odds
+              </h4>
+              <div className="grid grid-cols-3 gap-2 text-center text-white font-bold text-sm">
+                <div className="bg-brand-purple/20 p-2 rounded-md">
+                  1: {customOdds.home}
+                </div>
+                <div className="bg-brand-purple/20 p-2 rounded-md">
+                  X: {customOdds.draw}
+                </div>
+                <div className="bg-brand-purple/20 p-2 rounded-md">
+                  2: {customOdds.away}
+                </div>
+              </div>
+            </div>
           )}
         </div>
       )}

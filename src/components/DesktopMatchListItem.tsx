@@ -9,6 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { Star } from "lucide-react";
 import { generateMatchSlug } from "@/lib/generate-match-slug";
+import { proxyImageUrl } from "@/lib/image-proxy"; // Make sure proxyImageUrl is imported
 
 // --- Type Definition for Odds ---
 type Odds =
@@ -31,19 +32,22 @@ const fetchPreMatchOdds = async (fixtureId: number): Promise<Odds> => {
 };
 
 // --- Main Component ---
+interface DesktopMatchListItemProps {
+  match: any;
+  liveOdds?: Odds;
+  isLive: boolean;
+  customOdds?: Odds; // NEW: Custom calculated odds
+}
+
 export default function DesktopMatchListItem({
   match,
   liveOdds,
-}: {
-  match: any;
-  liveOdds?: Odds;
-}) {
+  isLive,
+  customOdds, // NEW: Destructure customOdds
+}: DesktopMatchListItemProps) {
   const { fixture, teams, goals } = match;
   const slug = generateMatchSlug(teams.home, teams.away, fixture.id);
 
-  const isLive = ["1H", "HT", "2H", "ET", "P", "LIVE"].includes(
-    fixture.status.short
-  );
   const isFinished = ["FT", "AET", "PEN"].includes(fixture.status.short);
 
   const { data: preMatchOdds, isLoading: isLoadingPreMatchOdds } = useQuery({
@@ -81,6 +85,15 @@ export default function DesktopMatchListItem({
     );
   };
 
+  // --- NEW: CustomOddBox for Fanskor's odds ---
+  const CustomOddBox = ({ value }: { value: string | undefined }) => {
+    return (
+      <div className="flex items-center justify-center p-2 rounded-md w-14 h-8 text-sm font-bold bg-brand-purple/20 text-white">
+        {value || "-"}
+      </div>
+    );
+  };
+
   return (
     <Link
       href={`/football/match/${slug}`}
@@ -90,8 +103,6 @@ export default function DesktopMatchListItem({
       {/* Column 1: Status */}
       <div className="w-16 flex-shrink-0 text-center text-sm font-semibold">
         {isLive ? (
-          // --- THIS IS THE FIX ---
-          // The elapsed time is now green, and a green dot is added.
           <div className="flex items-center justify-center gap-1.5 text-green-400">
             <span className="h-1.5 w-1.5 rounded-full bg-green-500"></span>
             <span>{fixture.status.elapsed}'</span>
@@ -109,7 +120,7 @@ export default function DesktopMatchListItem({
       <div className="flex-1 flex flex-col gap-1.5">
         <div className="flex items-center gap-3">
           <Image
-            src={teams.home.logo}
+            src={proxyImageUrl(teams.home.logo)}
             alt={teams.home.name}
             width={20}
             height={20}
@@ -120,7 +131,7 @@ export default function DesktopMatchListItem({
         </div>
         <div className="flex items-center gap-3">
           <Image
-            src={teams.away.logo}
+            src={proxyImageUrl(teams.away.logo)}
             alt={teams.away.name}
             width={20}
             height={20}
@@ -131,7 +142,7 @@ export default function DesktopMatchListItem({
         </div>
       </div>
 
-      {/* Column 3: Odds Display */}
+      {/* Column 3: Odds Display (API/Live Odds) */}
       <div className="flex-1 flex items-center justify-center gap-1">
         {isFinished ? (
           <div className="h-8"></div>
@@ -165,9 +176,22 @@ export default function DesktopMatchListItem({
         )}
       </div>
 
+      {/* --- NEW COLUMN: Fanskor Odds --- */}
+      {/* This column is conditionally rendered based on `customOdds` */}
+      {customOdds && !isFinished && (
+        <div className="flex-1 flex flex-col items-center justify-center gap-1 text-center">
+          <span className="text-xs text-brand-muted font-semibold">
+            Fanskor Odds
+          </span>
+          <div className="flex items-center justify-center gap-1">
+            <CustomOddBox value={customOdds.home} />
+            <CustomOddBox value={customOdds.draw} />
+            <CustomOddBox value={customOdds.away} />
+          </div>
+        </div>
+      )}
+
       {/* Column 4: Scores */}
-      {/* --- THIS IS THE FIX --- */}
-      {/* The scores are now conditionally colored green if the match is live. */}
       <div
         className={`w-10 flex-shrink-0 flex flex-col items-center gap-1.5 text-base font-bold ${
           isLive ? "text-green-400" : "text-text-primary"

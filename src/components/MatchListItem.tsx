@@ -19,11 +19,16 @@ type Odds =
 interface MatchListItemProps {
   match: any;
   liveOdds?: Odds;
+  customOdds?: Odds;
 }
 
 // This component acts as a router, displaying the correct list item
 // based on the screen size and passing all necessary props down.
-export default function MatchListItem({ match, liveOdds }: MatchListItemProps) {
+export default function MatchListItem({
+  match,
+  liveOdds,
+  customOdds,
+}: MatchListItemProps) {
   // --- THIS IS THE FIX ---
   // 1. Centralize the "isLive" logic here.
   const status = match.fixture.status.short;
@@ -31,25 +36,23 @@ export default function MatchListItem({ match, liveOdds }: MatchListItemProps) {
 
   return (
     <>
-      {/* --- Desktop version --- */}
-      {/* 2. Pass the calculated `isLive` boolean as a prop. */}
-      {/* The DesktopMatchListItem component is now responsible for using this prop */}
-      {/* to change text color to green, without altering its layout. */}
+      {/* Desktop version (now receives customOdds) */}
       <div className="hidden lg:block">
         <DesktopMatchListItem
           match={match}
           liveOdds={liveOdds}
           isLive={isLive}
+          customOdds={customOdds}
         />
       </div>
 
-      {/* --- Mobile version --- */}
-      {/* 3. Pass the same `isLive` prop to the mobile component. */}
+      {/* Mobile version (now receives customOdds) */}
       <div className="block lg:hidden">
         <MobileMatchListItem
           match={match}
           liveOdds={liveOdds}
           isLive={isLive}
+          customOdds={customOdds}
         />
       </div>
     </>

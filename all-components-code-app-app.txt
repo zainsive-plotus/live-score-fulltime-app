@@ -646,6 +646,86 @@ export default function AdminNewsPage() {
     );
 }
 
+// ===== src\app\api\active-leagues\route.ts =====
+// src/app/api/active-leagues/route.ts
+import { NextResponse } from "next/server";
+import axios from "axios";
+import { format, addDays } from "date-fns";
+
+// A curated list of leagues to check for activity.
+// Checking EVERY single league would be too slow and hit API rate limits.
+// This list should contain leagues you generally expect to be active.
+const LEAGUES_TO_CHECK = [
+  39,
+  140,
+  135,
+  78,
+  61,
+  2,
+  3,
+  88,
+  94,
+  253,
+  45,
+  48,
+  71,
+  62,
+  144,
+  203,
+  197,
+  218, // Premier League, La Liga, Serie A, Bundesliga, Ligue 1, UCL, UEL, Eredivisie, etc.
+];
+
+export async function GET() {
+  const today = format(new Date(), "yyyy-MM-dd");
+  const nextSevenDays = format(addDays(new Date(), 7), "yyyy-MM-dd");
+
+  const options = (leagueId: number) => ({
+    method: "GET",
+    url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/fixtures`,
+    params: {
+      league: leagueId,
+      season: new Date().getFullYear().toString(),
+      from: today,
+      to: nextSevenDays,
+    },
+    headers: { "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
+  });
+
+  try {
+    // Create an array of promises, one for each league check
+    const fixtureChecks = LEAGUES_TO_CHECK.map((id) =>
+      axios.request(options(id)).then((response) => ({
+        leagueId: id,
+        hasFixtures: response.data.results > 0,
+      }))
+    );
+
+    // Execute all checks in parallel
+    const results = await Promise.allSettled(fixtureChecks);
+
+    // Filter out failed requests and leagues with no fixtures
+    const activeLeagueIds = results
+      .filter(
+        (result) => result.status === "fulfilled" && result.value.hasFixtures
+      )
+      .map(
+        (result) =>
+          (result as PromiseFulfilledResult<{ leagueId: number }>).value
+            .leagueId
+      );
+
+    return NextResponse.json(activeLeagueIds);
+  } catch (error) {
+    console.error("Error fetching active leagues:", error);
+    return NextResponse.json(
+      { error: "Failed to determine active leagues." },
+      { status: 500 }
+    );
+  }
+}
+
+
 // ===== src\app\api\auth\[...nextauth]\route.ts =====
 // src/app/api/auth/[...nextauth]/route.ts
 
@@ -951,6 +1031,145 @@ export async function GET() {
   }
 }
 
+// ===== src\app\api\country-stats\route.ts =====
+// src/app/api/country-stats/route.ts
+import { NextResponse } from "next/server";
+import axios from "axios";
+
+// A curated list of popular league IDs to source teams from.
+const POPULAR_LEAGUE_IDS = [
+  39, 140, 135, 78, 61, 88, 94, 253, 2, 3, 45, 48, 71, 62, 144, 203, 197, 218,
+];
+const season = new Date().getFullYear();
+
+export async function GET() {
+  const options = (leagueId: number) => ({
+    method: "GET",
+    url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/teams`,
+    params: { league: leagueId, season: season },
+    headers: { "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
+  });
+
+  try {
+    const teamPromises = POPULAR_LEAGUE_IDS.map((id) =>
+      axios.request(options(id))
+    );
+    const responses = await Promise.allSettled(teamPromises);
+
+    const allTeamsResponses = responses
+      .filter(
+        (result) => result.status === "fulfilled" && result.value.data.response
+      )
+      .flatMap(
+        (result) => (result as PromiseFulfilledResult<any>).value.data.response
+      );
+
+    // --- THIS IS THE FIX ---
+    // 1. De-duplicate the teams first using a Map based on the unique team ID.
+    // This ensures that a team like "Manchester City" which is in both the Premier League (39)
+    // and the Champions League (2) is only processed once.
+    const uniqueTeams = Array.from(
+      new Map(allTeamsResponses.map((item) => [item.team.id, item])).values()
+    );
+
+    // 2. Now, count the de-duplicated teams.
+    const countryTeamCounts: { [key: string]: number } = {};
+    uniqueTeams.forEach((item) => {
+      const countryName = item.team.country;
+      if (countryName) {
+        if (!countryTeamCounts[countryName]) {
+          countryTeamCounts[countryName] = 0;
+        }
+        countryTeamCounts[countryName]++;
+      }
+    });
+
+    return NextResponse.json(countryTeamCounts);
+  } catch (error) {
+    console.error("Error fetching country stats:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch country statistics." },
+      { status: 500 }
+    );
+  }
+}
+
+
+// ===== src\app\api\directory\countries\route.ts =====
+// src/app/api/directory/countries/route.ts
+import { NextResponse, NextRequest } from "next/server"; // Import NextRequest
+import axios from "axios";
+
+// The GET function now accepts the 'request' object
+export async function GET(request: NextRequest) {
+  try {
+    // --- THIS IS THE FIX ---
+    // 1. Get the protocol (http or https) and host (localhost:3000 or your domain)
+    //    from the incoming request headers. This is the most reliable method.
+    const protocol = request.headers.get("x-forwarded-proto") || "http";
+    const host = request.headers.get("host");
+
+    // 2. Construct the absolute URL for the internal API call.
+    const internalApiUrl = `${protocol}://${host}/api/leagues?fetchAll=true`;
+
+    // 3. Make the internal API call using the constructed URL.
+    const leaguesResponse = await axios.get(internalApiUrl);
+    const allLeagues = leaguesResponse.data;
+
+    if (!allLeagues || allLeagues.length === 0) {
+      return NextResponse.json([]);
+    }
+
+    const leagueCounts: { [key: string]: number } = {};
+    allLeagues.forEach((league: any) => {
+      if (league.countryName) {
+        leagueCounts[league.countryName] =
+          (leagueCounts[league.countryName] || 0) + 1;
+      }
+    });
+
+    const countriesResponse = await axios.get(
+      `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/countries`,
+      {
+        headers: {
+          "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY,
+        },
+      }
+    );
+
+    const allCountries = countriesResponse.data.response;
+
+    let enrichedCountries = allCountries
+      .map((country: any) => ({
+        name: country.name,
+        code: country.code,
+        flagUrl: country.flag,
+        leagueCount: leagueCounts[country.name] || 0,
+      }))
+      .filter(
+        (country: any) =>
+          country.leagueCount > 0 &&
+          country.name &&
+          country.code &&
+          country.flagUrl
+      );
+
+    enrichedCountries.sort((a, b) => a.name.localeCompare(b.name));
+
+    return NextResponse.json(enrichedCountries);
+  } catch (error) {
+    console.error("Error building country directory from all leagues:", error);
+    if (axios.isAxiosError(error)) {
+      console.error("Axios error details:", error.response?.data);
+    }
+    return NextResponse.json(
+      { error: "Failed to build country directory." },
+      { status: 500 }
+    );
+  }
+}
+
+
 // ===== src\app\api\directory\teams\route.ts =====
 import { NextResponse } from 'next/server';
 import axios from 'axios';
@@ -1033,24 +1252,23 @@ export async function GET() {
 }
 
 // ===== src\app\api\fixtures\route.ts =====
-
-import { NextResponse } from 'next/server';
-import axios from 'axios';
-import { format, addDays } from 'date-fns';
+import { NextResponse } from "next/server";
+import axios from "axios";
+import { format, addDays } from "date-fns";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const leagueId = searchParams.get('league');
-  const date = searchParams.get('date');
-  const season = searchParams.get('season');
+  const leagueId = searchParams.get("league");
+  const date = searchParams.get("date");
+  const season = searchParams.get("season");
 
   // Base options for axios requests
   const axiosOptions = (params: object) => ({
-    method: 'GET',
+    method: "GET",
     url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/fixtures`,
     params,
     headers: {
-      'x-apisports-key': process.env.NEXT_PUBLIC_API_FOOTBALL_KEY,
+      "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY,
     },
   });
 
@@ -1058,14 +1276,20 @@ export async function GET(request: Request) {
     // --- PATTERN 1: Get all fixtures for a specific LEAGUE and SEASON ---
     // Used by the new "Season View" in the LeagueFixturesTab.
     if (leagueId && season) {
-      console.log(`API: Fetching all fixtures for league ${leagueId}, season ${season}`);
-      const response = await axios.request(axiosOptions({
-        league: leagueId,
-        season: season,
-      }));
+      console.log(
+        `API: Fetching all fixtures for league ${leagueId}, season ${season}`
+      );
+      const response = await axios.request(
+        axiosOptions({
+          league: leagueId,
+          season: season,
+        })
+      );
       // Sort matches by date, as the API might not return them in chronological order
-      const sortedMatches = response.data.response.sort((a: any, b: any) => 
-        new Date(a.fixture.date).getTime() - new Date(b.fixture.date).getTime()
+      const sortedMatches = response.data.response.sort(
+        (a: any, b: any) =>
+          new Date(a.fixture.date).getTime() -
+          new Date(b.fixture.date).getTime()
       );
       return NextResponse.json(sortedMatches);
     }
@@ -1073,12 +1297,16 @@ export async function GET(request: Request) {
     // --- PATTERN 2: Get all fixtures for a specific LEAGUE and DATE ---
     // Used by the original day-by-day fixtures tab.
     if (leagueId && date) {
-      console.log(`API: Fetching fixtures for league ${leagueId}, date ${date}`);
-      const response = await axios.request(axiosOptions({
-        league: leagueId,
-        season: new Date(date).getFullYear().toString(), // Use the year from the date for the season
-        date: date,
-      }));
+      console.log(
+        `API: Fetching fixtures for league ${leagueId}, date ${date}`
+      );
+      const response = await axios.request(
+        axiosOptions({
+          league: leagueId,
+          season: new Date(date).getFullYear().toString(), // Use the year from the date for the season
+          date: date,
+        })
+      );
       return NextResponse.json(response.data.response);
     }
 
@@ -1086,14 +1314,16 @@ export async function GET(request: Request) {
     // Used by the homepage slider when a league is selected.
     if (leagueId) {
       console.log(`API: Fetching upcoming fixtures for league ${leagueId}`);
-      const today = format(new Date(), 'yyyy-MM-dd');
-      const nextSevenDays = format(addDays(new Date(), 7), 'yyyy-MM-dd');
-      const response = await axios.request(axiosOptions({
-        league: leagueId,
-        season: new Date().getFullYear().toString(),
-        from: today,
-        to: nextSevenDays,
-      }));
+      const today = format(new Date(), "yyyy-MM-dd");
+      const nextSevenDays = format(addDays(new Date(), 7), "yyyy-MM-dd");
+      const response = await axios.request(
+        axiosOptions({
+          league: leagueId,
+          season: new Date().getFullYear().toString(),
+          from: today,
+          to: nextSevenDays,
+        })
+      );
       return NextResponse.json(response.data.response);
     }
 
@@ -1108,33 +1338,40 @@ export async function GET(request: Request) {
       }
 
       // Fallback to the original "live, today, tomorrow" logic if no date is provided.
-      console.log('API: Fetching global matches (live, today, tomorrow)');
-      const todayStr = format(new Date(), 'yyyy-MM-dd');
-      const tomorrowStr = format(addDays(new Date(), 1), 'yyyy-MM-dd');
+      console.log("API: Fetching global matches (live, today, tomorrow)");
+      const todayStr = format(new Date(), "yyyy-MM-dd");
+      const tomorrowStr = format(addDays(new Date(), 1), "yyyy-MM-dd");
 
-      const [liveResponse, todayResponse, tomorrowResponse] = await Promise.all([
-        axios.request(axiosOptions({ live: 'all' })),
-        axios.request(axiosOptions({ date: todayStr })),
-        axios.request(axiosOptions({ date: tomorrowStr })),
-      ]);
-      
+      const [liveResponse, todayResponse, tomorrowResponse] = await Promise.all(
+        [
+          axios.request(axiosOptions({ live: "all" })),
+          axios.request(axiosOptions({ date: todayStr })),
+          axios.request(axiosOptions({ date: tomorrowStr })),
+        ]
+      );
+
       const allMatches = [
         ...liveResponse.data.response,
         ...todayResponse.data.response,
-        ...tomorrowResponse.data.response
+        ...tomorrowResponse.data.response,
       ];
-      
-      const uniqueMatches = Array.from(new Map(allMatches.map(m => [m.fixture.id, m])).values());
+
+      const uniqueMatches = Array.from(
+        new Map(allMatches.map((m) => [m.fixture.id, m])).values()
+      );
       return NextResponse.json(uniqueMatches);
     }
 
     return NextResponse.json([]);
-
   } catch (error) {
     console.error("Error in /api/fixtures:", error);
-    return NextResponse.json({ error: 'Failed to fetch fixture data.' }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch fixture data." },
+      { status: 500 }
+    );
   }
 }
+
 
 // ===== src\app\api\global-live\route.ts =====
 // src/app/api/global-live/route.ts
@@ -1162,6 +1399,73 @@ export async function GET() {
     return NextResponse.json({ error: 'Failed to fetch live matches' }, { status: 500 });
   }
 }
+
+// ===== src\app\api\image-proxy\route.ts =====
+// src/app/api/image-proxy/route.ts
+
+import { NextRequest, NextResponse } from "next/server";
+import axios from "axios";
+
+// --- SECURITY: A whitelist of allowed domains to prevent abuse ---
+// This ensures our proxy can only be used to fetch images from trusted sources.
+const ALLOWED_DOMAINS = [
+  "media.api-sports.io",
+  // Add other trusted image source domains here if needed in the future
+];
+
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const imageUrl = searchParams.get("url");
+
+  // 1. Validate input
+  if (!imageUrl) {
+    return NextResponse.json(
+      { error: "Image URL is required" },
+      { status: 400 }
+    );
+  }
+
+  // 2. Security Check: Ensure the requested URL is from an allowed domain
+  try {
+    const urlObject = new URL(imageUrl);
+    if (!ALLOWED_DOMAINS.includes(urlObject.hostname)) {
+      return NextResponse.json(
+        { error: "Domain not allowed" },
+        { status: 403 }
+      );
+    }
+  } catch (error) {
+    return NextResponse.json({ error: "Invalid URL format" }, { status: 400 });
+  }
+
+  try {
+    // 3. Fetch the image from the external source
+    const response = await axios.get(imageUrl, {
+      responseType: "arraybuffer", // Fetch as raw data
+    });
+
+    const imageBuffer = Buffer.from(response.data, "binary");
+    const contentType = response.headers["content-type"] || "image/png";
+
+    // 4. Return the image with our custom, strong caching headers
+    return new NextResponse(imageBuffer, {
+      status: 200,
+      headers: {
+        "Content-Type": contentType,
+        // Cache for 7 days, immutable means the browser won't even check for updates
+        "Cache-Control": "public, max-age=604800, immutable",
+      },
+    });
+  } catch (error) {
+    console.error(`[Image Proxy] Failed to fetch ${imageUrl}:`, error);
+    // You could return a placeholder image here if you wanted
+    return NextResponse.json(
+      { error: "Failed to fetch image" },
+      { status: 502 }
+    ); // 502 Bad Gateway
+  }
+}
+
 
 // ===== src\app\api\leagues\route.ts =====
 import { NextResponse } from 'next/server';
@@ -1353,71 +1657,336 @@ export async function GET() {
     }
 }
 
-// ===== src\app\api\match-details\route.ts =====
-// src/app/api/match-details/route.ts
+// ===== src\app\api\live-odds-by-fixture\route.ts =====
+// src/app/api/live-odds-by-fixture/route.ts
+import { NextResponse } from "next/server";
+import axios from "axios";
 
-import { NextResponse } from 'next/server';
-import axios from 'axios';
+// --- Data Transformation Helper ---
+// This function finds a specific bet type by its ID and extracts the main odds.
+const extractMainOdds = (odds: any[], betId: number, valueKeys: string[]) => {
+  const betData = odds.find((o) => o.id === betId);
+  if (!betData) return null;
 
-// This is the only fetcher we need now. It's the original, efficient one.
-const fetchAllDataForFixture = async (fixtureId: string | number) => {
-    const options = (endpoint: string, params: object) => ({
-      method: 'GET',
-      url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/${endpoint}`,
-      params,
-      headers: { 'x-apisports-key': process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
-    });
-  
-    const fixtureResponse = await axios.request(options('fixtures', { id: fixtureId }));
-    const fixtureData = fixtureResponse.data.response[0];
-    
-    if (!fixtureData) {
-        throw new Error(`Fixture not found with ID: ${fixtureId}`);
-    }
+  // Prefer the 'main' market if available, otherwise take the first valid one.
+  let targetValues = betData.values.find((v: any) => v.main === true)
+    ? betData.values.filter((v: any) => v.main === true)
+    : betData.values;
 
-    const { league, teams } = fixtureData;
-    const { home: homeTeam, away: awayTeam } = teams;
-  
-    const [eventsResponse, statsResponse, h2hResponse, predictionResponse, homeStatsResponse, awayStatsResponse] = await Promise.all([
-      axios.request(options('fixtures/events', { fixture: fixtureId })),
-      axios.request(options('fixtures/statistics', { fixture: fixtureId })),
-      axios.request(options('fixtures/headtohead', { h2h: `${homeTeam.id}-${awayTeam.id}` })),
-      axios.request(options('predictions', { fixture: fixtureId })),
-      axios.request(options('teams/statistics', { league: league.id, season: league.season, team: homeTeam.id })),
-      axios.request(options('teams/statistics', { league: league.id, season: league.season, team: awayTeam.id })),
-    ]);
-  
-    return {
-      fixture: fixtureData,
-      events: eventsResponse.data.response,
-      statistics: statsResponse.data.response,
-      h2h: h2hResponse.data.response,
-      analytics: {
-        prediction: predictionResponse.data.response[0] ?? null,
-        homeTeamStats: homeStatsResponse.data.response ?? null,
-        awayTeamStats: awayStatsResponse.data.response ?? null,
-      }
-    };
+  const result: { [key: string]: string | null } = {};
+  valueKeys.forEach((key) => {
+    result[key.toLowerCase()] =
+      targetValues.find((v: any) => v.value === key)?.odd || null;
+  });
+
+  // Also extract the handicap if present
+  result.handicap = targetValues[0]?.handicap || null;
+
+  // Check if we found any valid odds
+  const hasValues = Object.values(result).some(
+    (v) => v !== null && v !== undefined
+  );
+  return hasValues ? result : null;
 };
-
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  // The API now ONLY cares about the fixture ID.
-  const fixtureId = searchParams.get('fixture');
+  const fixtureId = searchParams.get("fixture");
 
   if (!fixtureId) {
-    return NextResponse.json({ error: 'Fixture ID is required' }, { status: 400 });
+    return NextResponse.json(
+      { error: "Fixture ID is required" },
+      { status: 400 }
+    );
+  }
+
+  const options = {
+    method: "GET",
+    url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/odds/live`,
+    params: { fixture: fixtureId },
+    headers: { "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
+  };
+
+  try {
+    const response = await axios.request(options);
+    const liveData = response.data.response[0];
+
+    if (!liveData || !liveData.odds) {
+      return NextResponse.json(null); // Return null if no live odds are available
+    }
+
+    const odds = liveData.odds;
+
+    // Curate and simplify the data before sending to the frontend
+    const curatedOdds = {
+      asianHandicap: extractMainOdds(odds, 33, ["Home", "Away"]),
+      overUnder: extractMainOdds(odds, 36, ["Over", "Under"]),
+      matchCorners: extractMainOdds(odds, 20, ["Over", "Under"]),
+      nextGoal: extractMainOdds(odds, 85, ["1", "No goal", "2"]),
+    };
+
+    return NextResponse.json(curatedOdds);
+  } catch (error) {
+    console.error(`Error fetching live odds for fixture ${fixtureId}:`, error);
+    return NextResponse.json(
+      { error: "Failed to fetch live odds" },
+      { status: 500 }
+    );
+  }
+}
+
+
+// ===== src\app\api\match-details\route.ts =====
+// src/app/api/match-details/route.ts
+
+import { NextResponse } from "next/server";
+import axios from "axios";
+
+// ====================================================================
+// --- FANSKOR PREDICTION ENGINE V2.1 ---
+// Now robust against incomplete API data by using optional chaining.
+// ====================================================================
+const calculateCustomPrediction = (
+  h2h: any[],
+  homeTeamStats: any,
+  awayTeamStats: any,
+  homeTeamId: number,
+  homeTeamRank: number | undefined,
+  awayTeamRank: number | undefined
+) => {
+  // --- Configuration Object: All "magic numbers" are here for easy tuning ---
+  const config = {
+    weights: {
+      homeAdvantage: 12, // Points for playing at home
+      form: 1.5, // Multiplier for form points
+      h2h: 2.5, // Points per H2H win
+      rankDifference: 0.8, // Points per rank difference
+      goalDifference: 6, // Multiplier for average goal difference
+    },
+    h2hMaxGames: 5, // Only consider the last 5 H2H games
+    drawWeight: 0.85, // How heavily to factor in the possibility of a draw
+  };
+
+  // --- Data Validation: Exit early if necessary data is missing ---
+  if (
+    !homeTeamStats?.form ||
+    !awayTeamStats?.form ||
+    homeTeamRank == null ||
+    awayTeamRank == null
+  ) {
+    return null;
+  }
+
+  let homeScore = 0;
+  let awayScore = 0;
+
+  // 1. Home Advantage
+  homeScore += config.weights.homeAdvantage;
+
+  // 2. Momentum (Recent Form)
+  const calculateForm = (formString: string): number => {
+    return (
+      (formString.match(/W/g) || []).length * 3 +
+      (formString.match(/D/g) || []).length * 1
+    );
+  };
+  const homeFormString =
+    homeTeamStats.fixtures.played.home > 0
+      ? homeTeamStats.form
+      : homeTeamStats.form.slice(-5);
+  const awayFormString =
+    awayTeamStats.fixtures.played.away > 0
+      ? awayTeamStats.form
+      : awayTeamStats.form.slice(-5);
+  homeScore += calculateForm(homeFormString) * config.weights.form;
+  awayScore += calculateForm(awayFormString) * config.weights.form;
+
+  // 3. Goal Form (Safely accessed with optional chaining `?.` and nullish coalescing `?? 0`)
+  const homeGoalsForAvg = homeTeamStats.goals?.for?.average?.total ?? 0;
+  const homeGoalsAgainstAvg = homeTeamStats.goals?.against?.average?.total ?? 0;
+  const awayGoalsForAvg = awayTeamStats.goals?.for?.average?.total ?? 0;
+  const awayGoalsAgainstAvg = awayTeamStats.goals?.against?.average?.total ?? 0;
+
+  const homeGoalDiff = homeGoalsForAvg - homeGoalsAgainstAvg;
+  const awayGoalDiff = awayGoalsForAvg - awayGoalsAgainstAvg;
+  homeScore += homeGoalDiff * config.weights.goalDifference;
+  awayScore += awayGoalDiff * config.weights.goalDifference;
+
+  // 4. Head-to-Head (H2H) Records
+  if (h2h && h2h.length > 0) {
+    h2h.slice(0, config.h2hMaxGames).forEach((match) => {
+      if (match.teams.home.winner) {
+        homeTeamId === match.teams.home.id
+          ? (homeScore += config.weights.h2h)
+          : (awayScore += config.weights.h2h);
+      } else if (match.teams.away.winner) {
+        homeTeamId === match.teams.away.id
+          ? (homeScore += config.weights.h2h)
+          : (awayScore += config.weights.h2h);
+      } else {
+        // It was a draw
+        homeScore += config.weights.h2h / 2;
+        awayScore += config.weights.h2h / 2;
+      }
+    });
+  }
+
+  // 5. League Rank Difference
+  const rankDiff = Math.abs(homeTeamRank - awayTeamRank);
+  if (homeTeamRank < awayTeamRank) {
+    homeScore += rankDiff * config.weights.rankDifference;
+  } else if (awayTeamRank < homeTeamRank) {
+    awayScore += rankDiff * config.weights.rankDifference;
+  }
+
+  // --- Final Calculation & Normalization ---
+  homeScore = Math.max(1, homeScore);
+  awayScore = Math.max(1, awayScore);
+  const drawScore =
+    (homeScore + awayScore) *
+    (1 - Math.abs(homeScore - awayScore) / (homeScore + awayScore)) *
+    config.drawWeight;
+  const totalPoints = homeScore + awayScore + drawScore;
+
+  if (totalPoints === 0) {
+    return { home: 33, draw: 34, away: 33 };
+  }
+
+  let homePercent = Math.round((homeScore / totalPoints) * 100);
+  let awayPercent = Math.round((awayScore / totalPoints) * 100);
+  let drawPercent = 100 - homePercent - awayPercent;
+
+  if (drawPercent < 0) {
+    drawPercent = 0;
+    const remainder = 100 - (homePercent + awayPercent);
+    if (homePercent > awayPercent) homePercent += remainder;
+    else awayPercent += remainder;
+  }
+
+  return {
+    home: homePercent,
+    draw: drawPercent,
+    away: awayPercent,
+  };
+};
+
+// --- The main data fetching function ---
+const fetchAllDataForFixture = async (fixtureId: string | number) => {
+  const options = (endpoint: string, params: object) => ({
+    method: "GET",
+    url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/${endpoint}`,
+    params,
+    headers: { "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
+  });
+
+  const fixtureResponse = await axios.request(
+    options("fixtures", { id: fixtureId })
+  );
+  const fixtureData = fixtureResponse.data.response[0];
+
+  if (!fixtureData) {
+    throw new Error(`Fixture not found with ID: ${fixtureId}`);
+  }
+
+  const { league, teams } = fixtureData;
+  const { home: homeTeam, away: awayTeam } = teams;
+
+  const [
+    eventsResponse,
+    statsResponse,
+    h2hResponse,
+    predictionResponse,
+    homeStatsResponse,
+    awayStatsResponse,
+    oddsResponse,
+    standingsResponse,
+  ] = await Promise.all([
+    axios.request(options("fixtures/events", { fixture: fixtureId })),
+    axios.request(options("fixtures/statistics", { fixture: fixtureId })),
+    axios.request(
+      options("fixtures/headtohead", { h2h: `${homeTeam.id}-${awayTeam.id}` })
+    ),
+    axios.request(options("predictions", { fixture: fixtureId })),
+    axios.request(
+      options("teams/statistics", {
+        league: league.id,
+        season: league.season,
+        team: homeTeam.id,
+      })
+    ),
+    axios.request(
+      options("teams/statistics", {
+        league: league.id,
+        season: league.season,
+        team: awayTeam.id,
+      })
+    ),
+    axios.request(options("odds", { fixture: fixtureId, bet: "1" })),
+    axios.request(
+      options("standings", { league: league.id, season: league.season })
+    ),
+  ]);
+
+  const standings =
+    standingsResponse.data.response[0]?.league?.standings[0] || [];
+  const homeTeamRank = standings.find(
+    (s: any) => s.team.id === homeTeam.id
+  )?.rank;
+  const awayTeamRank = standings.find(
+    (s: any) => s.team.id === awayTeam.id
+  )?.rank;
+
+  const customPrediction = calculateCustomPrediction(
+    h2hResponse.data.response,
+    homeStatsResponse.data.response,
+    awayStatsResponse.data.response,
+    homeTeam.id,
+    homeTeamRank,
+    awayTeamRank
+  );
+
+  return {
+    fixture: fixtureData,
+    events: eventsResponse.data.response,
+    statistics: statsResponse.data.response,
+    h2h: h2hResponse.data.response,
+    analytics: {
+      prediction: predictionResponse.data.response[0] ?? null,
+      homeTeamStats: homeStatsResponse.data.response ?? null,
+      awayTeamStats: awayStatsResponse.data.response ?? null,
+      customPrediction: customPrediction,
+      bookmakerOdds: oddsResponse.data.response[0]?.bookmakers ?? [],
+    },
+  };
+};
+
+// --- The GET handler that the frontend calls ---
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const fixtureId = searchParams.get("fixture");
+
+  if (!fixtureId) {
+    return NextResponse.json(
+      { error: "Fixture ID is required" },
+      { status: 400 }
+    );
   }
 
   try {
     const matchDetails = await fetchAllDataForFixture(fixtureId);
     return NextResponse.json(matchDetails);
   } catch (error: any) {
-    console.error(`[API /match-details] Error for fixture ${fixtureId}:`, error.message);
-    return NextResponse.json({ error: 'Failed to fetch match details.' }, { status: 500 });
+    console.error(
+      `[API /match-details] Error for fixture ${fixtureId}:`,
+      error.message
+    );
+    return NextResponse.json(
+      { error: "Failed to fetch match details." },
+      { status: 500 }
+    );
   }
 }
+
 
 // ===== src\app\api\odds\route.ts =====
 import { NextResponse } from 'next/server';
@@ -1496,18 +2065,19 @@ export async function GET(request: Request) {
 // ===== src\app\api\posts\route.ts =====
 // src/app/api/posts/route.ts
 
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import dbConnect from '@/lib/dbConnect';
-import Post, { IPost } from '@/models/Post';
-import slugify from 'slugify';
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import dbConnect from "@/lib/dbConnect";
+import Post, { IPost } from "@/models/Post";
+import slugify from "slugify";
 
 // --- GET All Posts ---
 // Publicly accessible, but can be filtered by status (e.g., for the public site)
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const status = searchParams.get('status');
+  const status = searchParams.get("status");
+  const limit = searchParams.get("limit");
 
   const query: { status?: string } = {};
   if (status) {
@@ -1516,29 +2086,49 @@ export async function GET(request: Request) {
 
   try {
     await dbConnect();
-    const posts = await Post.find(query).sort({ createdAt: -1 }); // Newest first
+    let postsQuery = Post.find(query).sort({ createdAt: -1 });
+
+    if (limit) {
+      postsQuery = postsQuery.limit(parseInt(limit)); // <-- Apply the limit
+    }
+
+    const posts = await postsQuery;
     return NextResponse.json(posts);
   } catch (error) {
     console.error("Failed to fetch posts:", error);
-    return NextResponse.json({ error: 'Server error fetching posts' }, { status: 500 });
+    return NextResponse.json(
+      { error: "Server error fetching posts" },
+      { status: 500 }
+    );
   }
 }
-
 
 // --- POST a New Post ---
 // Protected: Only admins can create posts.
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
-  if (session?.user?.role !== 'admin') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (session?.user?.role !== "admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   try {
     const body: Partial<IPost> = await request.json();
-    const { title, content, status, featuredImage, metaTitle, metaDescription, featuredImageTitle, featuredImageAltText } = body;
+    const {
+      title,
+      content,
+      status,
+      featuredImage,
+      metaTitle,
+      metaDescription,
+      featuredImageTitle,
+      featuredImageAltText,
+    } = body;
 
     if (!title || !content) {
-      return NextResponse.json({ error: 'Title and content are required' }, { status: 400 });
+      return NextResponse.json(
+        { error: "Title and content are required" },
+        { status: 400 }
+      );
     }
 
     await dbConnect();
@@ -1547,7 +2137,12 @@ export async function POST(request: Request) {
     const slug = slugify(title, { lower: true, strict: true });
     const slugExists = await Post.findOne({ slug });
     if (slugExists) {
-        return NextResponse.json({ error: `A post with the slug '${slug}' already exists. Please use a different title.` }, { status: 409 });
+      return NextResponse.json(
+        {
+          error: `A post with the slug '${slug}' already exists. Please use a different title.`,
+        },
+        { status: 409 }
+      );
     }
 
     const newPost = new Post({
@@ -1555,7 +2150,7 @@ export async function POST(request: Request) {
       content,
       status,
       slug,
-      author: session.user.name || 'Admin',
+      author: session.user.name || "Admin",
       featuredImage,
       metaTitle,
       metaDescription,
@@ -1565,12 +2160,15 @@ export async function POST(request: Request) {
 
     await newPost.save();
     return NextResponse.json(newPost, { status: 201 });
-
   } catch (error) {
     console.error("Failed to create post:", error);
-    return NextResponse.json({ error: 'Server error creating post' }, { status: 500 });
+    return NextResponse.json(
+      { error: "Server error creating post" },
+      { status: 500 }
+    );
   }
 }
+
 
 // ===== src\app\api\posts\[postId]\route.ts =====
 // src/app/api/posts/[postId]/route.ts
@@ -1750,62 +2348,76 @@ export async function GET(
 }
 
 // ===== src\app\api\standings\route.ts =====
-import { NextResponse } from 'next/server';
-import axios from 'axios';
+// src/app/api/standings/route.ts
 
-// Define a type for the team standing data for clarity
+import { NextResponse } from "next/server";
+import axios from "axios";
+import { generateLeagueSlug } from "@/lib/generate-league-slug"; // <-- IMPORT
+
+// TeamStanding type definition remains the same
 type TeamStanding = {
   rank: number;
-  team: { id: number; name: string; logo: string; };
+  team: { id: number; name: string; logo: string };
   points: number;
   goalsDiff: number;
-  all: { played: number; win: number; draw: number; lose: number; };
+  all: { played: number; win: number; draw: number; lose: number };
   description: string | null;
+  group: string; // <-- Make sure group is part of the type
 };
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const leagueId = searchParams.get('league');
-  const season = searchParams.get('season') || new Date().getFullYear().toString();
+  const leagueId = searchParams.get("league");
+  const season =
+    searchParams.get("season") || new Date().getFullYear().toString();
 
   if (!leagueId) {
-    return NextResponse.json({ error: 'League ID is required' }, { status: 400 });
+    return NextResponse.json(
+      { error: "League ID is required" },
+      { status: 400 }
+    );
   }
 
   const options = {
-    method: 'GET',
+    method: "GET",
     url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/standings`,
     params: { league: leagueId, season: season },
     headers: {
-      'x-apisports-key': process.env.NEXT_PUBLIC_API_FOOTBALL_KEY,
+      "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY,
     },
   };
 
   try {
     const response = await axios.request(options);
-       if (!response.data.response || response.data.response.length === 0) {
+    if (!response.data.response || response.data.response.length === 0) {
       return NextResponse.json({ league: null, standings: [] });
     }
 
-
     const data = response.data.response[0];
 
-    // --- Data Transformation ---
-    // Extract only the data our frontend needs to keep the payload light.
+    // --- ENHANCED TRANSFORMATION ---
+    // We now add the href to the league info object
     const leagueInfo = {
       id: data.league.id,
       name: data.league.name,
       logo: data.league.logo,
+      type: data.league.type, // Good to have for context
+      href: generateLeagueSlug(data.league.name, data.league.id), // <-- ADD THE HREF
     };
-    
-    const standings: TeamStanding[] = data.league.standings[0];
+
+    // Ensure we are selecting the correct standings array
+    const standings: TeamStanding[][] = data.league.standings;
 
     return NextResponse.json({ league: leagueInfo, standings });
   } catch (error) {
     console.error("Error fetching standings:", error);
-    return NextResponse.json({ error: 'Failed to fetch standings data' }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch standings data" },
+      { status: 500 }
+    );
   }
 }
+
 
 // ===== src\app\api\team-details\route.ts =====
 // src/app/api/team-details/route.ts
@@ -1830,6 +2442,45 @@ export async function GET(request: Request) {
 
     return NextResponse.json(teamData);
 }
+
+// ===== src\app\api\team-trophies\route.ts =====
+// src/app/api/team-trophies/route.ts
+import { NextResponse } from "next/server";
+import axios from "axios";
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const teamId = searchParams.get("team");
+
+  if (!teamId) {
+    return NextResponse.json({ error: "Team ID is required" }, { status: 400 });
+  }
+
+  const options = {
+    method: "GET",
+    url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/trophies`,
+    params: { team: teamId },
+    headers: { "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
+  };
+
+  try {
+    const response = await axios.request(options);
+    // Sort trophies by season, newest first
+    const sortedTrophies = response.data.response.sort((a: any, b: any) => {
+      const seasonB = parseInt(b.season.split("-")[0]);
+      const seasonA = parseInt(a.season.split("-")[0]);
+      return seasonB - seasonA;
+    });
+    return NextResponse.json(sortedTrophies);
+  } catch (error) {
+    console.error("Error fetching team trophies:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch trophies" },
+      { status: 500 }
+    );
+  }
+}
+
 
 // ===== src\app\api\teams\route.ts =====
 // src/app/api/teams/route.ts
@@ -1877,65 +2528,79 @@ export async function GET(request: Request) {
 }
 
 // ===== src\app\api\teams-by-country\route.ts =====
-import { NextResponse } from 'next/server';
-import axios from 'axios';
+// src/app/api/teams-by-country/route.ts
+import { NextResponse } from "next/server";
+import axios from "axios";
 
 const season = new Date().getFullYear();
 
+// This is a reusable helper for making requests to the external API
 const apiRequest = async (endpoint: string, params: object) => {
-    const options = {
-        method: 'GET',
-        url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/${endpoint}`,
-        params,
-        headers: { 'x-apisports-key': process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
-    };
-    const response = await axios.request(options);
-    return response.data.response;
+  const options = {
+    method: "GET",
+    url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/${endpoint}`,
+    params,
+    headers: { "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
+  };
+  const response = await axios.request(options);
+  return response.data.response;
 };
 
-// This function handles GET requests to /api/teams-by-country?country=...
+// This function now returns both the list of teams AND the count
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const country = searchParams.get('country');
+  const country = searchParams.get("country");
 
   if (!country) {
-    return NextResponse.json({ error: 'Country parameter is required' }, { status: 400 });
+    return NextResponse.json(
+      { error: "Country parameter is required" },
+      { status: 400 }
+    );
   }
 
   try {
     // 1. First, find all leagues for the specified country.
-    const leagues = await apiRequest('leagues', { country: country });
+    const leagues = await apiRequest("leagues", { country: country });
     if (!leagues || leagues.length === 0) {
-        return NextResponse.json([]); // No leagues, so no teams.
+      // Return a structured response even if there are no teams
+      return NextResponse.json({ teams: [], count: 0 });
     }
 
     const leagueIds = leagues.map((l: any) => l.league.id);
 
     // 2. Fetch all teams from all found leagues in parallel.
-    const teamPromises = leagueIds.map(id => apiRequest('teams', { league: id, season: season }));
+    const teamPromises = leagueIds.map((id: any) =>
+      apiRequest("teams", { league: id, season: season })
+    );
     const responses = await Promise.allSettled(teamPromises);
 
-    // 3. Aggregate all teams and filter out any failed requests.
+    // 3. Aggregate all teams from successful requests.
     const allTeamsResponses = responses
-      .filter(result => result.status === 'fulfilled' && result.value)
-      .flatMap(result => (result as PromiseFulfilledResult<any>).value);
+      .filter((result) => result.status === "fulfilled" && result.value)
+      .flatMap((result) => (result as PromiseFulfilledResult<any>).value);
 
-    // 4. De-duplicate the teams using a Map (a team can be in multiple leagues).
-    const uniqueTeams = Array.from(new Map(allTeamsResponses.map(item => [item.team.id, item])).values());
+    // 4. De-duplicate the teams using a Map (very important).
+    const uniqueTeams = Array.from(
+      new Map(allTeamsResponses.map((item) => [item.team.id, item])).values()
+    );
 
-    // 5. Sort the final list alphabetically for a better user experience.
+    // 5. Sort the final list alphabetically.
     uniqueTeams.sort((a, b) => a.team.name.localeCompare(b.team.name));
-    
-    return NextResponse.json(uniqueTeams);
 
+    // 6. Return the enhanced response object
+    return NextResponse.json({
+      teams: uniqueTeams,
+      count: uniqueTeams.length, // The accurate count of unique teams
+    });
   } catch (error) {
     console.error(`Error fetching teams for country "${country}":`, error);
     return NextResponse.json(
-      { error: 'Failed to fetch teams data for this country.' },
+      { error: "Failed to fetch teams data for this country." },
       { status: 500 }
     );
   }
 }
+
 
 // ===== src\app\api\top-scorers\route.ts =====
 // src/app/api/top-scorers/route.ts
@@ -2209,195 +2874,299 @@ export async function POST(request: Request) {
 }
 
 // ===== src\app\football\league\[...slug]\page.tsx =====
-// src/app/league/[...slug]/page.tsx
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
-import LeagueDetailView from '@/components/league-detail-view';
-import { League } from '@/types/api-football';
-import axios from 'axios';
-import { notFound } from 'next/navigation';
+// src/app/football/league/[...slug]/page.tsx
+import Header from "@/components/Header";
+import Sidebar from "@/components/Sidebar";
+import LeagueDetailView from "@/components/league-detail-view";
+import axios from "axios";
+import { notFound } from "next/navigation";
 
 // Helper to extract the ID from the slug (e.g., "premier-league-39" -> "39")
 const getLeagueIdFromSlug = (slug: string): string | null => {
-    if (!slug) return null;
-    const parts = slug.split('-');
-    const lastPart = parts[parts.length - 1];
-    return /^\d+$/.test(lastPart) ? lastPart : null;
+  if (!slug) return null;
+  const parts = slug.split("-");
+  const lastPart = parts[parts.length - 1];
+  return /^\d+$/.test(lastPart) ? lastPart : null;
 };
 
-// It will now return the raw API response object.
+// The data fetching functions remain unchanged
 async function getLeagueData(leagueId: string): Promise<any | null> {
-    try {
-        const { data } = await axios.get(`${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/leagues?id=${leagueId}`, {
-            headers: { 'x-apisports-key': process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
-        });
-        
-        if (!data.response || data.response.length === 0) {
-            return null;
-        }
-        
-        // Return the first item from the response array directly.
-        // This object contains league, country, and seasons.
-        return data.response[0];
+  try {
+    const { data } = await axios.get(
+      `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/leagues?id=${leagueId}`,
+      {
+        headers: {
+          "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY,
+        },
+      }
+    );
 
-    } catch (error) {
-        console.error("Failed to fetch single league data:", error);
-        return null;
+    if (!data.response || data.response.length === 0) {
+      return null;
     }
+
+    const leagueData = data.response[0];
+
+    const standingsResponse = await axios.get(
+      `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/standings`,
+      {
+        params: { league: leagueId, season: new Date().getFullYear() },
+        headers: {
+          "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY,
+        },
+      }
+    );
+
+    leagueData.league.standings =
+      standingsResponse.data.response[0]?.league?.standings || [];
+    return leagueData;
+  } catch (error) {
+    console.error("Failed to fetch single league data:", error);
+    return null;
+  }
 }
 
-// Generate metadata for the page for SEO
-export async function generateMetadata({ params }: { params: { slug: string[] }}) {
-    const slug = params.slug.join('/');
-    const leagueId = getLeagueIdFromSlug(slug);
-    if (!leagueId) return { title: 'League Not Found' };
-    
-    const leagueData = await getLeagueData(leagueId);
-    if (!leagueData) return { title: 'League Not Found' };
+export async function generateMetadata({
+  params,
+}: {
+  params: { slug: string[] };
+}) {
+  const slug = params.slug.join("/");
+  const leagueId = getLeagueIdFromSlug(slug);
+  if (!leagueId) return { title: "League Not Found" };
 
-    return {
-      title: `${leagueData.league.name} - Info, Fixtures & Standings`,
-      description: `All information about the ${leagueData.league.name}, including available seasons, fixtures, and full standings.`,
-    };
+  const leagueData = await getLeagueData(leagueId);
+  if (!leagueData) return { title: "League Not Found" };
+
+  return {
+    title: `${leagueData.league.name} - Info, Fixtures & Standings`,
+    description: `All information about the ${leagueData.league.name}, including available seasons, fixtures, and full standings.`,
+  };
 }
 
 // --- THE MAIN PAGE COMPONENT ---
-export default async function LeaguePage({ params }: { params: { slug: string[] } }) {
-    const slug = params.slug.join('/');
-    const leagueId = getLeagueIdFromSlug(slug);
+export default async function LeaguePage({
+  params,
+}: {
+  params: { slug: string[] };
+}) {
+  const slug = params.slug.join("/");
+  const leagueId = getLeagueIdFromSlug(slug);
 
-    if (!leagueId) {
-        notFound();
-    }
+  if (!leagueId) {
+    notFound();
+  }
 
-    const leagueData = await getLeagueData(leagueId);
+  const leagueData = await getLeagueData(leagueId);
 
-    if (!leagueData) {
-        notFound();
-    }
+  if (!leagueData) {
+    notFound();
+  }
 
-    return (
-        <div className="min-h-screen flex flex-col">
-            <Header />
-            <div className="flex flex-1">
-                <Sidebar />
-                <main className="flex-1 p-4 lg:p-8">
-                    {/* Pass the entire raw leagueData object as a prop */}
-                    <LeagueDetailView leagueData={leagueData} />
-                </main>
-            </div>
-        </div>
-    );
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Header />
+      <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr] lg:gap-8 lg:items-start">
+        <Sidebar />
+        <main className="min-w-0 p-4 lg:p-0 lg:py-6">
+          <LeagueDetailView leagueData={leagueData} />
+        </main>
+      </div>
+    </div>
+  );
 }
 
+
 // ===== src\app\football\leagues\page.tsx =====
+// src/app/football/leagues/page.tsx
 "use client";
 
-import { useState, useMemo, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
-import { League } from '@/types/api-football';
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
-import DirectoryCard, { DirectoryCardSkeleton } from '@/components/DirectoryCard';
-import Pagination from '@/components/Pagination';
+import { useState, useMemo, useEffect } from "react";
+import { useQueries } from "@tanstack/react-query";
+import axios from "axios";
+import { League } from "@/types/api-football";
+import Header from "@/components/Header";
+import Sidebar from "@/components/Sidebar";
+import DirectoryCard, {
+  DirectoryCardSkeleton,
+} from "@/components/DirectoryCard";
+import Pagination from "@/components/Pagination";
 
-// --- THE FIX ---
-// This line tells Next.js to always render this page dynamically on the server
-// at request time, which resolves the conflict with client-side hooks.
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 const ITEMS_PER_PAGE = 15;
 
+// Fetcher function for all leagues
 const fetchAllLeagues = async (): Promise<League[]> => {
-    const { data } = await axios.get('/api/leagues?fetchAll=true');
-    return data;
+  const { data } = await axios.get("/api/leagues?fetchAll=true");
+  return data;
+};
+
+// Fetcher function for the IDs of currently active leagues
+const fetchActiveLeagueIds = async (): Promise<number[]> => {
+  const { data } = await axios.get("/api/active-leagues");
+  return data;
 };
 
 export default function LeaguesPage() {
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filter, setFilter] = useState<'all' | 'league' | 'cup'>('all');
-    const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filter, setFilter] = useState<"all" | "league" | "cup">("all");
+  const [currentPage, setCurrentPage] = useState(1);
 
-    const { data: leagues, isLoading } = useQuery<League[]>({
-        queryKey: ['allLeaguesDirectory'],
+  // useQueries fetches both datasets in parallel for optimal performance
+  const [
+    { data: allLeagues, isLoading: isLoadingLeagues },
+    { data: activeLeagueIds, isLoading: isLoadingActive },
+  ] = useQueries({
+    queries: [
+      {
+        queryKey: ["allLeaguesDirectory"],
         queryFn: fetchAllLeagues,
-        staleTime: 1000 * 60 * 60,
+        staleTime: 1000 * 60 * 60, // Cache all leagues for 1 hour
+      },
+      {
+        queryKey: ["activeLeagueIds"],
+        queryFn: fetchActiveLeagueIds,
+        staleTime: 1000 * 60 * 10, // Re-check for active leagues every 10 minutes
+      },
+    ],
+  });
+
+  const isLoading = isLoadingLeagues || isLoadingActive;
+
+  // The main logic for filtering and sorting the leagues
+  const { paginatedData, totalPages } = useMemo(() => {
+    // Wait until both API calls are complete before processing data
+    if (!allLeagues || !activeLeagueIds) {
+      return { paginatedData: [], totalPages: 0 };
+    }
+
+    const activeIdsSet = new Set(activeLeagueIds);
+
+    // First, apply the user's search and type filters
+    const filtered = allLeagues.filter((league) => {
+      const matchesSearch = league.name
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
+      const matchesFilter =
+        filter === "all" || league.type.toLowerCase() === filter;
+      return matchesSearch && matchesFilter;
     });
-    
-    const { paginatedData, totalPages } = useMemo(() => {
-        if (!leagues) return { paginatedData: [], totalPages: 0 };
 
-        const filtered = leagues.filter(league => {
-            const matchesSearch = league.name.toLowerCase().includes(searchTerm.toLowerCase());
-            const matchesFilter = filter === 'all' || league.type.toLowerCase() === filter;
-            return matchesSearch && matchesFilter;
-        });
+    // Separate the filtered list into active and inactive leagues
+    const activeLeagues = filtered.filter((l) => activeIdsSet.has(l.id));
+    const inactiveLeagues = filtered.filter((l) => !activeIdsSet.has(l.id));
 
-        const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+    // Sort each sub-list alphabetically for consistent ordering
+    activeLeagues.sort((a, b) => a.name.localeCompare(b.name));
+    inactiveLeagues.sort((a, b) => a.name.localeCompare(b.name));
 
-        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-        const endIndex = startIndex + ITEMS_PER_PAGE;
-        const paginatedData = filtered.slice(startIndex, endIndex);
+    // Combine the lists, with active leagues appearing first
+    const sortedAndFiltered = [...activeLeagues, ...inactiveLeagues];
 
-        return { paginatedData, totalPages };
+    // Apply pagination to the final, sorted list
+    const totalPages = Math.ceil(sortedAndFiltered.length / ITEMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    const paginatedData = sortedAndFiltered.slice(startIndex, endIndex);
 
-    }, [leagues, searchTerm, filter, currentPage]);
+    return { paginatedData, totalPages };
+  }, [allLeagues, activeLeagueIds, searchTerm, filter, currentPage]);
 
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [searchTerm, filter]);
+  // Reset to the first page whenever the filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filter]);
 
-    return (
-        <div className="min-h-screen flex flex-col">
-            <Header />
-            <div className="flex flex-1">
-                <Sidebar />
-                <main className="flex-1 p-4 lg:p-8">
-                    <h1 className="text-4xl font-extrabold text-white mb-6">Leagues & Cups</h1>
-                    
-                    <div className="flex flex-col md:flex-row gap-4 mb-8">
-                        <input
-                            type="text"
-                            placeholder="Search by name..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full md:w-1/3 p-3 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-purple"
-                        />
-                        <div className="flex items-center gap-2 p-1 rounded-lg" style={{backgroundColor: 'var(--color-secondary)'}}>
-                            <button onClick={() => setFilter('all')} className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-colors ${filter === 'all' ? 'bg-brand-purple text-white' : 'text-text-muted hover:bg-gray-700/50'}`}>All</button>
-                            <button onClick={() => setFilter('league')} className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-colors ${filter === 'league' ? 'bg-brand-purple text-white' : 'text-text-muted hover:bg-gray-700/50'}`}>Leagues</button>
-                            <button onClick={() => setFilter('cup')} className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-colors ${filter === 'cup' ? 'bg-brand-purple text-white' : 'text-text-muted hover:bg-gray-700/50'}`}>Cups</button>
-                        </div>
-                    </div>
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Header />
+      <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr] lg:gap-8 lg:items-start">
+        <Sidebar />
+        <main className="min-w-0 p-4 lg:p-0 lg:py-6">
+          <h1 className="text-4xl font-extrabold text-white mb-6">
+            Leagues & Cups
+          </h1>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                        {isLoading ? (
-                            Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => <DirectoryCardSkeleton key={i} />)
-                        ) : (
-                            paginatedData.map(league => <DirectoryCard key={league.id} {...league} />)
-                        )}
-                    </div>
-                    
-                    {!isLoading && paginatedData.length > 0 && (
-                        <Pagination 
-                            currentPage={currentPage}
-                            totalPages={totalPages}
-                            onPageChange={setCurrentPage}
-                        />
-                    )}
-
-                     {!isLoading && paginatedData.length === 0 && (
-                        <div className="text-center py-20 bg-brand-secondary rounded-lg">
-                            <p className="text-xl font-bold text-white">No Results Found</p>
-                            <p className="text-brand-muted mt-2">Try adjusting your search or filter.</p>
-                        </div>
-                     )}
-                </main>
+          <div className="flex flex-col md:flex-row gap-4 mb-8">
+            <input
+              type="text"
+              placeholder="Search by name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full md:w-1/3 p-3 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-purple"
+            />
+            <div className="flex items-center gap-2 p-1 rounded-lg bg-brand-secondary">
+              <button
+                onClick={() => setFilter("all")}
+                className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-colors ${
+                  filter === "all"
+                    ? "bg-brand-purple text-white"
+                    : "text-brand-muted hover:bg-gray-700/50"
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setFilter("league")}
+                className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-colors ${
+                  filter === "league"
+                    ? "bg-brand-purple text-white"
+                    : "text-brand-muted hover:bg-gray-700/50"
+                }`}
+              >
+                Leagues
+              </button>
+              <button
+                onClick={() => setFilter("cup")}
+                className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-colors ${
+                  filter === "cup"
+                    ? "bg-brand-purple text-white"
+                    : "text-brand-muted hover:bg-gray-700/50"
+                }`}
+              >
+                Cups
+              </button>
             </div>
-        </div>
-    );
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {isLoading
+              ? Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => (
+                  <DirectoryCardSkeleton key={i} />
+                ))
+              : paginatedData.map((league) => (
+                  <DirectoryCard
+                    key={league.id}
+                    {...league}
+                    // The 'isPopular' prop is now used to signify 'isActive'
+                    isPopular={activeLeagueIds?.includes(league.id)}
+                  />
+                ))}
+          </div>
+
+          {!isLoading && paginatedData.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          )}
+
+          {!isLoading && paginatedData.length === 0 && (
+            <div className="text-center py-20 bg-brand-secondary rounded-lg">
+              <p className="text-xl font-bold text-white">No Results Found</p>
+              <p className="text-brand-muted mt-2">
+                Try adjusting your search or filter.
+              </p>
+            </div>
+          )}
+        </main>
+      </div>
+    </div>
+  );
 }
+
 
 // ===== src\app\football\match\[...slug]\page.tsx =====
 // src/app/football/match/[...slug]/page.tsx
@@ -2409,26 +3178,25 @@ import { useParams } from "next/navigation";
 import axios from "axios";
 import Header from "@/components/Header";
 
-// Import all the separated components for the page
+// Import all the components used on this page
 import MatchHeader from "@/components/match/MatchHeader";
 import MatchStatusBanner from "@/components/match/MatchStatusBanner";
-import MatchEventsWidget from "@/components/match/MatchEventsWidget";
-import MatchStatsWidget from "@/components/match/MatchStatsWidget";
 import MatchH2HWidget from "@/components/match/MatchH2HWidget";
-import MatchAnalyticsWidget from "@/components/match/MatchAnalyticsWidget";
 import MatchLineupsWidget from "@/components/match/MatchLineupsWidget";
-import BettingPromotionWidget from "@/components/BettingPromotionWidget";
-import AdSlotWidget from "@/components/AdSlotWidget"; // The newly added Ad Widget
+import AdSlotWidget from "@/components/AdSlotWidget";
+import MatchPredictionWidget from "@/components/match/MatchPredictionWidget";
+import TeamFormWidget from "@/components/match/TeamFormWidget";
+import WeatherWidget from "@/components/match/WeatherWidget";
+import LiveOddsWidget from "@/components/match/LiveOddsWidget";
 
+// --- Data fetching functions and helpers ---
 const getFixtureIdFromSlug = (slug: string): string | null => {
   if (!slug) return null;
   const parts = slug.split("-");
   const lastPart = parts[parts.length - 1];
-  // Check if the last part is a number
   return /^\d+$/.test(lastPart) ? lastPart : null;
 };
 
-// The fetcher now only ever uses the fixture ID
 const fetchMatchDetails = async (fixtureId: string) => {
   const { data } = await axios.get(`/api/match-details?fixture=${fixtureId}`);
   return data;
@@ -2437,18 +3205,21 @@ const fetchMatchDetails = async (fixtureId: string) => {
 // --- Skeleton Component for Initial Loading ---
 const PageSkeleton = () => (
   <div className="animate-pulse container mx-auto p-4 md:p-8">
-    {/* Skeleton for MatchHeader */}
     <div className="h-48 w-full bg-brand-secondary rounded-lg mb-2"></div>
-    {/* Skeleton for MatchStatusBanner */}
     <div className="h-10 w-full bg-brand-secondary rounded-b-lg mb-8"></div>
-    {/* Skeleton for the main content grid */}
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
+      {/* Main Column Skeleton */}
       <div className="lg:col-span-2 space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="h-96 w-full bg-brand-secondary rounded-lg"></div>
+          <div className="h-96 w-full bg-brand-secondary rounded-lg"></div>
+        </div>
         <div className="h-64 w-full bg-brand-secondary rounded-lg"></div>
-        <div className="h-96 w-full bg-brand-secondary rounded-lg"></div>
       </div>
+      {/* Sidebar Column Skeleton */}
       <div className="lg:col-span-1 space-y-6">
-        <div className="h-40 w-full bg-brand-secondary rounded-lg"></div>
+        <div className="h-48 w-full bg-brand-secondary rounded-lg"></div>
+        <div className="h-28 w-full bg-brand-secondary rounded-lg"></div>
         <div className="h-80 w-full bg-brand-secondary rounded-lg"></div>
       </div>
     </div>
@@ -2467,9 +3238,15 @@ export default function MatchDetailPage() {
     queryKey: ["matchDetails", fixtureId],
     queryFn: () => fetchMatchDetails(fixtureId!),
     enabled: !!fixtureId,
-    staleTime: 1000 * 60, // Refetch data every 60 seconds
+    staleTime: 1000 * 30, // Refetch data every 30 seconds
     refetchOnWindowFocus: true,
   });
+
+  const isLive = useMemo(() => {
+    if (!data?.fixture) return false;
+    const status = data.fixture.status?.short;
+    return ["1H", "HT", "2H", "ET", "BT", "P", "LIVE"].includes(status);
+  }, [data]);
 
   if (isLoading) {
     return (
@@ -2495,36 +3272,55 @@ export default function MatchDetailPage() {
     );
   }
 
-  const { fixture, events, statistics, h2h, analytics } = data;
+  const { fixture, h2h, analytics } = data;
+  const { home: homeTeam, away: awayTeam } = fixture.teams;
 
   return (
     <div className="bg-brand-dark min-h-screen">
       <Header />
       <div className="container mx-auto p-2 md:p-4 lg:p-6 text-brand-light">
-        {/* Header components */}
         <MatchHeader fixture={fixture} />
         <MatchStatusBanner fixture={fixture} />
 
-        {/* --- RESPONSIVE WIDGET GRID --- */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-          {/* Main Content Column (2/3 width on desktop) */}
-          <div className="lg:col-span-2 space-y-6">
-            <MatchEventsWidget events={events} teams={fixture.teams} />
-            <MatchStatsWidget statistics={statistics} teams={fixture.teams} />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
+          {/* Main Content Column */}
+          <main className="lg:col-span-2 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <TeamFormWidget
+                teamStats={analytics.homeTeamStats}
+                team={homeTeam}
+                location="Home"
+              />
+              <TeamFormWidget
+                teamStats={analytics.awayTeamStats}
+                team={awayTeam}
+                location="Away"
+              />
+            </div>
             <MatchH2HWidget
               h2h={h2h}
               teams={fixture.teams}
               currentFixtureId={fixtureId!}
             />
-          </div>
+          </main>
 
-          {/* Sidebar Column (1/3 width on desktop) */}
-          <div className="lg:col-span-1 space-y-6">
-            <AdSlotWidget location="match_sidebar" />
-            <MatchAnalyticsWidget analytics={analytics} />
+          {/* Sidebar Column */}
+          <aside className="lg:col-span-1 space-y-6 sticky top-6">
+            {isLive && <LiveOddsWidget fixtureId={fixtureId!} />}
+
+            <MatchPredictionWidget
+              apiPrediction={analytics.prediction}
+              customPrediction={analytics.customPrediction}
+              bookmakerOdds={analytics.bookmakerOdds}
+              teams={fixture.teams}
+            />
+
+            <WeatherWidget fixture={fixture} />
+
             <MatchLineupsWidget lineups={fixture.lineups} />
-            <BettingPromotionWidget />
-          </div>
+
+            <AdSlotWidget location="match_sidebar" />
+          </aside>
         </div>
       </div>
     </div>
@@ -2533,84 +3329,163 @@ export default function MatchDetailPage() {
 
 
 // ===== src\app\football\news\page.tsx =====
+// src/app/football/news/page.tsx
 "use client";
 
-import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
-import { IPost } from '@/models/Post';
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
-import Pagination from '@/components/Pagination';
-import NewsListItem, { NewsListItemSkeleton } from '@/components/NewsListItem';
+import { useState, useMemo, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import { IPost } from "@/models/Post";
+import Header from "@/components/Header";
+import Sidebar from "@/components/Sidebar";
+import Pagination from "@/components/Pagination";
+import NewsListItem, { NewsListItemSkeleton } from "@/components/NewsListItem";
+import { Info, Newspaper } from "lucide-react";
+import Script from "next/script"; // Import the Script component for JSON-LD
+import PostCategories, { NewsCategory } from "@/components/PostCategories"; // Import the new component
 
-// --- THE FIX ---
-// This line tells Next.js to always render this page dynamically on the server at request time,
-// instead of trying to create a static HTML file at build time.
-// This resolves the conflict with client-side hooks like useSearchParams.
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 const ITEMS_PER_PAGE = 8;
 
 const fetchNews = async (): Promise<IPost[]> => {
-    const { data } = await axios.get('/api/posts?status=published');
-    return data;
+  const { data } = await axios.get("/api/posts?status=published");
+  return data;
 };
 
 export default function NewsPage() {
-    const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [activeCategory, setActiveCategory] = useState<NewsCategory>("all");
 
-    const { data: allNews, isLoading } = useQuery<IPost[]>({
-        queryKey: ['allNewsArticles'],
-        queryFn: fetchNews,
-        staleTime: 1000 * 60 * 5,
-    });
+  const { data: allNews, isLoading } = useQuery<IPost[]>({
+    queryKey: ["allNewsArticles"],
+    queryFn: fetchNews,
+    staleTime: 1000 * 60 * 5,
+  });
 
-    const { paginatedData, totalPages } = useMemo(() => {
-        if (!allNews) return { paginatedData: [], totalPages: 0 };
+  // --- ENHANCED: Filtering and Pagination Logic ---
+  const { paginatedData, totalPages } = useMemo(() => {
+    if (!allNews) return { paginatedData: [], totalPages: 0 };
 
-        const totalPages = Math.ceil(allNews.length / ITEMS_PER_PAGE);
-        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-        const endIndex = startIndex + ITEMS_PER_PAGE;
-        const paginatedData = allNews.slice(startIndex, endIndex);
+    // 1. Filter by the active category first
+    const filteredNews =
+      activeCategory === "all"
+        ? allNews
+        : allNews.filter((post) => post.sport === activeCategory);
 
-        return { paginatedData, totalPages };
+    // 2. Paginate the filtered results
+    const totalPages = Math.ceil(filteredNews.length / ITEMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    const paginatedData = filteredNews.slice(startIndex, endIndex);
 
-    }, [allNews, currentPage]);
+    return { paginatedData, totalPages };
+  }, [allNews, currentPage, activeCategory]);
 
-    return (
-        <div className="min-h-screen flex flex-col">
-            <Header />
-            <div className="flex flex-1">
-                <Sidebar />
-                <main className="flex-1 p-4 lg:p-8">
-                    <h1 className="text-4xl font-extrabold text-white mb-8">Latest News</h1>
+  // Reset page to 1 when category changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeCategory]);
 
-                    <div className="space-y-6">
-                        {isLoading ? (
-                            Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => <NewsListItemSkeleton key={i} />)
-                        ) : paginatedData.length > 0 ? (
-                            paginatedData.map(post => <NewsListItem key={post._id} post={post} />)
-                        ) : (
-                            <div className="text-center py-20 bg-brand-secondary rounded-lg">
-                                <p className="text-xl font-bold text-white">No News Available</p>
-                                <p className="text-brand-muted mt-2">There are no news articles to display at the moment.</p>
-                            </div>
-                        )}
-                    </div>
-                    
-                    {!isLoading && paginatedData.length > 0 && (
-                        <Pagination 
-                            currentPage={currentPage}
-                            totalPages={totalPages}
-                            onPageChange={setCurrentPage}
-                        />
-                    )}
-                </main>
+  // --- SEO: JSON-LD Structured Data ---
+  const generateJsonLd = () => {
+    if (!paginatedData || paginatedData.length === 0) return null;
+
+    const items = paginatedData.map((post) => ({
+      "@type": "NewsArticle",
+      headline: post.title,
+      image: [post.featuredImage || ""],
+      datePublished: post.createdAt,
+      dateModified: post.updatedAt,
+      author: [
+        {
+          "@type": "Person",
+          name: post.author,
+        },
+      ],
+    }));
+
+    return {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      itemListElement: items.map((item, index) => ({
+        "@type": "ListItem",
+        position: (currentPage - 1) * ITEMS_PER_PAGE + index + 1,
+        item: item,
+      })),
+    };
+  };
+
+  return (
+    <>
+      {/* Add the JSON-LD Script to the head of the page */}
+      <Script
+        id="news-list-jsonld"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(generateJsonLd()) }}
+      />
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr] lg:gap-8 lg:items-start">
+          <Sidebar />
+          <main className="min-w-0 p-4 lg:p-0 lg:py-6">
+            {/* --- ENHANCED UI: Page Header --- */}
+            <div className="flex items-center gap-4 mb-8">
+              <div className="p-3 bg-brand-purple/10 rounded-lg">
+                <Newspaper className="w-8 h-8 text-brand-purple" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-extrabold text-white">
+                  Latest News
+                </h1>
+                <p className="text-brand-muted">
+                  Stay updated with the latest stories and analysis.
+                </p>
+              </div>
             </div>
+
+            {/* --- ENHANCED UI: Category Filters --- */}
+            <PostCategories
+              activeCategory={activeCategory}
+              onCategoryChange={setActiveCategory}
+            />
+
+            {isLoading ? (
+              <div className="space-y-4">
+                {Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => (
+                  <NewsListItemSkeleton key={i} />
+                ))}
+              </div>
+            ) : paginatedData.length > 0 ? (
+              <div className="space-y-4">
+                {paginatedData.map((post) => (
+                  <NewsListItem key={post._id} post={post} />
+                ))}
+                {totalPages > 1 && (
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={setCurrentPage}
+                  />
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-20 bg-brand-secondary rounded-lg">
+                <Info size={32} className="mx-auto text-brand-muted mb-3" />
+                <p className="text-xl font-bold text-white">No News Found</p>
+                <p className="text-brand-muted mt-2">
+                  There are no articles available in the "{activeCategory}"
+                  category.
+                </p>
+              </div>
+            )}
+          </main>
         </div>
-    );
+      </div>
+    </>
+  );
 }
+
 
 // ===== src\app\football\news\[slug]\page.tsx =====
 import { notFound } from 'next/navigation';
@@ -2722,283 +3597,471 @@ export async function generateStaticParams() {
 }
 
 // ===== src\app\football\team\[...slug]\page.tsx =====
-// src/app/team/[...slug]/page.tsx
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
-import TeamDetailView from '@/components/TeamDetailView';
-import { notFound } from 'next/navigation';
-import { fetchTeamDetails } from '@/lib/data/team'; // <-- IMPORT THE NEW FUNCTION
+// src/app/football/team/[...slug]/page.tsx
+import Header from "@/components/Header";
+import Sidebar from "@/components/Sidebar";
+import TeamDetailView from "@/components/TeamDetailView";
+import { notFound } from "next/navigation";
+import axios from "axios";
 
 // Helper to extract the ID from the slug (unchanged)
 const getTeamIdFromSlug = (slug: string): string | null => {
-    if (!slug) return null;
-    const parts = slug.split('-');
-    const lastPart = parts[parts.length - 1];
-    return /^\d+$/.test(lastPart) ? lastPart : null;
+  if (!slug) return null;
+  const parts = slug.split("-");
+  const lastPart = parts[parts.length - 1];
+  return /^\d+$/.test(lastPart) ? lastPart : null;
 };
 
-// The data fetching function is now just a wrapper around our new library function
+// --- THIS IS THE CORRECTED DATA FETCHING FUNCTION ---
 async function getTeamData(teamId: string) {
-    // No more axios. No more invalid URLs. Just a direct, efficient function call.
-    return await fetchTeamDetails(teamId);
-}
+  const season = new Date().getFullYear();
 
-// generateMetadata now works perfectly because getTeamData is a direct server function call.
-export async function generateMetadata({ params }: { params: { slug:string[] } }) {
-    const slug = params.slug.join('/');
-    const teamId = getTeamIdFromSlug(slug);
-    if (!teamId) return { title: 'Team Not Found' };
-    
-    const data = await getTeamData(teamId);
-    if (!data?.teamInfo) return { title: 'Team Not Found' };
+  // Reusable options object for axios requests
+  const options = (endpoint: string, params: object) => ({
+    method: "GET",
+    url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/${endpoint}`,
+    params,
+    headers: { "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
+  });
+
+  try {
+    const [teamInfoRes, squadRes, fixturesRes] = await Promise.all([
+      // This call is correct
+      axios.request(options("teams", { id: teamId })),
+      // This call is correct
+      axios.request(options("players/squads", { team: teamId })),
+
+      // --- THIS IS THE FIX ---
+      // This API call now correctly queries the 'fixtures' endpoint
+      // with a 'team' parameter, ensuring we only get matches for this specific team.
+      // We fetch the last 50 to get a good mix of recent results and upcoming games.
+      axios.request(
+        options("fixtures", { team: teamId, season: season, last: 50 })
+      ),
+    ]);
+
+    if (!teamInfoRes.data.response[0]) {
+      return null;
+    }
 
     return {
-      title: `${data.teamInfo.team.name} - Squad, Fixtures & Standings`,
-      description: `View the full squad, recent fixtures, and current standings for ${data.teamInfo.team.name}.`,
+      teamInfo: teamInfoRes.data.response[0],
+      squad: squadRes.data.response[0]?.players || [],
+      // This now contains only the fixtures for the specified team
+      fixtures: fixturesRes.data.response || [],
     };
+  } catch (error) {
+    console.error(`Failed to fetch team details for teamId ${teamId}:`, error);
+    return null;
+  }
 }
 
+// generateMetadata function (unchanged)
+export async function generateMetadata({
+  params,
+}: {
+  params: { slug: string[] };
+}) {
+  const slug = params.slug.join("/");
+  const teamId = getTeamIdFromSlug(slug);
+  if (!teamId) return { title: "Team Not Found" };
 
-// --- THE MAIN PAGE COMPONENT ---
-export default async function TeamPage({ params }: { params: { slug: string[] } }) {
-    const slug = params.slug.join('/');
-    const teamId = getTeamIdFromSlug(slug);
-
-    if (!teamId) {
-        notFound();
-    }
-
-    const teamData = await getTeamData(teamId);
-
-    // If fetchTeamDetails returned null (error or not found), trigger a 404 page.
-    if (!teamData) {
-        notFound();
-    }
-
-    return (
-        <div className="min-h-screen flex flex-col">
-            <Header />
-            <div className="flex flex-1">
-                <Sidebar />
-                <main className="flex-1 p-4 lg:p-8">
-                    <TeamDetailView teamData={teamData} />
-                </main>
-            </div>
-        </div>
+  try {
+    const { data } = await axios.get(
+      `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/teams?id=${teamId}`,
+      {
+        headers: {
+          "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY,
+        },
+      }
     );
+    const teamInfo = data.response[0];
+    if (!teamInfo) return { title: "Team Not Found" };
+
+    return {
+      title: `${teamInfo.team.name} - Squad, Fixtures & Standings`,
+      description: `View the full squad, recent fixtures, and current standings for ${teamInfo.team.name}.`,
+    };
+  } catch {
+    return { title: "Team Not Found" };
+  }
 }
+
+// THE MAIN PAGE COMPONENT (Unchanged)
+export default async function TeamPage({
+  params,
+}: {
+  params: { slug: string[] };
+}) {
+  const slug = params.slug.join("/");
+  const teamId = getTeamIdFromSlug(slug);
+
+  if (!teamId) {
+    notFound();
+  }
+
+  const teamData = await getTeamData(teamId);
+
+  if (!teamData) {
+    notFound();
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Header />
+      <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr] lg:gap-8 lg:items-start">
+        <Sidebar />
+        <main className="min-w-0 p-4 lg:p-0 lg:py-6">
+          <TeamDetailView teamData={teamData} />
+        </main>
+      </div>
+    </div>
+  );
+}
+
 
 // ===== src\app\football\teams\page.tsx =====
+// src/app/football/teams/page.tsx
 "use client";
 
-import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
-import StyledLink from '@/components/StyledLink';
-import { Country } from '@/types/api-football';
-import { ChevronRight, Search } from 'lucide-react';
-import Image from 'next/image';
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import Header from "@/components/Header";
+import Sidebar from "@/components/Sidebar";
+import StyledLink from "@/components/StyledLink";
+import { ChevronRight, Globe, Search, Users } from "lucide-react";
+import Image from "next/image";
+import { proxyImageUrl } from "@/lib/image-proxy";
 
-// --- THE FIX ---
-// This line instructs Next.js to always render this page dynamically on the server
-// at request time, resolving the conflict with client-side hooks in the layout.
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
-const fetchAllCountries = async (): Promise<Country[]> => {
-    const { data } = await axios.get('/api/countries');
-    return data;
-};
+// --- TYPE DEFINITION ---
+interface EnrichedCountry {
+  name: string;
+  code: string | null;
+  flagUrl: string;
+  leagueCount: number;
+}
 
-const CountryCard = ({ country }: { country: Country }) => (
-    <StyledLink href={`/football/teams/${country.name}`} className="block group">
-        <div className="bg-brand-secondary rounded-lg p-4 flex items-center justify-between transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg hover:shadow-purple-900/20">
-            <div className="flex items-center gap-4 min-w-0">
-                <Image 
-                    src={country.flagUrl} 
-                    alt={country.name}
-                    width={32}
-                    height={32}
-                    className="flex-shrink-0"
-                />
-                <h3 className="font-bold text-white truncate group-hover:text-brand-purple transition-colors">{country.name}</h3>
-            </div>
-            <ChevronRight className="text-brand-muted group-hover:text-brand-purple transition-colors flex-shrink-0" />
+// --- CARD AND SKELETON COMPONENTS (Unchanged) ---
+const EnhancedCountryCard = ({ country }: { country: EnrichedCountry }) => (
+  <StyledLink
+    href={`/football/teams/${country.name}`}
+    className="block group h-full"
+  >
+    <div className="bg-brand-secondary rounded-lg flex flex-col h-full transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg hover:shadow-purple-900/20">
+      <div className="p-4 flex items-center gap-4">
+        <Image
+          src={country.flagUrl}
+          alt={country.name}
+          width={40}
+          height={40}
+          className="rounded-full flex-shrink-0"
+        />
+        <div className="flex-1 min-w-0">
+          <h3 className="font-bold text-white truncate group-hover:text-brand-purple transition-colors">
+            {country.name}
+          </h3>
+          <div className="flex items-center gap-1.5 text-xs text-brand-muted mt-1">
+            <Globe size={12} />
+            <span>View Teams</span>
+          </div>
         </div>
-    </StyledLink>
+        <ChevronRight className="text-brand-muted group-hover:text-brand-purple transition-colors flex-shrink-0" />
+      </div>
+      <div className="mt-auto border-t border-gray-700/50 p-3 text-xs text-brand-light flex items-center justify-center gap-2">
+        <Users size={14} className="text-brand-muted" />
+        <span className="font-semibold">{country.leagueCount}</span>
+        <span>Professional Leagues</span>
+      </div>
+    </div>
+  </StyledLink>
 );
 
 const CountryCardSkeleton = () => (
-    <div className="bg-brand-secondary rounded-lg p-4 flex items-center justify-between animate-pulse">
-        <div className="flex items-center gap-4 w-full">
-            <div className="w-8 h-8 rounded-full bg-gray-700/50"></div>
-            <div className="h-5 w-3/4 rounded bg-gray-600/50"></div>
-        </div>
+  <div className="bg-brand-secondary rounded-lg flex flex-col h-full animate-pulse">
+    <div className="p-4 flex items-center gap-4">
+      <div className="w-10 h-10 rounded-full bg-gray-700"></div>
+      <div className="space-y-2 flex-1">
+        <div className="h-4 w-3/4 rounded bg-gray-600"></div>
+        <div className="h-3 w-1/2 rounded bg-gray-600/50"></div>
+      </div>
     </div>
+    <div className="mt-auto border-t border-gray-700/50 p-3 flex items-center justify-center gap-2">
+      <div className="h-4 w-2/3 bg-gray-700 rounded-md"></div>
+    </div>
+  </div>
 );
 
 export default function BrowseTeamsByCountryPage() {
-    const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
 
-    const { data: countries, isLoading, error } = useQuery<Country[]>({
-        queryKey: ['allCountriesDirectory'],
-        queryFn: fetchAllCountries,
-        staleTime: 1000 * 60 * 60 * 24,
-        refetchOnWindowFocus: false,
-    });
+  // --- THIS IS THE FIX ---
+  // Removed the external fetcher function and defined the query function directly and simply.
+  // This is the most reliable pattern and avoids potential stale closure issues.
+  const { data: countries, isLoading } = useQuery<EnrichedCountry[]>({
+    queryKey: ["countryDirectory"],
+    queryFn: async () => {
+      const { data } = await axios.get("/api/directory/countries");
+      return data;
+    },
+    staleTime: 1000 * 60 * 60 * 24, // Cache for a day
+  });
 
-    const filteredCountries = useMemo(() => {
-        if (!countries) return [];
-        return countries.filter(country => 
-            country.name.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-    }, [countries, searchTerm]);
-
-    return (
-        <div className="min-h-screen flex flex-col">
-            <Header />
-            <div className="flex flex-1">
-                <Sidebar />
-                <main className="flex-1 p-4 lg:p-8">
-                    <h1 className="text-4xl font-extrabold text-white mb-2">Browse Teams by Country</h1>
-                    <p className="text-brand-muted mb-8">Select a country to view all associated professional teams.</p>
-                    
-                    <div className="relative mb-8 max-w-lg">
-                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-brand-muted" size={20} />
-                        <input
-                            type="text"
-                            placeholder="Search for a country..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full bg-brand-secondary border border-gray-700/50 rounded-lg p-3 pl-12 text-white focus:outline-none focus:ring-2 focus:ring-brand-purple"
-                        />
-                    </div>
-
-                    {isLoading ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                            {Array.from({ length: 16 }).map((_, i) => <CountryCardSkeleton key={i} />)}
-                        </div>
-                    ) : error ? (
-                        <div className="text-center py-20 bg-brand-secondary rounded-lg">
-                            <p className="text-xl font-bold text-red-400">Error Loading Countries</p>
-                            <p className="text-brand-muted mt-2">Could not fetch the list of countries. Please try again later.</p>
-                        </div>
-                    ) : filteredCountries.length > 0 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                            {filteredCountries.map(country => (
-                                <CountryCard key={country.code || country.name} country={country} />
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="text-center py-20 bg-brand-secondary rounded-lg">
-                            <p className="text-xl font-bold text-white">No Results Found</p>
-                            <p className="text-brand-muted mt-2">Your search for "{searchTerm}" did not match any countries.</p>
-                        </div>
-                    )}
-                </main>
-            </div>
-        </div>
+  const filteredCountries = useMemo(() => {
+    if (!countries) return [];
+    return countries.filter((country) =>
+      country.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
+  }, [countries, searchTerm]);
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Header />
+      <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr] lg:gap-8 lg:items-start">
+        <Sidebar />
+        <main className="min-w-0 p-4 lg:p-0 lg:py-6">
+          <h1 className="text-4xl font-extrabold text-white mb-2">
+            Browse Teams by Country
+          </h1>
+          <p className="text-brand-muted mb-8">
+            Select a country to view all associated professional teams.
+          </p>
+
+          <div className="relative mb-8 max-w-lg">
+            <Search
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-brand-muted"
+              size={20}
+            />
+            <input
+              type="text"
+              placeholder="Search for a country..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-brand-secondary border border-gray-700/50 rounded-lg p-3 pl-12 text-white focus:outline-none focus:ring-2 focus:ring-brand-purple"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+            {isLoading ? (
+              Array.from({ length: 18 }).map((_, i) => (
+                <CountryCardSkeleton key={i} />
+              ))
+            ) : filteredCountries && filteredCountries.length > 0 ? (
+              filteredCountries.map((country) => (
+                <EnhancedCountryCard
+                  key={country.code || country.name}
+                  country={country}
+                />
+              ))
+            ) : (
+              <div className="text-center py-20 bg-brand-secondary rounded-lg col-span-full">
+                <p className="text-xl font-bold text-white">
+                  No Countries Found
+                </p>
+                <p className="text-brand-muted mt-2">
+                  We couldn't find any countries with active leagues. Please
+                  check back later.
+                </p>
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
+    </div>
+  );
 }
 
+
 // ===== src\app\football\teams\[countryName]\page.tsx =====
+// src/app/football/teams/[countryName]/page.tsx
 "use client";
 
-import { useState, useMemo, useEffect } from 'react';
-import { useParams } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
-import Pagination from '@/components/Pagination';
-import TeamDirectoryCard, { TeamDirectoryCardSkeleton } from '@/components/TeamDirectoryCard';
+import { useState, useMemo, useEffect } from "react";
+import { useParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import Header from "@/components/Header";
+import Sidebar from "@/components/Sidebar";
+import Pagination from "@/components/Pagination";
+import StyledLink from "@/components/StyledLink";
+import Image from "next/image";
+import { proxyImageUrl } from "@/lib/image-proxy";
+import { generateTeamSlug } from "@/lib/generate-team-slug";
+import { Calendar, Info, MapPin, Search } from "lucide-react";
 
 const ITEMS_PER_PAGE = 18;
 
-const fetchTeamsByCountry = async (countryName: string): Promise<any[]> => {
-    const { data } = await axios.get(`/api/teams-by-country?country=${encodeURIComponent(countryName)}`);
-    return data;
+// --- TYPE DEFINITION for the API response object ---
+interface TeamsByCountryResponse {
+  teams: any[];
+  count: number;
+}
+
+// --- DATA FETCHER ---
+const fetchTeamsByCountry = async (
+  countryName: string
+): Promise<TeamsByCountryResponse> => {
+  const { data } = await axios.get(
+    `/api/teams-by-country?country=${encodeURIComponent(countryName)}`
+  );
+  return data;
 };
 
-export default function TeamsByCountryPage() {
-    const params = useParams();
-    const countryName = decodeURIComponent(params.countryName as string);
-
-    const [searchTerm, setSearchTerm] = useState('');
-    const [currentPage, setCurrentPage] = useState(1);
-
-    const { data: teams, isLoading } = useQuery({
-        queryKey: ['teamsByCountry', countryName],
-        queryFn: () => fetchTeamsByCountry(countryName),
-        staleTime: 1000 * 60 * 60, // Cache for 1 hour
-    });
-    
-    const { paginatedData, totalPages } = useMemo(() => {
-        if (!teams) return { paginatedData: [], totalPages: 0 };
-
-        const filtered = teams.filter(teamData => 
-            teamData.team.name.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-
-        const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-
-        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-        const endIndex = startIndex + ITEMS_PER_PAGE;
-        const paginatedData = filtered.slice(startIndex, endIndex);
-
-        return { paginatedData, totalPages };
-    }, [teams, searchTerm, currentPage]);
-
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [searchTerm]);
-
-    return (
-        <div className="min-h-screen flex flex-col">
-            <Header />
-            <div className="flex flex-1">
-                <Sidebar />
-                <main className="flex-1 p-4 lg:p-8">
-                    <h1 className="text-4xl font-extrabold text-white mb-6">Teams in {countryName}</h1>
-                    
-                    <div className="flex flex-col md:flex-row gap-4 mb-8">
-                        <input
-                            type="text"
-                            placeholder="Search by team name..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full md:w-1/3 p-3 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-purple"
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                        {isLoading ? (
-                            Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => <TeamDirectoryCardSkeleton key={i} />)
-                        ) : (
-                            paginatedData.map(teamData => <TeamDirectoryCard key={teamData.team.id} {...teamData} />)
-                        )}
-                    </div>
-                    
-                    {!isLoading && paginatedData.length > 0 && (
-                        <Pagination 
-                            currentPage={currentPage}
-                            totalPages={totalPages}
-                            onPageChange={setCurrentPage}
-                        />
-                    )}
-
-                     {!isLoading && paginatedData.length === 0 && (
-                        <div className="text-center py-20 bg-brand-secondary rounded-lg">
-                            <p className="text-xl font-bold text-white">No Results Found</p>
-                            <p className="text-brand-muted mt-2">Try adjusting your search term or check back later.</p>
-                        </div>
-                     )}
-                </main>
-            </div>
+// EnhancedTeamCard and TeamCardSkeleton components remain the same
+const EnhancedTeamCard = ({ team, venue }: { team: any; venue: any }) => (
+  <StyledLink
+    href={generateTeamSlug(team.name, team.id)}
+    className="block group h-full"
+  >
+    <div className="bg-brand-secondary rounded-lg flex flex-col h-full transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg hover:shadow-purple-900/20">
+      <div className="p-4 flex items-center gap-4">
+        <Image
+          src={proxyImageUrl(team.logo)}
+          alt={team.name}
+          width={48}
+          height={48}
+          className="flex-shrink-0"
+        />
+        <div className="flex-1 min-w-0">
+          <h3 className="font-bold text-white truncate group-hover:text-brand-purple transition-colors">
+            {team.name}
+          </h3>
         </div>
+      </div>
+      <div className="px-4 pb-3 mt-auto border-t border-gray-700/50 pt-3 space-y-1.5 text-xs text-brand-muted">
+        {team.founded && (
+          <div className="flex items-center gap-2">
+            <Calendar size={12} />
+            <span>Founded: {team.founded}</span>
+          </div>
+        )}
+        {venue?.name && (
+          <div className="flex items-center gap-2 truncate">
+            <MapPin size={12} />
+            <span className="truncate" title={venue.name}>
+              {venue.name}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  </StyledLink>
+);
+
+const TeamCardSkeleton = () => (
+  <div className="bg-brand-secondary rounded-lg p-4 h-36 animate-pulse">
+    <div className="flex items-center gap-4">
+      <div className="w-12 h-12 rounded-full bg-gray-700"></div>
+      <div className="h-5 w-3/4 bg-gray-600 rounded"></div>
+    </div>
+    <div className="mt-6 space-y-2 border-t border-gray-700/50 pt-3">
+      <div className="h-3 w-1/2 bg-gray-600/50 rounded"></div>
+      <div className="h-3 w-full bg-gray-600/50 rounded"></div>
+    </div>
+  </div>
+);
+
+export default function TeamsByCountryPage() {
+  const params = useParams();
+  const countryName = decodeURIComponent(params.countryName as string);
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // --- FIX 1: Rename `data: teams` to `data: response` for clarity ---
+  const { data: response, isLoading } = useQuery({
+    queryKey: ["teamsByCountry", countryName],
+    queryFn: () => fetchTeamsByCountry(countryName),
+    staleTime: 1000 * 60 * 60,
+  });
+
+  const { paginatedData, totalPages } = useMemo(() => {
+    // --- FIX 2: Access the `teams` array *from* the response object ---
+    const teamsArray = response?.teams || []; // Use the actual array, or an empty one if data is not ready
+    if (teamsArray.length === 0) return { paginatedData: [], totalPages: 0 };
+
+    // --- FIX 3: Filter the `teamsArray`, not the response object ---
+    const filtered = teamsArray.filter((teamData) =>
+      teamData.team.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    const paginatedData = filtered.slice(startIndex, endIndex);
+
+    return { paginatedData, totalPages };
+  }, [response, searchTerm, currentPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Header />
+      <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr] lg:gap-8 lg:items-start">
+        <Sidebar />
+        <main className="min-w-0 p-4 lg:p-0 lg:py-6">
+          <h1 className="text-4xl font-extrabold text-white mb-6">
+            Teams in {countryName}
+          </h1>
+
+          <div className="flex flex-col md:flex-row gap-4 mb-8">
+            <div className="relative flex-grow">
+              <Search
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-brand-muted"
+                size={20}
+              />
+              <input
+                type="text"
+                placeholder="Search by team name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-brand-secondary border border-gray-700/50 rounded-lg p-3 pl-12 text-white focus:outline-none focus:ring-2 focus:ring-brand-purple"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {isLoading ? (
+              Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => (
+                <TeamCardSkeleton key={i} />
+              ))
+            ) : paginatedData.length > 0 ? (
+              paginatedData.map((teamData) => (
+                <EnhancedTeamCard
+                  key={teamData.team.id}
+                  team={teamData.team}
+                  venue={teamData.venue}
+                />
+              ))
+            ) : (
+              <div className="col-span-full text-center py-20 bg-brand-secondary rounded-lg">
+                <Info size={32} className="mx-auto text-brand-muted mb-3" />
+                <p className="text-xl font-bold text-white">No Results Found</p>
+                <p className="text-brand-muted mt-2">
+                  Try adjusting your search term or check back later.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {!isLoading && paginatedData.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          )}
+        </main>
+      </div>
+    </div>
+  );
 }
+
 
 // ===== src\app\layout.tsx =====
 import type { Metadata } from "next";
@@ -3012,6 +4075,8 @@ import { LanguageProvider } from "@/context/LanguageContext";
 import NextAuthProvider from "./NextAuthProvider";
 import { Suspense } from "react";
 import StickyFooterAd from "@/components/StickyFooterAd";
+import Loading from "./loading";
+import Footer from "@/components/Footer";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -3040,13 +4105,14 @@ export default function RootLayout({
         className={`${inter.className} bg-background text-text-primary`}
         suppressHydrationWarning={true}
       >
-        <Suspense fallback={<div>Loading...</div>}>
+        <Suspense fallback={<Loading />}>
           <NextAuthProvider>
             <Providers>
               <LanguageProvider>
                 <LeagueProvider>
                   <main>{children}</main>
                   <StickyFooterAd />
+                  <Footer />
                 </LeagueProvider>
               </LanguageProvider>
             </Providers>
@@ -3054,6 +4120,25 @@ export default function RootLayout({
         </Suspense>
       </body>
     </html>
+  );
+}
+
+
+// ===== src\app\loading.tsx =====
+// src/app/loading.tsx
+// This file acts as the server-side container for our client-side preloader.
+
+import LottiePreloader from "@/components/LottiePreloader"; // Import the new component
+
+export default function Loading() {
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-brand-dark">
+      {/* 
+        We render the LottiePreloader component here. 
+        Next.js will handle rendering the client component within this server component shell.
+      */}
+      <LottiePreloader />
+    </div>
   );
 }
 
@@ -3175,11 +4260,12 @@ export default function NotFound() {
 }
 
 // ===== src\app\page.tsx =====
-import { Suspense } from 'react'; // <-- IMPORT Suspense
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
-import MainContent from '@/components/MainContent';
-import { HeaderSkeleton, SidebarSkeleton } from '@/components/LayoutSkeletons'; // <-- IMPORT Skeletons
+// src/app/page.tsx
+import { Suspense } from "react";
+import Header from "@/components/Header";
+import Sidebar from "@/components/Sidebar";
+import MainContent from "@/components/MainContent";
+import { HeaderSkeleton, SidebarSkeleton } from "@/components/LayoutSkeletons";
 
 export default async function HomePage() {
   return (
@@ -3187,11 +4273,7 @@ export default async function HomePage() {
       <Suspense fallback={<HeaderSkeleton />}>
         <Header />
       </Suspense>
-      
-      <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr] lg:gap-8 lg:items-start">
-        
-        {/* --- THE FIX --- */}
-        {/* Wrap the Sidebar in a Suspense boundary */}
+      <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr] lg:items-start lg:py-8">
         <Suspense fallback={<SidebarSkeleton />}>
           <Sidebar />
         </Suspense>
@@ -3199,11 +4281,11 @@ export default async function HomePage() {
         <main className="min-w-0">
           <MainContent />
         </main>
-        
       </div>
     </div>
   );
 }
+
 
 // ===== src\app\providers.tsx =====
 "use client";
