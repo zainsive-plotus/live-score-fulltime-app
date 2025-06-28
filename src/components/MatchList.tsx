@@ -19,7 +19,7 @@ const STATUS_MAP: Record<StatusFilter, string[]> = {
   finished: ["FT", "AET", "PEN"],
   scheduled: ["NS", "TBD", "PST"],
 };
-const INITIAL_MATCHES_TO_SHOW = 5;
+const INITIAL_MATCHES_TO_SHOW = 3;
 const MATCHES_PER_PAGE = 5;
 
 const fetchAllMatches = async (

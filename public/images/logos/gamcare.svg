@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 130" width="150" height="130">
+  <defs>
+    <style>
+      .gamcare-white-logo { fill: #FFFFFF; }
+      .text-verified { font: 16px 'Helvetica Neue', Helvetica, Arial, sans-serif; fill: #FFFFFF; }
+      .text-gamcare { font: bold 22px 'Helvetica Neue', Helvetica, Arial, sans-serif; fill: #FFFFFF; }
+    </style>
+  </defs>
+  
+  <g transform="translate(47, 5) scale(1.1)">
+    <path class="gamcare-white-logo" d="M49.3,23.8c0-13.9-10.7-23.8-24.6-23.8C10.8,0,0,10.2,0,24.1c0,13.9,10.5,25.9,24.4,25.9
+      c6.2,0,11.2-2.3,15.2-6.2l-6.2-7.1c-2.4,2.3-5.9,4.1-9,4.1c-4.4,0-9-3.2-9-10.2h23.5C49,28.8,49.3,26.4,49.3,23.8z M15.5,17.4
+      c0.6-5.9,5-9.6,9.1-9.6c4.1,0,7.9,3.7,8.8,9.6H15.5z"/>
+  </g>
+  
+  <text x="75" y="85" text-anchor="middle" class="text-verified">
+    Verified by
+  </text>
+  <text x="75" y="110" text-anchor="middle" class="text-gamcare">
+    GamCare
+  </text>
+</svg>

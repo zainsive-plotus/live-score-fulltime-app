@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 60" width="250" height="60">
+  <defs>
+    <style>
+      .icon-secure-green { fill: #2E7D32; } /* A strong, trustworthy green */
+      .text-primary { font: bold 20px 'Helvetica Neue', Helvetica, Arial, sans-serif; fill: #FFFFFF; } /* Text color is now white */
+      .text-secondary { font: 16px 'Helvetica Neue', Helvetica, Arial, sans-serif; fill: #FFFFFF; } /* Text color is now white */
+    </style>
+  </defs>
+
+  <g class="icon-secure-green">
+    <path d="M25,20 C25,11.7 31.7,5 40,5 C48.3,5 55,11.7 55,20 L55,30 L45,30 L45,20 C45,17.2 42.8,15 40,15 C37.2,15 35,17.2 35,20 L35,30 L25,30 Z" />
+    <rect x="15" y="30" width="50" height="25" rx="5" />
+  </g>
+
+  <text x="80" y="27" class="text-primary">Secure</text>
+  <text x="80" y="48" class="text-secondary">Connection</text>
+</svg>

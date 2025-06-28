@@ -29,18 +29,18 @@ export default function MainContent() {
   return (
     <>
       {/* --- Desktop Layout (3-column grid) --- */}
-      <div className="hidden lg:grid lg:grid-cols-3 lg:gap-8 flex-1 p-8">
+      <div className="hidden lg:grid lg:grid-cols-3 lg:gap-8 flex-1 pl-8">
         {/* Main Content Area (MatchList) */}
-        <div className="lg:col-span-2 flex flex-col gap-8">
+        <div className="lg:col-span-2 flex flex-col">
           <MatchList setLiveLeagues={setLiveLeagues} />
         </div>
 
         {/* Right Sidebar Column */}
-        <div className="lg:col-span-1 flex flex-col gap-8">
+        <div className="lg:col-span-1 flex flex-col gap-6">
           <StandingsDisplay />
 
           {/* The sticky container for ads and news */}
-          <div className="sticky top-8 space-y-8">
+          <div className="sticky top-8 space-y-8 gap-8">
             {/* --- AD SLOT PLACED HERE --- */}
             <AdSlotWidget location="homepage_right_sidebar" />
             <NewsSection />

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 60" width="400" height="60">
+  <defs>
+    <style>
+      .bga-yellow-box { fill: #FFC72C; } /* Official BeGambleAware yellow */
+      .bga-text-dark { fill: #FFFFFF; } /* Changed text color to white */
+      .bga-font { font-family: 'Montserrat', 'Helvetica Neue', Arial, sans-serif; font-weight: 700; font-size: 32px; }
+    </style>
+  </defs>
+  
+  <rect class="bga-yellow-box" x="0" y="0" width="60" height="60" />
+
+  <text class="bga-font bga-text-dark" x="30" y="42" text-anchor="middle">Be</text>
+
+  <text class="bga-font bga-text-dark" x="68" y="42">GambleAware.org</text>
+</svg>

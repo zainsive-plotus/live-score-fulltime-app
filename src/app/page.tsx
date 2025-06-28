@@ -1,8 +1,9 @@
-import { Suspense } from 'react'; // <-- IMPORT Suspense
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
-import MainContent from '@/components/MainContent';
-import { HeaderSkeleton, SidebarSkeleton } from '@/components/LayoutSkeletons'; // <-- IMPORT Skeletons
+// src/app/page.tsx
+import { Suspense } from "react";
+import Header from "@/components/Header";
+import Sidebar from "@/components/Sidebar";
+import MainContent from "@/components/MainContent";
+import { HeaderSkeleton, SidebarSkeleton } from "@/components/LayoutSkeletons";
 
 export default async function HomePage() {
   return (
@@ -10,11 +11,7 @@ export default async function HomePage() {
       <Suspense fallback={<HeaderSkeleton />}>
         <Header />
       </Suspense>
-      
-      <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr] lg:gap-8 lg:items-start">
-        
-        {/* --- THE FIX --- */}
-        {/* Wrap the Sidebar in a Suspense boundary */}
+      <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr] lg:items-start lg:py-8">
         <Suspense fallback={<SidebarSkeleton />}>
           <Sidebar />
         </Suspense>
@@ -22,7 +19,6 @@ export default async function HomePage() {
         <main className="min-w-0">
           <MainContent />
         </main>
-        
       </div>
     </div>
   );

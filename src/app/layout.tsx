@@ -10,6 +10,7 @@ import NextAuthProvider from "./NextAuthProvider";
 import { Suspense } from "react";
 import StickyFooterAd from "@/components/StickyFooterAd";
 import Loading from "./loading";
+import Footer from "@/components/Footer";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -45,6 +46,7 @@ export default function RootLayout({
                 <LeagueProvider>
                   <main>{children}</main>
                   <StickyFooterAd />
+                  <Footer />
                 </LeagueProvider>
               </LanguageProvider>
             </Providers>
