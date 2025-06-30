@@ -12,7 +12,8 @@ import slugify from "slugify"; // Assuming slugify is used internally by your ge
 
 // --- IMPORTANT: Ensure NEXTAUTH_URL is set in your .env.local or production environment ---
 // This is the base URL for your deployed application.
-const BASE_URL = process.env.NEXTAUTH_URL || "http://localhost:3000";
+const BASE_URL =
+  process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
 // --- Helper Functions to build slugs (ensure they match your frontend) ---
 // If these are already in src/lib, you can import them instead of defining here.
