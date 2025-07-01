@@ -9,6 +9,7 @@ import { format } from "date-fns";
 import { Calendar, Info } from "lucide-react";
 import MatchListItem, { MatchListItemSkeleton } from "../MatchListItem";
 import "react-day-picker/dist/style.css";
+import { useTranslation } from "@/hooks/useTranslation";
 
 type FixtureView = "upcoming" | "today" | "date";
 
@@ -43,6 +44,8 @@ export default function LeagueFixturesWidget({
   const [view, setView] = useState<FixtureView>("upcoming");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
+  const { t } = useTranslation();
 
   // --- THE CORE FIX: AVOIDING COMPLEX STATE DEPENDENCIES ---
   // We use useMemo to create a stable parameters object based on the current view.
@@ -88,7 +91,7 @@ export default function LeagueFixturesWidget({
   return (
     <div className="bg-brand-secondary rounded-xl p-4">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-xl font-bold text-white">Fixtures</h3>
+        <h3 className="text-xl font-bold text-white">{t("fixtures")}</h3>
         <div className="flex items-center gap-1 bg-gray-700/50 p-1 rounded-lg">
           <button
             onClick={() => setView("upcoming")}
@@ -98,7 +101,7 @@ export default function LeagueFixturesWidget({
                 : "text-brand-muted hover:bg-gray-700"
             }`}
           >
-            Upcoming
+            {t("upcoming")}
           </button>
           <button
             onClick={() => setView("today")}
@@ -108,7 +111,7 @@ export default function LeagueFixturesWidget({
                 : "text-brand-muted hover:bg-gray-700"
             }`}
           >
-            Today
+            {t("today")}
           </button>
           <div className="relative">
             <button
@@ -143,7 +146,7 @@ export default function LeagueFixturesWidget({
           ))}
         {isError && (
           <div className="text-center py-10 text-red-400">
-            <p>Error loading fixtures.</p>
+            <p>{t("error_loading_fixtures")}</p>
           </div>
         )}
         {!isLoading &&
@@ -156,7 +159,7 @@ export default function LeagueFixturesWidget({
         {!isLoading && !isError && (!fixtures || fixtures.length === 0) && (
           <div className="text-center py-10 text-brand-muted">
             <Info size={32} className="mx-auto mb-3" />
-            <p>No fixtures found for this selection.</p>
+            <p>{t("no_fixtures_found")}</p>
           </div>
         )}
       </div>

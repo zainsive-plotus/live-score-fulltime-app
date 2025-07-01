@@ -1,7 +1,7 @@
 // src/components/StandingsDisplay.tsx
 "use client";
 
-import { useState, useContext } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import Slider from "react-slick";
@@ -12,6 +12,7 @@ import { useLeagueContext } from "@/context/LeagueContext";
 import { proxyImageUrl } from "@/lib/image-proxy";
 import { generateTeamSlug } from "@/lib/generate-team-slug";
 import StyledLink from "./StyledLink";
+import { useTranslation } from "@/hooks/useTranslation";
 
 // --- SELF-CONTAINED TYPE DEFINITIONS ---
 interface Team {
@@ -45,7 +46,7 @@ interface StandingsResponse {
   standings: TeamStanding[][];
 }
 
-// --- CONFIGURATION & FETCHER (Unchanged) ---
+// --- CONFIGURATION ---
 const POPULAR_LEAGUES = [
   {
     id: 39,
@@ -74,6 +75,7 @@ const POPULAR_LEAGUES = [
   },
 ];
 
+// --- FETCHER ---
 const fetchStandings = async (
   leagueId: number,
   season: number
@@ -84,7 +86,7 @@ const fetchStandings = async (
   return data;
 };
 
-// --- UI HELPERS (Unchanged) ---
+// --- UI HELPERS ---
 const getRankIndicatorClass = (description: string | null): string => {
   if (!description) return "bg-gray-700 text-brand-light";
   const desc = description.toLowerCase();
@@ -106,17 +108,17 @@ const InternalStandingTable = ({
   group: TeamStanding[];
   league: League;
 }) => {
+  const { t } = useTranslation();
   const validGroup = group.filter((item) => item && item.team);
   if (validGroup.length === 0) return null;
 
   return (
-    // --- MODIFIED LINE: Added max-height, overflow, and custom scrollbar classes ---
     <div className="px-1 overflow-y-auto max-h-96 custom-scrollbar">
       <table className="w-full text-sm">
         <thead className="text-left text-brand-muted sticky top-0 bg-brand-secondary z-10">
           <tr className="text-xs">
             <th className="p-2 w-8 text-center">#</th>
-            <th className="p-2">Team</th>
+            <th className="p-2">{t("table_header_team")}</th>
             <th className="p-2 text-center">P</th>
             <th className="p-2 text-center">GD</th>
             <th className="p-2 text-center font-bold">Pts</th>
@@ -165,7 +167,6 @@ const InternalStandingTable = ({
 
 // --- LOADING SKELETON ---
 const StandingsDisplaySkeleton = () => (
-  // --- MODIFIED: Added a fixed height to the skeleton to prevent layout shift ---
   <div className="bg-brand-secondary rounded-lg h-[480px] animate-pulse">
     <div className="p-2 border-b border-gray-700/50 flex space-x-1">
       <div className="flex-1 h-10 bg-gray-700 rounded-md"></div>
@@ -193,8 +194,9 @@ const StandingsDisplaySkeleton = () => (
   </div>
 );
 
-// --- MAIN WIDGET COMPONENT (Unchanged logic) ---
+// --- MAIN WIDGET COMPONENT ---
 export default function StandingsDisplay() {
+  const { t } = useTranslation();
   const { selectedLeague } = useLeagueContext();
   const [activePopularLeagueId, setActivePopularLeagueId] = useState(
     POPULAR_LEAGUES[0].id
@@ -295,11 +297,13 @@ export default function StandingsDisplay() {
           <div className="text-center py-6">
             <Info size={32} className="mx-auto text-brand-muted mb-3" />
             <h4 className="font-bold text-white mb-1">
-              {data?.league?.name || selectedLeague?.name || "No Standings"}
+              {data?.league?.name ||
+                selectedLeague?.name ||
+                t("no_standings_title")}
             </h4>
             <p className="text-sm text-brand-muted">
-              Standings are not available for this competition.
-              {showTabs && " Please select another league from the tabs above."}
+              {t("standings_not_available")}
+              {showTabs && t("select_another_league_prompt")}
             </p>
           </div>
         )}

@@ -246,5 +246,12 @@
   "go_back_to_homepage": "Go back to Homepage",
   "fan_skor_turkiyenin_1_numarali_canli_skor_sitesi": "Fan Skor | Türkiye'nin 1 numaralı Canlı Skor sitesi",
   "oyuntaktik_com_turkiyenin_bir_numarali_inceleme_sitesi_en_iyi_oyun_rehberleri_taktikler_ve_guncel_degerlendirmelerle_oyuncularin_yaninda": "Oyuntaktik.com, Türkiye'nin bir numaralı inceleme sitesi, en iyi oyun rehberleri, taktikler ve güncel değerlendirmelerle oyuncuların yanında!",
-  "loading_placeholder": "Loading..."
+  "loading_placeholder": "Loading...",
+  "upcoming": "Upcoming",
+  "table_header_team": "Team",
+  "error_loading_fixtures": "Error loading fixtures.",
+  "no_fixtures_found": "No fixtures found for this selection.",
+  "no_standings_title": "No Standings",
+  "standings_not_available": "Standings are not available for this competition.",
+  "select_another_league_prompt": " Please select another league from the tabs above."
 }

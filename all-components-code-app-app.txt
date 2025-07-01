@@ -1743,8 +1743,7 @@ import { NextResponse } from "next/server";
 import axios from "axios";
 
 // ====================================================================
-// --- FANSKOR PREDICTION ENGINE V2.1 ---
-// Now robust against incomplete API data by using optional chaining.
+// --- FANSKOR PREDICTION ENGINE V3.0 (Weather Removed) ---
 // ====================================================================
 const calculateCustomPrediction = (
   h2h: any[],
@@ -1752,30 +1751,26 @@ const calculateCustomPrediction = (
   awayTeamStats: any,
   homeTeamId: number,
   homeTeamRank: number | undefined,
-  awayTeamRank: number | undefined
+  awayTeamRank: number | undefined,
+  // weatherData parameter removed
+  matchEvents: any[],
+  matchStatus: string
 ) => {
-  // --- Configuration Object: All "magic numbers" are here for easy tuning ---
   const config = {
     weights: {
-      homeAdvantage: 12, // Points for playing at home
-      form: 1.5, // Multiplier for form points
-      h2h: 2.5, // Points per H2H win
-      rankDifference: 0.8, // Points per rank difference
-      goalDifference: 6, // Multiplier for average goal difference
+      homeAdvantage: 12,
+      form: 1.5,
+      h2h: 2.5,
+      rankDifference: 0.8,
+      goalDifference: 6,
+      xGInfluence: 3,
+      // weatherInfluence config removed
+      matchActivity: 0.5,
+      liveMatchBonus: 5,
     },
-    h2hMaxGames: 5, // Only consider the last 5 H2H games
-    drawWeight: 0.85, // How heavily to factor in the possibility of a draw
+    h2hMaxGames: 5,
+    drawWeight: 0.85,
   };
-
-  // --- Data Validation: Exit early if necessary data is missing ---
-  if (
-    !homeTeamStats?.form ||
-    !awayTeamStats?.form ||
-    homeTeamRank == null ||
-    awayTeamRank == null
-  ) {
-    return null;
-  }
 
   let homeScore = 0;
   let awayScore = 0;
@@ -1790,29 +1785,34 @@ const calculateCustomPrediction = (
       (formString.match(/D/g) || []).length * 1
     );
   };
-  const homeFormString =
-    homeTeamStats.fixtures.played.home > 0
-      ? homeTeamStats.form
-      : homeTeamStats.form.slice(-5);
-  const awayFormString =
-    awayTeamStats.fixtures.played.away > 0
-      ? awayTeamStats.form
-      : awayTeamStats.form.slice(-5);
+  const homeFormString = homeTeamStats?.form || "";
+  const awayFormString = awayTeamStats?.form || "";
   homeScore += calculateForm(homeFormString) * config.weights.form;
   awayScore += calculateForm(awayFormString) * config.weights.form;
 
-  // 3. Goal Form (Safely accessed with optional chaining `?.` and nullish coalescing `?? 0`)
-  const homeGoalsForAvg = homeTeamStats.goals?.for?.average?.total ?? 0;
-  const homeGoalsAgainstAvg = homeTeamStats.goals?.against?.average?.total ?? 0;
-  const awayGoalsForAvg = awayTeamStats.goals?.for?.average?.total ?? 0;
-  const awayGoalsAgainstAvg = awayTeamStats.goals?.against?.average?.total ?? 0;
+  // 3. Goal Form (Average Goal Difference)
+  const homeGoalsForAvg = homeTeamStats?.goals?.for?.average?.total ?? 0;
+  const homeGoalsAgainstAvg =
+    homeTeamStats?.goals?.against?.average?.total ?? 0;
+  const awayGoalsForAvg = awayTeamStats?.goals?.for?.average?.total ?? 0;
+  const awayGoalsAgainstAvg =
+    awayTeamStats?.goals?.against?.average?.total ?? 0;
 
   const homeGoalDiff = homeGoalsForAvg - homeGoalsAgainstAvg;
   const awayGoalDiff = awayGoalsForAvg - awayGoalsAgainstAvg;
   homeScore += homeGoalDiff * config.weights.goalDifference;
   awayScore += awayGoalDiff * config.weights.goalDifference;
 
-  // 4. Head-to-Head (H2H) Records
+  // 4. Simulated Expected Goals (xG)
+  const simulateXG = (avgGoals: number) => Math.min(avgGoals * 1.1, 3.0);
+  const homeXG = simulateXG(homeGoalsForAvg);
+  const awayXG = simulateXG(awayGoalsForAvg);
+
+  const xgDiff = homeXG - awayXG;
+  homeScore += xgDiff * config.weights.xGInfluence;
+  awayScore -= xgDiff * config.weights.xGInfluence;
+
+  // 5. Head-to-Head (H2H) Records
   if (h2h && h2h.length > 0) {
     h2h.slice(0, config.h2hMaxGames).forEach((match) => {
       if (match.teams.home.winner) {
@@ -1831,12 +1831,33 @@ const calculateCustomPrediction = (
     });
   }
 
-  // 5. League Rank Difference
-  const rankDiff = Math.abs(homeTeamRank - awayTeamRank);
-  if (homeTeamRank < awayTeamRank) {
-    homeScore += rankDiff * config.weights.rankDifference;
-  } else if (awayTeamRank < homeTeamRank) {
-    awayScore += rankDiff * config.weights.rankDifference;
+  // 6. League Rank Difference
+  if (homeTeamRank != null && awayTeamRank != null) {
+    const rankDiff = Math.abs(homeTeamRank - awayTeamRank);
+    if (homeTeamRank < awayTeamRank) {
+      homeScore += rankDiff * config.weights.rankDifference;
+    } else if (awayTeamRank < homeTeamRank) {
+      awayScore += rankDiff * config.weights.rankDifference;
+    }
+  }
+
+  // 7. Weather Conditions (Logic removed)
+  // The weather influence logic is entirely removed.
+
+  // 8. Match Activity Analysis
+  const isLiveMatch = ["1H", "HT", "2H", "ET", "BT", "P", "LIVE"].includes(
+    matchStatus
+  );
+  if (isLiveMatch) {
+    homeScore += config.weights.liveMatchBonus;
+    awayScore += config.weights.liveMatchBonus;
+    const recentEventsCount = matchEvents.filter(
+      (event: any) =>
+        (event.type === "Goal" || event.type === "Card") &&
+        event.time.elapsed > (matchStatus === "1H" ? 1 : 45)
+    ).length;
+    homeScore += recentEventsCount * config.weights.matchActivity;
+    awayScore += recentEventsCount * config.weights.matchActivity;
   }
 
   // --- Final Calculation & Normalization ---
@@ -1848,7 +1869,7 @@ const calculateCustomPrediction = (
     config.drawWeight;
   const totalPoints = homeScore + awayScore + drawScore;
 
-  if (totalPoints === 0) {
+  if (totalPoints <= 1) {
     return { home: 33, draw: 34, away: 33 };
   }
 
@@ -1856,11 +1877,15 @@ const calculateCustomPrediction = (
   let awayPercent = Math.round((awayScore / totalPoints) * 100);
   let drawPercent = 100 - homePercent - awayPercent;
 
-  if (drawPercent < 0) {
-    drawPercent = 0;
-    const remainder = 100 - (homePercent + awayPercent);
-    if (homePercent > awayPercent) homePercent += remainder;
-    else awayPercent += remainder;
+  if (homePercent + awayPercent + drawPercent !== 100) {
+    const diff = 100 - (homePercent + awayPercent + drawPercent);
+    if (homePercent >= awayPercent && homePercent >= drawPercent) {
+      homePercent += diff;
+    } else if (awayPercent >= homePercent && awayPercent >= drawPercent) {
+      awayPercent += diff;
+    } else {
+      drawPercent += diff;
+    }
   }
 
   return {
@@ -1868,6 +1893,12 @@ const calculateCustomPrediction = (
     draw: drawPercent,
     away: awayPercent,
   };
+};
+
+// --- Helper to convert percentages to decimal odds (Unchanged) ---
+const convertPercentageToOdds = (percent: number): string => {
+  if (percent <= 0) return "INF";
+  return (100 / percent).toFixed(2);
 };
 
 // --- The main data fetching function ---
@@ -1890,6 +1921,7 @@ const fetchAllDataForFixture = async (fixtureId: string | number) => {
 
   const { league, teams } = fixtureData;
   const { home: homeTeam, away: awayTeam } = teams;
+  // venueLat and venueLon extraction removed
 
   const [
     eventsResponse,
@@ -1925,6 +1957,7 @@ const fetchAllDataForFixture = async (fixtureId: string | number) => {
     axios.request(
       options("standings", { league: league.id, season: league.season })
     ),
+    // Weather API request removed
   ]);
 
   const standings =
@@ -1936,14 +1969,27 @@ const fetchAllDataForFixture = async (fixtureId: string | number) => {
     (s: any) => s.team.id === awayTeam.id
   )?.rank;
 
-  const customPrediction = calculateCustomPrediction(
+  console.log(fixtureData);
+
+  const customPredictionPercentages = calculateCustomPrediction(
     h2hResponse.data.response,
     homeStatsResponse.data.response,
     awayStatsResponse.data.response,
     homeTeam.id,
     homeTeamRank,
-    awayTeamRank
+    awayTeamRank,
+    // null, // weatherData parameter removed
+    eventsResponse.data.response,
+    fixtureData.fixture.status.short
   );
+
+  const customPredictionOdds = customPredictionPercentages
+    ? {
+        home: convertPercentageToOdds(customPredictionPercentages.home),
+        draw: convertPercentageToOdds(customPredictionPercentages.draw),
+        away: convertPercentageToOdds(customPredictionPercentages.away),
+      }
+    : null;
 
   return {
     fixture: fixtureData,
@@ -1954,7 +2000,8 @@ const fetchAllDataForFixture = async (fixtureId: string | number) => {
       prediction: predictionResponse.data.response[0] ?? null,
       homeTeamStats: homeStatsResponse.data.response ?? null,
       awayTeamStats: awayStatsResponse.data.response ?? null,
-      customPrediction: customPrediction,
+      customPrediction: customPredictionPercentages,
+      customOdds: customPredictionOdds,
       bookmakerOdds: oddsResponse.data.response[0]?.bookmakers ?? [],
     },
   };
@@ -3186,10 +3233,11 @@ import MatchLineupsWidget from "@/components/match/MatchLineupsWidget";
 import AdSlotWidget from "@/components/AdSlotWidget";
 import MatchPredictionWidget from "@/components/match/MatchPredictionWidget";
 import TeamFormWidget from "@/components/match/TeamFormWidget";
-import WeatherWidget from "@/components/match/WeatherWidget";
 import LiveOddsWidget from "@/components/match/LiveOddsWidget";
+import MatchActivityWidget from "@/components/match/MatchActivityWidget";
+import TeamStandingsWidget from "@/components/match/TeamStandingsWidget"; // <-- IMPORT THE NEW WIDGET
 
-// --- Data fetching functions and helpers ---
+// Data fetching functions and helpers remain unchanged
 const getFixtureIdFromSlug = (slug: string): string | null => {
   if (!slug) return null;
   const parts = slug.split("-");
@@ -3202,7 +3250,7 @@ const fetchMatchDetails = async (fixtureId: string) => {
   return data;
 };
 
-// --- Skeleton Component for Initial Loading ---
+// Skeleton Component remains unchanged
 const PageSkeleton = () => (
   <div className="animate-pulse container mx-auto p-4 md:p-8">
     <div className="h-48 w-full bg-brand-secondary rounded-lg mb-2"></div>
@@ -3214,6 +3262,7 @@ const PageSkeleton = () => (
           <div className="h-96 w-full bg-brand-secondary rounded-lg"></div>
           <div className="h-96 w-full bg-brand-secondary rounded-lg"></div>
         </div>
+        <div className="h-96 w-full bg-brand-secondary rounded-lg"></div>
         <div className="h-64 w-full bg-brand-secondary rounded-lg"></div>
       </div>
       {/* Sidebar Column Skeleton */}
@@ -3221,6 +3270,9 @@ const PageSkeleton = () => (
         <div className="h-48 w-full bg-brand-secondary rounded-lg"></div>
         <div className="h-28 w-full bg-brand-secondary rounded-lg"></div>
         <div className="h-80 w-full bg-brand-secondary rounded-lg"></div>
+        {/* Skeleton for TeamStandingsWidget */}
+        <div className="h-64 w-full bg-brand-secondary rounded-lg"></div>
+        <div className="h-40 w-full bg-brand-secondary rounded-lg"></div>
       </div>
     </div>
   </div>
@@ -3238,14 +3290,14 @@ export default function MatchDetailPage() {
     queryKey: ["matchDetails", fixtureId],
     queryFn: () => fetchMatchDetails(fixtureId!),
     enabled: !!fixtureId,
-    staleTime: 1000 * 30, // Refetch data every 30 seconds
+    staleTime: 1000 * 30,
     refetchOnWindowFocus: true,
   });
 
   const isLive = useMemo(() => {
-    if (!data?.fixture) return false;
-    const status = data.fixture.status?.short;
-    return ["1H", "HT", "2H", "ET", "BT", "P", "LIVE"].includes(status);
+    if (!data?.fixture?.status) return false;
+    const statusShort = data.fixture.status.short;
+    return ["1H", "HT", "2H", "ET", "BT", "P", "LIVE"].includes(statusShort);
   }, [data]);
 
   if (isLoading) {
@@ -3279,11 +3331,10 @@ export default function MatchDetailPage() {
     <div className="bg-brand-dark min-h-screen">
       <Header />
       <div className="container mx-auto p-2 md:p-4 lg:p-6 text-brand-light">
-        <MatchHeader fixture={fixture} />
+        <MatchHeader fixture={fixture} analytics={analytics} />
         <MatchStatusBanner fixture={fixture} />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
-          {/* Main Content Column */}
           <main className="lg:col-span-2 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <TeamFormWidget
@@ -3297,16 +3348,32 @@ export default function MatchDetailPage() {
                 location="Away"
               />
             </div>
+
             <MatchH2HWidget
               h2h={h2h}
               teams={fixture.teams}
               currentFixtureId={fixtureId!}
             />
+
+            <MatchActivityWidget
+              fixtureId={fixtureId!}
+              homeTeamId={homeTeam.id}
+              awayTeamId={awayTeam.id}
+              homeTeamLogo={homeTeam.logo}
+              awayTeamLogo={awayTeam.logo}
+              isLive={isLive}
+            />
           </main>
 
-          {/* Sidebar Column */}
           <aside className="lg:col-span-1 space-y-6 sticky top-6">
             {isLive && <LiveOddsWidget fixtureId={fixtureId!} />}
+
+            <TeamStandingsWidget
+              leagueId={fixture.league.id}
+              season={fixture.league.season}
+              homeTeamId={homeTeam.id}
+              awayTeamId={awayTeam.id}
+            />
 
             <MatchPredictionWidget
               apiPrediction={analytics.prediction}
@@ -3314,8 +3381,6 @@ export default function MatchDetailPage() {
               bookmakerOdds={analytics.bookmakerOdds}
               teams={fixture.teams}
             />
-
-            <WeatherWidget fixture={fixture} />
 
             <MatchLineupsWidget lineups={fixture.lineups} />
 
@@ -4132,7 +4197,7 @@ import LottiePreloader from "@/components/LottiePreloader"; // Import the new co
 
 export default function Loading() {
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-brand-dark">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#1F1D2B]">
       {/* 
         We render the LottiePreloader component here. 
         Next.js will handle rendering the client component within this server component shell.
@@ -4326,4 +4391,190 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     </QueryClientProvider>
   );
 }
+
+// ===== src\app\sitemap.ts =====
+// src/app/sitemap.ts
+import { MetadataRoute } from "next";
+import axios from "axios";
+import { format, subDays, addDays } from "date-fns"; // For match dates
+
+// Ensure these are correctly imported or defined in src/lib/ if they are not already
+// Example definitions if they are not in src/lib (but it's better if they are)
+// import { generateLeagueSlug } from '@/lib/generate-league-slug';
+// import { generateTeamSlug } from '@/lib/generate-team-slug';
+// import { generateMatchSlug } from '@/lib/generate-match-slug';
+import slugify from "slugify"; // Assuming slugify is used internally by your generate functions
+
+// --- IMPORTANT: Ensure NEXTAUTH_URL is set in your .env.local or production environment ---
+// This is the base URL for your deployed application.
+const BASE_URL =
+  process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
+
+// --- Helper Functions to build slugs (ensure they match your frontend) ---
+// If these are already in src/lib, you can import them instead of defining here.
+const generateLeagueSlug = (leagueName: string, leagueId: number): string => {
+  const slug = slugify(leagueName, {
+    lower: true,
+    strict: true,
+    remove: /[*+~.()'"!:@]/g,
+  });
+  return `/football/league/${slug}-${leagueId}`;
+};
+
+const generateTeamSlug = (teamName: string, teamId: number): string => {
+  const slug = slugify(teamName, {
+    lower: true,
+    strict: true,
+    remove: /[*+~.()'"!:@]/g,
+  });
+  return `/football/team/${slug}-${teamId}`;
+};
+
+const generateMatchSlug = (
+  homeName: string,
+  awayName: string,
+  fixtureId: number
+): string => {
+  const slugifyPart = (str: string) =>
+    slugify(str, { lower: true, strict: true, remove: /[*+~.()'"!:@]/g });
+  return `/football/match/${slugifyPart(homeName)}-vs-${slugifyPart(
+    awayName
+  )}-${fixtureId}`;
+};
+
+// --- Fetchers for each content type ---
+
+// Fetches published news articles
+async function getNewsUrls(): Promise<MetadataRoute.Sitemap> {
+  try {
+    const { data: posts } = await axios.get(
+      `${BASE_URL}/api/posts?status=published`
+    );
+    return posts.map((post: any) => ({
+      url: `${BASE_URL}/football/news/${post.slug}`,
+      lastModified: post.updatedAt
+        ? new Date(post.updatedAt)
+        : new Date(post.createdAt), // Use actual update/create date
+      changeFrequency: "weekly",
+      priority: 0.8,
+    }));
+  } catch (error) {
+    console.error("Error generating news sitemap:", error);
+    return [];
+  }
+}
+
+// Fetches all leagues (including less popular ones if fetchAll=true works globally)
+async function getLeagueUrls(): Promise<MetadataRoute.Sitemap> {
+  try {
+    const { data: leagues } = await axios.get(
+      `${BASE_URL}/api/leagues?fetchAll=true`
+    );
+    return leagues.map((league: any) => ({
+      url: `${BASE_URL}${generateLeagueSlug(league.name, league.id)}`,
+      lastModified: new Date(), // Leagues typically don't have update timestamps from API-Football
+      changeFrequency: "monthly",
+      priority: 0.7,
+    }));
+  } catch (error) {
+    console.error("Error generating league sitemap:", error);
+    return [];
+  }
+}
+
+// Fetches teams from the directory API (which gets from popular leagues)
+// This is a practical compromise for sitemaps due to the sheer volume of teams.
+async function getTeamUrls(): Promise<MetadataRoute.Sitemap> {
+  try {
+    const { data: teamsData } = await axios.get(
+      `${BASE_URL}/api/directory/teams`
+    );
+    return teamsData.map((teamData: any) => ({
+      url: `${BASE_URL}${generateTeamSlug(
+        teamData.team.name,
+        teamData.team.id
+      )}`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.6,
+    }));
+  } catch (error) {
+    console.error("Error generating team sitemap:", error);
+    return [];
+  }
+}
+
+// Fetches a range of recent and upcoming matches.
+// Fetching *all* historical matches is not feasible via API-Football for sitemaps.
+async function getMatchUrls(): Promise<MetadataRoute.Sitemap> {
+  try {
+    const today = new Date();
+    const fromDate = format(subDays(today, 60), "yyyy-MM-dd"); // Last 60 days
+    const toDate = format(addDays(today, 60), "yyyy-MM-dd"); // Next 60 days
+
+    // Use the global fixtures endpoint to get a broad range of matches
+    const { data: matches } = await axios.get(
+      `${BASE_URL}/api/fixtures?from=${fromDate}&to=${toDate}`
+    );
+
+    return matches.map((match: any) => ({
+      url: `${BASE_URL}${generateMatchSlug(
+        match.teams.home.name,
+        match.teams.away.name,
+        match.fixture.id
+      )}`,
+      lastModified: new Date(match.fixture.date), // Use fixture date as last modified
+      changeFrequency: "daily",
+      priority: 0.9,
+    }));
+  } catch (error) {
+    console.error("Error generating match sitemap:", error);
+    return [];
+  }
+}
+
+// --- Main sitemap generation function ---
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // Fetch all URLs concurrently for performance
+  const [newsUrls, leagueUrls, teamUrls, matchUrls] = await Promise.all([
+    getNewsUrls(),
+    getLeagueUrls(),
+    getTeamUrls(),
+    getMatchUrls(),
+  ]);
+
+  // Combine all URLs, starting with static/root pages
+  return [
+    {
+      url: `${BASE_URL}/`,
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 1,
+    },
+    {
+      url: `${BASE_URL}/football/news`,
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 0.9,
+    },
+    {
+      url: `${BASE_URL}/football/leagues`,
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 0.9,
+    },
+    {
+      url: `${BASE_URL}/football/teams`,
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 0.9,
+    },
+    // Spread the dynamically generated URLs
+    ...newsUrls,
+    ...leagueUrls,
+    ...teamUrls,
+    ...matchUrls,
+  ];
+}
+
 

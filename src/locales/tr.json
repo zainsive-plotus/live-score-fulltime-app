@@ -246,5 +246,13 @@
   "go_back_to_homepage": "Ana Sayfaya Geri Dön",
   "fan_skor_turkiyenin_1_numarali_canli_skor_sitesi": "Fan Skor | Türkiye'nin 1 numaralı Canlı Skor sitesi",
   "oyuntaktik_com_turkiyenin_bir_numarali_inceleme_sitesi_en_iyi_oyun_rehberleri_taktikler_ve_guncel_degerlendirmelerle_oyuncularin_yaninda": "Oyuntaktik.com, Türkiye'nin bir numaralı inceleme sitesi, en iyi oyun rehberleri, taktikler ve güncel değerlendirmelerle oyuncuların yanında!",
-  "loading_placeholder": "Yükleniyor..."
+  "loading_placeholder": "Yükleniyor...",
+  "upcoming": "Gelecek",
+  "error_loading_fixtures": "Fikstürler yüklenirken hata oluştu.",
+  "no_fixtures_found": "Bu seçim için fikstür bulunamadı.",
+  "view_full_table": "Tüm Tabloyu Gör",
+  "table_header_team": "Takım",
+  "no_standings_title": "Puan Durumu Yok",
+  "standings_not_available": "Bu turnuva için puan durumu mevcut değil.",
+  "select_another_league_prompt": " Lütfen yukarıdaki sekmelerden başka bir lig seçin."
 }
