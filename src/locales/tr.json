@@ -254,5 +254,15 @@
   "table_header_team": "Takım",
   "no_standings_title": "Puan Durumu Yok",
   "standings_not_available": "Bu turnuva için puan durumu mevcut değil.",
-  "select_another_league_prompt": " Lütfen yukarıdaki sekmelerden başka bir lig seçin."
+  "select_another_league_prompt": " Lütfen yukarıdaki sekmelerden başka bir lig seçin.",
+  "manage_banners": "Bannerları Yönet",
+  "all_leagues": "Tüm Ligler",
+  "all_teams": "Tüm Takımlar",
+  "information": "Bilgi",
+  "about_us": "Hakkımızda",
+  "privacy_policy": "Gizlilik Politikası",
+  "terms_of_service": "Hizmet Şartları",
+  "contact_us": "Bize Ulaşın",
+  "footer_description": "Fanskor, dünya çapındaki futbol tutkunları için kapsamlı spor analizleri, canlı skorlar ve uzman yorumları sunar.",
+  "match_seo_description": "[home_team_name] son haftalarda güçlü bir form grafiği sergiliyor, önemli galibiyetler ve sağlam defansif performanslar gösteriyor. Hücum hattı keskin, birçok pozisyon yaratıyor ve rakip hatalarından faydalanıyor. Bu arada, [away_team_name] de ilk aksiliklerden sonra toparlanarak puan tablosunda istikrarlı bir şekilde yükselişini sürdürdü. Taraftarlar her iki taraftan da yüksek enerji, agresif pres ve yaratıcı oyunlar bekleyebilir."
 }

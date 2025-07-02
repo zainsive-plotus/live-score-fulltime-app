@@ -1,102 +1,100 @@
 // src/app/football/leagues/page.tsx
-"use client";
-
-import { useState, useMemo, useEffect } from "react";
-import { useQueries } from "@tanstack/react-query";
+// This is now a Server Component. Removed "use client";
+import { headers } from "next/headers"; // Used for locale detection on server if needed, though not directly for SEO text
 import axios from "axios";
-import { League } from "@/types/api-football";
+import type { Metadata } from "next"; // Import Metadata type
+
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
-import DirectoryCard, {
-  DirectoryCardSkeleton,
-} from "@/components/DirectoryCard";
-import Pagination from "@/components/Pagination";
+import LeagueListClient from "@/components/LeagueListClient"; // <-- NEW IMPORT: Client Component
+import { League } from "@/types/api-football"; // Assuming League type is accessible
 
+// This ensures dynamic rendering for this page if it uses headers, cookies, etc.
+// For metadata, it's often implicit, but explicit for page content.
 export const dynamic = "force-dynamic";
 
-const ITEMS_PER_PAGE = 15;
-
-// Fetcher function for all leagues
-const fetchAllLeagues = async (): Promise<League[]> => {
-  const { data } = await axios.get("/api/leagues?fetchAll=true");
-  return data;
-};
-
-// Fetcher function for the IDs of currently active leagues
-const fetchActiveLeagueIds = async (): Promise<number[]> => {
-  const { data } = await axios.get("/api/active-leagues");
-  return data;
-};
-
-export default function LeaguesPage() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filter, setFilter] = useState<"all" | "league" | "cup">("all");
-  const [currentPage, setCurrentPage] = useState(1);
-
-  // useQueries fetches both datasets in parallel for optimal performance
-  const [
-    { data: allLeagues, isLoading: isLoadingLeagues },
-    { data: activeLeagueIds, isLoading: isLoadingActive },
-  ] = useQueries({
-    queries: [
-      {
-        queryKey: ["allLeaguesDirectory"],
-        queryFn: fetchAllLeagues,
-        staleTime: 1000 * 60 * 60, // Cache all leagues for 1 hour
-      },
-      {
-        queryKey: ["activeLeagueIds"],
-        queryFn: fetchActiveLeagueIds,
-        staleTime: 1000 * 60 * 10, // Re-check for active leagues every 10 minutes
-      },
-    ],
-  });
-
-  const isLoading = isLoadingLeagues || isLoadingActive;
-
-  // The main logic for filtering and sorting the leagues
-  const { paginatedData, totalPages } = useMemo(() => {
-    // Wait until both API calls are complete before processing data
-    if (!allLeagues || !activeLeagueIds) {
-      return { paginatedData: [], totalPages: 0 };
+// --- Server-side Data Fetching for Initial Leagues List ---
+const fetchAllLeaguesServer = async (): Promise<League[]> => {
+  const publicAppUrl = process.env.NEXT_PUBLIC_PUBLIC_APP_URL;
+  if (!publicAppUrl) {
+    console.error(
+      "[Leagues Page Server] NEXT_PUBLIC_PUBLIC_APP_URL is not defined! Cannot fetch all leagues."
+    );
+    return [];
+  }
+  const apiUrl = `${publicAppUrl}/api/leagues?fetchAll=true`;
+  console.log(
+    `[Leagues Page Server] Attempting to fetch all leagues from internal API: ${apiUrl}`
+  );
+  try {
+    const { data } = await axios.get(apiUrl, { timeout: 15000 }); // Increased timeout
+    console.log(
+      `[Leagues Page Server] Successfully fetched ${data.length} leagues.`
+    );
+    return data;
+  } catch (error: any) {
+    console.error(
+      `[Leagues Page Server] Failed to fetch all leagues (${apiUrl}):`,
+      error.message
+    );
+    if (axios.isAxiosError(error) && error.response) {
+      console.error(
+        "[Leagues Page Server] API Response Error (Status, Data):",
+        error.response.status,
+        error.response.data
+      );
     }
+    return [];
+  }
+};
 
-    const activeIdsSet = new Set(activeLeagueIds);
+// --- DYNAMIC METADATA GENERATION FOR LEAGUES PAGE ---
+export async function generateMetadata(): Promise<Metadata> {
+  const pageTitle =
+    "All Football Leagues & Cups | Find Your Favorite Competition";
+  const pageDescription =
+    "Explore a comprehensive list of football leagues and cups from around the world. Find detailed information, standings, fixtures, and more for top divisions and international competitions.";
 
-    // First, apply the user's search and type filters
-    const filtered = allLeagues.filter((league) => {
-      const matchesSearch = league.name
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
-      const matchesFilter =
-        filter === "all" || league.type.toLowerCase() === filter;
-      return matchesSearch && matchesFilter;
-    });
+  // Construct Canonical URL
+  const canonicalUrl = `/football/leagues`;
 
-    // Separate the filtered list into active and inactive leagues
-    const activeLeagues = filtered.filter((l) => activeIdsSet.has(l.id));
-    const inactiveLeagues = filtered.filter((l) => !activeIdsSet.has(l.id));
+  console.log(
+    `[Leagues Metadata] Generating metadata. Canonical: ${canonicalUrl}`
+  );
 
-    // Sort each sub-list alphabetically for consistent ordering
-    activeLeagues.sort((a, b) => a.name.localeCompare(b.name));
-    inactiveLeagues.sort((a, b) => a.name.localeCompare(b.name));
+  return {
+    title: pageTitle,
+    description: pageDescription,
+    alternates: {
+      canonical: canonicalUrl,
+    },
+    openGraph: {
+      title: pageTitle,
+      description: pageDescription,
+      url: `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/football/leagues`,
+      siteName: "Fan Skor",
+      // images: [{ url: `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/og-image.jpg` }],
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: pageTitle,
+      description: pageDescription,
+      // images: [`${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/twitter-image.jpg`],
+    },
+  };
+}
 
-    // Combine the lists, with active leagues appearing first
-    const sortedAndFiltered = [...activeLeagues, ...inactiveLeagues];
+export default async function LeaguesPage() {
+  console.log(
+    "[Leagues Page Server] Rendering LeaguesPage (Server Component)."
+  );
 
-    // Apply pagination to the final, sorted list
-    const totalPages = Math.ceil(sortedAndFiltered.length / ITEMS_PER_PAGE);
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-    const paginatedData = sortedAndFiltered.slice(startIndex, endIndex);
+  // Fetch all leagues server-side
+  const allLeagues = await fetchAllLeaguesServer();
 
-    return { paginatedData, totalPages };
-  }, [allLeagues, activeLeagueIds, searchTerm, filter, currentPage]);
-
-  // Reset to the first page whenever the filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, filter]);
+  // --- Generate SEO Text for the page ---
+  const leaguesPageSeoText = `Futbol dünyasının kalbine hoş geldiniz! Bu sayfada, en heyecan verici yerel liglerden prestijli uluslararası kupalara kadar, dünya genelindeki tüm futbol liglerini ve kupalarını keşfedebilirsiniz. Takımların güncel sıralamalarını, yaklaşan fikstürlerini ve tarihi istatistiklerini kolayca bulun. En sevdiğiniz ligin detaylı analizlerine dalın ve futbolun nabzını tutun.`;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -108,79 +106,13 @@ export default function LeaguesPage() {
             Leagues & Cups
           </h1>
 
-          <div className="flex flex-col md:flex-row gap-4 mb-8">
-            <input
-              type="text"
-              placeholder="Search by name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full md:w-1/3 p-3 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-purple"
-            />
-            <div className="flex items-center gap-2 p-1 rounded-lg bg-brand-secondary">
-              <button
-                onClick={() => setFilter("all")}
-                className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-colors ${
-                  filter === "all"
-                    ? "bg-brand-purple text-white"
-                    : "text-brand-muted hover:bg-gray-700/50"
-                }`}
-              >
-                All
-              </button>
-              <button
-                onClick={() => setFilter("league")}
-                className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-colors ${
-                  filter === "league"
-                    ? "bg-brand-purple text-white"
-                    : "text-brand-muted hover:bg-gray-700/50"
-                }`}
-              >
-                Leagues
-              </button>
-              <button
-                onClick={() => setFilter("cup")}
-                className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-colors ${
-                  filter === "cup"
-                    ? "bg-brand-purple text-white"
-                    : "text-brand-muted hover:bg-gray-700/50"
-                }`}
-              >
-                Cups
-              </button>
-            </div>
-          </div>
+          {/* Render the SEO text from the server */}
+          <p className="italic text-[#a3a3a3] leading-relaxed mb-8">
+            {leaguesPageSeoText}
+          </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {isLoading
-              ? Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => (
-                  <DirectoryCardSkeleton key={i} />
-                ))
-              : paginatedData.map((league) => (
-                  <DirectoryCard
-                    key={league.id}
-                    {...league}
-                    // The 'isPopular' prop is now used to signify 'isActive'
-                    isPopular={activeLeagueIds?.includes(league.id)}
-                  />
-                ))}
-          </div>
-
-          {!isLoading && paginatedData.length > 0 && (
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={setCurrentPage}
-            />
-          )}
-
-          {!isLoading && paginatedData.length === 0 && (
-            <div className="text-center py-20 bg-brand-secondary rounded-lg">
-              <p className="text-xl font-bold text-white">No Results Found</p>
-              <p className="text-brand-muted mt-2">
-                Try adjusting your search or filter.
-              </p>
-            </div>
-          )}
+          {/* Render the Client Component, passing the initial server-fetched data */}
+          <LeagueListClient initialAllLeagues={allLeagues} />
         </main>
       </div>
     </div>

@@ -253,5 +253,15 @@
   "no_fixtures_found": "No fixtures found for this selection.",
   "no_standings_title": "No Standings",
   "standings_not_available": "Standings are not available for this competition.",
-  "select_another_league_prompt": " Please select another league from the tabs above."
+  "select_another_league_prompt": " Please select another league from the tabs above.",
+  "manage_banners": "Manage Banners",
+  "all_leagues": "All Leagues",
+  "all_teams": "All Teams",
+  "information": "Information",
+  "about_us": "About Us",
+  "privacy_policy": "Privacy Policy",
+  "terms_of_service": "Terms of Service",
+  "contact_us": "Contact Us",
+  "footer_description": "Fanskor provides comprehensive sports insights, live scores, and expert analysis for football enthusiasts worldwide.",
+  "match_seo_description": "[home_team_name] comes into this match showcasing strong form in recent weeks, with notable wins and solid defensive displays. Their attacking line has been sharp, creating multiple chances and capitalizing on opponent errors. Meanwhile, [away_team_name] has also shown resilience, bouncing back from early setbacks and steadily climbing up the standings. Fans can expect high energy, aggressive pressing, and creative plays from both sides."
 }

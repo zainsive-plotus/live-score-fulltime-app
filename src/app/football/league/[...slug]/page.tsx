@@ -65,6 +65,9 @@ export async function generateMetadata({
   return {
     title: `${leagueData.league.name} - Info, Fixtures & Standings`,
     description: `All information about the ${leagueData.league.name}, including available seasons, fixtures, and full standings.`,
+    alternates: {
+      canonical: `/football/league/${slug}`,
+    },
   };
 }
 

@@ -1,272 +1,330 @@
 // src/components/match/MatchHeader.tsx
-"use client";
+"use client"; // This component remains a Client Component
 
-import { useState } from "react"; // Import useState for the odds toggle
 import Image from "next/image";
-import { proxyImageUrl } from "@/lib/image-proxy";
-import StyledLink from "@/components/StyledLink";
-import { generateTeamSlug } from "@/lib/generate-team-slug";
-import { generateLeagueSlug } from "@/lib/generate-league-slug";
-import { Mic, MapPin } from "lucide-react";
 import { format } from "date-fns";
+import { useMemo } from "react";
+import { ChevronRight, Clock, CalendarDays, BarChart2 } from "lucide-react";
+import Link from "next/link";
+import { proxyImageUrl } from "@/lib/image-proxy";
+import { generateLeagueSlug } from "@/lib/generate-league-slug";
+import { generateTeamSlug } from "@/lib/generate-team-slug";
+// Removed useTranslation import
+// import { useTranslation } from '@/hooks/useTranslation';
+
+// Assuming these types are defined elsewhere or simplified for this example
+interface Team {
+  id: number;
+  name: string;
+  logo: string;
+}
+
+interface Fixture {
+  fixture: any;
+  id: number;
+  date: string;
+  timestamp: number;
+  timezone: string;
+  status: {
+    long: string;
+    short: any;
+    elapsed: number | null;
+  };
+  venue: {
+    id: number;
+    name: string;
+    city: string;
+  };
+  teams: {
+    home: Team;
+    away: Team;
+  };
+  league: {
+    id: number;
+    name: string;
+    country: string;
+    logo: string;
+    flag: string;
+    season: number;
+    round: string;
+  };
+  goals: {
+    home: number | null;
+    away: number | null;
+  };
+  score: {
+    halftime: {
+      home: number | null;
+      away: number | null;
+    };
+    fulltime: {
+      home: number | null;
+      away: number | null;
+    };
+    extratime: {
+      home: number | null;
+      away: number | null;
+    };
+    penalty: {
+      home: number | null;
+      away: number | null;
+    };
+  };
+}
 
 interface MatchHeaderProps {
-  fixture: any; // The main fixture data
-  analytics: any; // The analytics object, containing all prediction data
-}
-
-// --- Type Definitions for Odds (internal to this file) ---
-type Odds =
-  | {
-      home: string;
-      draw: string;
-      away: string;
-    }
-  | undefined
-  | null;
-
-// ====================================================================
-// --- ENHANCED: HeaderOdds Sub-component ---
-// ====================================================================
-interface HeaderOddsProps {
-  fixtureId: number;
-  apiPreMatchOdds?: Odds; // API pre-match odds (e.g., from API's `prediction.odds`)
-  customPreMatchOdds?: Odds; // Our custom pre-match odds (from `analytics.customOdds`)
-}
-
-const HeaderOdds = ({
-  apiPreMatchOdds,
-  customPreMatchOdds,
-}: HeaderOddsProps) => {
-  // State to toggle between API and Custom Odds, defaulting to Fanskor Odds
-  const [showFanskorOdds, setShowFanskorOdds] = useState(true);
-
-  // Determine which odds to display based on the toggle
-  const displayOdds = showFanskorOdds ? customPreMatchOdds : apiPreMatchOdds;
-
-  // Add conditional coloring for the odds boxes
-  const OddBox = ({
-    label,
-    value,
-    type,
-  }: {
-    label: string;
-    value?: string;
-    type: "home" | "draw" | "away";
-  }) => {
-    const colorClass =
-      type === "home"
-        ? "bg-green-500/20 text-green-400"
-        : type === "draw"
-        ? "bg-yellow-500/20 text-yellow-400"
-        : "bg-red-500/20 text-red-400";
-    return (
-      <div
-        className={`flex flex-col items-center justify-center p-2 rounded-md w-16 h-14 ${colorClass}`}
-      >
-        <span className="text-xs text-brand-muted">{label}</span>
-        <span className="text-sm font-bold text-white">{value || "-"}</span>
-      </div>
-    );
+  fixture: Fixture;
+  analytics: {
+    prediction?: any;
+    homeTeamStats?: any;
+    awayTeamStats?: any;
+    customPrediction?: any;
+    customOdds?: any;
+    bookmakerOdds?: any;
   };
+  // Now directly receives the untranslated string
+  matchSeoDescription: string;
+}
 
-  // Only render if there's any odds data available
-  if (!apiPreMatchOdds && !customPreMatchOdds) return null;
+const MatchHeader: React.FC<MatchHeaderProps> = ({
+  fixture,
+  analytics,
+  matchSeoDescription,
+}) => {
+  // Removed useTranslation hook call
+  // const { t } = useTranslation();
+
+  const homeTeam = fixture?.teams?.home;
+  const awayTeam = fixture?.teams?.away;
+  const league = fixture?.league;
+  const status = fixture?.fixture.status;
+  const venue = fixture?.fixture.venue;
+  const goals = fixture?.goals;
+  const score = fixture?.score;
+  const fixtureDate = fixture?.fixture;
+
+  if (
+    !homeTeam ||
+    !awayTeam ||
+    !league ||
+    !status ||
+    !venue ||
+    !score ||
+    !goals ||
+    !fixtureDate
+  ) {
+    console.error("[MatchHeader] Essential fixture data missing:", {
+      fixture,
+      homeTeam,
+      awayTeam,
+      league,
+      status,
+      venue,
+      score,
+      goals,
+      fixtureDate,
+    });
+    return (
+      <div className="text-red-400 p-4">Error: Match data incomplete.</div>
+    );
+  }
+
+  const validFixtureDate = useMemo(() => {
+    if (
+      fixtureDate &&
+      typeof fixtureDate === "string" &&
+      !isNaN(new Date(fixtureDate).getTime())
+    ) {
+      return new Date(fixtureDate);
+    }
+    console.warn(
+      `[MatchHeader] Invalid or missing fixture.date received: "${fixtureDate}". Using current date as fallback.`
+    );
+    return new Date();
+  }, [fixtureDate]);
+
+  const formattedDate = useMemo(
+    () => format(validFixtureDate, "dd MMMM yyyy"),
+    [validFixtureDate]
+  );
+  const formattedTime = useMemo(
+    () => format(validFixtureDate, "HH:mm"),
+    [validFixtureDate]
+  );
+
+  const prediction = useMemo(() => {
+    if (analytics?.customPrediction) {
+      return analytics.customPrediction;
+    }
+    if (analytics?.prediction && analytics.prediction?.percent) {
+      return {
+        home: analytics.prediction.percent.home,
+        draw: analytics.prediction.percent.draw,
+        away: analytics.prediction.percent.away,
+      };
+    }
+    return null;
+  }, [analytics?.customPrediction, analytics?.prediction]);
+
+  const winningPrediction = useMemo(() => {
+    if (!prediction) return null;
+    const max = Math.max(prediction.home, prediction.draw, prediction.away);
+    if (max === prediction.home)
+      return { team: homeTeam, percent: prediction.home };
+    if (max === prediction.away)
+      return { team: awayTeam, percent: prediction.away };
+    return { team: null, percent: prediction.draw };
+  }, [prediction, homeTeam, awayTeam]);
+
+  const isLive = useMemo(() => {
+    const liveStatuses = ["1H", "HT", "2H", "ET", "BT", "P", "LIVE"];
+    return liveStatuses.includes(status?.short || "");
+  }, [status?.short]);
+
+  const finalScoreHome =
+    score?.fulltime?.home !== null ? score.fulltime.home : goals?.home;
+  const finalScoreAway =
+    score?.fulltime?.away !== null ? score.fulltime.away : goals?.away;
+
+  // This text is now passed as an already translated prop
+  // const translatedMatchSeoDescription = t('match_seo_description', {
+  //   home_team_name: matchSeoDescriptionData.homeTeamName,
+  //   away_team_name: matchSeoDescriptionData.awayTeamName
+  // });
 
   return (
-    <div className="flex flex-col items-center justify-center gap-2 mt-4">
-      {displayOdds ? (
-        <div className="flex items-center justify-center gap-2">
-          <OddBox label="1" value={displayOdds.home} type="home" />
-          <OddBox label="X" value={displayOdds.draw} type="draw" />
-          <OddBox label="2" value={displayOdds.away} type="away" />
+    <div className="bg-brand-secondary rounded-lg overflow-hidden shadow-lg mb-4">
+      {/* League Info & Breadcrumbs */}
+      <div className="p-4 bg-gray-800/50 flex items-center justify-between text-brand-muted text-sm">
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/football/leagues`}
+            className="hover:text-white transition-colors"
+          >
+            Leagues
+          </Link>
+          <ChevronRight size={14} />
+          <Link
+            href={generateLeagueSlug(league.name, league.id)}
+            className="hover:text-white transition-colors"
+          >
+            {league.name}
+          </Link>
         </div>
-      ) : (
-        <div className="text-sm text-brand-muted">
-          No Pre-Match Odds Available
-        </div>
-      )}
+        <div className="text-xs">{league.round}</div>
+      </div>
 
-      {/* Odds Source Toggle/Indicator */}
-      {/* Only show toggle if both API and Custom odds are present */}
-      {apiPreMatchOdds && customPreMatchOdds ? (
-        <button
-          onClick={() => setShowFanskorOdds(!showFanskorOdds)}
-          className="text-xs text-brand-muted hover:text-white transition-colors mt-2"
-        >
-          Showing:{" "}
-          <span className="font-semibold text-brand-purple">
-            {showFanskorOdds ? "Fanskor Odds" : "API Odds"}
-          </span>{" "}
-          (Click to switch)
-        </button>
-      ) : (
-        // Show source if only one type of odds is available
-        <p className="text-xs text-brand-muted mt-2">
-          {apiPreMatchOdds
-            ? "Source: API"
-            : customPreMatchOdds
-            ? "Source: Fanskor"
-            : ""}
+      {/* Match Overview - Teams, Score, Status */}
+      <div className="p-6 flex flex-col items-center justify-center text-center">
+        <div className="flex items-center w-full justify-around mb-6 gap-4">
+          {/* Home Team */}
+          <Link
+            href={generateTeamSlug(homeTeam.name, homeTeam.id)}
+            className="flex flex-col items-center gap-3 flex-1 min-w-0"
+          >
+            <Image
+              src={proxyImageUrl(homeTeam.logo)}
+              alt={homeTeam.name}
+              width={80}
+              height={80}
+              className="w-20 h-20 object-contain"
+            />
+            <span className="font-bold text-white text-xl truncate">
+              {homeTeam.name}
+            </span>
+          </Link>
+
+          {/* Score / VS */}
+          <div className="flex flex-col items-center justify-center flex-shrink-0 mx-4">
+            {status?.short === "NS" ? (
+              <span className="text-4xl font-extrabold text-white">VS</span>
+            ) : (
+              <span className="text-4xl font-extrabold text-white">
+                {finalScoreHome !== null ? finalScoreHome : "?"} -{" "}
+                {finalScoreAway !== null ? finalScoreAway : "?"}
+              </span>
+            )}
+            <span
+              className={`text-sm font-semibold mt-2 px-3 py-1 rounded-full ${
+                isLive
+                  ? "bg-green-500/20 text-green-400"
+                  : "bg-gray-700/50 text-brand-muted"
+              }`}
+            >
+              {status?.long || "N/A"}{" "}
+              {status?.elapsed !== null && isLive && `(${status.elapsed}')`}
+            </span>
+          </div>
+
+          {/* Away Team */}
+          <Link
+            href={generateTeamSlug(awayTeam.name, awayTeam.id)}
+            className="flex flex-col items-center gap-3 flex-1 min-w-0"
+          >
+            <Image
+              src={proxyImageUrl(awayTeam.logo)}
+              alt={awayTeam.name}
+              width={80}
+              height={80}
+              className="w-20 h-20 object-contain"
+            />
+            <span className="font-bold text-white text-xl truncate">
+              {awayTeam.name}
+            </span>
+          </Link>
+        </div>
+
+        {/* Match Details: Date, Time, Venue */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-3 gap-x-6 text-brand-muted text-sm border-t border-b border-gray-700/50 py-4 w-full justify-center">
+          <div className="flex items-center justify-center gap-2">
+            <CalendarDays size={18} />
+            <span>{formattedDate}</span>
+          </div>
+          <div className="flex items-center justify-center gap-2">
+            <Clock size={18} />
+            <span>{formattedTime}</span>
+          </div>
+          <div className="flex items-center justify-center gap-2">
+            <BarChart2 size={18} />
+            <span>
+              {venue?.name || "N/A"} ({venue?.city || "N/A"})
+            </span>
+          </div>
+        </div>
+
+        {/* Prediction Display */}
+        {winningPrediction && (
+          <div className="mt-4 text-white font-semibold text-lg flex items-center justify-center gap-2">
+            <span className="text-brand-muted">Prediction:</span>
+            {winningPrediction.team ? (
+              <span className="flex items-center gap-1">
+                <Image
+                  src={proxyImageUrl(winningPrediction.team.logo)}
+                  alt={winningPrediction.team.name}
+                  width={24}
+                  height={24}
+                />
+                {winningPrediction.team.name}
+              </span>
+            ) : (
+              <span>Draw</span>
+            )}
+            <span className="text-brand-purple">
+              ({winningPrediction.percent}%)
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* --- SEO OPTIMIZATION TEXT --- */}
+      {/* This text is now passed as an already translated prop */}
+      <div className="p-6 border-t border-gray-700/50">
+        <p className=" leading-relaxed italic text-[#a3a3a3]">
+          {matchSeoDescription}
         </p>
-      )}
+      </div>
     </div>
   );
 };
 
-// ====================================================================
-// --- MAIN MatchHeader Component ---
-// ====================================================================
-export default function MatchHeader({
-  fixture: matchData,
-  analytics,
-}: MatchHeaderProps) {
-  // Correctly destructure the necessary parts of fixture and analytics
-  const { league, teams, fixture: details, goals } = matchData;
-  const { venue, referee, id: fixtureId, status } = details;
-
-  const { prediction: apiPrediction, customOdds: customPreMatchOdds } =
-    analytics;
-
-  // Determine if the match is live or finished for score/time display
-  const isLive = ["1H", "HT", "2H", "ET", "BT", "P", "LIVE"].includes(
-    status.short
-  );
-  const isFinished = ["FT", "AET", "PEN"].includes(status.short);
-
-  // Render the score or time in the center
-  const renderCentralScoreOrTime = () => {
-    if (isLive) {
-      return (
-        <div className="text-center">
-          <div className="text-4xl font-bold text-green-400">
-            <span>{goals.home}</span> - <span>{goals.away}</span>
-          </div>
-          <div className="flex items-center justify-center gap-1.5 text-lg text-green-400 mt-1">
-            <span className="h-2 w-2 rounded-full bg-green-500"></span>
-            <span>{status.elapsed}'</span>
-          </div>
-        </div>
-      );
-    }
-    if (isFinished) {
-      return (
-        <div className="text-center">
-          <div className="text-4xl font-bold text-white">
-            <span>{goals.home}</span> - <span>{goals.away}</span>
-          </div>
-          <span className="text-lg text-brand-muted">{status.short}</span>
-        </div>
-      );
-    }
-    // Upcoming match: display kick-off time
-    return (
-      <div className="text-center">
-        <div className="text-3xl font-bold text-white">
-          {format(new Date(details.date), "HH:mm")}
-        </div>
-        <span className="text-lg text-brand-muted">
-          {format(new Date(details.date), "dd MMM")}
-        </span>
-      </div>
-    );
-  };
-
-  return (
-    <header className="bg-brand-secondary p-4 md:p-6 rounded-lg shadow-lg relative overflow-hidden">
-      {/* Optional: Subtle background image of the stadium for atmosphere */}
-      {venue?.image && (
-        <div className="absolute inset-0 opacity-5">
-          <Image
-            src={proxyImageUrl(venue.image)}
-            alt={`${venue.name} background`}
-            layout="fill"
-            objectFit="cover"
-          />
-        </div>
-      )}
-      <div className="absolute inset-0 bg-black/30"></div>
-
-      <div className="relative z-10">
-        {/* Top Row: League & Round Info */}
-        <div className="flex justify-between items-center text-sm text-brand-muted mb-4">
-          <StyledLink
-            href={generateLeagueSlug(league.name, league.id)}
-            className="flex items-center gap-2 group"
-          >
-            <Image
-              src={proxyImageUrl(league.logo)}
-              alt={league.name}
-              width={20}
-              height={20}
-            />
-            <span className="font-semibold group-hover:text-white transition-colors">
-              {league.name}
-            </span>
-          </StyledLink>
-          <span>{league.round}</span>
-        </div>
-
-        {/* Middle Row: Team Matchup and Score */}
-        <div className="grid grid-cols-3 items-center gap-4 text-white">
-          {/* Home Team */}
-          <StyledLink
-            href={generateTeamSlug(teams.home.name, teams.home.id)}
-            className="flex flex-col items-center text-center gap-2"
-          >
-            <Image
-              src={proxyImageUrl(teams.home.logo)}
-              alt={teams.home.name}
-              width={80}
-              height={80}
-            />
-            <h2 className="text-lg md:text-xl font-bold">{teams.home.name}</h2>
-          </StyledLink>
-
-          {/* Central Score/Time Display */}
-          <div className="text-center">{renderCentralScoreOrTime()}</div>
-
-          {/* Away Team */}
-          <StyledLink
-            href={generateTeamSlug(teams.away.name, teams.away.id)}
-            className="flex flex-col items-center text-center gap-2"
-          >
-            <Image
-              src={proxyImageUrl(teams.away.logo)}
-              alt={teams.away.name}
-              width={80}
-              height={80}
-            />
-            <h2 className="text-lg md:text-xl font-bold">{teams.away.name}</h2>
-          </StyledLink>
-        </div>
-
-        {/* Odds Display */}
-        {/* Pass the pre-match odds from the analytics object to the HeaderOdds component */}
-        <HeaderOdds
-          fixtureId={fixtureId}
-          apiPreMatchOdds={apiPrediction?.odds}
-          customPreMatchOdds={customPreMatchOdds}
-        />
-
-        {/* Bottom Row: Venue & Referee Info */}
-        <div className="flex flex-col sm:flex-row justify-center items-center gap-x-6 gap-y-2 text-xs text-brand-muted mt-6 text-center">
-          {venue?.name && (
-            <div className="flex items-center gap-1.5">
-              <MapPin size={12} />
-              <span>
-                {venue.name}, {venue.city}
-              </span>
-            </div>
-          )}
-          {referee && (
-            <div className="flex items-center gap-1.5">
-              <Mic size={12} />
-              <span>Referee: {referee}</span>
-            </div>
-          )}
-        </div>
-      </div>
-    </header>
-  );
-}
+export default MatchHeader;

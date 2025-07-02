@@ -11,7 +11,14 @@ export default async function HomePage() {
       <Suspense fallback={<HeaderSkeleton />}>
         <Header />
       </Suspense>
-      <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr] lg:items-start lg:py-8">
+
+      <div className="container mx-auto mt-[18px] w-full">
+        <h1 className="italic text-[#a3a3a3]">
+          Fanskor - Başbakan Lig ve Şampiyonlar Ligi canlı skorlar ve maç
+          programı
+        </h1>
+      </div>
+      <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr] lg:items-start lg:py-4">
         <Suspense fallback={<SidebarSkeleton />}>
           <Sidebar />
         </Suspense>

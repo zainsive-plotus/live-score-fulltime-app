@@ -1,206 +1,193 @@
-import { memo, useMemo } from "react";
-import { format } from "date-fns";
-import Image from "next/image";
-import Link from "@/components/StyledLink";
-import { generateMatchSlug } from "@/lib/generate-match-slug";
-import { proxyImageUrl } from "@/lib/image-proxy"; // Ensure proxyImageUrl is imported
+// src/components/match/MatchH2HWidget.tsx
+"use client";
 
-// This is the main exported widget component.
-const MatchH2HWidget = memo(function MatchH2HWidget({
+import { useMemo, useState } from "react";
+import Image from "next/image";
+import { format } from "date-fns";
+import Link from "next/link";
+import { ChevronRight, CalendarDays } from "lucide-react";
+import { proxyImageUrl } from "@/lib/image-proxy";
+import { generateMatchSlug } from "@/lib/generate-match-slug";
+// No useTranslation import here for h2hSeoDescription
+// import { useTranslation } from '@/hooks/useTranslation';
+
+interface MatchH2HWidgetProps {
+  h2h: any[]; // Array of past match fixtures
+  teams: {
+    home: { id: number; name: string; logo: string };
+    away: { id: number; name: string; logo: string };
+  };
+  currentFixtureId: string;
+  h2hSeoDescription: string; // This prop receives the static Turkish string
+}
+
+export default function MatchH2HWidget({
   h2h,
   teams,
   currentFixtureId,
-}: {
-  h2h: any[];
-  teams: any;
-  currentFixtureId: string;
-}) {
-  // --- 1. Data Processing with useMemo for Performance ---
-  const { pastMatches, summaryStats } = useMemo(() => {
-    const filteredPastMatches = h2h.filter(
-      (match) => match.fixture.id.toString() !== currentFixtureId
-    );
-    let stats = { homeWins: 0, awayWins: 0, draws: 0 };
+  h2hSeoDescription,
+}: MatchH2HWidgetProps) {
+  const [showAll, setShowAll] = useState(false);
+  const filteredH2H = useMemo(
+    () =>
+      h2h.filter((match) => match.fixture.id !== parseInt(currentFixtureId)),
+    [h2h, currentFixtureId]
+  );
+  const displayedH2H = showAll ? filteredH2H : filteredH2H.slice(0, 5);
 
-    filteredPastMatches.forEach((match) => {
-      const home = match.teams.home;
-      const away = match.teams.away;
-      const goals = match.goals;
+  const headToHeadRecords = useMemo(() => {
+    if (!filteredH2H || filteredH2H.length === 0) {
+      return { homeWins: 0, awayWins: 0, draws: 0 };
+    }
 
-      if (goals.home === goals.away) {
-        stats.draws++;
-      } else if (goals.home > goals.away) {
-        if (home.id === teams.home.id) stats.homeWins++;
-        else stats.awayWins++;
-      } else {
-        if (away.id === teams.home.id) stats.homeWins++;
-        else stats.awayWins++;
+    let homeWins = 0;
+    let awayWins = 0;
+    let draws = 0;
+
+    filteredH2H.forEach((match: any) => {
+      if (match.fixture.status.short === "FT") {
+        if (match.teams.home.winner) {
+          if (match.teams.home.id === teams.home.id) {
+            homeWins++;
+          } else {
+            awayWins++;
+          }
+        } else if (match.teams.away.winner) {
+          if (match.teams.away.id === teams.away.id) {
+            homeWins++;
+          } else {
+            awayWins++;
+          }
+        } else {
+          draws++;
+        }
       }
     });
 
-    return { pastMatches: filteredPastMatches, summaryStats: stats };
-  }, [h2h, teams, currentFixtureId]);
+    return { homeWins, awayWins, draws };
+  }, [filteredH2H, teams]);
 
-  // --- 2. Early Return for "No Data" Case ---
-  if (pastMatches.length === 0) {
-    return (
-      <div className="bg-brand-secondary rounded-xl p-4">
-        <h3 className="text-lg font-bold border-b border-gray-700/50 pb-4 mb-4">
-          Head-to-Head
-        </h3>
-        <p className="text-text-muted text-center py-4">
-          No previous encounters found between these two teams.
-        </p>
-      </div>
-    );
-  }
-
-  const totalMatches =
-    summaryStats.homeWins + summaryStats.awayWins + summaryStats.draws;
-  const homeWinPercent =
-    totalMatches > 0 ? (summaryStats.homeWins / totalMatches) * 100 : 0;
-  const drawPercent =
-    totalMatches > 0 ? (summaryStats.draws / totalMatches) * 100 : 0;
-  const awayWinPercent = 100 - homeWinPercent - drawPercent;
-
-  // --- 3. JSX Rendering ---
   return (
-    <div className="bg-brand-secondary rounded-xl p-4">
-      <h3 className="text-lg font-bold border-b border-gray-700/50 pb-4 mb-4">
-        Head-to-Head
-      </h3>
-      <div>
-        {/* "Tale of the Tape" Summary Section */}
-        <div className="mb-6">
-          <div className="flex justify-between items-center mb-1.5 text-sm font-semibold">
-            <div className="flex items-center gap-2">
-              <Image
-                src={proxyImageUrl(teams.home.logo)}
-                alt={teams.home.name}
-                width={20}
-                height={20}
-              />
-              <span>{summaryStats.homeWins} Wins</span>
+    <div className="bg-brand-secondary rounded-lg shadow-lg overflow-hidden">
+      <div className="p-6">
+        <h2 className="text-2xl font-bold text-white mb-4">Head-to-Head</h2>
+
+        {/* --- H2H SEO Optimization Text --- */}
+        {/* This text is now passed as an already formed string from the Server Component */}
+        <p className="italic text-[#a3a3a3] leading-relaxed mb-6">
+          {h2hSeoDescription}
+        </p>
+
+        {filteredH2H.length === 0 ? (
+          <p className="text-brand-muted text-center p-4">
+            No head-to-head matches found.
+          </p>
+        ) : (
+          <>
+            <div className="grid grid-cols-3 text-center gap-4 mb-6">
+              <div className="flex flex-col items-center">
+                <Image
+                  src={teams.home.logo}
+                  alt={teams.home.name}
+                  width={50}
+                  height={50}
+                  className="w-12 h-12 object-contain mb-2"
+                />
+                <span className="text-white font-semibold text-lg">
+                  {headToHeadRecords.homeWins}
+                </span>
+                <span className="text-brand-muted text-sm">Wins</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-white font-semibold text-lg">
+                  {headToHeadRecords.draws}
+                </span>
+                <span className="text-brand-muted text-sm">Draws</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <Image
+                  src={teams.away.logo}
+                  alt={teams.away.name}
+                  width={50}
+                  height={50}
+                  className="w-12 h-12 object-contain mb-2"
+                />
+                <span className="text-white font-semibold text-lg">
+                  {headToHeadRecords.awayWins}
+                </span>
+                <span className="text-brand-muted text-sm">Wins</span>
+              </div>
             </div>
-            <span className="text-text-muted">{summaryStats.draws} Draws</span>
-            <div className="flex items-center gap-2">
-              <span>{summaryStats.awayWins} Wins</span>
-              <Image
-                src={proxyImageUrl(teams.away.logo)}
-                alt={teams.away.name}
-                width={20}
-                height={20}
-              />
+
+            <div className="space-y-3">
+              {displayedH2H.map((match) => (
+                <Link
+                  key={match.fixture.id}
+                  href={generateMatchSlug(
+                    match.teams.home.name,
+                    match.teams.away.name,
+                    match.fixture.id
+                  )}
+                  className="block bg-gray-800/50 p-3 rounded-md hover:bg-gray-700/50 transition-colors duration-200"
+                >
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <CalendarDays size={16} className="text-brand-muted" />
+                      <span className="text-brand-muted">
+                        {format(new Date(match.fixture.date), "dd MMM yyyy")}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        <Image
+                          src={match.teams.home.logo}
+                          alt={match.teams.home.name}
+                          width={24}
+                          height={24}
+                          className="w-6 h-6 object-contain"
+                        />
+                        <span className="text-white font-medium">
+                          {match.teams.home.name}
+                        </span>
+                        <span className="font-bold text-white text-lg">
+                          {match.goals.home}
+                        </span>
+                      </div>
+                      <span className="text-brand-muted"> - </span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-white text-lg">
+                          {match.goals.away}
+                        </span>
+                        <span className="text-white font-medium">
+                          {match.teams.away.name}
+                        </span>
+                        <Image
+                          src={match.teams.away.logo}
+                          alt={match.teams.away.name}
+                          width={24}
+                          height={24}
+                          className="w-6 h-6 object-contain"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              ))}
             </div>
-          </div>
-          {/* The visual win-distribution bar */}
-          <div
-            className="flex w-full h-2 rounded-full overflow-hidden"
-            style={{ backgroundColor: "var(--color-primary)" }}
-          >
-            <div
-              className="bg-brand-purple"
-              style={{ width: `${homeWinPercent}%` }}
-            ></div>
-            <div
-              className="bg-gray-500"
-              style={{ width: `${drawPercent}%` }}
-            ></div>
-            <div
-              className="bg-brand-highlight"
-              style={{ width: `${awayWinPercent}%` }}
-            ></div>
-          </div>
-        </div>
 
-        {/* Recent Encounters List */}
-        <div className="space-y-3">
-          <h4 className="text-md font-semibold text-text-muted mb-2">
-            Recent Encounters
-          </h4>
-          {pastMatches.slice(0, 5).map((match: any) => {
-            let resultType = "draw";
-            if (match.goals.home > match.goals.away) {
-              resultType =
-                match.teams.home.id === teams.home.id ? "win" : "loss";
-            } else if (match.goals.away > match.goals.home) {
-              resultType =
-                match.teams.away.id === teams.home.id ? "win" : "loss";
-            }
-
-            const resultClasses = {
-              win: "border-l-4 border-green-500 bg-green-900/20",
-              loss: "border-l-4 border-red-500 bg-red-900/20",
-              draw: "border-l-4 border-gray-500 bg-gray-900/20",
-            };
-
-            return (
-              <Link
-                href={`/football/match/${generateMatchSlug(
-                  match.teams.home,
-                  match.teams.away,
-                  match.fixture.id
-                )}`}
-                key={match.fixture.id}
-                // Apply result classes to the main link
-                className={`block p-3 rounded-md flex items-center justify-between gap-2 transition-colors hover:bg-gray-700/50 ${
-                  resultClasses[resultType as keyof typeof resultClasses]
-                }`}
-              >
-                {/* Date Column */}
-                <div className="text-center w-16 flex-shrink-0">
-                  <p className="text-sm font-semibold text-white">
-                    {format(new Date(match.fixture.date), "dd MMM")}
-                  </p>
-                  <p className="text-xs text-text-muted">
-                    {format(new Date(match.fixture.date), "yyyy")}
-                  </p>
-                </div>
-
-                {/* Teams and Score Column */}
-                {/* --- FIX: Added min-w-0 and adjusted flex behavior --- */}
-                <div className="flex-1 flex items-center justify-center gap-2 min-w-0 text-sm font-semibold">
-                  <span className="text-right flex-1 truncate">
-                    {match.teams.home.name}
-                  </span>
-                  <Image
-                    src={proxyImageUrl(match.teams.home.logo)}
-                    alt={match.teams.home.name}
-                    width={24}
-                    height={24}
-                    className="flex-shrink-0"
-                  />
-                  <span
-                    style={{ backgroundColor: "var(--color-primary)" }}
-                    className="px-2 py-1 rounded-md text-base font-black flex-shrink-0" // Added flex-shrink-0
-                  >
-                    {match.goals.home} - {match.goals.away}
-                  </span>
-                  <Image
-                    src={proxyImageUrl(match.teams.away.logo)}
-                    alt={match.teams.away.name}
-                    width={24}
-                    height={24}
-                    className="flex-shrink-0"
-                  />
-                  <span className="text-left flex-1 truncate">
-                    {match.teams.away.name}
-                  </span>
-                </div>
-
-                {/* League Name Column (hidden on mobile) */}
-                <div className="w-1/5 text-right text-xs text-text-muted hidden sm:block flex-shrink-0 truncate">
-                  {" "}
-                  {/* Changed from md:block to sm:block, added flex-shrink-0 */}
-                  {match.league.name}
-                </div>
-              </Link>
-            );
-          })}
-        </div>
+            {filteredH2H.length > 5 && (
+              <div className="text-center mt-6">
+                <button
+                  onClick={() => setShowAll(!showAll)}
+                  className="bg-brand-purple text-white px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity"
+                >
+                  {showAll ? "Show Less" : `Show All (${filteredH2H.length})`}
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
-});
-
-export default MatchH2HWidget;
+}

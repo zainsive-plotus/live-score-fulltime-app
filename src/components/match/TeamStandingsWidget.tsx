@@ -3,187 +3,220 @@
 
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
+import { useMemo } from "react";
 import Image from "next/image";
-import { proxyImageUrl } from "@/lib/image-proxy";
-import StyledLink from "@/components/StyledLink";
+import { ChevronRight, Trophy } from "lucide-react";
+import Link from "next/link";
+import { generateLeagueSlug } from "@/lib/generate-league-slug"; // Assuming this is used
 import { generateTeamSlug } from "@/lib/generate-team-slug";
-import { Trophy } from "lucide-react"; // Icon for widget header
+
+// Type definitions (ensure they are comprehensive or align with your API response)
+interface TeamStanding {
+  rank: number;
+  team: { id: number; name: string; logo: string };
+  points: number;
+  goalsDiff: number;
+  all: { played: number; win: number; draw: number; lose: number };
+  description: string | null;
+  group: string; // Group name for group stage standings
+}
+
+interface LeagueInfo {
+  id: number;
+  name: string;
+  logo: string;
+  type: string;
+  href: string; // The generated slug
+}
+
+interface StandingsResponse {
+  league: LeagueInfo | null;
+  standings: TeamStanding[][]; // Array of arrays for multiple groups/stages
+}
 
 interface TeamStandingsWidgetProps {
   leagueId: number;
   season: number;
   homeTeamId: number;
   awayTeamId: number;
+  standingsSeoDescription: string; // <-- NEW PROP
 }
 
-// --- Helper for Conditional Coloring ---
-// This function determines the Tailwind CSS class for a table row based on rank description
-// AND whether the row corresponds to one of the current match's teams.
-const getRankIndicatorClass = (
-  description: string | null,
-  isHighlighted: boolean
-): string => {
-  // Base background class for the row
-  let baseClass = "";
-  if (isHighlighted) {
-    // If it's the home or away team, apply a distinct highlight background color
-    baseClass = "bg-[#eb581c50]";
-  } else {
-    // For other teams, use a slightly darker background for better readability
-    baseClass = "bg-gray-800/20";
-  }
-
-  // Apply conditional left border based on rank description (promotion/relegation, etc.)
-  if (!description) return baseClass;
-  const desc = description.toLowerCase();
-  if (desc.includes("champions league") || desc.includes("promotion"))
-    return `${baseClass} border-l-4 border-green-500`;
-  if (desc.includes("europa league") || desc.includes("qualification"))
-    return `${baseClass} border-l-4 border-orange-500`;
-  if (desc.includes("conference league") || desc.includes("play-off"))
-    return `${baseClass} border-l-4 border-sky-400`;
-  if (desc.includes("relegation"))
-    return `${baseClass} border-l-4 border-red-600`;
-
-  return baseClass; // Fallback if no specific rank description matches
-};
-
-// --- Fetcher for standings data ---
-const fetchStandings = async (leagueId: number, season: number) => {
+const fetchStandings = async (
+  leagueId: number,
+  season: number
+): Promise<StandingsResponse> => {
   const { data } = await axios.get(
     `/api/standings?league=${leagueId}&season=${season}`
   );
   return data;
 };
 
-// --- Skeleton Component ---
-const StandingsWidgetSkeleton = () => (
-  <div className="bg-brand-secondary p-4 rounded-lg animate-pulse">
-    <div className="h-5 w-3/4 mb-4 bg-gray-700 rounded"></div>
-    <div className="space-y-3 pt-2">
-      {[...Array(6)].map((_, i) => (
-        <div key={i} className="flex items-center gap-3">
-          <div className="w-6 h-6 rounded-full bg-gray-700"></div>
-          <div className="h-4 w-3/4 bg-gray-600 rounded"></div>
-        </div>
-      ))}
-    </div>
-  </div>
-);
-
 export default function TeamStandingsWidget({
   leagueId,
   season,
   homeTeamId,
   awayTeamId,
+  standingsSeoDescription, // <-- NEW PROP
 }: TeamStandingsWidgetProps) {
   const {
-    data: standingsResponse,
+    data: standingsData,
     isLoading,
     isError,
-  } = useQuery({
-    queryKey: ["teamMatchStandings", leagueId, season],
+  } = useQuery<StandingsResponse>({
+    queryKey: ["standings", leagueId, season],
     queryFn: () => fetchStandings(leagueId, season),
-    staleTime: 1000 * 60 * 60, // Cache for 1 hour
-    enabled: !!leagueId && !!season, // Only enable fetching if leagueId and season are available
+    enabled: !!leagueId && !!season,
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
   });
 
-  if (isLoading) return <StandingsWidgetSkeleton />;
+  const allStandings = useMemo(() => {
+    // Flatten the array of arrays into a single list of standings,
+    // assuming there's only one relevant group or we want to show all.
+    // In many cases, it's just standings[0] for a league.
+    return standingsData?.standings ? standingsData.standings.flat() : [];
+  }, [standingsData]);
 
-  // Extract and filter valid standings groups to prevent rendering errors
-  const standings =
-    standingsResponse?.standings?.[0]?.filter(
-      (item: any) => item && item.team
-    ) || [];
+  // Find the ranks of the home and away teams in the flattened standings
+  const homeTeamRank = useMemo(() => {
+    return allStandings.find((s) => s.team.id === homeTeamId);
+  }, [allStandings, homeTeamId]);
 
-  if (
-    isError ||
-    !standingsResponse ||
-    !standingsResponse.league ||
-    standings.length === 0
-  ) {
+  const awayTeamRank = useMemo(() => {
+    return allStandings.find((s) => s.team.id === awayTeamId);
+  }, [allStandings, awayTeamId]);
+
+  // Display only the teams involved in the match and a few surrounding teams for context
+  const relevantStandings = useMemo(() => {
+    if (!homeTeamRank || !awayTeamRank) return [];
+
+    const ranksToShow = new Set<number>();
+    ranksToShow.add(homeTeamRank.rank);
+    ranksToShow.add(awayTeamRank.rank);
+
+    // Also include teams directly above/below for context, up to 5 total
+    const sortedRanks = Array.from(ranksToShow).sort((a, b) => a - b);
+    const minRank = Math.max(1, sortedRanks[0] - 2); // At least rank 1
+    const maxRank = sortedRanks[sortedRanks.length - 1] + 2;
+
+    const filteredAndSorted = allStandings
+      .filter((s) => s.rank >= minRank && s.rank <= maxRank)
+      .sort((a, b) => a.rank - b.rank)
+      .slice(0, 5); // Limit to max 5 entries
+
+    // Ensure both home and away teams are definitely in the list, even if outside the narrow range
+    if (!filteredAndSorted.some((s) => s.team.id === homeTeamId)) {
+      filteredAndSorted.push(homeTeamRank);
+    }
+    if (!filteredAndSorted.some((s) => s.team.id === awayTeamId)) {
+      filteredAndSorted.push(awayTeamRank);
+    }
+    // Re-sort and de-duplicate after potentially adding
+    return Array.from(new Set(filteredAndSorted)).sort(
+      (a, b) => a.rank - b.rank
+    );
+  }, [homeTeamRank, awayTeamRank, allStandings, homeTeamId, awayTeamId]);
+
+  if (isLoading)
     return (
-      <div className="bg-brand-secondary p-4 rounded-lg text-center">
-        <p className="text-sm text-brand-muted">
-          Standings not available for this league.
-        </p>
+      <div className="bg-brand-dark rounded-lg p-6 shadow-lg animate-pulse">
+        <div className="h-6 w-3/4 bg-gray-700 rounded mb-4"></div>
+        <div className="h-4 w-1/2 bg-gray-600 rounded mb-4"></div>
+        <div className="space-y-2">
+          <div className="h-8 bg-gray-700 rounded"></div>
+          <div className="h-8 bg-gray-700 rounded"></div>
+          <div className="h-8 bg-gray-700 rounded"></div>
+        </div>
       </div>
     );
-  }
+  if (isError)
+    return (
+      <div className="bg-brand-dark rounded-lg p-6 text-red-400">
+        Failed to load standings.
+      </div>
+    );
+  if (!standingsData?.league)
+    return (
+      <div className="bg-brand-secondary rounded-lg p-6 text-brand-muted">
+        No standings available for this league.
+      </div>
+    );
 
-  // Find the exact positions of the home and away teams in the standings (for contextual display)
-  const homeTeamStanding = standings.find((s: any) => s.team.id === homeTeamId);
-  const awayTeamStanding = standings.find((s: any) => s.team.id === awayTeamId);
-
-  // Determine a range of teams to show around the current teams for context.
-  // We aim to show a few teams above and below the involved teams.
-  let startIndex = 0;
-  let endIndex = standings.length;
-  if (homeTeamStanding && awayTeamStanding) {
-    const minRank = Math.min(homeTeamStanding.rank, awayTeamStanding.rank);
-    const maxRank = Math.max(homeTeamStanding.rank, awayTeamStanding.rank);
-
-    startIndex = Math.max(0, minRank - 3); // Start 3 ranks above the lowest-ranked team involved
-    endIndex = Math.min(standings.length, maxRank + 2); // End 2 ranks below the highest-ranked team involved
-  }
-
-  // Slice the standings to display only the relevant portion
-  const displayedStandings = standings.slice(startIndex, endIndex);
+  const league = standingsData.league;
 
   return (
-    <div className="bg-brand-secondary p-4 rounded-lg">
-      <h3 className="flex items-center gap-2 text-lg font-bold text-white mb-4">
-        <Trophy size={20} className="text-brand-purple" />
-        League Standings
-      </h3>
+    <div className="bg-brand-secondary rounded-lg shadow-lg overflow-hidden">
+      <div className="p-6">
+        <h2 className="text-2xl font-bold text-white mb-4">League Standings</h2>
+        <Link
+          href={league.href}
+          className="flex items-center gap-3 mb-6 hover:text-white transition-colors"
+        >
+          <Image src={league.logo} alt={league.name} width={30} height={30} />
+          <span className="text-xl font-semibold">{league.name}</span>
+          <ChevronRight size={20} className="text-brand-muted" />
+        </Link>
 
-      <div className="overflow-x-auto max-h-96 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gray-600">
-        <table className="w-full text-sm">
-          <thead className="text-left text-brand-muted sticky top-0 bg-brand-secondary z-10">
-            <tr className="text-xs uppercase">
-              <th className="p-2">#</th>
-              <th className="p-2">Team</th>
-              <th className="p-2 text-center">P</th>
-              <th className="p-2 text-center">Pts</th>
-            </tr>
-          </thead>
-          <tbody className="text-brand-light">
-            {displayedStandings.map((item: any) => {
-              const isHomeOrAwayTeam =
-                item.team.id === homeTeamId || item.team.id === awayTeamId;
-              const rowClasses = getRankIndicatorClass(
-                item.description,
-                isHomeOrAwayTeam
-              );
+        {/* --- Standings SEO Optimization Text --- */}
+        <p className="italic text-[#a3a3a3] leading-relaxed mb-6 ">
+          {standingsSeoDescription}
+        </p>
 
-              return (
-                <tr key={item.team.id} className={rowClasses}>
-                  <td className="p-2 text-center font-medium">{item.rank}</td>
-                  <td className="p-2">
-                    <StyledLink
-                      href={generateTeamSlug(item.team.name, item.team.id)}
-                      className="flex items-center gap-2 group"
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-brand-light text-sm">
+            <thead className="bg-gray-800/50 text-xs text-brand-muted uppercase">
+              <tr>
+                <th className="p-3">#</th>
+                <th className="p-3">Takım</th>
+                <th className="p-3">O</th>
+                <th className="p-3">G</th>
+                <th className="p-3">B</th>
+                <th className="p-3">M</th>
+                <th className="p-3">Av.</th>
+                <th className="p-3">P</th>
+              </tr>
+            </thead>
+            <tbody>
+              {relevantStandings.map((teamStanding) => (
+                <tr
+                  key={teamStanding.team.id}
+                  className={`border-t border-gray-700/50 ${
+                    teamStanding.team.id === homeTeamId ||
+                    teamStanding.team.id === awayTeamId
+                      ? "bg-brand-dark font-bold" // Highlight current match teams
+                      : ""
+                  }`}
+                >
+                  <td className="p-3">{teamStanding.rank}</td>
+                  <td className="p-3 flex items-center gap-2">
+                    <Image
+                      src={teamStanding.team.logo}
+                      alt={teamStanding.team.name}
+                      width={20}
+                      height={20}
+                      className="w-5 h-5 object-contain"
+                    />
+                    <Link
+                      href={generateTeamSlug(
+                        teamStanding.team.name,
+                        teamStanding.team.id
+                      )}
+                      className="hover:text-white"
                     >
-                      <Image
-                        src={proxyImageUrl(item.team.logo)}
-                        alt={item.team.name}
-                        width={20}
-                        height={20}
-                      />
-                      <span className="font-semibold text-xs group-hover:text-brand-purple transition-colors truncate">
-                        {item.team.name}
-                      </span>
-                    </StyledLink>
+                      {teamStanding.team.name}
+                    </Link>
                   </td>
-                  <td className="p-2 text-center">{item.all.played}</td>
-                  <td className="p-2 text-center font-bold text-white">
-                    {item.points}
-                  </td>
+                  <td className="p-3">{teamStanding.all.played}</td>
+                  <td className="p-3">{teamStanding.all.win}</td>
+                  <td className="p-3">{teamStanding.all.draw}</td>
+                  <td className="p-3">{teamStanding.all.lose}</td>
+                  <td className="p-3">{teamStanding.goalsDiff}</td>
+                  <td className="p-3">{teamStanding.points}</td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

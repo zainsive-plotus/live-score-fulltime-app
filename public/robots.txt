@@ -1,0 +1,18 @@
+# robots.txt for fanskor.com
+
+# User-agent: * applies to all crawlers.
+User-agent: *
+
+# Allow crawling for all public content.
+# This is the default, but explicitly stating it can be good practice.
+Allow: /
+
+# Disallow crawling for the admin panel and related API routes.
+# This prevents sensitive or private sections from being indexed.
+Disallow: /admin/
+Disallow: /api/admin/
+Disallow: /login
+
+# Specify the path to your sitemap.xml.
+# This helps search engines discover all your important pages, especially dynamically generated ones.
+Sitemap: https://fanskor.com/sitemap.xml

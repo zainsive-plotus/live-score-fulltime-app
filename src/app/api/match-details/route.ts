@@ -230,8 +230,6 @@ const fetchAllDataForFixture = async (fixtureId: string | number) => {
     (s: any) => s.team.id === awayTeam.id
   )?.rank;
 
-  console.log(fixtureData);
-
   const customPredictionPercentages = calculateCustomPrediction(
     h2hResponse.data.response,
     homeStatsResponse.data.response,
