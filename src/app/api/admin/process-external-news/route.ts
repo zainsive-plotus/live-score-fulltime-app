@@ -1,4 +1,6 @@
 // src/app/api/admin/process-external-news/route.ts
+// This file now orchestrates the entire AI news generation process directly.
+
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
@@ -10,15 +12,15 @@ import Post from "@/models/Post";
 import AIPrompt from "@/models/AIPrompt";
 import AIJournalist from "@/models/AIJournalist";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import axios from "axios"; // Still needed for external fetches (images, web scraping)
+import axios from "axios";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import sharp from "sharp";
 import crypto from "crypto";
 import slugify from "slugify";
-import * as cheerio from "cheerio"; // Re-imported for web scraping
-import MarkdownIt from "markdown-it"; // Re-imported for HTML post-processing
+import * as cheerio from "cheerio";
+import MarkdownIt from "markdown-it";
 
-// Initialize markdown-it
+// Initialize markdown-it for HTML conversion
 const md = new MarkdownIt({
   html: true,
   linkify: true,
@@ -37,18 +39,123 @@ const s3Client = new S3Client({
 const generateFileName = (bytes = 32) =>
   crypto.randomBytes(bytes).toString("hex");
 
+// --- NEW: Define proxyAndUploadOriginalImage function at the top level ---
+/**
+ * Generates an image by proxying the original external article's image and uploading it to S3.
+ * This is a standalone helper that can be called if AI image generation is not enabled or fails.
+ * @param imageUrl The URL of the image to proxy.
+ * @param newPostTitle The title of the new post for alt/title text.
+ * @returns The S3 URL of the processed image, or null if failed.
+ */
+async function proxyAndUploadOriginalImage(
+  imageUrl: string,
+  newPostTitle: string
+): Promise<string | null> {
+  try {
+    console.log(
+      `[Image Processing] Attempting to proxy original image: ${imageUrl}`
+    );
+    const imageResponse = await axios.get(imageUrl, {
+      responseType: "arraybuffer",
+      timeout: 15000,
+      maxRedirects: 5,
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+      },
+    });
+    console.log(
+      `[Image Processing] Original image download successful for ${imageUrl}. Size: ${imageResponse.data.length} bytes. Content-Type: ${imageResponse.headers["content-type"]}`
+    );
+
+    const inputBuffer = Buffer.from(imageResponse.data, "binary");
+    const originalContentType =
+      imageResponse.headers["content-type"] || "image/jpeg";
+
+    let finalBuffer: Buffer;
+    let finalContentType: string = originalContentType;
+
+    if (originalContentType.includes("image/gif")) {
+      finalBuffer = inputBuffer;
+      console.log(
+        `[Image Processing] GIF detected, bypassing Sharp for ${imageUrl}.`
+      );
+    } else {
+      try {
+        const sharpInstance = sharp(inputBuffer)
+          .resize(1200, 630, { fit: "cover" })
+          .webp({ quality: 80 });
+        finalBuffer = await sharpInstance.toBuffer();
+        finalContentType = "image/webp";
+        console.log(
+          `[Image Processing] Resized and converted original image to WebP for ${imageUrl}.`
+        );
+      } catch (sharpError: any) {
+        console.error(
+          `[Image Processing] Sharp processing failed for original image ${imageUrl}:`,
+          sharpError.message
+        );
+        finalBuffer = inputBuffer;
+        finalContentType = originalContentType;
+        console.warn(
+          `[Image Processing] Using original image buffer as fallback (without sharp processing) for ${imageUrl}.`
+        );
+      }
+    }
+
+    const newFileName = generateFileName();
+    const bucketName = process.env.NEXT_PUBLIC_AWS_S3_BUCKET_NAME as string;
+
+    const putObjectCommand = new PutObjectCommand({
+      Bucket: bucketName,
+      Key: newFileName,
+      Body: finalBuffer,
+      ContentType: finalContentType,
+    });
+
+    console.log(
+      `[Image Processing] Uploading original image ${newFileName} to S3 bucket ${bucketName}...`
+    );
+    await s3Client.send(putObjectCommand);
+    const s3Url = `https://${bucketName}.s3.${process.env.NEXT_PUBLIC_AWS_S3_REGION}.amazonaws.com/${newFileName}`;
+    console.log(
+      `[Image Processing] Original image successfully uploaded to S3: ${s3Url}`
+    );
+
+    return s3Url;
+  } catch (imageError: any) {
+    console.error(
+      `[Image Processing] Failed to process/upload original image (URL: ${imageUrl}):`,
+      imageError.message
+    );
+    if (imageError.Code && imageError.RequestId) {
+      console.error(
+        `[Image Processing] AWS S3 Error - Code: ${imageError.Code}, RequestId: ${imageError.RequestId}`
+      );
+    } else if (axios.isAxiosError(imageError) && imageError.response) {
+      console.error(
+        `[Image Processing] Axios HTTP Error - Status: ${imageError.response.status}, Data:`,
+        imageError.response.data
+      );
+    }
+    return null;
+  }
+}
+
 // --- Initialize Google Generative AI ---
+// IMPORTANT: Ensure GEMINI_API_KEY is correctly set in .env.local (no NEXT_PUBLIC_ prefix for server-side)
 const genAI = new GoogleGenerativeAI(
   process.env.NEXT_PUBLIC_GEMINI_API_KEY as string
-);
+); // Assuming GEMINI_API_KEY is server-side only
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
 
-// Fixed names for the AI prompts
+// Fixed names for the AI prompts (must match names used in AIPrompt DB)
 const TITLE_PROMPT_NAME = "AI Title Generation";
 const CONTENT_PROMPT_NAME = "AI Content Generation";
 
 /**
  * Helper for Jaccard Similarity.
+ * Used for title uniqueness validation.
  * @param str1 First string.
  * @param str2 Second string.
  * @returns Jaccard similarity score (0.0 to 1.0).
@@ -144,7 +251,7 @@ async function fetchAndExtractWebpageContent(
 }
 
 /**
- * Orchestrates AI title generation.
+ * Generates an AI-driven article title.
  * @param originalTitle The original news title.
  * @param originalDescription The original news description.
  * @param journalistId Optional ID of the AI Journalist to use.
@@ -202,7 +309,7 @@ async function generateTitle(
           i + 1
         })...`
       );
-      const result = await Promise.race([
+      const result: any = await Promise.race([
         model.generateContent(fullPrompt),
         new Promise((_, reject) =>
           setTimeout(
@@ -310,7 +417,7 @@ async function generateTitle(
 }
 
 /**
- * Orchestrates AI content generation.
+ * Generates an AI-driven article content.
  * @param originalTitle The original news title.
  * @param originalDescription The original news description.
  * @param originalContent The external article's content field.
@@ -431,7 +538,7 @@ async function generateContent(
           i + 1
         })...`
       );
-      const result = await Promise.race([
+      const result: any = await Promise.race([
         model.generateContent(fullPrompt),
         new Promise((_, reject) =>
           setTimeout(
@@ -632,7 +739,7 @@ export async function POST(request: Request) {
         `[Orchestrator] Title generation failed for article ${externalArticle.articleId}:`,
         titleError.message
       );
-      throw new Error(`Title generation failed: ${titleError.message}`); // Pass original error message
+      throw new Error(`Title generation failed: ${titleError.message}`);
     }
 
     // 2. Generate Content via dedicated function call
@@ -659,7 +766,7 @@ export async function POST(request: Request) {
         `[Orchestrator] Content generation failed for article ${externalArticle.articleId}:`,
         contentError.message
       );
-      throw new Error(`Content generation failed: ${contentError.message}`); // Pass original error message
+      throw new Error(`Content generation failed: ${contentError.message}`);
     }
 
     // 3. Process/Generate Featured Image (Existing logic)
@@ -766,19 +873,20 @@ export async function POST(request: Request) {
     let finalArticleStatus: "skipped" | "error" = "error";
 
     if (isCustomError) {
-      errorMessage = error.message; // Use the specific error message thrown by sub-functions
+      errorMessage = error.message;
       if (errorMessage.includes("AI determined content insufficient")) {
         clientStatus = 200;
         finalArticleStatus = "skipped";
       } else if (
         errorMessage.includes("AI output format error") ||
-        errorMessage.includes("AI-generated title failed strict validation")
+        errorMessage.includes("AI-generated title failed strict validation") ||
+        errorMessage.includes("Content generation failed") ||
+        errorMessage.includes("Title generation failed")
       ) {
         clientStatus = 422;
       } else if (errorMessage.includes("AI generation timed out")) {
         clientStatus = 504;
       } else if (errorMessage.includes("Article has no content")) {
-        // From fetchAndExtractWebpageContent
         clientStatus = 400;
         finalArticleStatus = "skipped";
       } else if (errorMessage.includes("AI generation failed after")) {
@@ -792,10 +900,8 @@ export async function POST(request: Request) {
         errorMessage.includes("Network Error") ||
         errorMessage.includes("Failed to fetch content")
       ) {
-        // From content extraction or image proxying
         clientStatus = 404;
       } else if (axios.isAxiosError(error) && error.response) {
-        // Catch any residual axios errors (should be minimal here)
         errorMessage = `External API error: ${
           error.response.data?.error ||
           error.response?.data?.results?.message ||
