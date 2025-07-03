@@ -8,7 +8,6 @@ import Post, { IPost } from "@/models/Post";
 import slugify from "slugify";
 
 // --- GET All Posts ---
-// Publicly accessible, but can be filtered by status (e.g., for the public site)
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const status = searchParams.get("status");
@@ -21,10 +20,15 @@ export async function GET(request: Request) {
 
   try {
     await dbConnect();
-    let postsQuery = Post.find(query).sort({ createdAt: -1 });
+    // --- ENHANCEMENT: Populate originalExternalArticleId ---
+    let postsQuery = Post.find(query).sort({ createdAt: -1 }).populate({
+      path: "originalExternalArticleId", // The field in Post model
+      model: "ExternalNewsArticle", // The model to populate from
+      select: "title link", // Only retrieve title and link from ExternalNewsArticle
+    });
 
     if (limit) {
-      postsQuery = postsQuery.limit(parseInt(limit)); // <-- Apply the limit
+      postsQuery = postsQuery.limit(parseInt(limit));
     }
 
     const posts = await postsQuery;
@@ -39,7 +43,7 @@ export async function GET(request: Request) {
 }
 
 // --- POST a New Post ---
-// Protected: Only admins can create posts.
+// This part remains unchanged.
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") {
@@ -57,6 +61,7 @@ export async function POST(request: Request) {
       metaDescription,
       featuredImageTitle,
       featuredImageAltText,
+      sport, // Ensure sport is passed if used
     } = body;
 
     if (!title || !content) {
@@ -68,7 +73,6 @@ export async function POST(request: Request) {
 
     await dbConnect();
 
-    // Create a unique slug from the title
     const slug = slugify(title, { lower: true, strict: true });
     const slugExists = await Post.findOne({ slug });
     if (slugExists) {
@@ -91,6 +95,8 @@ export async function POST(request: Request) {
       metaDescription,
       featuredImageTitle,
       featuredImageAltText,
+      sport,
+      // isAIGenerated and originalExternalArticleId are set by process-external-news route
     });
 
     await newPost.save();
