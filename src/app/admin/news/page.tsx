@@ -1,10 +1,9 @@
-// src/app/admin/news/page.tsx
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import Link from "@/components/StyledLink";
-import { PlusCircle, Edit, Trash2, Lightbulb } from "lucide-react";
+import { PlusCircle, Edit, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { IPost } from "@/models/Post";
 import toast from "react-hot-toast";
@@ -32,11 +31,13 @@ export default function AdminNewsPage() {
     mutationFn: (postId: string) => axios.delete(`/api/posts/${postId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["adminPosts"] });
-      toast.success("Post deleted successfully!");
+      // BEFORE: alert('Post deleted!');
+      toast.success("Post deleted successfully!"); //
     },
     onError: (error: any) => {
+      // BEFORE: alert('Error deleting post.');
       const message = error.response?.data?.message || "Error deleting post.";
-      toast.error(message);
+      toast.error(message); //
     },
   });
 
