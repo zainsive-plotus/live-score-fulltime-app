@@ -97,7 +97,9 @@ export default function Sidebar() {
   return (
     // --- The outer <aside> is NO LONGER sticky. It's just a simple container. ---
     <aside className="hidden lg:block">
-      <div className="flex flex-col gap-4 min-h-0">
+      {/* --- NEW STICKY CONTAINER --- */}
+      {/* We use another div inside to manage the gap between sticky items. */}
+      <div className="flex flex-col gap-4 h-auto">
         <CasinoPartnerWidget />
 
         {/* --- WIDGET 1: Popular Leagues (This part will scroll normally) --- */}
@@ -121,26 +123,19 @@ export default function Sidebar() {
           )}
         </section>
 
-        {/* --- NEW STICKY CONTAINER --- */}
-        {/* This div wraps everything that should stick to the top after scrolling. */}
-        <div className="sticky top-8">
-          {/* We use another div inside to manage the gap between sticky items. */}
-          <div className="flex flex-col gap-4">
-            {/* --- AD SLOT WIDGET (Now Sticky) --- */}
-            <AdSlotWidget location="homepage_left_sidebar" />
+        {/* --- AD SLOT WIDGET (Now Sticky) --- */}
+        <AdSlotWidget location="homepage_left_sidebar" />
 
-            {/* --- WIDGET 2: Popular Teams (Now Sticky) --- */}
-            <section
-              className="flex flex-col gap-2 p-3 rounded-xl"
-              style={{ backgroundColor: "var(--color-primary)" }}
-            >
-              <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted px-2">
-                {t("popular_teams")}
-              </h2>
-              <PopularTeamsList />
-            </section>
-          </div>
-        </div>
+        {/* --- WIDGET 2: Popular Teams (Now Sticky) --- */}
+        <section
+          className="flex flex-col gap-2 p-3 rounded-xl sticky top-8"
+          style={{ backgroundColor: "var(--color-primary)" }}
+        >
+          <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted px-2">
+            {t("popular_teams")}
+          </h2>
+          <PopularTeamsList />
+        </section>
       </div>
     </aside>
   );

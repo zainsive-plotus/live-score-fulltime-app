@@ -56,21 +56,21 @@ export const MainContent: React.FC<MainContentProps> = ({
 
         {/* Right Sidebar Column */}
         <div className="lg:col-span-1 flex flex-col gap-6">
+          {/* --- AD SLOT PLACED HERE --- */}
+          <AdSlotWidget location="homepage_right_sidebar" />
+
           <StandingsDisplay />
 
-          <section className="bg-brand-secondary rounded-lg shadow-lg p-6">
-            <h2 className="text-2xl font-bold text-white mb-4">
-              Fanskor Hakkında
-            </h2>
-            <p className="text-brand-light text-base leading-relaxed">
-              {sidebarAboutSeoText}
-            </p>
-          </section>
-
           {/* The sticky container for ads and news */}
-          <div className="sticky top-8 space-y-8 gap-8">
-            {/* --- AD SLOT PLACED HERE --- */}
-            <AdSlotWidget location="homepage_right_sidebar" />
+          <div className="space-y-8 gap-8">
+            <section className="bg-brand-secondary rounded-lg shadow-lg p-6">
+              <h2 className="text-2xl font-bold text-white mb-4">
+                Fanskor Hakkında
+              </h2>
+              <p className="text-brand-light text-base leading-relaxed">
+                {sidebarAboutSeoText}
+              </p>
+            </section>
             <NewsSection />
           </div>
         </div>
