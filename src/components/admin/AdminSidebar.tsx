@@ -10,7 +10,9 @@ import {
   Newspaper,
   Image,
   Sparkles,
-  User, // <-- NEW ICON FOR AI JOURNALISTS
+  User,
+  Crown,
+  FileText, // <-- NEW ICON FOR FILE MANAGER
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -37,9 +39,19 @@ export default function AdminSidebar() {
       icon: Sparkles,
     },
     {
-      name: "AI Journalists", // <-- NEW ITEM
-      href: "/admin/ai-journalists", // <-- NEW PATH
-      icon: User, // <-- NEW ICON
+      name: "AI Journalists",
+      href: "/admin/ai-journalists",
+      icon: User,
+    },
+    {
+      name: "Casino Partners",
+      href: "/admin/casino-partners",
+      icon: Crown,
+    },
+    {
+      name: "File Manager", // <-- NEW ITEM
+      href: "/admin/file-manager", // <-- NEW PATH
+      icon: FileText, // <-- NEW ICON
     },
     {
       name: t("manage_banners"),

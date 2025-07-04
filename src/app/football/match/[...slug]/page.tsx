@@ -21,6 +21,8 @@ import TeamFormWidget from "@/components/match/TeamFormWidget";
 import LiveOddsWidget from "@/components/match/LiveOddsWidget";
 import MatchActivityWidget from "@/components/match/MatchActivityWidget";
 import TeamStandingsWidget from "@/components/match/TeamStandingsWidget";
+import CasinoPartner from "@/models/CasinoPartner";
+import CasinoPartnerWidget from "@/components/CasinoPartnerWidget";
 
 // --- Helper Functions (callable by server components) ---
 const getFixtureIdFromSlug = (slug: string): string | null => {
@@ -274,6 +276,8 @@ export default async function MatchDetailPage({
 
           <aside className="lg:col-span-1 space-y-6 sticky top-6">
             {isLive && <LiveOddsWidget fixtureId={fixtureId!} />}
+
+            <CasinoPartnerWidget />
 
             <TeamStandingsWidget
               leagueId={fixture.league.id}

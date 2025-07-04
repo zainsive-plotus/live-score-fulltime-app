@@ -11,6 +11,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import slugify from "slugify";
 import PopularTeamsList from "./PopularTeamsList";
 import AdSlotWidget from "./AdSlotWidget";
+import CasinoPartnerWidget from "./CasinoPartnerWidget";
 
 // --- (All helper functions and sub-components like LeagueList, LeagueItemSkeleton remain the same) ---
 const generateLeagueSlug = (name: string, id: number) => {
@@ -97,6 +98,8 @@ export default function Sidebar() {
     // --- The outer <aside> is NO LONGER sticky. It's just a simple container. ---
     <aside className="hidden lg:block">
       <div className="flex flex-col gap-4 min-h-0">
+        <CasinoPartnerWidget />
+
         {/* --- WIDGET 1: Popular Leagues (This part will scroll normally) --- */}
         <section
           className="flex flex-col gap-2 p-3 rounded-xl"
