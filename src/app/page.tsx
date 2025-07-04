@@ -68,19 +68,11 @@ export default async function HomePage() {
 
         <main className="min-w-0">
           {/* Pass the homepageAboutSeoText as a prop to MainContent */}
-          <MainContent sidebarAboutSeoText={sidebarAboutSeoText} />
+          <MainContent
+            sidebarAboutSeoText={sidebarAboutSeoText}
+            homepageAboutSeoText={homepageAboutSeoText}
+          />
         </main>
-      </div>
-
-      <div className="container mx-auto px-4 mt-8 pb-8">
-        <div className="bg-brand-secondary rounded-lg shadow-lg p-6">
-          <h2 className="text-2xl font-bold text-white mb-4">
-            Fanskor Hakkında
-          </h2>
-          <p className="text-brand-light text-base leading-relaxed">
-            {homepageAboutSeoText}
-          </p>
-        </div>
       </div>
     </div>
   );

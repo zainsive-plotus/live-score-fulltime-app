@@ -6,6 +6,7 @@ import axios from "axios";
 import Link from "next/link";
 import Image from "next/image";
 import { IPost } from "@/models/Post";
+import { useTranslation } from "@/hooks/useTranslation";
 
 // --- Reusable Sub-components for clean code ---
 const FooterLink = ({
@@ -53,6 +54,8 @@ const fetchRecentFootballScores = async () => {
 };
 
 export default function Footer() {
+  const { t } = useTranslation();
+
   const { data: recentPosts } = useQuery({
     queryKey: ["recentPostsFooter"],
     queryFn: fetchRecentPosts,
@@ -66,7 +69,7 @@ export default function Footer() {
   });
 
   return (
-    <footer className="bg-brand-secondary text-white py-12">
+    <footer className="bg-brand-secondary text-white py-12 hidden md:block">
       <div className="container mx-auto px-4">
         {/* --- TOP SECTION: 4-column grid --- */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
@@ -77,8 +80,8 @@ export default function Footer() {
                 About
               </h4>
               <p className="text-sm text-brand-muted leading-relaxed">
-                Live football scores from more than 500 worldwide leagues, cups,
-                and tournaments.
+                Fanskor ile her golün ve düdüğün bir adım önünde olun - canlı
+                skor ve maç güncellemeleri için en iyi adresiniz.
               </p>
             </div>
             <div>
@@ -102,12 +105,24 @@ export default function Footer() {
           {/* Column 2: Football Leagues */}
           <div className="space-y-8">
             <FooterColumn title="Football">
-              <FooterLink href="#">Premier League</FooterLink>
-              <FooterLink href="#">LaLiga</FooterLink>
-              <FooterLink href="#">Serie A</FooterLink>
-              <FooterLink href="#">Bundesliga</FooterLink>
-              <FooterLink href="#">Ligue 1</FooterLink>
-              <FooterLink href="#">UEFA Champions League</FooterLink>
+              <FooterLink href="https://fanskor.com/football/league/premier-league-39">
+                Premier League
+              </FooterLink>
+              <FooterLink href="https://fanskor.com/football/league/la-liga-140">
+                LaLiga
+              </FooterLink>
+              <FooterLink href="https://fanskor.com/football/league/serie-a-135">
+                Serie A
+              </FooterLink>
+              <FooterLink href="https://fanskor.com/football/league/bundesliga-78">
+                Bundesliga
+              </FooterLink>
+              <FooterLink href="https://fanskor.com/football/league/ligue-1-61">
+                Ligue 1
+              </FooterLink>
+              <FooterLink href="https://fanskor.com/football/league/uefa-champions-league-2">
+                UEFA Champions League
+              </FooterLink>
             </FooterColumn>
           </div>
 
@@ -125,7 +140,7 @@ export default function Footer() {
           {/* Column 4: Company & Legal Links */}
           <div>
             <FooterColumn title="Information">
-              <FooterLink href="/contact-us">Contact us</FooterLink>
+              <FooterLink href="/contact-us">{t("contact_us")}</FooterLink>
               <FooterLink href="/faq">Frequently Ask Question</FooterLink>
               <FooterLink href="/author">Author</FooterLink>
               <FooterLink href="/report-abuse">Report Abuse</FooterLink>

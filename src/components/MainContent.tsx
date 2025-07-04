@@ -10,14 +10,16 @@ import StandingsDisplay from "./StandingsDisplay";
 import NewsSection from "./NewsSection";
 import MobileHomeTabs from "./MobileHomeTabs";
 import LeagueDetailView from "./league-detail-view";
-import AdSlotWidget from "./AdSlotWidget"; // <-- IMPORT THE NEW AD WIDGET
+import AdSlotWidget from "./AdSlotWidget";
 
 interface MainContentProps {
-  sidebarAboutSeoText: string; // <-- NEW PROP
+  sidebarAboutSeoText: string;
+  homepageAboutSeoText: any;
 }
 
 export const MainContent: React.FC<MainContentProps> = ({
   sidebarAboutSeoText,
+  homepageAboutSeoText,
 }) => {
   const { selectedLeague } = useLeagueContext();
   const [liveLeagues, setLiveLeagues] = useState<League[]>([]);
@@ -39,6 +41,17 @@ export const MainContent: React.FC<MainContentProps> = ({
         {/* Main Content Area (MatchList) */}
         <div className="lg:col-span-2 flex flex-col">
           <MatchList setLiveLeagues={setLiveLeagues} />
+
+          <div className="container mx-auto px-4 mt-8 pb-8">
+            <div className="bg-brand-secondary rounded-lg shadow-lg p-6">
+              <h2 className="text-2xl font-bold text-white mb-4">
+                Fanskor Hakkında
+              </h2>
+              <p className="text-brand-light text-base leading-relaxed">
+                {homepageAboutSeoText}
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Right Sidebar Column */}

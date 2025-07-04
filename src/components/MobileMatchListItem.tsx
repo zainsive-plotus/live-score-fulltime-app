@@ -84,7 +84,7 @@ const TeamRow = ({
       >
         {score ?? "-"}
       </span>
-      <button
+      {/* <button
         onClick={onVote}
         disabled={isDisabled}
         className="p-1 disabled:cursor-not-allowed disabled:opacity-50"
@@ -97,7 +97,7 @@ const TeamRow = ({
               : "text-gray-500 hover:text-brand-yellow"
           }`}
         />
-      </button>
+      </button> */}
     </div>
   </div>
 );

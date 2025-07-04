@@ -16,7 +16,7 @@ export default function StyledLink({
   children: React.ReactNode;
   className?: string;
   style?: React.CSSProperties; // Define type for style prop
-}) {
+} & any) {
   const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     // Check if it's a link to a different page before starting the progress bar.
     // This prevents the bar from showing for on-page anchor links.
