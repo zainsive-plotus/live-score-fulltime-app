@@ -6,35 +6,8 @@ import { Mail, Phone, MapPin } from "lucide-react";
 import axios from "axios"; // For server-side data fetching
 
 import ContactFormClient from "@/components/ContactFormClient";
-import LiveMatchCard from "@/components/LiveMatchCard"; // Reusing for live matches
 import NewsListItem from "@/components/NewsListItem"; // Reusing for news list (might need prop adjustments)
 import AdSlotWidget from "@/components/AdSlotWidget";
-
-// --- Server-side Data Fetching for Sidebar Widgets ---
-const fetchLiveMatchesServer = async (): Promise<any[]> => {
-  const publicAppUrl = process.env.NEXT_PUBLIC_PUBLIC_APP_URL;
-  if (!publicAppUrl) {
-    console.error(
-      "[Contact Us Page] NEXT_PUBLIC_PUBLIC_APP_URL is not defined! Cannot fetch live matches."
-    );
-    return [];
-  }
-  try {
-    const { data } = await axios.get(`${publicAppUrl}/api/global-live`, {
-      timeout: 10000,
-    });
-    console.log(
-      `[Contact Us Page] Fetched ${data.length} live matches for sidebar.`
-    );
-    return data;
-  } catch (error: any) {
-    console.error(
-      "[Contact Us Page] Failed to fetch live matches for sidebar:",
-      error.message
-    );
-    return [];
-  }
-};
 
 const fetchSidebarNews = async (): Promise<any[]> => {
   const publicAppUrl = process.env.NEXT_PUBLIC_PUBLIC_APP_URL;
@@ -92,10 +65,7 @@ export default async function ContactUsPage() {
     `Aşağıdaki formu kullanarak bize doğrudan mesaj gönderebilir veya iletişim bilgilerimiz aracılığıyla bize ulaşabilirsiniz.`;
 
   // --- Fetch data for right sidebar in parallel ---
-  const [liveMatches, sidebarNews] = await Promise.all([
-    fetchLiveMatchesServer(),
-    fetchSidebarNews(),
-  ]);
+  const [sidebarNews] = await Promise.all([fetchSidebarNews()]);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -159,27 +129,6 @@ export default async function ContactUsPage() {
         </main>
         {/* --- NEW: Right Sidebar --- */}
         <aside className="lg:col-span-1 space-y-8 min-w-0">
-          {" "}
-          {/* min-w-0 to prevent overflow */}
-          {/* Live Matches Widget */}
-          <section className="bg-brand-secondary rounded-lg shadow-lg p-6">
-            <h2 className="text-2xl font-bold text-white mb-4">Canlı Maçlar</h2>
-            {liveMatches && liveMatches.length > 0 ? (
-              <div className="space-y-3">
-                {liveMatches.slice(0, 3).map(
-                  (
-                    match: any // Show top 3 live matches
-                  ) => (
-                    <LiveMatchCard key={match.fixture.id} fixture={match} />
-                  )
-                )}
-              </div>
-            ) : (
-              <p className="text-brand-muted text-center text-sm">
-                Şu anda canlı maç yok.
-              </p>
-            )}
-          </section>
           {/* News List Widget */}
           <section className="bg-brand-secondary rounded-lg shadow-lg p-6">
             <h2 className="text-2xl font-bold text-white mb-4">Son Haberler</h2>
