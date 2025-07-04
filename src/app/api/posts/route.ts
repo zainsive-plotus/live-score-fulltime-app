@@ -6,6 +6,8 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import dbConnect from "@/lib/dbConnect";
 import Post, { IPost } from "@/models/Post";
 import slugify from "slugify";
+// --- NEW: Import ExternalNewsArticle model directly into this file ---
+import ExternalNewsArticle from "@/models/ExternalNewsArticle";
 
 // --- GET All Posts ---
 export async function GET(request: Request) {
@@ -19,17 +21,13 @@ export async function GET(request: Request) {
   }
 
   try {
-    await dbConnect();
-    // --- ENHANCEMENT: Populate originalExternalArticleId ---
+    await dbConnect(); // This still connects, and imports in dbConnect.ts register models
+    // --- THE FIX IS HERE: Pass ExternalNewsArticle model object directly to populate ---
     let postsQuery = Post.find(query).sort({ createdAt: -1 }).populate({
-      path: "originalExternalArticleId", // The field in Post model
-      model: "ExternalNewsArticle", // The model to populate from
-      select: "title link", // Only retrieve title and link from ExternalNewsArticle
+      path: "originalExternalArticleId",
+      model: ExternalNewsArticle, // <-- Pass the imported Model object here
+      select: "title link",
     });
-
-    if (limit) {
-      postsQuery = postsQuery.limit(parseInt(limit));
-    }
 
     const posts = await postsQuery;
     return NextResponse.json(posts);
@@ -43,7 +41,6 @@ export async function GET(request: Request) {
 }
 
 // --- POST a New Post ---
-// This part remains unchanged.
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") {
@@ -61,7 +58,7 @@ export async function POST(request: Request) {
       metaDescription,
       featuredImageTitle,
       featuredImageAltText,
-      sport, // Ensure sport is passed if used
+      sport,
     } = body;
 
     if (!title || !content) {
@@ -96,7 +93,6 @@ export async function POST(request: Request) {
       featuredImageTitle,
       featuredImageAltText,
       sport,
-      // isAIGenerated and originalExternalArticleId are set by process-external-news route
     });
 
     await newPost.save();

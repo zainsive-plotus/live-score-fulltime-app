@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import Link from "@/components/StyledLink";
-import { PlusCircle, Edit, Trash2 } from "lucide-react";
+import { PlusCircle, Edit, Trash2, Lightbulb } from "lucide-react";
 import { format } from "date-fns";
 import { IPost } from "@/models/Post";
 import toast from "react-hot-toast";

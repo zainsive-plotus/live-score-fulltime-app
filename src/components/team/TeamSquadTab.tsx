@@ -36,7 +36,10 @@ export default function TeamSquadTab({ squad }: { squad: any[] }) {
         </h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {players.map((player) => (
-            <PlayerCard key={player.id} player={player} />
+            <PlayerCard
+              key={player.id + Date.now().toString()}
+              player={player}
+            />
           ))}
         </div>
       </div>

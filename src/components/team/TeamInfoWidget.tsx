@@ -29,7 +29,7 @@ export default function TeamInfoWidget({ venue }: { venue: any }) {
         <InfoRow
           icon={Users}
           label="Capacity"
-          value={venue.capacity.toLocaleString()}
+          value={venue.capacity?.toLocaleString()}
         />
       </div>
     </div>

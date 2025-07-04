@@ -12,7 +12,13 @@ import MobileHomeTabs from "./MobileHomeTabs";
 import LeagueDetailView from "./league-detail-view";
 import AdSlotWidget from "./AdSlotWidget"; // <-- IMPORT THE NEW AD WIDGET
 
-export default function MainContent() {
+interface MainContentProps {
+  sidebarAboutSeoText: string; // <-- NEW PROP
+}
+
+export const MainContent: React.FC<MainContentProps> = ({
+  sidebarAboutSeoText,
+}) => {
   const { selectedLeague } = useLeagueContext();
   const [liveLeagues, setLiveLeagues] = useState<League[]>([]);
 
@@ -39,6 +45,15 @@ export default function MainContent() {
         <div className="lg:col-span-1 flex flex-col gap-6">
           <StandingsDisplay />
 
+          <section className="bg-brand-secondary rounded-lg shadow-lg p-6">
+            <h2 className="text-2xl font-bold text-white mb-4">
+              Fanskor Hakkında
+            </h2>
+            <p className="text-brand-light text-base leading-relaxed">
+              {sidebarAboutSeoText}
+            </p>
+          </section>
+
           {/* The sticky container for ads and news */}
           <div className="sticky top-8 space-y-8 gap-8">
             {/* --- AD SLOT PLACED HERE --- */}
@@ -57,4 +72,4 @@ export default function MainContent() {
       </div>
     </>
   );
-}
+};

@@ -4,6 +4,7 @@ import Sidebar from "@/components/Sidebar";
 import TeamDetailView from "@/components/TeamDetailView";
 import { notFound } from "next/navigation";
 import axios from "axios";
+import type { Metadata } from "next"; // <-- NEW IMPORT for Metadata
 
 // Helper to extract the ID from the slug (unchanged)
 const getTeamIdFromSlug = (slug: string): string | null => {
@@ -27,15 +28,8 @@ async function getTeamData(teamId: string) {
 
   try {
     const [teamInfoRes, squadRes, fixturesRes] = await Promise.all([
-      // This call is correct
       axios.request(options("teams", { id: teamId })),
-      // This call is correct
       axios.request(options("players/squads", { team: teamId })),
-
-      // --- THIS IS THE FIX ---
-      // This API call now correctly queries the 'fixtures' endpoint
-      // with a 'team' parameter, ensuring we only get matches for this specific team.
-      // We fetch the last 50 to get a good mix of recent results and upcoming games.
       axios.request(
         options("fixtures", { team: teamId, season: season, last: 50 })
       ),
@@ -48,7 +42,6 @@ async function getTeamData(teamId: string) {
     return {
       teamInfo: teamInfoRes.data.response[0],
       squad: squadRes.data.response[0]?.players || [],
-      // This now contains only the fixtures for the specified team
       fixtures: fixturesRes.data.response || [],
     };
   } catch (error) {
@@ -57,15 +50,21 @@ async function getTeamData(teamId: string) {
   }
 }
 
-// generateMetadata function (unchanged)
+// --- generateMetadata function ---
 export async function generateMetadata({
   params,
 }: {
   params: { slug: string[] };
-}) {
-  const slug = params.slug.join("/");
+}): Promise<Metadata> {
+  // Specify Metadata return type
+  // --- THE FIX IS HERE: AWAIT params ---
+  const awaitedParams = await params; // Await the params object
+  const slug = awaitedParams.slug.join("/");
   const teamId = getTeamIdFromSlug(slug);
-  if (!teamId) return { title: "Team Not Found" };
+
+  if (!teamId) {
+    return { title: "Team Not Found" };
+  }
 
   try {
     const { data } = await axios.get(
@@ -79,22 +78,42 @@ export async function generateMetadata({
     const teamInfo = data.response[0];
     if (!teamInfo) return { title: "Team Not Found" };
 
+    const pageTitle = `${teamInfo.team.name} - Squad, Fixtures & Standings`;
+    const pageDescription = `View the full squad, recent fixtures, and current standings for ${teamInfo.team.name}.`;
+    const canonicalUrl = `/football/team/${slug}`;
+
     return {
-      title: `${teamInfo.team.name} - Squad, Fixtures & Standings`,
-      description: `View the full squad, recent fixtures, and current standings for ${teamInfo.team.name}.`,
+      title: pageTitle,
+      description: pageDescription,
+      alternates: {
+        canonical: canonicalUrl,
+      },
+      openGraph: {
+        title: pageTitle,
+        description: pageDescription,
+        // images: [`${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/api/image-proxy?url=${encodeURIComponent(teamInfo.team.logo)}`],
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: pageTitle,
+        description: pageDescription,
+        // images: [`${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/api/image-proxy?url=${encodeURIComponent(teamInfo.team.logo)}`],
+      },
     };
   } catch {
     return { title: "Team Not Found" };
   }
 }
 
-// THE MAIN PAGE COMPONENT (Unchanged)
+// THE MAIN PAGE COMPONENT
 export default async function TeamPage({
   params,
 }: {
   params: { slug: string[] };
 }) {
-  const slug = params.slug.join("/");
+  // --- THE FIX IS HERE: AWAIT params ---
+  const awaitedParams = await params; // Await the params object
+  const slug = awaitedParams.slug.join("/");
   const teamId = getTeamIdFromSlug(slug);
 
   if (!teamId) {

@@ -63,7 +63,6 @@ export default function TeamDetailView({ teamData }: { teamData: any }) {
         <aside className="lg:col-span-1 space-y-6">
           <TeamInfoWidget venue={venue} />
           <TeamTrophiesWidget teamId={team.id} />
-          <AdSlotWidget />
         </aside>
       </div>
     </div>
