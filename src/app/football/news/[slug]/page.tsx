@@ -10,7 +10,10 @@ import NewsSidebar from "@/components/NewsSidebar";
 // This function fetches the data on the server
 async function getPost(slug: string) {
   await dbConnect();
-  const post = await Post.findOne({ slug: slug, status: "published" }).lean();
+  const post: any = await Post.findOne({
+    slug: slug,
+    status: "published",
+  }).lean();
   if (!post) {
     return null;
   }
