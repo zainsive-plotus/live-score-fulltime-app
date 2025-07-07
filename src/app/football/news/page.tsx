@@ -4,27 +4,30 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import { IPost } from "@/models/Post";
+import { IPost } from "@/models/Post"; // Ensure IPost is imported
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import Pagination from "@/components/Pagination";
 import NewsListItem, { NewsListItemSkeleton } from "@/components/NewsListItem";
 import { Info, Newspaper } from "lucide-react";
-import Script from "next/script"; // Import the Script component for JSON-LD
-import PostCategories, { NewsCategory } from "@/components/PostCategories"; // Import the new component
+import Script from "next/script";
+import PostCategories, { NewsCategory } from "@/components/PostCategories"; // Import the new component and type
 
 export const dynamic = "force-dynamic";
 
 const ITEMS_PER_PAGE = 8;
 
 const fetchNews = async (): Promise<IPost[]> => {
+  // No change needed here, it fetches all published posts
   const { data } = await axios.get("/api/posts?status=published");
   return data;
 };
 
 export default function NewsPage() {
   const [currentPage, setCurrentPage] = useState(1);
-  const [activeCategory, setActiveCategory] = useState<NewsCategory>("all");
+  // Set default active category to "trending" for display, which maps to "all" for filtering
+  const [activeCategory, setActiveCategory] =
+    useState<NewsCategory>("trending");
 
   const { data: allNews, isLoading } = useQuery<IPost[]>({
     queryKey: ["allNewsArticles"],
@@ -36,11 +39,15 @@ export default function NewsPage() {
   const { paginatedData, totalPages } = useMemo(() => {
     if (!allNews) return { paginatedData: [], totalPages: 0 };
 
-    // 1. Filter by the active category first
+    // Map "trending" to "all" for actual filtering against post.sport
+    const filterCategory =
+      activeCategory === "trending" ? "all" : activeCategory;
+
+    // 1. Filter by the effective category
     const filteredNews =
-      activeCategory === "all"
+      filterCategory === "all"
         ? allNews
-        : allNews.filter((post) => post.sport === activeCategory);
+        : allNews.filter((post) => post.sport === filterCategory); // Assuming post.sport matches NewsCategory values
 
     // 2. Paginate the filtered results
     const totalPages = Math.ceil(filteredNews.length / ITEMS_PER_PAGE);
@@ -56,7 +63,7 @@ export default function NewsPage() {
     setCurrentPage(1);
   }, [activeCategory]);
 
-  // --- SEO: JSON-LD Structured Data ---
+  // --- SEO: JSON-LD Structured Data (No change) ---
   const generateJsonLd = () => {
     if (!paginatedData || paginatedData.length === 0) return null;
 
@@ -113,7 +120,7 @@ export default function NewsPage() {
               </div>
             </div>
 
-            {/* --- ENHANCED UI: Category Filters --- */}
+            {/* --- ENHANCED UI: Category Filters (Now using the new component) --- */}
             <PostCategories
               activeCategory={activeCategory}
               onCategoryChange={setActiveCategory}
@@ -143,7 +150,8 @@ export default function NewsPage() {
                 <Info size={32} className="mx-auto text-brand-muted mb-3" />
                 <p className="text-xl font-bold text-white">No News Found</p>
                 <p className="text-brand-muted mt-2">
-                  There are no articles available in the "{activeCategory}"
+                  There are no articles available in the "
+                  {activeCategory === "trending" ? "All" : activeCategory}"
                   category.
                 </p>
               </div>

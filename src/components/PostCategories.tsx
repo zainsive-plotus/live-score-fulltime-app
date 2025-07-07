@@ -1,53 +1,73 @@
 // src/components/PostCategories.tsx
 "use client";
 
-// Define the categories used in your news posts
-export const NEWS_CATEGORIES = [
-  "all",
-  "football",
-  "basketball",
-  "tennis",
-  "general",
-];
+import React from "react";
+
+// Define the categories for news articles
 export type NewsCategory =
   | "all"
+  | "trending" // Functional alias for "all" for display purposes
   | "football"
   | "basketball"
   | "tennis"
-  | "general";
+  | "general"
+  | "prediction"
+  | "match_reports";
 
 interface PostCategoriesProps {
   activeCategory: NewsCategory;
   onCategoryChange: (category: NewsCategory) => void;
 }
 
-const categoryDisplayNames: { [key in NewsCategory]: string } = {
-  all: "All News",
-  football: "Football",
-  basketball: "Basketball",
-  tennis: "Tennis",
-  general: "General",
-};
+const categories: { value: NewsCategory; label: string }[] = [
+  { value: "all", label: "All News" },
+  { value: "trending", label: "Trending News" }, // Displayed as a tab
+  { value: "prediction", label: "Prediction" },
+  { value: "match_reports", label: "Match Reports" },
+];
 
-export default function PostCategories({
+const PostCategories: React.FC<PostCategoriesProps> = ({
   activeCategory,
   onCategoryChange,
-}: PostCategoriesProps) {
+}) => {
+  // Map "trending" to "all" internally for logic, but keep "trending" for display
+  const effectiveActiveCategory =
+    activeCategory === "trending" ? "all" : activeCategory;
+
+  const handleClick = (category: NewsCategory) => {
+    onCategoryChange(category);
+  };
+
   return (
-    <div className="flex items-center gap-2 p-1 rounded-lg bg-brand-secondary overflow-x-auto scrollbar-hide mb-8">
-      {NEWS_CATEGORIES.map((category) => (
-        <button
-          key={category}
-          onClick={() => onCategoryChange(category as NewsCategory)}
-          className={`px-4 py-1.5 rounded-md text-sm font-semibold whitespace-nowrap transition-colors ${
-            activeCategory === category
-              ? "bg-brand-purple text-white"
-              : "text-brand-muted hover:bg-gray-700/50"
-          }`}
-        >
-          {categoryDisplayNames[category as NewsCategory]}
-        </button>
-      ))}
+    <div className="flex flex-wrap gap-3 mb-8">
+      {categories.map((category) => {
+        // Determine if this tab should be active.
+        // If the category is "trending", it's active if activeCategory is "trending".
+        // Otherwise, it's active if effectiveActiveCategory matches the category's value.
+        const isActive =
+          (category.value === "trending" && activeCategory === "trending") ||
+          (category.value !== "trending" &&
+            effectiveActiveCategory === category.value);
+
+        return (
+          <button
+            key={category.value}
+            onClick={() => handleClick(category.value)}
+            className={`
+              px-4 py-2 rounded-full font-semibold text-sm transition-all duration-200 ease-in-out
+              ${
+                isActive
+                  ? "bg-brand-purple text-white border border-brand-purple" // Active state
+                  : "bg-transparent text-white border border-white hover:bg-white/10" // Inactive state with white border and text
+              }
+            `}
+          >
+            {category.label}
+          </button>
+        );
+      })}
     </div>
   );
-}
+};
+
+export default PostCategories;

@@ -1,156 +1,164 @@
+// src/app/football/news/page.tsx
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useMemo, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import Link from "@/components/StyledLink";
-import { PlusCircle, Edit, Trash2, Lightbulb } from "lucide-react";
-import { format } from "date-fns";
 import { IPost } from "@/models/Post";
-import toast from "react-hot-toast";
-import Image from "next/image"; // <-- NEW IMPORT
+import Header from "@/components/Header";
+import Sidebar from "@/components/Sidebar";
+import Pagination from "@/components/Pagination";
+import NewsListItem, { NewsListItemSkeleton } from "@/components/NewsListItem";
+import { Info, Newspaper } from "lucide-react";
+import Script from "next/script";
+import PostCategories, { NewsCategory } from "@/components/PostCategories";
 
-// Fetcher function
-const fetchPosts = async (): Promise<IPost[]> => {
-  const { data } = await axios.get("/api/posts");
+export const dynamic = "force-dynamic";
+
+const ITEMS_PER_PAGE = 8;
+
+const fetchNews = async (): Promise<IPost[]> => {
+  const { data } = await axios.get("/api/posts?status=published");
   return data;
 };
 
-export default function AdminNewsPage() {
-  const queryClient = useQueryClient();
+export default function NewsPage() {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [activeCategory, setActiveCategory] =
+    useState<NewsCategory>("trending");
 
-  const {
-    data: posts,
-    isLoading,
-    error,
-  } = useQuery<IPost[]>({
-    queryKey: ["adminPosts"],
-    queryFn: fetchPosts,
+  const { data: allNews, isLoading } = useQuery<IPost[]>({
+    queryKey: ["allNewsArticles"],
+    queryFn: fetchNews,
+    staleTime: 1000 * 60 * 5,
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (postId: string) => axios.delete(`/api/posts/${postId}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["adminPosts"] });
-      // BEFORE: alert('Post deleted!');
-      toast.success("Post deleted successfully!"); //
-    },
-    onError: (error: any) => {
-      // BEFORE: alert('Error deleting post.');
-      const message = error.response?.data?.message || "Error deleting post.";
-      toast.error(message); //
-    },
-  });
+  const { paginatedData, totalPages } = useMemo(() => {
+    if (!allNews) return { paginatedData: [], totalPages: 0 };
 
-  const handleDelete = (postId: string) => {
-    if (window.confirm("Are you sure you want to delete this post?")) {
-      deleteMutation.mutate(postId);
-    }
+    const filterCategory =
+      activeCategory === "trending" ? "all" : activeCategory;
+
+    // --- MODIFIED: Filtering logic for multiple categories ---
+    const filteredNews =
+      filterCategory === "all"
+        ? allNews
+        : allNews.filter((post) => {
+            // A post is included if its `sport` array contains the active category.
+            // Ensure post.sport is an array before calling .includes()
+            return (
+              Array.isArray(post.sport) && post.sport.includes(filterCategory)
+            );
+          });
+
+    const totalPages = Math.ceil(filteredNews.length / ITEMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    const paginatedData = filteredNews.slice(startIndex, endIndex);
+
+    return { paginatedData, totalPages };
+  }, [allNews, currentPage, activeCategory]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeCategory]);
+
+  const generateJsonLd = () => {
+    if (!paginatedData || paginatedData.length === 0) return null;
+
+    const items = paginatedData.map((post) => ({
+      "@type": "NewsArticle",
+      headline: post.title,
+      image: [post.featuredImage || ""],
+      datePublished: post.createdAt,
+      dateModified: post.updatedAt,
+      author: [
+        {
+          "@type": "Person",
+          name: post.author,
+        },
+      ],
+      // --- MODIFIED: Add keywords from categories ---
+      keywords: Array.isArray(post.sport) ? post.sport.join(", ") : "",
+    }));
+
+    return {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      itemListElement: items.map((item, index) => ({
+        "@type": "ListItem",
+        position: (currentPage - 1) * ITEMS_PER_PAGE + index + 1,
+        item: item,
+      })),
+    };
   };
 
-  if (isLoading) return <p className="text-brand-muted">Loading posts...</p>;
-  if (error) return <p className="text-red-400">Failed to load posts.</p>;
-
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-white">Manage News</h1>
-        <Link
-          href="/admin/news/create"
-          className="flex items-center gap-2 bg-brand-purple text-white font-bold py-2 px-4 rounded-lg hover:opacity-90 transition-opacity"
-        >
-          <PlusCircle size={20} />
-          <span>New Post</span>
-        </Link>
-      </div>
+    <>
+      <Script
+        id="news-list-jsonld"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(generateJsonLd()) }}
+      />
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr] lg:gap-8 lg:items-start">
+          <Sidebar />
+          <main className="min-w-0 p-4 lg:p-0 lg:py-6">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="p-3 bg-brand-purple/10 rounded-lg">
+                <Newspaper className="w-8 h-8 text-brand-purple" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-extrabold text-white">
+                  Latest News
+                </h1>
+                <p className="text-brand-muted">
+                  Stay updated with the latest stories and analysis.
+                </p>
+              </div>
+            </div>
 
-      <div className="bg-brand-secondary rounded-lg overflow-hidden">
-        <table className="w-full text-left text-brand-light">
-          <thead className="bg-gray-800/50 text-sm text-brand-muted uppercase">
-            <tr>
-              <th className="p-4">Preview</th> {/* <-- NEW COLUMN HEADER */}
-              <th className="p-4">Title</th>
-              <th className="p-4">Status</th>
-              <th className="p-4">Type</th>
-              <th className="p-4">Created At</th>
-              <th className="p-4">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {posts?.map((post) => (
-              <tr
-                key={post._id as string}
-                className="border-t border-gray-700/50"
-              >
-                {/* --- NEW COLUMN CONTENT --- */}
-                <td className="p-4">
-                  {post.featuredImage ? (
-                    <Image
-                      src={post.featuredImage}
-                      alt={post.title}
-                      width={100} // Adjust width as needed for preview
-                      height={56} // Maintain aspect ratio for common image sizes (16:9)
-                      objectFit="cover" // Cover the area, cropping if necessary
-                      className="rounded-md bg-gray-700"
-                    />
-                  ) : (
-                    <div className="w-[100px] h-[56px] bg-gray-700 rounded-md flex items-center justify-center text-xs text-brand-muted">
-                      No Image
-                    </div>
-                  )}
-                </td>
-                <td className="p-4 font-medium">{post.title}</td>
-                <td className="p-4">
-                  <span
-                    className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                      post.status === "published"
-                        ? "bg-green-500/20 text-green-400"
-                        : "bg-yellow-500/20 text-yellow-400"
-                    }`}
-                  >
-                    {post.status}
-                  </span>
-                </td>
-                <td className="p-4">
-                  {post.isAIGenerated && (
-                    <span className="flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full bg-blue-500/20 text-blue-400">
-                      <Lightbulb size={12} /> AI
-                    </span>
-                  )}
-                  {!post.isAIGenerated && (
-                    <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-600/20 text-gray-400">
-                      Manual
-                    </span>
-                  )}
-                </td>
-                <td className="p-4 text-brand-muted">
-                  {format(new Date(post.createdAt), "dd MMM yyyy")}
-                </td>
-                <td className="p-4 flex gap-3">
-                  <Link
-                    href={`/admin/news/edit/${post._id}`}
-                    className="text-blue-400 hover:text-blue-300"
-                  >
-                    <Edit size={18} />
-                  </Link>
-                  <button
-                    onClick={() => handleDelete(post._id as string)}
-                    className="text-red-400 hover:text-red-300"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {/* Optional: Message if no posts found */}
-        {posts?.length === 0 && (
-          <p className="text-center p-8 text-brand-muted">
-            No news posts found. Create one manually or process an external
-            article using the Automated News Engine.
-          </p>
-        )}
+            <PostCategories
+              activeCategory={activeCategory}
+              onCategoryChange={setActiveCategory}
+            />
+
+            {isLoading ? (
+              <div className="space-y-4">
+                {Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => (
+                  <NewsListItemSkeleton key={i} />
+                ))}
+              </div>
+            ) : paginatedData.length > 0 ? (
+              <div className="space-y-4">
+                {paginatedData.map((post) => (
+                  <NewsListItem key={post._id} post={post} />
+                ))}
+                {totalPages > 1 && (
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={setCurrentPage}
+                  />
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-20 bg-brand-secondary rounded-lg">
+                <Info size={32} className="mx-auto text-brand-muted mb-3" />
+                <p className="text-xl font-bold text-white">No News Found</p>
+                <p className="text-brand-muted mt-2">
+                  There are no articles available in the "
+                  {activeCategory === "trending"
+                    ? "All"
+                    : activeCategory.replace("_", " ")}
+                  " category.
+                </p>
+              </div>
+            )}
+          </main>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

@@ -1,42 +1,36 @@
 // src/models/AIPrompt.ts
 import mongoose, { Schema, Document } from "mongoose";
 
-// Interface for the AI Prompt document
+// Define the types of AI prompts
+export type AIPromptType = "title" | "content" | "prediction_content"; // <-- Added 'prediction_content'
+
 export interface IAIPrompt extends Document {
-  name: string; // e.g., "News Article Rewriting Prompt"
-  prompt: string; // The actual prompt string
-  description?: string; // Optional description for the admin
-  // --- NEW FIELD: prompt type ---
-  type: "title" | "content" | "general"; // Classify the type of prompt
+  name: string;
+  type: AIPromptType; // <-- NEW: Type field
+  prompt: string;
+  description?: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
 const AIPromptSchema: Schema = new Schema(
   {
-    name: { type: String, required: true, unique: true }, // Ensure uniqueness for the name
-    prompt: { type: String, required: true },
-    description: { type: String },
-    // --- NEW FIELD ---
+    name: { type: String, required: true, trim: true },
     type: {
       type: String,
-      enum: ["title", "content", "general"],
+      enum: ["title", "content", "prediction_content"],
       required: true,
-      default: "general",
-    },
+    }, // <-- NEW: Type field definition
+    prompt: { type: String, required: true },
+    description: { type: String, trim: true },
   },
   {
-    timestamps: true, // Adds createdAt and updatedAt fields
+    timestamps: true,
   }
 );
 
-// Add a compound unique index to ensure 'name' is unique per 'type' if desired,
-// or just keep 'name' unique globally as it is now.
-// For now, let's assume 'name' is globally unique (e.g., "Main Content Prompt", "SEO Title Prompt").
+// Add a unique compound index on 'name' and 'type' to ensure uniqueness for each prompt type
+AIPromptSchema.index({ name: 1, type: 1 }, { unique: true });
 
-// Ensure the model is only compiled once
-const AIPrompt =
-  mongoose.models.AIPrompt ||
+export default (mongoose.models.AIPrompt as mongoose.Model<IAIPrompt>) ||
   mongoose.model<IAIPrompt>("AIPrompt", AIPromptSchema);
-
-export default AIPrompt;

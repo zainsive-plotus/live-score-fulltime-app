@@ -1,3 +1,4 @@
+// ===== src\app\admin\ai-journalists\page.tsx =====
 // src/app/admin/ai-journalists/page.tsx
 "use client";
 
@@ -41,7 +42,11 @@ const AIJournalistFormModal: React.FC<AIJournalistFormModalProps> = ({
   const queryClient = useQueryClient();
   const [name, setName] = useState(journalist?.name || "");
   const [description, setDescription] = useState(journalist?.description || "");
-  const [tonePrompt, setTonePrompt] = useState(journalist?.tonePrompt || "");
+  // --- MODIFIED: Default tonePrompt to Turkish ---
+  const [tonePrompt, setTonePrompt] = useState(
+    journalist?.tonePrompt ||
+      "Daima Türkçe bir ton kullanın, esprili yorumlarla ve derinlemesine analitik ve teknik yorumlarla makaleleri şekillendirin."
+  );
   const [isActive, setIsActive] = useState(journalist?.isActive ?? true); // Default to true for new
 
   useEffect(() => {
@@ -52,10 +57,12 @@ const AIJournalistFormModal: React.FC<AIJournalistFormModalProps> = ({
       setTonePrompt(journalist.tonePrompt);
       setIsActive(journalist.isActive);
     } else {
-      // Clear form for new creation
+      // Clear form for new creation and set Turkish default
       setName("");
       setDescription("");
-      setTonePrompt("");
+      setTonePrompt(
+        "Daima Türkçe bir ton kullanın, esprili yorumlarla ve derinlemesine analitik ve teknik yorumlarla makaleleri şekillendirin."
+      );
       setIsActive(true);
     }
   }, [journalist]);
@@ -162,7 +169,7 @@ const AIJournalistFormModal: React.FC<AIJournalistFormModalProps> = ({
               htmlFor="tonePrompt"
               className="block text-sm font-medium text-brand-light mb-1"
             >
-              Tone Prompt Segment
+              Tone Prompt Segment (Turkish Language)
             </label>
             <textarea
               id="tonePrompt"
@@ -172,11 +179,12 @@ const AIJournalistFormModal: React.FC<AIJournalistFormModalProps> = ({
               rows={6}
               required
               disabled={isPending}
-              placeholder="e.g., 'Always use a sarcastic tone with witty remarks.', 'Provide deeply analytical and technical commentary.'"
+              placeholder="e.g., 'Daima Türkçe bir ton kullanın, esprili yorumlarla ve derinlemesine analitik ve teknik yorumlarla makaleleri şekillendirin.'"
             />
             <p className="text-xs text-brand-muted mt-1">
-              This prompt segment will be injected into the main article
-              generation prompt to define the journalist's style.
+              Bu istem segmenti, gazetecinin stilini tanımlamak için ana makale
+              oluşturma istemine eklenecektir. Makalelerin daima Türkçe
+              oluşturulduğundan emin olun.
             </p>
           </div>
           <div className="flex items-center">
@@ -229,7 +237,7 @@ const AIJournalistFormModal: React.FC<AIJournalistFormModalProps> = ({
   );
 };
 
-// --- Main AI Journalists Page Component ---
+// --- Main AI Journalists Page Component (UNCHANGED) ---
 export default function AdminAIJournalistsPage() {
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);

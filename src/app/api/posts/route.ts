@@ -4,12 +4,11 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import dbConnect from "@/lib/dbConnect";
-import Post, { IPost } from "@/models/Post";
+import Post, { IPost, PostCategory } from "@/models/Post";
 import slugify from "slugify";
-// --- NEW: Import ExternalNewsArticle model directly into this file ---
 import ExternalNewsArticle from "@/models/ExternalNewsArticle";
 
-// --- GET All Posts ---
+// --- GET All Posts (No change needed) ---
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const status = searchParams.get("status");
@@ -21,11 +20,10 @@ export async function GET(request: Request) {
   }
 
   try {
-    await dbConnect(); // This still connects, and imports in dbConnect.ts register models
-    // --- THE FIX IS HERE: Pass ExternalNewsArticle model object directly to populate ---
+    await dbConnect();
     let postsQuery = Post.find(query).sort({ createdAt: -1 }).populate({
       path: "originalExternalArticleId",
-      model: ExternalNewsArticle, // <-- Pass the imported Model object here
+      model: ExternalNewsArticle,
       select: "title link",
     });
 
@@ -40,7 +38,7 @@ export async function GET(request: Request) {
   }
 }
 
-// --- POST a New Post ---
+// --- POST a New Post (Updated to handle category array) ---
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") {
@@ -58,12 +56,20 @@ export async function POST(request: Request) {
       metaDescription,
       featuredImageTitle,
       featuredImageAltText,
-      sport,
+      sport, // This will now be an array
     } = body;
 
     if (!title || !content) {
       return NextResponse.json(
         { error: "Title and content are required" },
+        { status: 400 }
+      );
+    }
+
+    // --- MODIFIED: Validate that `sport` is a non-empty array ---
+    if (!Array.isArray(sport) || sport.length === 0) {
+      return NextResponse.json(
+        { error: "At least one category is required." },
         { status: 400 }
       );
     }
@@ -92,12 +98,15 @@ export async function POST(request: Request) {
       metaDescription,
       featuredImageTitle,
       featuredImageAltText,
-      sport,
+      sport: sport as PostCategory[], // --- MODIFIED: Save the array
     });
 
     await newPost.save();
     return NextResponse.json(newPost, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === "ValidationError") {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     console.error("Failed to create post:", error);
     return NextResponse.json(
       { error: "Server error creating post" },

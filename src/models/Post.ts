@@ -1,55 +1,88 @@
 // src/models/Post.ts
 import mongoose, { Schema, Document } from "mongoose";
 
+// Define the types of sports/categories a post can belong to
+export type PostCategory =
+  | "football"
+  | "basketball"
+  | "tennis"
+  | "general"
+  | "prediction"
+  | "match_reports";
+
 export interface IPost extends Document {
   title: string;
-  slug: string; // URL friendly identifier
-  content: string; // Can be HTML or Markdown depending on editor config
+  content: string;
+  slug: string;
   author: string;
   status: "draft" | "published";
   createdAt: Date;
   updatedAt: Date;
-  featuredImage?: string; // URL for the featured image
-  metaTitle?: string; // For SEO
-  metaDescription?: string; // For SEO
-  featuredImageTitle?: string; // Image title for accessibility/SEO
-  featuredImageAltText?: string; // Image alt text for accessibility/SEO
-  sport: "football" | "basketball" | "tennis" | "general"; // Category for news
-  // --- NEW FIELDS FOR AI GENERATION ---
-  isAIGenerated: boolean;
-  originalExternalArticleId?: mongoose.Types.ObjectId; // Link back to the source external article
+  featuredImage?: string;
+  featuredImageTitle?: string;
+  featuredImageAltText?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  // --- MODIFIED: `sport` is now an array of PostCategory ---
+  sport: PostCategory[];
+  isAIGenerated?: boolean;
+  originalExternalArticleId?: mongoose.Types.ObjectId;
+  originalFixtureId?: number;
 }
 
 const PostSchema: Schema = new Schema(
   {
-    title: { type: String, required: true },
-    slug: { type: String, required: true, unique: true },
+    title: { type: String, required: true, trim: true },
     content: { type: String, required: true },
-    author: { type: String, required: true, default: "Admin" },
-    status: { type: String, enum: ["draft", "published"], default: "draft" },
-    featuredImage: { type: String },
-    metaTitle: { type: String },
-    metaDescription: { type: String },
-    featuredImageTitle: { type: String },
-    featuredImageAltText: { type: String },
-    sport: {
+    slug: {
       type: String,
-      enum: ["football", "basketball", "tennis", "general"],
-      default: "general",
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
     },
-    // --- NEW FIELDS ---
+    author: { type: String, default: "Admin" },
+    status: { type: String, enum: ["draft", "published"], default: "draft" },
+    featuredImage: { type: String, trim: true },
+    featuredImageTitle: { type: String, trim: true },
+    featuredImageAltText: { type: String, trim: true },
+    metaTitle: { type: String, trim: true },
+    metaDescription: { type: String, trim: true },
+    // --- MODIFIED: Schema definition for `sport` field ---
+    sport: {
+      type: [
+        {
+          type: String,
+          enum: [
+            "football",
+            "basketball",
+            "tennis",
+            "general",
+            "prediction",
+            "match_reports",
+          ],
+        },
+      ],
+      default: ["general"], // Default to an array with 'general'
+      required: true,
+    },
     isAIGenerated: { type: Boolean, default: false },
     originalExternalArticleId: {
       type: Schema.Types.ObjectId,
       ref: "ExternalNewsArticle",
-    }, // <-- THIS LINE MUST BE PRESENT
+      required: false,
+    },
+    originalFixtureId: {
+      type: Number,
+      required: false,
+      unique: true,
+      sparse: true,
+    },
   },
   {
     timestamps: true,
   }
 );
 
-// Ensure the model is only compiled once
-const Post = mongoose.models.Post || mongoose.model<IPost>("Post", PostSchema);
-
-export default Post;
+export default (mongoose.models.Post as mongoose.Model<IPost>) ||
+  mongoose.model<IPost>("Post", PostSchema);

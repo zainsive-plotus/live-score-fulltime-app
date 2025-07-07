@@ -1,68 +1,101 @@
 // src/app/api/posts/[postId]/route.ts
 
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import dbConnect from '@/lib/dbConnect';
-import Post, { IPost } from '@/models/Post';
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import dbConnect from "@/lib/dbConnect";
+import Post, { IPost, PostCategory } from "@/models/Post";
 
 interface Params {
   params: { postId: string };
 }
 
-// --- GET a Single Post (by ID) ---
-// Publicly accessible for the edit page pre-fill and potentially public view.
+// --- GET a Single Post (by ID) (No change needed) ---
 export async function GET(request: Request, { params }: Params) {
   const { postId } = params;
   try {
     await dbConnect();
     const post = await Post.findById(postId);
     if (!post) {
-      return NextResponse.json({ error: 'Post not found' }, { status: 404 });
+      return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
     return NextResponse.json(post);
   } catch (error) {
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
 
-// --- PUT (Update) a Post ---
+// --- PUT (Update) a Post (Updated to handle category array) ---
 // Protected: Only admins can update.
 export async function PUT(request: Request, { params }: Params) {
   const session = await getServerSession(authOptions);
-  if (session?.user?.role !== 'admin') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (session?.user?.role !== "admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const { postId } = params;
   try {
     const body: Partial<IPost> = await request.json();
-    const { title, content, status, featuredImage, metaTitle, metaDescription, featuredImageTitle, featuredImageAltText } = body;
-    
-    await dbConnect();
-    
-    const updatedPost = await Post.findByIdAndUpdate(
-        postId,
-        { title, content, status },
-        { new: true, runValidators: true }
-    );
-    
-    if (!updatedPost) {
-        return NextResponse.json({ error: 'Post not found' }, { status: 404 });
+    const {
+      title,
+      content,
+      status,
+      featuredImage,
+      metaTitle,
+      metaDescription,
+      featuredImageTitle,
+      featuredImageAltText,
+      sport, // This will now be an array
+    } = body;
+
+    // --- MODIFIED: Validate that `sport` is a non-empty array ---
+    if (!Array.isArray(sport) || sport.length === 0) {
+      return NextResponse.json(
+        { error: "At least one category is required." },
+        { status: 400 }
+      );
     }
-    
+
+    await dbConnect();
+
+    const updatedPost = await Post.findByIdAndUpdate(
+      postId,
+      {
+        title,
+        content,
+        status,
+        featuredImage,
+        metaTitle,
+        metaDescription,
+        featuredImageTitle,
+        featuredImageAltText,
+        sport: sport as PostCategory[], // --- MODIFIED: Save the array
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedPost) {
+      return NextResponse.json({ error: "Post not found" }, { status: 404 });
+    }
+
     return NextResponse.json(updatedPost);
-  } catch (error) {
-    return NextResponse.json({ error: 'Server error updating post' }, { status: 500 });
+  } catch (error: any) {
+    if (error.name === "ValidationError") {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    console.error("Error updating post:", error);
+    return NextResponse.json(
+      { error: "Server error updating post" },
+      { status: 500 }
+    );
   }
 }
 
-// --- DELETE a Post ---
-// Protected: Only admins can delete.
+// --- DELETE a Post (No change needed) ---
 export async function DELETE(request: Request, { params }: Params) {
   const session = await getServerSession(authOptions);
-  if (session?.user?.role !== 'admin') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (session?.user?.role !== "admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const { postId } = params;
@@ -70,10 +103,10 @@ export async function DELETE(request: Request, { params }: Params) {
     await dbConnect();
     const deletedPost = await Post.findByIdAndDelete(postId);
     if (!deletedPost) {
-      return NextResponse.json({ error: 'Post not found' }, { status: 404 });
+      return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
-    return NextResponse.json({ message: 'Post deleted successfully' });
+    return NextResponse.json({ message: "Post deleted successfully" });
   } catch (error) {
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

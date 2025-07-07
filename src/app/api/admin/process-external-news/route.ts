@@ -1,4 +1,4 @@
-// ===== src/app/api/admin/process-external-news/route.ts (REVISED FOR GIFS AND NO CROPPING) =====
+// src/app/api/admin/process-external-news/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
@@ -6,7 +6,7 @@ import dbConnect from "@/lib/dbConnect";
 import ExternalNewsArticle, {
   IExternalNewsArticle,
 } from "@/models/ExternalNewsArticle";
-import Post from "@/models/Post";
+import Post, { PostCategory } from "@/models/Post";
 import AIPrompt from "@/models/AIPrompt";
 import AIJournalist from "@/models/AIJournalist";
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -15,42 +15,26 @@ import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import sharp from "sharp";
 import crypto from "crypto";
 import slugify from "slugify";
-import * as cheerio from "cheerio";
-import MarkdownIt from "markdown-it";
 import path from "path";
 
-// Initialize markdown-it for HTML conversion
-const md = new MarkdownIt({
-  html: true,
-  linkify: true,
-  typographer: true,
-});
-
-// --- R2/S3 Client Configuration ---
 const s3Client = new S3Client({
-  region: "auto", // R2's region is 'auto'
+  region: "auto",
   endpoint: process.env.NEXT_PUBLIC_R2_ENDPOINT as string,
   credentials: {
     accessKeyId: process.env.NEXT_PUBLIC_R2_ACCESS_KEY_ID as string,
     secretAccessKey: process.env.NEXT_PUBLIC_R2_SECRET_ACCESS_KEY as string,
   },
 });
-
 const R2_BUCKET_NAME = process.env.NEXT_PUBLIC_R2_BUCKET_NAME as string;
 const R2_PUBLIC_URL = process.env.NEXT_PUBLIC_R2_PUBLIC_BUCKET_URL as string;
-
 const generateFileName = (bytes = 32) =>
   crypto.randomBytes(bytes).toString("hex");
 
-// --- REWRITTEN: proxyAndUploadOriginalImage function for R2 (UPDATED) ---
 async function proxyAndUploadOriginalImage(
   imageUrl: string,
   newPostTitle: string
 ): Promise<string | null> {
   try {
-    console.log(
-      `[Image Processing] Attempting to proxy original image: ${imageUrl}`
-    );
     const imageResponse = await axios.get(imageUrl, {
       responseType: "arraybuffer",
       timeout: 15000,
@@ -60,52 +44,30 @@ async function proxyAndUploadOriginalImage(
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
       },
     });
-
     const inputBuffer = Buffer.from(imageResponse.data, "binary");
     const originalContentType =
       imageResponse.headers["content-type"] || "image/jpeg";
-
     let finalBuffer: Buffer;
     let finalContentType: string = originalContentType;
-    let fileExtension: string; // Will be set based on processing
-
-    // ===== NEW GIF HANDLING AND NO-CROPPING LOGIC =====
+    let fileExtension: string;
     if (originalContentType.includes("image/gif")) {
       finalBuffer = inputBuffer;
       finalContentType = "image/gif";
       fileExtension = ".gif";
-      console.log(
-        `[Image Processing] GIF detected, bypassing Sharp for ${imageUrl}.`
-      );
     } else {
       try {
         finalBuffer = await sharp(inputBuffer)
-          .resize(1200, 630, {
-            fit: "inside", // Changed from "cover" to "inside" to prevent cropping
-            withoutEnlargement: true, // Prevents upscaling
-          })
+          .resize(1200, 630, { fit: "inside", withoutEnlargement: true })
           .webp({ quality: 80 })
           .toBuffer();
         finalContentType = "image/webp";
         fileExtension = ".webp";
-        console.log(
-          `[Image Processing] Resized and converted original image to WebP (fit:inside) for ${imageUrl}.`
-        );
       } catch (sharpError: any) {
-        // Fallback if Sharp processing fails for non-GIFs (e.g., corrupted image, unsupported format)
-        console.error(
-          `[Image Processing] Sharp processing failed for image ${imageUrl} (non-GIF):`,
-          sharpError.message
-        );
-        finalBuffer = inputBuffer; // Use original buffer as fallback
-        finalContentType = originalContentType; // Keep original content type
-        fileExtension = path.extname(new URL(imageUrl).pathname) || ".jpg"; // Try to get original extension or default
-        console.warn(
-          `[Image Processing] Using original image buffer as fallback (without sharp processing) for ${imageUrl}.`
-        );
+        finalBuffer = inputBuffer;
+        finalContentType = originalContentType;
+        fileExtension = path.extname(new URL(imageUrl).pathname) || ".jpg";
       }
     }
-
     const slug = slugify(newPostTitle, {
       lower: true,
       strict: true,
@@ -113,21 +75,14 @@ async function proxyAndUploadOriginalImage(
     });
     const uniqueSuffix = Date.now().toString().slice(-6);
     const newFileName = `fanskor-${slug}-${uniqueSuffix}${fileExtension}`;
-
     const putObjectCommand = new PutObjectCommand({
       Bucket: R2_BUCKET_NAME,
       Key: newFileName,
       Body: finalBuffer,
       ContentType: finalContentType,
     });
-
     await s3Client.send(putObjectCommand);
-    const r2Url = `${R2_PUBLIC_URL}/${newFileName}`;
-    console.log(
-      `[Image Processing] Original image successfully uploaded to R2: ${r2Url}`
-    );
-
-    return r2Url;
+    return `${R2_PUBLIC_URL}/${newFileName}`;
   } catch (imageError: any) {
     console.error(
       `[Image Processing] Failed to process/upload original image (URL: ${imageUrl}):`,
@@ -136,18 +91,20 @@ async function proxyAndUploadOriginalImage(
     return null;
   }
 }
-
-// --- Initialize Google Generative AI (unchanged) ---
 const genAI = new GoogleGenerativeAI(
   process.env.NEXT_PUBLIC_GEMINI_API_KEY as string
 );
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
-
-// Fixed names for the AI prompts (unchanged)
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 const TITLE_PROMPT_NAME = "AI Title Generation";
 const CONTENT_PROMPT_NAME = "AI Content Generation";
+interface IAIPrompt {
+  _id: string;
+  name: string;
+  prompt: string;
+  description?: string;
+  type: "title" | "content" | "prediction_content";
+}
 
-// --- Helper Functions (calculateJaccardSimilarity, fetchAndExtractWebpageContent, generateTitle, generateContent) (unchanged) ---
 function calculateJaccardSimilarity(str1: string, str2: string): number {
   const words1 = new Set(str1.toLowerCase().split(/\s+/).filter(Boolean));
   const words2 = new Set(str2.toLowerCase().split(/\s+/).filter(Boolean));
@@ -157,7 +114,6 @@ function calculateJaccardSimilarity(str1: string, str2: string): number {
   const union = new Set([...words1, ...words2]);
   return intersection.size / union.size;
 }
-
 async function fetchAndExtractWebpageContent(
   url: string
 ): Promise<string | null> {
@@ -173,6 +129,7 @@ async function fetchAndExtractWebpageContent(
     if (response.status !== 200) {
       return null;
     }
+    const cheerio = require("cheerio");
     const $ = cheerio.load(response.data);
     const contentSelectors = [
       "article",
@@ -210,7 +167,6 @@ async function fetchAndExtractWebpageContent(
     return null;
   }
 }
-
 async function generateTitle(
   originalTitle: string,
   originalDescription: string,
@@ -221,10 +177,7 @@ async function generateTitle(
     type: "title",
   });
   const defaultTitlePrompt =
-    "YOUR ONLY TASK IS TO GENERATE A NEWS ARTICLE TITLE. Output MUST be plain text only, on a single line. NO HTML, NO Markdown. NO preambles. NO prefixes like 'Title: '.\n\n" +
-    "You are an expert sports journalist. Generate a **new, original, SEO-friendly title** for a news article based on the following original title and description. The new title MUST be highly distinct from the original, capture a fresh angle, and avoid simply rephrasing original keywords.\n\n" +
-    "Original Title: {original_title}\nOriginal Description: {original_description}\n\n" +
-    "Generated Title:";
+    "YOUR ONLY TASK IS TO GENERATE A NEWS ARTICLE TITLE IN TURKISH. Output MUST be plain text only, on a single line. NO HTML, NO Markdown. NO preambles. NO prefixes like 'Title: '.\\n\\nYou are an expert sports journalist. Generate a **new, original, SEO-friendly title in TURKISH** for a news article based on the following original title and description. The new title MUST be highly distinct from the original, capture a fresh angle, and avoid simply rephrasing original keywords.\\n\\nOriginal Title: {original_title}\\nOriginal Description: {original_description}\\n\\nGenerated Title:";
   let finalTitlePrompt = titlePromptDoc?.prompt || defaultTitlePrompt;
   let journalistTonePrompt = "";
   if (journalistId) {
@@ -237,17 +190,14 @@ async function generateTitle(
     .replace("{original_title}", originalTitle)
     .replace("{original_description}", originalDescription);
   let aiResponseText: string = "";
-  const MAX_RETRIES = 3,
-    RETRY_DELAY_MS = 2000,
-    AI_CALL_TIMEOUT_MS = 20000;
-  for (let i = 0; i < MAX_RETRIES; i++) {
+  for (let i = 0; i < 3; i++) {
     try {
       const result: any = await Promise.race([
         model.generateContent(fullPrompt),
         new Promise((_, reject) =>
           setTimeout(
             () => reject(new Error("AI title generation timed out.")),
-            AI_CALL_TIMEOUT_MS
+            20000
           )
         ),
       ]);
@@ -255,21 +205,22 @@ async function generateTitle(
       break;
     } catch (aiError: any) {
       if (
-        i < MAX_RETRIES - 1 &&
+        i < 2 &&
         (aiError.message.includes("timed out.") ||
           aiError.status === 429 ||
           (aiError.status >= 500 && aiError.status < 600))
       ) {
-        await new Promise((res) => setTimeout(res, RETRY_DELAY_MS));
+        await new Promise((res) => setTimeout(res, 2000));
       } else {
         throw new Error(
-          `AI title generation failed after ${MAX_RETRIES} retries: ${aiError.message}`
+          `AI title generation failed after 3 retries: ${aiError.message}`
         );
       }
     }
   }
-  if (!aiResponseText)
+  if (!aiResponseText) {
     throw new Error("AI title generation failed to produce a response.");
+  }
   let generatedTitle = aiResponseText
     .trim()
     .replace(/^```(?:html|text|json)?\n?|```$/g, "")
@@ -293,14 +244,16 @@ async function generateTitle(
     .replace(/<[^>]*>?/gm, "")
     .replace(/[\*_`#\[\]\n]/g, "")
     .trim();
+  const originalTitleLower = originalTitle.toLowerCase();
+  const generatedTitleLower = generatedTitle.toLowerCase();
   const jaccardSimilarity = calculateJaccardSimilarity(
-    originalTitle.toLowerCase(),
-    generatedTitle.toLowerCase()
+    originalTitleLower,
+    generatedTitleLower
   );
   if (
     generatedTitle.length < 10 ||
     jaccardSimilarity > 0.4 ||
-    generatedTitle.toLowerCase() === originalTitle.toLowerCase()
+    generatedTitleLower === originalTitleLower
   ) {
     throw new Error(
       `Generated title failed strict validation (too short, not unique, or too similar).`
@@ -308,7 +261,6 @@ async function generateTitle(
   }
   return generatedTitle;
 }
-
 async function generateContent(
   originalTitle: string,
   originalDescription: string,
@@ -322,15 +274,7 @@ async function generateContent(
     type: "content",
   });
   const defaultContentPrompt =
-    "Your ONLY TASK IS TO GENERATE A NEWS ARTICLE CONTENT in HTML. NO Markdown, NO preambles, NO extra text, NO code block wrappers (```html). DO NOT INCLUDE `<!DOCTYPE html>`, `<html>`, `<head>`, `<body>`, `<h1>`, or any other full document tags. \n\n" +
-    "You are an expert sports journalist. Analyze the following news title, description, and provided context. Your goal is to generate a comprehensive, human-like, SEO-optimized HTML article, approximately 700 words long. Focus on deep insights, storytelling, and compelling analysis.\n\n" +
-    "**GUIDELINES:**\n" +
-    "1.  **HTML CONTENT:** Provide valid HTML. Use `<h2>` for main headings (optimized for keywords), `<p>` for paragraphs, `<strong>`, `<em>`, `<ul>`, `<li>`, `<a>`. Ensure natural flow, rich detail, and human tone. Integrate relevant keywords naturally throughout the article for SEO, but avoid stuffing.\n\n" +
-    "**HTML Example Structure:**\n" +
-    "<h2>Introduction Heading</h2><p>This is the engaging introduction paragraph...</p>\n" +
-    "<h2>Key Developments</h2><p>Here's a detailed paragraph...</p><ul><li>...</li></ul><p>...</p><h2>Conclusion</h2><p>The concluding paragraph summarizes...</p>\n\n" +
-    "**IMPORTANT:** If the provided content is too short or lacks sufficient detail for a 700-word SEO-optimized expansion, respond ONLY with 'CONTENT INSUFFICIENT FOR EXPANSION: [brief reason]'. No other text.\n\n" +
-    "Generated Article Title: {generated_title}\nOriginal News Title: {original_title}\nOriginal News Description: {original_description}\nAdditional Context: {additional_context}";
+    "Your ONLY task is to generate a news article content in TURKISH HTML. NO Markdown, NO preambles, NO extra text, NO code block wrappers (```html). DO NOT INCLUDE `<!DOCTYPE html>`, `<html>`, `<head>`, `<body>`, `<h1>`, or any other full document tags. \\n\\nYou are an expert sports journalist. Analyze the following news title, description, and provided context. Your goal is to generate a comprehensive, human-like, SEO-optimized HTML article, approximately 700 words long. Focus on deep insights, storytelling, and compelling analysis.\\n\\n**GUIDELINES:**\\n1.  **HTML CONTENT:** Provide valid HTML. Use `<h2>` for main headings (optimized for keywords), `<p>` for paragraphs, `<strong>`, `<em>`, `<ul>`, `<li>`, `<a>`. Ensure natural flow, rich detail, and human tone. Integrate relevant keywords naturally throughout the article for SEO, but avoid stuffing.\\n\\n**HTML Example Structure:**\\n<h2>Giriş Başlığı</h2><p>Bu, makale içeriğinin zeminini hazırlayan etkileyici giriş paragrafıdır...</p>\\n<h2>Ana Gelişmeler</h2><p>İşte belirli bir yönüyle ilgili detaylı bir paragraf...</p><ul><li>...</li></ul><p>...</p><h2>Sonuç</h2><p>Sonuç paragrafı, makalenin ana noktalarını özetler ve ileriye dönük etkileyici bir bakış açısı sunar.</p>\\n\\n**ÖNEMLİ:** Sağlanan içerik 700 kelimelik SEO optimize edilmiş bir genişletme için çok kısaysa veya yeterli ayrıntıdan yoksunsa, SADECE 'GENİŞLETME İÇİN İÇERİK YETERSİZ: [kısa neden]' yanıtını verin. Başka hiçbir metin kullanmayın.\\n\\nGenerated Article Title: {generated_title}\\nOriginal News Title: {original_title}\\nOriginal News Description: {original_description}\\nAdditional Context: {additional_context}";
   let finalContentPrompt = contentPromptDoc?.prompt || defaultContentPrompt;
   let journalistTonePrompt = "";
   if (journalistId) {
@@ -340,34 +284,26 @@ async function generateContent(
     }
   }
   let combinedArticleContext = "";
-  const MIN_TOTAL_CONTEXT_FOR_GENERATION = 100;
-  if (originalTitle) combinedArticleContext += `Title: ${originalTitle}\n`;
+  if (originalTitle) combinedArticleContext += `Title: ${originalTitle}\\n`;
   if (originalDescription)
-    combinedArticleContext += `Description: ${originalDescription}\n`;
+    combinedArticleContext += `Description: ${originalDescription}\\n`;
   if (originalContent && originalContent.length > 50) {
-    combinedArticleContext += `\nFull Content: ${originalContent}\n`;
+    combinedArticleContext += `\\nFull Content: ${originalContent}\\n`;
   }
-  if (
-    articleLink &&
-    combinedArticleContext.length < MIN_TOTAL_CONTEXT_FOR_GENERATION
-  ) {
+  if (articleLink && combinedArticleContext.length < 100) {
     const fetchedWebContent = await fetchAndExtractWebpageContent(articleLink);
     if (fetchedWebContent && fetchedWebContent.length > 50) {
-      combinedArticleContext += `\nWebpage Context: ${fetchedWebContent}\n`;
+      combinedArticleContext += `\\nWebpage Context: ${fetchedWebContent}\\n`;
     }
   }
-  if (
-    !combinedArticleContext ||
-    combinedArticleContext.length < MIN_TOTAL_CONTEXT_FOR_GENERATION
-  ) {
+  if (!combinedArticleContext || combinedArticleContext.length < 100) {
     throw new Error(
       "Article content (title, description, or external content) too short or missing to generate content."
     );
   }
-  const MAX_CONTENT_LENGTH_TO_SEND = 8000;
-  if (combinedArticleContext.length > MAX_CONTENT_LENGTH_TO_SEND) {
+  if (combinedArticleContext.length > 8000) {
     combinedArticleContext =
-      combinedArticleContext.substring(0, MAX_CONTENT_LENGTH_TO_SEND) +
+      combinedArticleContext.substring(0, 8000) +
       "... (truncated for AI processing)";
   }
   const fullPrompt = `${journalistTonePrompt}${finalContentPrompt}`
@@ -376,17 +312,14 @@ async function generateContent(
     .replace("{original_description}", originalDescription)
     .replace("{additional_context}", combinedArticleContext);
   let aiResponseText: string = "";
-  const MAX_RETRIES = 3,
-    RETRY_DELAY_MS = 3000,
-    AI_CALL_TIMEOUT_MS = 90000;
-  for (let i = 0; i < MAX_RETRIES; i++) {
+  for (let i = 0; i < 3; i++) {
     try {
       const result: any = await Promise.race([
         model.generateContent(fullPrompt),
         new Promise((_, reject) =>
           setTimeout(
             () => reject(new Error("AI content generation timed out.")),
-            AI_CALL_TIMEOUT_MS
+            90000
           )
         ),
       ]);
@@ -394,21 +327,22 @@ async function generateContent(
       break;
     } catch (aiError: any) {
       if (
-        i < MAX_RETRIES - 1 &&
+        i < 2 &&
         (aiError.message.includes("timed out.") ||
           aiError.status === 429 ||
           (aiError.status >= 500 && aiError.status < 600))
       ) {
-        await new Promise((res) => setTimeout(res, RETRY_DELAY_MS));
+        await new Promise((res) => setTimeout(res, 3000));
       } else {
         throw new Error(
-          `AI content generation failed after ${MAX_RETRIES} retries: ${aiError.message}`
+          `AI content generation failed after 3 retries: ${aiError.message}`
         );
       }
     }
   }
-  if (!aiResponseText)
+  if (!aiResponseText) {
     throw new Error("AI content generation failed to produce a response.");
+  }
   let generatedContent = aiResponseText
     .trim()
     .replace(/^```(?:html|text|json)?\n?|```$/g, "")
@@ -440,6 +374,8 @@ async function generateContent(
   ) {
     throw new Error("AI determined content insufficient for expansion.");
   }
+  const MarkdownIt = require("markdown-it");
+  const md = new MarkdownIt({ html: true, linkify: true, typographer: true });
   let finalContent = md.render(generatedContent);
   const hasHtmlTags = /<[a-z][\s\S]*>/i.test(finalContent);
   const hasMarkdownChars = /[*_`#\[\]]/.test(finalContent);
@@ -456,7 +392,7 @@ async function generateContent(
   return finalContent;
 }
 
-// POST handler to orchestrate the AI processing pipeline (unchanged)
+// POST handler to orchestrate the AI processing pipeline
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") {
@@ -471,7 +407,7 @@ export async function POST(request: Request) {
   try {
     const {
       articleId,
-      sportCategory,
+      sportCategory, // This is the single category passed from the UI
       journalistId,
     }: { articleId: string; sportCategory?: string; journalistId?: string } =
       await request.json();
@@ -487,28 +423,18 @@ export async function POST(request: Request) {
     externalArticle = await ExternalNewsArticle.findOne({ articleId });
 
     if (!externalArticle) {
-      console.error(
-        `[Process Article Orchestrator] External news article not found: ${articleId}`
-      );
       return NextResponse.json(
         { error: "External news article not found." },
         { status: 404 }
       );
     }
-
     if (externalArticle.status === "processed") {
-      console.log(
-        `[Process Article Orchestrator] Article ${articleId} already processed. Skipping.`
-      );
       return NextResponse.json(
         { message: "Article already processed." },
         { status: 200 }
       );
     }
     if (externalArticle.status === "processing") {
-      console.warn(
-        `[Process Article Orchestrator] Article ${articleId} is already in 'processing' state. Aborting duplicate request.`
-      );
       return NextResponse.json(
         { error: "Article is already being processed. Please wait." },
         { status: 409 }
@@ -517,11 +443,7 @@ export async function POST(request: Request) {
 
     externalArticle.status = "processing";
     await externalArticle.save();
-    console.log(
-      `[Process Article Orchestrator] Starting processing for article: ${externalArticle.articleId}, current status updated to 'processing'.`
-    );
 
-    // --- Fetch Journalist Name (for author field later) ---
     if (journalistId) {
       const journalist = await AIJournalist.findById(journalistId);
       if (journalist && journalist.isActive) {
@@ -529,113 +451,69 @@ export async function POST(request: Request) {
       }
     }
 
-    // 1. Generate Title via dedicated function call
-    let newPostTitle: string = "";
-    try {
-      console.log(
-        `[Orchestrator] Calling local generateTitle function for article ${externalArticle.articleId}...`
-      );
-      newPostTitle = await generateTitle(
-        externalArticle.title,
-        externalArticle.description || "",
-        journalistId
-      );
-      console.log(
-        `[Orchestrator] Successfully generated title: "${newPostTitle}"`
-      );
-      if (!newPostTitle)
-        throw new Error("AI Title Generation returned no title.");
-    } catch (titleError: any) {
-      console.error(
-        `[Orchestrator] Title generation failed for article ${externalArticle.articleId}:`,
-        titleError.message
-      );
-      throw new Error(`Title generation failed: ${titleError.message}`);
-    }
+    const newPostTitle = await generateTitle(
+      externalArticle.title,
+      externalArticle.description || "",
+      journalistId
+    );
+    const rewrittenContent = await generateContent(
+      externalArticle.title,
+      externalArticle.description || "",
+      externalArticle.content,
+      externalArticle.link,
+      newPostTitle,
+      journalistId
+    );
 
-    // 2. Generate Content via dedicated function call
-    let rewrittenContent: string = "";
-    try {
-      console.log(
-        `[Orchestrator] Calling local generateContent function for article ${externalArticle.articleId}...`
-      );
-      rewrittenContent = await generateContent(
-        externalArticle.title,
-        externalArticle.description || "",
-        externalArticle.content,
-        externalArticle.link,
-        newPostTitle,
-        journalistId
-      );
-      console.log(
-        `[Orchestrator] Successfully generated content. Length: ${rewrittenContent.length}`
-      );
-      if (!rewrittenContent)
-        throw new Error("AI Content Generation returned no content.");
-    } catch (contentError: any) {
-      console.error(
-        `[Orchestrator] Content generation failed for article ${externalArticle.articleId}:`,
-        contentError.message
-      );
-      throw new Error(`Content generation failed: ${contentError.message}`);
-    }
-
-    // 3. Process/Generate Featured Image (Existing logic)
     let featuredImageUrl: string | null = null;
-    let featuredImageTitle: string | undefined = undefined;
-    let featuredImageAltText: string | undefined = undefined;
-
-    // Fallback: Use the original external article's image and proxy it to R2.
     if (externalArticle.imageUrl) {
-      try {
-        console.log(
-          `[Orchestrator] Proxying original image for article ${externalArticle.articleId}...`
-        );
-        featuredImageUrl = await proxyAndUploadOriginalImage(
-          externalArticle.imageUrl,
-          newPostTitle
-        );
-        if (featuredImageUrl) {
-          console.log(
-            `[Orchestrator] Original image proxied successfully: ${featuredImageUrl}`
-          );
-        } else {
-          console.warn(
-            `[Orchestrator] Failed to proxy original image for article ${externalArticle.articleId}. No featured image will be set.`
-          );
-        }
-      } catch (proxyError: any) {
-        console.error(
-          `[Orchestrator] Error proxying original image for article ${externalArticle.articleId}:`,
-          proxyError.message
-        );
-      }
-    } else {
-      console.log(
-        `[Orchestrator] No image URL found in external article ${externalArticle.articleId}. Skipping image processing.`
+      featuredImageUrl = await proxyAndUploadOriginalImage(
+        externalArticle.imageUrl,
+        newPostTitle
       );
     }
+    const featuredImageTitle = newPostTitle;
+    const featuredImageAltText = `${newPostTitle} image`;
 
-    featuredImageTitle = newPostTitle;
-    featuredImageAltText = `${newPostTitle} image`;
-
-    // 4. Save the rewritten article as a new Post
     const postSlug = slugify(newPostTitle, {
       lower: true,
       strict: true,
       remove: /[*+~.()'"!:@]/g,
     });
-
     const existingPostWithSlug = await Post.findOne({ slug: postSlug });
     let finalSlug = postSlug;
     if (existingPostWithSlug) {
       finalSlug = `${postSlug}-${Date.now().toString().slice(-5)}`;
-      console.warn(
-        `[Orchestrator - Post Save] Post with slug '${postSlug}' already exists, new slug: '${finalSlug}'`
-      );
     }
 
     const plainTextContent = rewrittenContent.replace(/<[^>]*>?/gm, "");
+
+    // --- MODIFIED: Create categories array ---
+    // Start with the category passed from the UI (e.g., 'football').
+    // Then, add the category from the external source if it exists and is valid.
+    const categories: PostCategory[] = [];
+    if (
+      sportCategory &&
+      ["football", "basketball", "tennis", "general"].includes(sportCategory)
+    ) {
+      categories.push(sportCategory as PostCategory);
+    }
+
+    const sourceCategory = externalArticle.category?.[0];
+    if (
+      sourceCategory &&
+      ["football", "basketball", "tennis", "general"].includes(
+        sourceCategory
+      ) &&
+      !categories.includes(sourceCategory as PostCategory)
+    ) {
+      categories.push(sourceCategory as PostCategory);
+    }
+
+    // If no valid category was found, default to 'general'.
+    if (categories.length === 0) {
+      categories.push("general");
+    }
 
     const newPost = new Post({
       title: newPostTitle,
@@ -646,30 +524,19 @@ export async function POST(request: Request) {
       featuredImage: featuredImageUrl,
       featuredImageTitle: featuredImageTitle,
       featuredImageAltText: featuredImageAltText,
-      sport: sportCategory || externalArticle.category?.[0] || "general",
+      // --- MODIFIED: Assign the new categories array ---
+      sport: categories,
       metaTitle: `${newPostTitle} - Sports News`,
       metaDescription: plainTextContent.substring(0, 150) + "...",
       isAIGenerated: true,
       originalExternalArticleId: externalArticle._id,
     });
 
-    console.log(
-      `[Orchestrator - Post Save] Attempting to save new Post with title: "${
-        newPost.title
-      }", slug: "${newPost.slug}", image: ${!!newPost.featuredImage}`
-    );
     await newPost.save();
-    console.log(
-      `[Orchestrator - Post Save] Post saved successfully. New Post ID: ${newPost._id}`
-    );
 
-    // 5. Final Status Update and Success Response
     externalArticle.status = "processed";
     externalArticle.processedPostId = newPost._id;
     await externalArticle.save();
-    console.log(
-      `[Orchestrator - Status Update] ExternalNewsArticle ${externalArticle.articleId} status updated to 'processed'.`
-    );
 
     return NextResponse.json(
       {
@@ -680,14 +547,12 @@ export async function POST(request: Request) {
       { status: 201 }
     );
   } catch (error: any) {
-    // --- Centralized Error Handling and Status Update ---
+    // --- Centralized Error Handling (Unchanged) ---
     let errorMessage = "Server error processing external news.";
     let clientStatus = 500;
-
-    const isCustomError = error instanceof Error;
     let finalArticleStatus: "skipped" | "error" = "error";
 
-    if (isCustomError) {
+    if (error instanceof Error) {
       errorMessage = error.message;
       if (errorMessage.includes("AI determined content insufficient")) {
         clientStatus = 200;
@@ -713,12 +578,6 @@ export async function POST(request: Request) {
         errorMessage =
           "Gemini API Quota Exceeded. Please check your usage in Google AI Studio.";
         clientStatus = 429;
-      } else if (
-        errorMessage.includes("not found") ||
-        errorMessage.includes("Network Error") ||
-        errorMessage.includes("Failed to fetch content")
-      ) {
-        clientStatus = 404;
       } else if (axios.isAxiosError(error) && error.response) {
         errorMessage = `External API error: ${
           error.response.data?.error ||
@@ -726,51 +585,12 @@ export async function POST(request: Request) {
           error.message
         }`;
         clientStatus = error.response.status || 500;
-      } else if (
-        error.message.includes("MongooseError") ||
-        error.message.includes("MongoNetworkError")
-      ) {
-        errorMessage = `Database error: ${error.message}`;
-        clientStatus = 500;
       }
-    } else {
-      errorMessage = `An unexpected error occurred: ${JSON.stringify(error)}`;
     }
 
-    console.error(
-      `[Process Article Orchestrator] Critical error processing external news article ${
-        externalArticle?.articleId || "unknown"
-      }: ${errorMessage}`,
-      "\nFull Error Object:",
-      error
-    );
-
     if (externalArticle && externalArticle.status === "processing") {
-      console.error(
-        `[Process Article Orchestrator] Marking external article ${externalArticle.articleId} as '${finalArticleStatus}' due to critical failure.`
-      );
       externalArticle.status = finalArticleStatus;
-      try {
-        await externalArticle.save();
-      } catch (dbSaveError) {
-        console.error(
-          `[Process Article Orchestrator] Failed to save final external article status to '${finalArticleStatus}':`,
-          dbSaveError
-        );
-      }
-    } else if (externalArticle && externalArticle.status !== "processed") {
-      console.error(
-        `[Process Article Orchestrator] Marking external article ${externalArticle.articleId} as 'error' due to unhandled failure (status was ${externalArticle.status}).`
-      );
-      externalArticle.status = "error";
-      try {
-        await externalArticle.save();
-      } catch (dbSaveError) {
-        console.error(
-          `[Orchestrator] Failed to save external article status to 'error':`,
-          dbSaveError
-        );
-      }
+      await externalArticle.save();
     }
 
     return NextResponse.json({ error: errorMessage }, { status: clientStatus });

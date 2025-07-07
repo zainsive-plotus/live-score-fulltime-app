@@ -1,4 +1,4 @@
-// ===== src\app\api\admin\process-external-news\route.ts =====
+// src/app/api/admin/process-external-news/route.ts
 // This file now orchestrates the entire AI news generation process directly.
 
 import { NextResponse } from "next/server";
@@ -13,14 +13,13 @@ import AIPrompt from "@/models/AIPrompt";
 import AIJournalist from "@/models/AIJournalist";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import axios from "axios";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import sharp from "sharp";
 import crypto from "crypto";
 import slugify from "slugify";
 import * as cheerio from "cheerio";
 import MarkdownIt from "markdown-it";
-// NEW IMPORTS FOR LOCAL FILESYSTEM
 import path from "path";
-import { promises as fs } from "fs";
 
 // Initialize markdown-it for HTML conversion
 const md = new MarkdownIt({
@@ -29,33 +28,23 @@ const md = new MarkdownIt({
   typographer: true,
 });
 
-// --- NEW LOCAL FILESYSTEM DEFINITIONS ---
-const UPLOAD_DIR = path.join(process.cwd(), "public/uploads");
-const ensureUploadDirExists = async () => {
-  try {
-    await fs.mkdir(UPLOAD_DIR, { recursive: true });
-  } catch (e) {
-    console.error(
-      "Critical: Could not create upload directory for news engine.",
-      e
-    );
-    throw new Error(
-      "Server configuration error: cannot create storage directory."
-    );
-  }
-};
+// --- R2/S3 Client Configuration ---
+const s3Client = new S3Client({
+  region: "auto", // R2's region is 'auto'
+  endpoint: process.env.NEXT_PUBLIC_R2_ENDPOINT as string,
+  credentials: {
+    accessKeyId: process.env.NEXT_PUBLIC_R2_ACCESS_KEY_ID as string,
+    secretAccessKey: process.env.NEXT_PUBLIC_R2_SECRET_ACCESS_KEY as string,
+  },
+});
+
+const R2_BUCKET_NAME = process.env.NEXT_PUBLIC_R2_BUCKET_NAME as string;
+const R2_PUBLIC_URL = process.env.NEXT_PUBLIC_R2_PUBLIC_BUCKET_URL as string;
 
 const generateFileName = (bytes = 32) =>
   crypto.randomBytes(bytes).toString("hex");
 
-// --- REWRITTEN: proxyAndUploadOriginalImage function ---
-/**
- * Generates an image by proxying the original external article's image and saving it locally.
- * This is a standalone helper that can be called if AI image generation is not enabled or fails.
- * @param imageUrl The URL of the image to proxy.
- * @param newPostTitle The title of the new post for alt/title text.
- * @returns The local public URL of the processed image, or null if failed.
- */
+// --- REWRITTEN: proxyAndUploadOriginalImage function for R2 (UNCHANGED) ---
 async function proxyAndUploadOriginalImage(
   imageUrl: string,
   newPostTitle: string
@@ -73,19 +62,18 @@ async function proxyAndUploadOriginalImage(
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
       },
     });
-    console.log(
-      `[Image Processing] Original image download successful for ${imageUrl}. Size: ${imageResponse.data.length} bytes. Content-Type: ${imageResponse.headers["content-type"]}`
-    );
 
     const inputBuffer = Buffer.from(imageResponse.data, "binary");
     const originalContentType =
       imageResponse.headers["content-type"] || "image/jpeg";
 
     let finalBuffer: Buffer;
-    let fileExtension = ".webp"; // Default to webp after sharp processing
+    let finalContentType: string = originalContentType;
+    let fileExtension: string; // Will be set based on processing
 
     if (originalContentType.includes("image/gif")) {
       finalBuffer = inputBuffer;
+      finalContentType = "image/gif";
       fileExtension = ".gif";
       console.log(
         `[Image Processing] GIF detected, bypassing Sharp for ${imageUrl}.`
@@ -93,95 +81,97 @@ async function proxyAndUploadOriginalImage(
     } else {
       try {
         finalBuffer = await sharp(inputBuffer)
-          .resize(1200, 630, { fit: "cover" })
+          .resize(1200, 630, {
+            fit: "inside", // Changed from "cover" to "inside" to prevent cropping
+            withoutEnlargement: true, // Prevents upscaling
+          })
           .webp({ quality: 80 })
           .toBuffer();
+        finalContentType = "image/webp";
+        fileExtension = ".webp";
         console.log(
-          `[Image Processing] Resized and converted original image to WebP for ${imageUrl}.`
+          `[Image Processing] Resized and converted original image to WebP (fit:inside) for ${imageUrl}.`
         );
       } catch (sharpError: any) {
+        // Fallback if Sharp processing fails for non-GIFs (e.g., corrupted image, unsupported format)
         console.error(
-          `[Image Processing] Sharp processing failed for original image ${imageUrl}:`,
+          `[Image Processing] Sharp processing failed for image ${imageUrl} (non-GIF):`,
           sharpError.message
         );
-        finalBuffer = inputBuffer; // Fallback to original buffer
-        fileExtension = path.extname(new URL(imageUrl).pathname) || ".jpg"; // Fallback extension
+        finalBuffer = inputBuffer; // Use original buffer as fallback
+        finalContentType = originalContentType; // Keep original content type
+        fileExtension = path.extname(new URL(imageUrl).pathname) || ".jpg"; // Try to get original extension or default
         console.warn(
           `[Image Processing] Using original image buffer as fallback (without sharp processing) for ${imageUrl}.`
         );
       }
     }
 
-    const newFileName = generateFileName() + fileExtension;
+    const slug = slugify(newPostTitle, {
+      lower: true,
+      strict: true,
+      remove: /[*+~.()'"!:@]/g,
+    });
+    const uniqueSuffix = Date.now().toString().slice(-6);
+    const newFileName = `fanskor-${slug}-${uniqueSuffix}${fileExtension}`;
 
-    // Save to local filesystem
-    const filePath = path.join(UPLOAD_DIR, newFileName);
-    await ensureUploadDirExists();
-    await fs.writeFile(filePath, finalBuffer);
+    const putObjectCommand = new PutObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: newFileName,
+      Body: finalBuffer,
+      ContentType: finalContentType,
+    });
 
-    // Return the public relative URL
-    const localUrl = `/uploads/${newFileName}`;
+    await s3Client.send(putObjectCommand);
+    const r2Url = `${R2_PUBLIC_URL}/${newFileName}`;
     console.log(
-      `[Image Processing] Original image successfully saved locally: ${localUrl}`
+      `[Image Processing] Original image successfully uploaded to R2: ${r2Url}`
     );
-    return localUrl;
+
+    return r2Url;
   } catch (imageError: any) {
     console.error(
       `[Image Processing] Failed to process/upload original image (URL: ${imageUrl}):`,
       imageError.message
     );
-    if (axios.isAxiosError(imageError) && imageError.response) {
-      console.error(
-        `[Image Processing] Axios HTTP Error - Status: ${imageError.response.status}, Data:`,
-        imageError.response.data
-      );
-    }
     return null;
   }
 }
 
-// --- Initialize Google Generative AI ---
-// IMPORTANT: Ensure GEMINI_API_KEY is correctly set in .env.local (no NEXT_PUBLIC_ prefix for server-side)
+// --- Initialize Google Generative AI (UNCHANGED) ---
 const genAI = new GoogleGenerativeAI(
   process.env.NEXT_PUBLIC_GEMINI_API_KEY as string
-); // Assuming GEMINI_API_KEY is server-side only
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+);
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" }); // Changed back to flash for general news
 
-// Fixed names for the AI prompts (must match names used in AIPrompt DB)
+// Fixed names for the AI prompts (UNCHANGED)
 const TITLE_PROMPT_NAME = "AI Title Generation";
 const CONTENT_PROMPT_NAME = "AI Content Generation";
 
-/**
- * Helper for Jaccard Similarity.
- * Used for title uniqueness validation.
- * @param str1 First string.
- * @param str2 Second string.
- * @returns Jaccard similarity score (0.0 to 1.0).
- */
+// --- AI Prompt Interface (UNCHANGED) ---
+interface IAIPrompt {
+  _id: string;
+  name: string;
+  prompt: string;
+  description?: string;
+  type: "title" | "content" | "prediction_content";
+}
+
+// --- Helper Functions (calculateJaccardSimilarity, fetchAndExtractWebpageContent) (UNCHANGED) ---
 function calculateJaccardSimilarity(str1: string, str2: string): number {
   const words1 = new Set(str1.toLowerCase().split(/\s+/).filter(Boolean));
   const words2 = new Set(str2.toLowerCase().split(/\s+/).filter(Boolean));
-
   if (words1.size === 0 && words2.size === 0) return 1.0;
   if (words1.size === 0 || words2.size === 0) return 0.0;
-
   const intersection = new Set([...words1].filter((word) => words2.has(word)));
   const union = new Set([...words1, ...words2]);
   return intersection.size / union.size;
 }
 
-/**
- * Fetches content from a given URL and attempts to extract main article text.
- * @param url The URL to fetch.
- * @returns Extracted text content or null if failed.
- */
 async function fetchAndExtractWebpageContent(
   url: string
 ): Promise<string | null> {
   try {
-    console.log(
-      `[Content Extraction Helper] Attempting to fetch content from: ${url}`
-    );
     const response = await axios.get(url, {
       timeout: 10000,
       maxRedirects: 5,
@@ -190,16 +180,10 @@ async function fetchAndExtractWebpageContent(
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
       },
     });
-
     if (response.status !== 200) {
-      console.warn(
-        `[Content Extraction Helper] Failed to fetch content from ${url}: Status ${response.status}`
-      );
       return null;
     }
-
     const $ = cheerio.load(response.data);
-
     const contentSelectors = [
       "article",
       "main",
@@ -213,7 +197,6 @@ async function fetchAndExtractWebpageContent(
       "#content",
       "p",
     ];
-
     let extractedText = "";
     for (const selector of contentSelectors) {
       const element = $(selector);
@@ -224,20 +207,10 @@ async function fetchAndExtractWebpageContent(
           )
           .remove();
         extractedText = element.text();
-        if (extractedText.length > 200) {
-          console.log(
-            `[Content Extraction Helper] Found substantial content using selector: ${selector}`
-          );
-          break;
-        }
+        if (extractedText.length > 200) break;
       }
     }
-
     extractedText = extractedText.replace(/\s\s+/g, " ").trim();
-    console.log(
-      `[Content Extraction Helper] Extracted text length: ${extractedText.length}`
-    );
-
     return extractedText.length > 0 ? extractedText : null;
   } catch (error: any) {
     console.error(
@@ -263,7 +236,7 @@ async function generateTitle(
 ): Promise<string> {
   const titlePromptDoc = await AIPrompt.findOne({
     name: TITLE_PROMPT_NAME,
-    type: "title",
+    type: "title", // <-- IMPORTANT: Query by type
   });
   if (!titlePromptDoc) {
     console.warn(
@@ -271,9 +244,10 @@ async function generateTitle(
     );
   }
 
+  // --- MODIFIED: Added Turkish language instruction ---
   const defaultTitlePrompt =
-    "YOUR ONLY TASK IS TO GENERATE A NEWS ARTICLE TITLE. Output MUST be plain text only, on a single line. NO HTML, NO Markdown. NO preambles. NO prefixes like 'Title: '.\n\n" +
-    "You are an expert sports journalist. Generate a **new, original, SEO-friendly title** for a news article based on the following original title and description. The new title MUST be highly distinct from the original, capture a fresh angle, and avoid simply rephrasing original keywords.\n\n" +
+    "YOUR ONLY TASK IS TO GENERATE A NEWS ARTICLE TITLE IN TURKISH. Output MUST be plain text only, on a single line. NO HTML, NO Markdown. NO preambles. NO prefixes like 'Title: '.\n\n" +
+    "You are an expert sports journalist. Generate a **new, original, SEO-friendly title in TURKISH** for a news article based on the following original title and description. The new title MUST be highly distinct from the original, capture a fresh angle, and avoid simply rephrasing original keywords.\n\n" +
     "Original Title: {original_title}\nOriginal Description: {original_description}\n\n" +
     "Generated Title:";
 
@@ -435,7 +409,7 @@ async function generateContent(
 ): Promise<string> {
   const contentPromptDoc = await AIPrompt.findOne({
     name: CONTENT_PROMPT_NAME,
-    type: "content",
+    type: "content", // <-- IMPORTANT: Query by type
   });
   if (!contentPromptDoc) {
     console.warn(
@@ -443,14 +417,15 @@ async function generateContent(
     );
   }
 
+  // --- MODIFIED: Added Turkish language instruction ---
   const defaultContentPrompt =
-    "Your ONLY task is to generate a news article content in HTML. NO Markdown, NO preambles, NO extra text, NO code block wrappers (```html). DO NOT INCLUDE `<!DOCTYPE html>`, `<html>`, `<head>`, `<body>`, `<h1>`, or any other full document tags. \n\n" +
+    "Your ONLY task is to generate a news article content in TURKISH HTML. NO Markdown, NO preambles, NO extra text, NO code block wrappers (```html). DO NOT INCLUDE `<!DOCTYPE html>`, `<html>`, `<head>`, `<body>`, `<h1>`, or any other full document tags. \n\n" +
     "You are an expert sports journalist. Analyze the following news title, description, and provided context. Your goal is to generate a comprehensive, human-like, SEO-optimized HTML article, approximately 700 words long. Focus on deep insights, storytelling, and compelling analysis.\n\n" +
     "**GUIDELINES:**\n" +
     "1.  **HTML CONTENT:** Provide valid HTML. Use `<h2>` for main headings (optimized for keywords), `<p>` for paragraphs, `<strong>`, `<em>`, `<ul>`, `<li>`, `<a>`. Ensure natural flow, rich detail, and human tone. Integrate relevant keywords naturally throughout the article for SEO, but avoid stuffing.\n\n" +
     "**HTML Example Structure:**\n" +
-    "<h2>Introduction Heading</h2><p>This is the engaging introduction paragraph...</p>\n" +
-    "<h2>Key Developments</h2><p>Here's a detailed paragraph...</p><ul><li>...</li></ul><p>...</p><h2>Conclusion</h2><p>The concluding paragraph summarizes...</p>\n\n" +
+    "<h2>Giriş Başlığı</h2><p>Bu, makale içeriğinin zeminini hazırlayan etkileyici giriş paragrafıdır...</p>\n" +
+    "<h2>Ana Gelişmeler</h2><p>İşte belirli bir yönüyle ilgili detaylı bir paragraf...</p><ul><li>...</li></ul><p>...</p><h2>Sonuç</h2><p>Sonuç paragrafı, makalenin ana noktalarını özetler...</p>\n\n" +
     "**IMPORTANT:** If the provided content is too short or lacks sufficient detail for a 700-word SEO-optimized expansion, respond ONLY with 'CONTENT INSUFFICIENT FOR EXPANSION: [brief reason]'. No other text.\n\n" +
     "Generated Article Title: {generated_title}\nOriginal News Title: {original_title}\nOriginal News Description: {original_description}\nAdditional Context: {additional_context}";
 
@@ -467,7 +442,7 @@ async function generateContent(
     }
   }
 
-  // --- Content Gathering for AI Input ---
+  // --- Content Gathering for AI Input (UNCHANGED) ---
   let combinedArticleContext = "";
   const MIN_TOTAL_CONTEXT_FOR_GENERATION = 100;
 
@@ -643,7 +618,7 @@ async function generateContent(
   return finalContent;
 }
 
-// POST handler to orchestrate the AI processing pipeline
+// POST handler to orchestrate the AI processing pipeline (UNCHANGED LOGIC)
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") {
@@ -772,7 +747,7 @@ export async function POST(request: Request) {
     let featuredImageTitle: string | undefined = undefined;
     let featuredImageAltText: string | undefined = undefined;
 
-    // Fallback: Use the original external article's image and proxy it to S3.
+    // Fallback: Use the original external article's image and proxy it to R2.
     if (externalArticle.imageUrl) {
       try {
         console.log(
@@ -807,7 +782,11 @@ export async function POST(request: Request) {
     featuredImageAltText = `${newPostTitle} image`;
 
     // 4. Save the rewritten article as a new Post
-    const postSlug = slugify(newPostTitle, { lower: true, strict: true });
+    const postSlug = slugify(newPostTitle, {
+      lower: true,
+      strict: true,
+      remove: /[*+~.()'"!:@]/g,
+    });
 
     const existingPostWithSlug = await Post.findOne({ slug: postSlug });
     let finalSlug = postSlug;
