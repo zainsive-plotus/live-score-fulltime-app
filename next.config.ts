@@ -19,6 +19,10 @@ const nextConfig: NextConfig = {
         port: "",
         pathname: "/**", // Allow any image path from this bucket
       },
+      {
+        protocol: "https",
+        hostname: "pub-3be31cb53bcb40ce80d5ebf5d83238f0.r2.dev",
+      },
     ],
   },
   i18n: {

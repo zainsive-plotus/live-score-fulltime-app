@@ -41,6 +41,10 @@ export default function AdminFileManagerPage() {
   const [downloadUrl, setDownloadUrl] = useState("");
   const [downloadFileName, setDownloadFileName] = useState("");
 
+  console.log("process.env.NEXT_PUBLIC_R2_PUBLIC_BUCKET_URL");
+
+  console.log(process.env.NEXT_PUBLIC_R2_PUBLIC_BUCKET_URL);
+
   const {
     data: existingFiles,
     isLoading: isLoadingFiles,

@@ -1,61 +1,104 @@
+// src/components/MobileHomeTabs.tsx
 "use client";
 
-import { useState, Dispatch, SetStateAction } from "react";
-// Import BrainCircuit for Analytics icon
-import { List, Newspaper, BrainCircuit, Compass } from "lucide-react";
-import { League } from "@/types/api-football";
-
-// Import the content components
-import MatchList from "./MatchList";
-import NewsSection from "./NewsSection";
-import ExploreTab from "./ExploreTab";
-
-// Define the NEW tabs we want to show
-const TABS = [
-  { id: "matches", label: "Matches", icon: List },
-  { id: "explore", label: "Explore", icon: Compass },
-  { id: "news", label: "News", icon: Newspaper },
-];
+import { Home, List, Calendar, Sparkles } from "lucide-react";
+import Link from "next/link";
+import clsx from "clsx";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface MobileHomeTabsProps {
-  liveLeagues: League[];
-  setLiveLeagues: Dispatch<SetStateAction<League[]>>;
+  selectedTab: string;
+  onSelectTab: (tab: string) => void;
+  activeLeaguesCount: number;
+  liveMatchesCount: number;
 }
 
-export default function MobileHomeTabs({
-  liveLeagues,
-  setLiveLeagues,
-}: MobileHomeTabsProps) {
-  const [activeTab, setActiveTab] = useState("matches");
+const MobileHomeTabs: React.FC<MobileHomeTabsProps> = ({
+  selectedTab,
+  onSelectTab,
+  activeLeaguesCount,
+  liveMatchesCount,
+}) => {
+  const { t } = useTranslation();
+
+  const showActiveBadge = activeLeaguesCount > 0;
+  const showLiveBadge = liveMatchesCount > 0;
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex-grow p-2 sm:p-4 space-y-8 overflow-y-auto">
-        {activeTab === "matches" && (
-          <MatchList setLiveLeagues={setLiveLeagues} />
-        )}
-        {activeTab === "explore" && <ExploreTab />}
-        {activeTab === "news" && <NewsSection />}
-      </div>
-
-      <div className="sticky bottom-0 left-0 right-0 bg-brand-secondary border-t border-gray-700/50 shadow-lg z-999999">
-        <div className="flex justify-around items-center h-16">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex flex-col items-center justify-center gap-1 w-full h-full transition-colors duration-200 ${
-                activeTab === tab.id
-                  ? "text-brand-purple"
-                  : "text-brand-muted hover:text-white"
-              }`}
-            >
-              <tab.icon size={22} />
-              <span className="text-xs font-semibold">{tab.label}</span>
-            </button>
-          ))}
-        </div>
+    // This div makes the navigation bar fixed at the bottom of the viewport.
+    // It's visible only on screens smaller than 'lg' breakpoint (Tailwind's default for 1024px).
+    // z-[90] ensures it sits above most content but leaves room for modals/toasts (often z-100+).
+    <div className="fixed bottom-0 left-0 w-full bg-brand-secondary border-t border-gray-700 z-[90] lg:hidden">
+      <div className="flex justify-around items-center h-16 max-w-xl mx-auto">
+        <Link
+          href="/"
+          className={clsx(
+            "flex flex-col items-center justify-center flex-1 py-1 rounded-md transition-colors",
+            selectedTab === "home"
+              ? "text-brand-purple"
+              : "text-brand-light hover:text-white"
+          )}
+          onClick={() => onSelectTab("home")}
+          aria-label={t("home")}
+        >
+          <Home size={20} />
+          <span className="text-xs font-medium mt-1">{t("home")}</span>
+        </Link>
+        <Link
+          href="/football/fixtures"
+          className={clsx(
+            "flex flex-col items-center justify-center flex-1 py-1 rounded-md transition-colors relative",
+            selectedTab === "fixtures"
+              ? "text-brand-purple"
+              : "text-brand-light hover:text-white"
+          )}
+          onClick={() => onSelectTab("fixtures")}
+          aria-label={t("fixtures")}
+        >
+          <Calendar size={20} />
+          {showActiveBadge && (
+            <span className="absolute top-0 right-3 bg-red-500 text-white text-[10px] px-1 py-0.5 rounded-full leading-none">
+              {activeLeaguesCount}
+            </span>
+          )}
+          <span className="text-xs font-medium mt-1">{t("fixtures")}</span>
+        </Link>
+        <Link
+          href="/football/live"
+          className={clsx(
+            "flex flex-col items-center justify-center flex-1 py-1 rounded-md transition-colors relative",
+            selectedTab === "live"
+              ? "text-brand-purple"
+              : "text-brand-light hover:text-white"
+          )}
+          onClick={() => onSelectTab("live")}
+          aria-label={t("live_matches")}
+        >
+          <Sparkles size={20} />
+          {showLiveBadge && (
+            <span className="absolute top-0 right-3 bg-red-500 text-white text-[10px] px-1 py-0.5 rounded-full leading-none animate-pulse">
+              {liveMatchesCount}
+            </span>
+          )}
+          <span className="text-xs font-medium mt-1">{t("live")}</span>
+        </Link>
+        <Link
+          href="/football/news"
+          className={clsx(
+            "flex flex-col items-center justify-center flex-1 py-1 rounded-md transition-colors",
+            selectedTab === "news"
+              ? "text-brand-purple"
+              : "text-brand-light hover:text-white"
+          )}
+          onClick={() => onSelectTab("news")}
+          aria-label={t("news")}
+        >
+          <List size={20} />
+          <span className="text-xs font-medium mt-1">{t("news")}</span>
+        </Link>
       </div>
     </div>
   );
-}
+};
+
+export default MobileHomeTabs;

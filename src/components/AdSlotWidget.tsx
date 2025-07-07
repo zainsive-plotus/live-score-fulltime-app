@@ -1,94 +1,85 @@
-// src/components/AdSlotWidget.tsx
+// ===== src/components/AdSlotWidget.tsx (CORRECTED) =====
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import { useMemo } from "react";
+import Image from "next/image";
+import Link from "next/link";
 import { IBanner } from "@/models/Banner";
-import { useTranslation } from "@/hooks/useTranslation";
-import { ArrowRight } from "lucide-react";
 
 interface AdSlotWidgetProps {
   location: string;
 }
 
-const fetchActiveBanners = async (location: string): Promise<IBanner[]> => {
-  const { data } = await axios.get(
-    `/api/banners?active=true&location=${location}`
-  );
-  return data;
+// Fetch a single, active banner for a specific location
+const fetchBannerForSlot = async (
+  location: string
+): Promise<IBanner | null> => {
+  try {
+    const { data } = await axios.get(
+      `/api/banners?location=${location}&active=true`
+    );
+    // The API returns an array, we only want the first one for a single slot
+    return data?.[0] || null;
+  } catch (error) {
+    console.error(`Failed to fetch banner for location: ${location}`, error);
+    return null;
+  }
 };
 
-const AdSlotSkeleton = () => (
-  <div className="bg-brand-secondary p-4 rounded-lg animate-pulse">
-    <div className="h-5 w-1/2 mb-4 bg-gray-700 rounded"></div>
-    <div className="relative aspect-video w-full rounded-lg bg-gray-700"></div>
-  </div>
+const AdBannerSkeleton = () => (
+  <div className="w-full h-[250px] bg-brand-secondary rounded-lg animate-pulse"></div>
 );
 
 export default function AdSlotWidget({ location }: AdSlotWidgetProps) {
   const {
-    data: banners,
+    data: banner,
     isLoading,
-    error,
-  } = useQuery<IBanner[]>({
-    queryKey: ["activeBanners", location],
-    queryFn: () => fetchActiveBanners(location),
-    staleTime: 5 * 60 * 1000,
-    enabled: !!location,
+    isError,
+  } = useQuery<IBanner | null>({
+    queryKey: ["banner", location],
+    queryFn: () => fetchBannerForSlot(location),
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    refetchOnWindowFocus: false, // Banners don't need to be refetched so often
   });
 
-  const { t } = useTranslation();
+  if (isLoading) {
+    return <AdBannerSkeleton />;
+  }
 
-  const randomAd = useMemo(() => {
-    if (!banners || banners?.length === 0) return null;
-    const randomIndex = Math.floor(Math.random() * banners.length);
-    return banners[randomIndex];
-  }, [banners]);
-
-  if (isLoading) return <AdSlotSkeleton />;
-  if (error || !randomAd) return null;
+  if (isError || !banner) {
+    // Don't render anything if there's an error or no banner for this slot
+    return null;
+  }
 
   return (
-    <div className="bg-brand-secondary p-4 rounded-lg">
-      <h3 className="text-sm font-bold text-brand-muted uppercase tracking-wider mb-3">
-        {t("advertisement")}
-      </h3>
-
-      <a
-        href={randomAd.linkUrl}
+    <div className="w-full">
+      <Link
+        href={banner.linkUrl}
         target="_blank"
         rel="noopener sponsored"
-        title={randomAd.title}
-        className="block group rounded-lg overflow-hidden relative"
+        className="relative block w-full overflow-hidden rounded-lg group"
+        aria-label={`Advertisement: ${banner.title}`}
       >
-        <img
-          src={randomAd.imageUrl}
-          alt={randomAd.title}
-          className="w-full h-auto block transition-transform duration-500 ease-in-out group-hover:scale-105"
+        <Image
+          src={banner.imageUrl}
+          alt={banner.title}
+          width={300}
+          height={250}
+          className="w-full h-auto object-cover transition-transform duration-300 group-hover:scale-105"
         />
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+        {/* The div that created the dark gradient overlay has been removed. */}
 
-        <div className="absolute bottom-0 left-0 right-0 p-4">
-          <div className="flex justify-between items-end">
-            <div className="flex-1 min-w-0 pr-4">
-              {/* --- THIS IS THE FIX --- */}
-              {/* Added the `truncate` class to prevent the text from wrapping and overflowing. */}
-              <h4 className="font-bold text-lg text-white leading-tight drop-shadow-md truncate">
-                {randomAd.title}
-              </h4>
-            </div>
-
-            <div className="flex-shrink-0 opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 ease-in-out">
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-brand-purple text-white font-semibold text-sm rounded-md shadow-lg">
-                <span>View</span>
-                <ArrowRight size={16} />
-              </div>
-            </div>
-          </div>
+        <div className="absolute bottom-0 left-0 p-4 w-full">
+          <h3 className="text-lg font-bold text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">
+            {banner.title}
+          </h3>
+          <span className="text-xs text-gray-300 drop-shadow-md">
+            Advertisement
+          </span>
         </div>
-      </a>
+      </Link>
     </div>
   );
 }

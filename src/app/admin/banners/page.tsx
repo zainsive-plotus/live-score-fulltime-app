@@ -10,6 +10,7 @@ import Image from "next/image";
 import { IBanner } from "@/models/Banner";
 import BannerFormModal from "@/components/admin/BannerFormModal";
 import { AD_SLOTS } from "@/config/adSlots";
+import { proxyImageUrl } from "@/lib/image-proxy";
 
 const fetchBanners = async (): Promise<IBanner[]> => {
   const { data } = await axios.get("/api/banners");

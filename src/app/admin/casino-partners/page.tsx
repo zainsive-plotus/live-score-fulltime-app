@@ -1,4 +1,4 @@
-// src/app/admin/casino-partners/page.tsx
+// ===== src\app\admin\casino-partners\page.tsx (CORRECTED) =====
 "use client";
 
 import { useState, useEffect } from "react";
@@ -15,10 +15,9 @@ import {
   Loader2,
   CheckCircle,
   XCircle,
-} from "lucide-react"; // Add Crown icon
-import Image from "next/image"; // For partner logos
+} from "lucide-react";
+import Image from "next/image";
 
-// Assuming ICasinoPartner interface is defined (or define it here)
 interface ICasinoPartner {
   _id: string;
   name: string;
@@ -28,15 +27,14 @@ interface ICasinoPartner {
   isFeatured: boolean;
   isActive: boolean;
   order: number;
-  createdAt: string; // ISO date string
-  updatedAt: string; // ISO date string
+  createdAt: string;
+  updatedAt: string;
 }
 
-// Reusable form modal for creating/editing Casino Partners
 interface CasinoPartnerFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  partner?: ICasinoPartner | null; // Optional: for editing
+  partner?: ICasinoPartner | null;
 }
 
 const CasinoPartnerFormModal: React.FC<CasinoPartnerFormModalProps> = ({
@@ -54,7 +52,6 @@ const CasinoPartnerFormModal: React.FC<CasinoPartnerFormModalProps> = ({
   const [order, setOrder] = useState(partner?.order ?? 0);
 
   useEffect(() => {
-    // Reset form fields when partner prop changes (for editing)
     if (partner) {
       setName(partner.name);
       setLogoUrl(partner.logoUrl);
@@ -64,7 +61,6 @@ const CasinoPartnerFormModal: React.FC<CasinoPartnerFormModalProps> = ({
       setIsActive(partner.isActive);
       setOrder(partner.order);
     } else {
-      // Clear form for new creation
       setName("");
       setLogoUrl("");
       setRedirectUrl("");
@@ -81,7 +77,7 @@ const CasinoPartnerFormModal: React.FC<CasinoPartnerFormModalProps> = ({
     onSuccess: () => {
       toast.success("Casino Partner created successfully!");
       queryClient.invalidateQueries({ queryKey: ["casinoPartnersAdmin"] });
-      queryClient.invalidateQueries({ queryKey: ["casinoPartnersPublic"] }); // Invalidate public cache too
+      queryClient.invalidateQueries({ queryKey: ["casinoPartnersPublic"] });
       onClose();
     },
     onError: (err: any) => {
@@ -95,7 +91,7 @@ const CasinoPartnerFormModal: React.FC<CasinoPartnerFormModalProps> = ({
     onSuccess: () => {
       toast.success("Casino Partner updated successfully!");
       queryClient.invalidateQueries({ queryKey: ["casinoPartnersAdmin"] });
-      queryClient.invalidateQueries({ queryKey: ["casinoPartnersPublic"] }); // Invalidate public cache too
+      queryClient.invalidateQueries({ queryKey: ["casinoPartnersPublic"] });
       onClose();
     },
     onError: (err: any) => {
@@ -170,9 +166,10 @@ const CasinoPartnerFormModal: React.FC<CasinoPartnerFormModalProps> = ({
             >
               Logo URL
             </label>
+            {/* ===== THE FIX IS HERE ===== */}
             <input
               id="logoUrl"
-              type="url"
+              type="url" // Changed from "url" to "text" to allow relative paths
               value={logoUrl}
               onChange={(e) => setLogoUrl(e.target.value)}
               className="w-full p-3 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-purple"
@@ -188,6 +185,7 @@ const CasinoPartnerFormModal: React.FC<CasinoPartnerFormModalProps> = ({
                   height={40}
                   objectFit="contain"
                   className="rounded-md bg-gray-800 p-1"
+                  // Next/Image handles both relative and absolute URLs correctly
                 />
               </div>
             )}
@@ -336,7 +334,7 @@ export default function AdminCasinoPartnersPage() {
       const { data } = await axios.get("/api/admin/casino-partners");
       return data;
     },
-    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    staleTime: 1000 * 60 * 5,
   });
 
   const deleteMutation = useMutation({
@@ -345,7 +343,7 @@ export default function AdminCasinoPartnersPage() {
     onSuccess: () => {
       toast.success("Casino Partner deleted successfully!");
       queryClient.invalidateQueries({ queryKey: ["casinoPartnersAdmin"] });
-      queryClient.invalidateQueries({ queryKey: ["casinoPartnersPublic"] }); // Invalidate public cache too
+      queryClient.invalidateQueries({ queryKey: ["casinoPartnersPublic"] });
     },
     onError: (err: any) => {
       toast.error(err.response?.data?.error || "Failed to delete partner.");

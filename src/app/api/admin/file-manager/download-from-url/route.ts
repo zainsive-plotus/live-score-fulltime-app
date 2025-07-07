@@ -1,21 +1,24 @@
-// src/app/api/admin/file-manager/download-from-url/route.ts
+// ===== src\app\api\admin\file-manager\download-from-url\route.ts =====
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import axios from "axios";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import crypto from "crypto";
-import path from "path"; // Node.js path module
+import path from "path";
 import slugify from "slugify";
+import { promises as fs } from "fs";
 
-// --- S3 Client configuration (reused from src/app/api/upload/route.ts) ---
-const s3Client = new S3Client({
-  region: process.env.NEXT_PUBLIC_AWS_S3_REGION as string,
-  credentials: {
-    accessKeyId: process.env.NEXT_PUBLIC_AWS_ACCESS_KEY_ID as string,
-    secretAccessKey: process.env.NEXT_PUBLIC_AWS_SECRET_ACCESS_KEY as string,
-  },
-});
+// Re-use the UPLOAD_DIR definition and helper function
+const UPLOAD_DIR = path.join(process.cwd(), "public/uploads");
+
+const ensureUploadDirExists = async () => {
+  try {
+    await fs.mkdir(UPLOAD_DIR, { recursive: true });
+  } catch (error) {
+    console.error("Error creating upload directory:", error);
+    throw new Error("Could not create upload directory on the server.");
+  }
+};
 
 const generateFileName = (bytes = 32) =>
   crypto.randomBytes(bytes).toString("hex");
@@ -88,36 +91,27 @@ export async function POST(request: Request) {
         })}${fileExtension}`
       : `${uniqueBaseName}${fileExtension}`;
 
-    const bucketName = process.env.NEXT_PUBLIC_AWS_S3_BUCKET_NAME as string;
+    // 2. Save the file to the local filesystem
+    const filePath = path.join(UPLOAD_DIR, finalFileName);
+    await ensureUploadDirExists();
+    await fs.writeFile(filePath, fileBuffer);
 
-    // 2. Upload the file to S3
-    const putObjectCommand = new PutObjectCommand({
-      Bucket: bucketName,
-      Key: finalFileName, // Use the generated/provided filename
-      Body: fileBuffer,
-      ContentType: contentType,
-    });
-
+    // 3. Return the relative public URL
+    const publicUrl = `/uploads/${finalFileName}`;
     console.log(
-      `[File Manager - Download URL] Uploading ${finalFileName} (${contentType}, ${contentLength} bytes) to S3...`
-    );
-    await s3Client.send(putObjectCommand);
-
-    const publicUrl = `https://${bucketName}.s3.${process.env.NEXT_PUBLIC_AWS_S3_REGION}.amazonaws.com/${finalFileName}`;
-    console.log(
-      `[File Manager - Download URL] File successfully uploaded to S3: ${publicUrl}`
+      `[File Manager - Download URL] File successfully saved locally: ${publicUrl}`
     );
 
     return NextResponse.json({
-      message: "File downloaded and uploaded successfully",
+      message: "File downloaded and saved successfully",
       url: publicUrl,
-      name: finalFileName, // Return the actual file name used on S3
+      name: finalFileName,
       type: contentType,
       size: contentLength,
     });
   } catch (error: any) {
     console.error(
-      `[File Manager - Download URL] Failed to download or upload from URL: ${error.message}`,
+      `[File Manager - Download URL] Failed to download or save from URL: ${error.message}`,
       "\nFull Error:",
       error
     );

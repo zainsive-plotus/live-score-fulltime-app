@@ -1,63 +1,65 @@
-// src/app/api/upload/route.ts
-
+// ===== src/app/api/upload/route.ts (REVISED FOR GIFS AND NO CROPPING) =====
 import { NextResponse } from "next/server";
 import {
   S3Client,
   PutObjectCommand,
   ListObjectsV2Command,
   DeleteObjectCommand,
-} from "@aws-sdk/client-s3"; // <-- NEW IMPORT: DeleteObjectCommand
+} from "@aws-sdk/client-s3";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import sharp from "sharp";
-import crypto from "crypto";
+import path from "path";
+import slugify from "slugify";
 
-// --- S3 Client configuration remains the same ---
+// --- R2/S3 Client Configuration ---
 const s3Client = new S3Client({
-  region: process.env.NEXT_PUBLIC_AWS_S3_REGION as string,
+  region: "auto",
+  endpoint: process.env.NEXT_PUBLIC_R2_ENDPOINT as string,
   credentials: {
-    accessKeyId: process.env.NEXT_PUBLIC_AWS_ACCESS_KEY_ID as string,
-    secretAccessKey: process.env.NEXT_PUBLIC_AWS_SECRET_ACCESS_KEY as string,
+    accessKeyId: process.env.NEXT_PUBLIC_R2_ACCESS_KEY_ID as string,
+    secretAccessKey: process.env.NEXT_PUBLIC_R2_SECRET_ACCESS_KEY as string,
   },
 });
 
-const generateFileName = (bytes = 32) =>
-  crypto.randomBytes(bytes).toString("hex");
+const R2_BUCKET_NAME = process.env.NEXT_PUBLIC_R2_BUCKET_NAME as string;
+const R2_PUBLIC_URL = process.env.NEXT_PUBLIC_R2_PUBLIC_BUCKET_URL as string;
 
-// --- GET handler to list uploaded files --- (No changes here)
+// --- GET handler to list uploaded files from R2 (unchanged) ---
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const bucketName = process.env.NEXT_PUBLIC_AWS_S3_BUCKET_NAME as string;
-
   try {
     const listObjectsCommand = new ListObjectsV2Command({
-      Bucket: bucketName,
+      Bucket: R2_BUCKET_NAME,
       MaxKeys: 100,
     });
 
     const { Contents } = await s3Client.send(listObjectsCommand);
 
     const files =
-      Contents?.map((item) => ({
-        name: item.Key || "unknown",
-        url: `https://${bucketName}.s3.${process.env.NEXT_PUBLIC_AWS_S3_REGION}.amazonaws.com/${item.Key}`,
-        size: item.Size || 0,
-        lastModified: item.LastModified,
-        type: item.Key?.toLowerCase().endsWith(".png")
-          ? "image/png"
-          : item.Key?.toLowerCase().endsWith(".jpg") ||
-            item.Key?.toLowerCase().endsWith(".jpeg")
-          ? "image/jpeg"
-          : item.Key?.toLowerCase().endsWith(".gif")
-          ? "image/gif"
-          : item.Key?.toLowerCase().endsWith(".webp")
-          ? "image/webp"
-          : "application/octet-stream",
-      })) || [];
+      Contents?.map((item) => {
+        const key = item.Key || "unknown";
+        const fileExtension = path.extname(key).toLowerCase();
+        let mimeType = "application/octet-stream";
+
+        if (fileExtension === ".png") mimeType = "image/png";
+        else if (fileExtension === ".jpg" || fileExtension === ".jpeg")
+          mimeType = "image/jpeg";
+        else if (fileExtension === ".gif") mimeType = "image/gif";
+        else if (fileExtension === ".webp") mimeType = "image/webp";
+
+        return {
+          name: key,
+          url: `${R2_PUBLIC_URL}/${key}`,
+          size: item.Size || 0,
+          lastModified: item.LastModified,
+          type: mimeType,
+        };
+      }) || [];
 
     files.sort(
       (a, b) =>
@@ -66,15 +68,15 @@ export async function GET(request: Request) {
 
     return NextResponse.json(files, { status: 200 });
   } catch (error) {
-    console.error("Error listing files from S3:", error);
+    console.error("Error listing files from R2:", error);
     return NextResponse.json(
-      { error: "Failed to list files from S3." },
+      { error: "Failed to list files from Cloudflare R2." },
       { status: 500 }
     );
   }
 }
 
-// --- POST handler to upload files --- (No changes here)
+// --- POST handler to upload files to R2 (UPDATED) ---
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") {
@@ -92,66 +94,87 @@ export async function POST(request: Request) {
 
     let finalBuffer: Buffer;
     let finalContentType: string = file.type;
-    const fileName = generateFileName();
+    let finalFileExtension: string;
 
-    if (uploadType === "banner" && file.type === "image/gif") {
+    // ===== NEW GIF HANDLING LOGIC =====
+    if (file.type === "image/gif") {
       finalBuffer = Buffer.from(await file.arrayBuffer());
+      finalContentType = "image/gif";
+      finalFileExtension = ".gif";
     } else {
+      // Process other image types (PNG, JPEG, WebP, etc.)
       const inputBuffer = Buffer.from(await file.arrayBuffer());
       let sharpInstance = sharp(inputBuffer);
 
       if (uploadType === "banner") {
+        // Banners should be resized to fit inside without cropping
         sharpInstance = sharpInstance.resize(1200, 1200, {
-          fit: "inside",
+          fit: "inside", // This prevents cropping
           withoutEnlargement: true,
         });
       } else {
-        sharpInstance = sharpInstance.resize(1200, 630, { fit: "cover" });
+        // Other images (e.g., news featured images) should also be resized to fit without cropping
+        // Change from 'cover' to 'inside' to prevent cropping
+        sharpInstance = sharpInstance.resize(1200, 630, {
+          fit: "inside", // Changed from "cover" to "inside"
+          withoutEnlargement: true,
+        });
       }
 
       finalBuffer = await sharpInstance.webp({ quality: 80 }).toBuffer();
       finalContentType = "image/webp";
+      finalFileExtension = ".webp";
     }
 
-    const bucketName = process.env.NEXT_PUBLIC_AWS_S3_BUCKET_NAME as string;
+    // Generate the new filename with "fanskor-" prefix, slug, and unique suffix
+    const originalFilename = file.name;
+    const extension = path.extname(originalFilename);
+    const basename = path.basename(originalFilename, extension);
+    const slug = slugify(basename, {
+      lower: true,
+      strict: true,
+      remove: /[*+~.()'"!:@]/g,
+    });
+    const uniqueSuffix = Date.now().toString().slice(-6);
+
+    const newFileName = `fanskor-${slug}-${uniqueSuffix}${finalFileExtension}`;
 
     const putObjectCommand = new PutObjectCommand({
-      Bucket: bucketName,
-      Key: fileName,
+      Bucket: R2_BUCKET_NAME,
+      Key: newFileName,
       Body: finalBuffer,
       ContentType: finalContentType,
     });
 
     await s3Client.send(putObjectCommand);
 
-    const publicUrl = `https://${bucketName}.s3.${process.env.NEXT_PUBLIC_AWS_S3_REGION}.amazonaws.com/${fileName}`;
+    const publicUrl = `${R2_PUBLIC_URL}/${newFileName}`;
 
     return NextResponse.json({
       message: "File uploaded successfully",
       url: publicUrl,
-      name: fileName,
+      name: newFileName,
       type: finalContentType,
       size: finalBuffer.length,
     });
   } catch (error) {
-    console.error("Error uploading to S3:", error);
+    console.error("Error uploading to R2:", error);
     return NextResponse.json(
-      { error: "Failed to upload image." },
+      { error: "Failed to upload image to Cloudflare R2." },
       { status: 500 }
     );
   }
 }
 
-// --- NEW: DELETE handler to remove files from S3 ---
+// --- DELETE handler to remove files from R2 (unchanged) ---
 export async function DELETE(request: Request) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const bucketName = process.env.NEXT_PUBLIC_AWS_S3_BUCKET_NAME as string;
   const { searchParams } = new URL(request.url);
-  const fileKey = searchParams.get("key"); // The S3 object key/name of the file to delete
+  const fileKey = searchParams.get("key");
 
   if (!fileKey) {
     return NextResponse.json(
@@ -162,28 +185,27 @@ export async function DELETE(request: Request) {
 
   try {
     const deleteObjectCommand = new DeleteObjectCommand({
-      Bucket: bucketName,
+      Bucket: R2_BUCKET_NAME,
       Key: fileKey,
     });
 
     await s3Client.send(deleteObjectCommand);
-    console.log(`Successfully deleted S3 object: ${fileKey}`);
+    console.log(`Successfully deleted R2 object: ${fileKey}`);
 
     return NextResponse.json(
       { message: "File deleted successfully." },
       { status: 200 }
     );
   } catch (error: any) {
-    console.error(`Error deleting file ${fileKey} from S3:`, error);
+    console.error(`Error deleting file ${fileKey} from R2:`, error);
     if (error.name === "NoSuchKey") {
-      // File not found on S3
       return NextResponse.json(
-        { error: "File not found on S3." },
+        { error: "File not found on Cloudflare R2." },
         { status: 404 }
       );
     }
     return NextResponse.json(
-      { error: error.message || "Failed to delete file from S3." },
+      { error: error.message || "Failed to delete file from Cloudflare R2." },
       { status: 500 }
     );
   }
