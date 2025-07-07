@@ -1548,7 +1548,7 @@ export default function AdminBannersPage() {
                 <td className="p-4">
                   {/* --- THE FIX IS HERE --- */}
                   <Image
-                    src={proxyImageUrl(banner.imageUrl)}
+                    src={banner.imageUrl}
                     alt={banner.title}
                     width={120}
                     height={60}
@@ -2178,6 +2178,10 @@ export default function AdminFileManagerPage() {
 
   const [downloadUrl, setDownloadUrl] = useState("");
   const [downloadFileName, setDownloadFileName] = useState("");
+
+  console.log("process.env.NEXT_PUBLIC_R2_PUBLIC_BUCKET_URL");
+
+  console.log(process.env.NEXT_PUBLIC_R2_PUBLIC_BUCKET_URL);
 
   const {
     data: existingFiles,
@@ -7917,7 +7921,6 @@ import {
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import sharp from "sharp";
-import crypto from "crypto";
 import path from "path";
 import slugify from "slugify";
 
