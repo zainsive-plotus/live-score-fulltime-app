@@ -1,7 +1,8 @@
 // src/app/api/batch-predictions/route.ts
 import { NextResponse } from "next/server";
 import axios from "axios";
-import { generateHybridPrediction } from "@/lib/prediction-engine"; // Import our new hybrid engine
+// --- THE FIX: Import the new, standardized prediction engine ---
+import { generatePrediction } from "@/lib/prediction-engine";
 import { convertPercentageToOdds } from "@/lib/odds-converter";
 
 type FanskorOdds = {
@@ -10,7 +11,6 @@ type FanskorOdds = {
   away: string;
 };
 
-// This helper is still useful for making requests robustly
 const apiRequest = async (
   endpoint: string,
   params: object
@@ -45,34 +45,19 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-    console.log(
-      `[Batch Predictions] Received request for ${fixtureIds.length} fixtures.`
-    );
 
     const fixtures: any[] | null = await apiRequest("fixtures", {
       ids: fixtureIds.join("-"),
     });
 
     if (!fixtures || fixtures.length === 0) {
-      console.warn(
-        "[Batch Predictions] No valid fixtures found from initial ID fetch."
-      );
       return NextResponse.json({});
     }
 
-    // Create promises to fetch all necessary data for each fixture
+    // --- THE FIX: Fetch only the data needed by the accurate engine ---
     const dataPromises = fixtures.map(async (fixture) => {
-      const { teams, league } = fixture;
-
-      // Fetch stats, odds, lineups, and squads in parallel
-      const [
-        homeTeamStats,
-        awayTeamStats,
-        oddsData,
-        lineupsData,
-        homeSquad,
-        awaySquad,
-      ] = await Promise.all([
+      const { teams, league, fixture: fixtureDetails } = fixture;
+      const [homeTeamStats, awayTeamStats, h2h, standings] = await Promise.all([
         apiRequest("teams/statistics", {
           league: league.id,
           season: league.season,
@@ -83,72 +68,56 @@ export async function POST(request: Request) {
           season: league.season,
           team: teams.away.id,
         }),
-        apiRequest("odds", {
-          fixture: fixture.fixture.id,
-          bookmaker: 8,
-          bet: 1,
+        apiRequest("fixtures/headtohead", {
+          h2h: `${teams.home.id}-${teams.away.id}`,
         }),
-        apiRequest("fixtures/lineups", { fixture: fixture.fixture.id }),
-        apiRequest("players/squads", { team: teams.home.id }),
-        apiRequest("players/squads", { team: teams.away.id }),
+        apiRequest("standings", { league: league.id, season: league.season }),
       ]);
 
+      // If essential stats are missing, we can't make a prediction.
       if (!homeTeamStats || !awayTeamStats) {
-        return { fixtureId: fixture.fixture.id, predictionData: null };
+        return { fixtureId: fixtureDetails.id, predictionData: null };
       }
 
-      const bookmakerOdds = oddsData?.[0]?.bookmakers?.[0]?.bets?.[0]?.values;
-      const odds = bookmakerOdds
-        ? {
-            home:
-              bookmakerOdds.find((v: any) => v.value === "Home")?.odd || null,
-            draw:
-              bookmakerOdds.find((v: any) => v.value === "Draw")?.odd || null,
-            away:
-              bookmakerOdds.find((v: any) => v.value === "Away")?.odd || null,
-          }
-        : null;
-      const validOdds =
-        odds && odds.home && odds.draw && odds.away ? odds : null;
-
-      const homeLineup =
-        lineupsData?.find((l: any) => l.team.id === teams.home.id) || null;
-      const awayLineup =
-        lineupsData?.find((l: any) => l.team.id === teams.away.id) || null;
+      const leagueStandings = standings?.[0]?.league?.standings?.[0] || [];
+      const homeTeamRank = leagueStandings.find(
+        (s: any) => s.team.id === teams.home.id
+      )?.rank;
+      const awayTeamRank = leagueStandings.find(
+        (s: any) => s.team.id === teams.away.id
+      )?.rank;
 
       return {
-        fixtureId: fixture.fixture.id,
+        fixtureId: fixtureDetails.id,
         predictionData: {
+          h2h,
           homeTeamStats,
           awayTeamStats,
-          bookmakerOdds: validOdds,
-          homeLineup,
-          awayLineup,
-          homeSquad: homeSquad?.[0]?.players || null,
-          awaySquad: awaySquad?.[0]?.players || null,
+          homeTeamId: teams.home.id,
+          homeTeamRank,
+          awayTeamRank,
+          matchStatus: fixtureDetails.status.short,
         },
       };
     });
 
     const settledResults = await Promise.allSettled(dataPromises);
-    console.log(
-      `[Batch Predictions] All sub-requests settled. Processing ${settledResults.length} results.`
-    );
-
     const oddsMap: Record<number, FanskorOdds> = {};
 
     settledResults.forEach((result) => {
       if (result.status === "fulfilled" && result.value?.predictionData) {
         const { fixtureId, predictionData } = result.value;
         try {
-          const predictionResult = generateHybridPrediction(
+          // --- THE FIX: Call the single, official prediction engine ---
+          const predictionResult = generatePrediction(
+            predictionData.h2h,
             predictionData.homeTeamStats,
             predictionData.awayTeamStats,
-            predictionData.bookmakerOdds,
-            predictionData.homeLineup,
-            predictionData.awayLineup,
-            predictionData.homeSquad,
-            predictionData.awaySquad
+            predictionData.homeTeamId,
+            predictionData.homeTeamRank,
+            predictionData.awayTeamRank,
+            null, // No events data in batch mode
+            predictionData.matchStatus
           );
 
           oddsMap[fixtureId] = {
@@ -170,9 +139,9 @@ export async function POST(request: Request) {
     });
 
     console.log(
-      `[Batch Predictions] Successfully generated advanced hybrid odds for ${
+      `[Batch Predictions] Successfully generated odds for ${
         Object.keys(oddsMap).length
-      } fixtures.`
+      } fixtures using the standardized engine.`
     );
     return NextResponse.json(oddsMap);
   } catch (error) {

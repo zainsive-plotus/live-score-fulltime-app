@@ -1,160 +1,146 @@
 // src/lib/prediction-engine.ts
 
-// --- HELPER: Factorial function (unchanged) ---
-function factorial(n: number): number {
-  if (n < 0) return -1;
-  if (n === 0 || n === 1) return 1;
-  let result = 1;
-  for (let i = 2; i <= n; i++) {
-    result *= i;
-  }
-  return result;
-}
-
-// --- HELPER: Poisson Distribution function (unchanged) ---
-function poissonProbability(k: number, lambda: number): number {
-  if (lambda < 0) return 0;
-  return (Math.pow(lambda, k) * Math.exp(-lambda)) / factorial(k);
-}
-
-// --- HELPER: Odds to probability conversion (unchanged) ---
-function convertOddsToNormalizedProbabilities(odds: {
-  home: string;
-  draw: string;
-  away: string;
-}): { home: number; draw: number; away: number } {
-  const homeOdd = parseFloat(odds.home);
-  const drawOdd = parseFloat(odds.draw);
-  const awayOdd = parseFloat(odds.away);
-  const impliedHome = 1 / homeOdd;
-  const impliedDraw = 1 / drawOdd;
-  const impliedAway = 1 / awayOdd;
-  const totalImplied = impliedHome + impliedDraw + impliedAway;
-  if (totalImplied === 0) return { home: 33.3, draw: 33.3, away: 33.3 };
-  const normalizedHome = (impliedHome / totalImplied) * 100;
-  const normalizedDraw = (impliedDraw / totalImplied) * 100;
-  const normalizedAway = (impliedAway / totalImplied) * 100;
-  return { home: normalizedHome, draw: normalizedDraw, away: normalizedAway };
-}
-
-// --- NEW HELPER: Find the top scorer from a squad list ---
-function findTopScorer(squad: any[]): any | null {
-  if (!squad || squad.length === 0) return null;
-  // Sort players by goals descending to find the top scorer
-  return squad.sort((a, b) => (b.goals?.total || 0) - (a.goals?.total || 0))[0];
-}
-
-// --- MAIN FUNCTION: Upgraded to be context-aware ---
-export function generateHybridPrediction(
+/**
+ * FINAL OFFICIAL PREDICTION ENGINE V3.1
+ * Based on the weighted model, now with live match momentum analysis.
+ *
+ * @param {object} data - An object containing all necessary data points.
+ * @returns {object} An object with home, draw, and away win percentages.
+ */
+export function generatePrediction(
+  h2h: any[],
   homeTeamStats: any,
   awayTeamStats: any,
-  bookmakerOdds: { home: string; draw: string; away: string } | null,
-  homeLineup: any | null,
-  awayLineup: any | null,
-  homeSquad: any[] | null,
-  awaySquad: any[] | null
+  homeTeamId: number,
+  homeTeamRank: number | undefined,
+  awayTeamRank: number | undefined,
+  matchEvents: any[] | null, // This is now crucial for live analysis
+  matchStatus: string
 ): { home: number; draw: number; away: number } {
-  // --- Step 1: Calculate Base Poisson Probabilities (Unchanged logic) ---
-  const leagueGoals = homeTeamStats?.goals;
-  if (!leagueGoals) {
-    console.warn("Prediction Engine: Missing league goal stats. Falling back.");
-    return { home: 34, draw: 33, away: 33 };
-  }
-  const avgLeagueGoalsHome = parseFloat(leagueGoals.for.average.home) || 1.4;
-  const avgLeagueGoalsAway = parseFloat(leagueGoals.for.average.away) || 1.1;
-  const homeAttackStrength =
-    (parseFloat(homeTeamStats.goals.for.average.home) || avgLeagueGoalsHome) /
-    avgLeagueGoalsHome;
-  const homeDefenseStrength =
-    (parseFloat(homeTeamStats.goals.against.average.home) ||
-      avgLeagueGoalsAway) / avgLeagueGoalsAway;
-  const awayAttackStrength =
-    (parseFloat(awayTeamStats.goals.for.average.away) || avgLeagueGoalsAway) /
-    avgLeagueGoalsAway;
-  const awayDefenseStrength =
-    (parseFloat(awayTeamStats.goals.against.average.away) ||
-      avgLeagueGoalsHome) / avgLeagueGoalsHome;
-
-  let lambdaHome =
-    homeAttackStrength * awayDefenseStrength * avgLeagueGoalsHome;
-  let lambdaAway =
-    awayAttackStrength * homeDefenseStrength * avgLeagueGoalsAway;
-
-  // --- NEW: Step 2: Adjust Expected Goals Based on Key Player Availability ---
-  const KEY_PLAYER_ABSENCE_PENALTY = 0.82; // Apply an 18% penalty to expected goals.
-
-  const homeTopScorer = findTopScorer(homeSquad);
-  const awayTopScorer = findTopScorer(awaySquad);
-
-  if (homeTopScorer && homeLineup?.startXI) {
-    const isScorerStarting = homeLineup.startXI.some(
-      (p: any) => p.player.id === homeTopScorer.id
-    );
-    if (!isScorerStarting) {
-      lambdaHome *= KEY_PLAYER_ABSENCE_PENALTY;
-      console.log(
-        `Prediction Engine: Home top scorer (${homeTopScorer.name}) is NOT starting. Applying penalty.`
-      );
-    }
-  }
-
-  if (awayTopScorer && awayLineup?.startXI) {
-    const isScorerStarting = awayLineup.startXI.some(
-      (p: any) => p.player.id === awayTopScorer.id
-    );
-    if (!isScorerStarting) {
-      lambdaAway *= KEY_PLAYER_ABSENCE_PENALTY;
-      console.log(
-        `Prediction Engine: Away top scorer (${awayTopScorer.name}) is NOT starting. Applying penalty.`
-      );
-    }
-  }
-
-  // --- Step 3: Calculate Probabilities with (potentially adjusted) lambdas ---
-  let poissonHomeProb = 0,
-    poissonDrawProb = 0,
-    poissonAwayProb = 0;
-  const maxGoals = 8;
-  for (let i = 0; i <= maxGoals; i++) {
-    for (let j = 0; j <= maxGoals; j++) {
-      const scorelineProbability =
-        poissonProbability(i, lambdaHome) * poissonProbability(j, lambdaAway);
-      if (i > j) poissonHomeProb += scorelineProbability;
-      else if (j > i) poissonAwayProb += scorelineProbability;
-      else poissonDrawProb += scorelineProbability;
-    }
-  }
-  const totalPoissonProb = poissonHomeProb + poissonDrawProb + poissonAwayProb;
-
-  const poissonPercentages = {
-    home:
-      totalPoissonProb > 0 ? (poissonHomeProb / totalPoissonProb) * 100 : 34,
-    draw:
-      totalPoissonProb > 0 ? (poissonDrawProb / totalPoissonProb) * 100 : 33,
-    away:
-      totalPoissonProb > 0 ? (poissonAwayProb / totalPoissonProb) * 100 : 33,
+  // Configuration for weights
+  const config = {
+    weights: {
+      homeAdvantage: 12,
+      form: 1.5,
+      h2h: 2.5,
+      rankDifference: 0.8,
+      goalDifference: 6.0,
+      // --- NEW: Weights for live events ---
+      liveGoalMomentum: 15, // A huge boost for the scoring team
+      liveRedCardPenalty: -20, // A massive penalty for the team receiving a red card
+    },
+    h2hMaxGames: 5,
+    drawWeight: 0.85,
   };
 
-  // --- Step 4 & 5: Blend with Market and Finalize (Unchanged) ---
-  if (!bookmakerOdds) {
-    return {
-      home: Math.round(poissonPercentages.home),
-      draw: Math.round(poissonPercentages.draw),
-      away: Math.round(poissonPercentages.away),
-    };
-  }
-  const marketPercentages = convertOddsToNormalizedProbabilities(bookmakerOdds);
-  const FANSKOR_MODEL_WEIGHT = 0.6;
-  const MARKET_ODDS_WEIGHT = 0.4;
-  const finalHome =
-    poissonPercentages.home * FANSKOR_MODEL_WEIGHT +
-    marketPercentages.home * MARKET_ODDS_WEIGHT;
-  const finalDraw =
-    poissonPercentages.draw * FANSKOR_MODEL_WEIGHT +
-    marketPercentages.draw * MARKET_ODDS_WEIGHT;
-  return {
-    home: Math.round(finalHome),
-    draw: Math.round(finalDraw),
-    away: Math.round(100 - Math.round(finalHome) - Math.round(finalDraw)),
+  let homeScore = 0;
+  let awayScore = 0;
+
+  // 1. Home Advantage
+  homeScore += config.weights.homeAdvantage;
+
+  // 2. Momentum (Recent Form)
+  const calculateForm = (formString: string): number => {
+    if (!formString) return 0;
+    return (
+      (formString.match(/W/g) || []).length * 3 +
+      (formString.match(/D/g) || []).length * 1
+    );
   };
+  homeScore += calculateForm(homeTeamStats?.form || "") * config.weights.form;
+  awayScore += calculateForm(awayTeamStats?.form || "") * config.weights.form;
+
+  // 3. Goal Form (Average Goal Difference)
+  const homeGoalDiff =
+    (homeTeamStats?.goals?.for?.average?.total ?? 0) -
+    (homeTeamStats?.goals?.against?.average?.total ?? 0);
+  const awayGoalDiff =
+    (awayTeamStats?.goals?.for?.average?.total ?? 0) -
+    (awayTeamStats?.goals?.against?.average?.total ?? 0);
+  homeScore += homeGoalDiff * config.weights.goalDifference;
+  awayScore += awayGoalDiff * config.weights.goalDifference;
+
+  // 4. Head-to-Head (H2H) Records
+  if (h2h && h2h.length > 0) {
+    h2h.slice(0, config.h2hMaxGames).forEach((match) => {
+      if (match.teams.home.winner) {
+        homeTeamId === match.teams.home.id
+          ? (homeScore += config.weights.h2h)
+          : (awayScore += config.weights.h2h);
+      } else if (match.teams.away.winner) {
+        homeTeamId === match.teams.away.id
+          ? (homeScore += config.weights.h2h)
+          : (awayScore += config.weights.h2h);
+      } else {
+        homeScore += config.weights.h2h / 2;
+        awayScore += config.weights.h2h / 2;
+      }
+    });
+  }
+
+  // 5. League Rank Difference
+  if (homeTeamRank != null && awayTeamRank != null) {
+    const rankDiff = Math.abs(homeTeamRank - awayTeamRank);
+    if (homeTeamRank < awayTeamRank) {
+      homeScore += rankDiff * config.weights.rankDifference;
+    } else if (awayTeamRank < homeTeamRank) {
+      awayScore += rankDiff * config.weights.rankDifference;
+    }
+  }
+
+  // --- NEW: 6. Live Match Analysis ---
+  if (
+    ["1H", "HT", "2H", "ET", "BT", "P", "LIVE"].includes(matchStatus) &&
+    matchEvents
+  ) {
+    console.log(
+      `[Prediction Engine] Applying live analysis for match status: ${matchStatus}`
+    );
+    matchEvents.forEach((event) => {
+      // Goal Momentum
+      if (event.type === "Goal") {
+        if (event.team.id === homeTeamId) {
+          homeScore += config.weights.liveGoalMomentum;
+        } else {
+          awayScore += config.weights.liveGoalMomentum;
+        }
+      }
+      // Red Card Penalty
+      if (event.type === "Card" && event.detail === "Red Card") {
+        if (event.team.id === homeTeamId) {
+          homeScore += config.weights.liveRedCardPenalty;
+        } else {
+          awayScore += config.weights.liveRedCardPenalty;
+        }
+      }
+    });
+  }
+
+  // --- Final Calculation & Normalization ---
+  homeScore = Math.max(1, homeScore);
+  awayScore = Math.max(1, awayScore);
+  const drawScore =
+    (homeScore + awayScore) *
+    (1 - Math.abs(homeScore - awayScore) / (homeScore + awayScore)) *
+    config.drawWeight;
+  const totalPoints = homeScore + awayScore + drawScore;
+
+  if (totalPoints <= 1) {
+    return { home: 33, draw: 34, away: 33 };
+  }
+
+  let homePercent = Math.round((homeScore / totalPoints) * 100);
+  let awayPercent = Math.round((awayScore / totalPoints) * 100);
+  let drawPercent = 100 - homePercent - awayPercent;
+
+  if (homePercent + awayPercent + drawPercent !== 100) {
+    const diff = 100 - (homePercent + awayPercent + drawPercent);
+    if (homePercent >= awayPercent && homePercent >= drawPercent)
+      homePercent += diff;
+    else if (awayPercent >= homePercent && awayPercent >= drawPercent)
+      awayPercent += diff;
+    else drawPercent += diff;
+  }
+
+  return { home: homePercent, draw: drawPercent, away: awayPercent };
 }

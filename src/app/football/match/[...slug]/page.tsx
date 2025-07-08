@@ -4,18 +4,18 @@ import axios from "axios";
 import type { Metadata } from "next";
 
 // Import all the components used on this page
-import Header from "@/components/Header";
-import { MatchHeader } from "@/components/match/MatchHeader";
+import { MatchHeader } from "@/components/match/MatchHeader"; // Correctly import the named export
 import MatchStatusBanner from "@/components/match/MatchStatusBanner";
 import MatchH2HWidget from "@/components/match/MatchH2HWidget";
-import MatchLineupsWidget from "@/components/match/MatchLineupsWidget";
+import MatchLineupsWidget from "@/components/match/MatchLineupsWidget"; // The new, enhanced widget
 import AdSlotWidget from "@/components/AdSlotWidget";
 import MatchPredictionWidget from "@/components/match/MatchPredictionWidget";
 import TeamFormWidget from "@/components/match/TeamFormWidget";
 import LiveOddsWidget from "@/components/match/LiveOddsWidget";
 import MatchActivityWidget from "@/components/match/MatchActivityWidget";
 import TeamStandingsWidget from "@/components/match/TeamStandingsWidget";
-import CasinoPartnerWidget from "@/components/CasinoPartnerWidget"; // <-- Import the Casino Widget
+import CasinoPartnerWidget from "@/components/CasinoPartnerWidget";
+import Header from "@/components/Header";
 
 // Data fetching and metadata functions remain unchanged...
 const getFixtureIdFromSlug = (slug: string): string | null => {
@@ -34,7 +34,7 @@ const fetchMatchDetailsServer = async (fixtureId: string) => {
   }
   const apiUrl = `${publicAppUrl}/api/match-details?fixture=${fixtureId}`;
   try {
-    const { data } = await axios.get(apiUrl, { timeout: 10000 });
+    const { data } = await axios.get(apiUrl, { timeout: 15000 }); // Increased timeout for more data
     return data;
   } catch (error: any) {
     console.error(
@@ -61,8 +61,8 @@ export async function generateMetadata({
   const homeTeamName = matchData.fixture.teams.home.name;
   const awayTeamName = matchData.fixture.teams.away.name;
   const leagueName = matchData.fixture.league.name;
-  const pageTitle = `${homeTeamName} vs ${awayTeamName} - ! Dünyayı kim şok edecek, kim çökecek? Ağızları açık bırakan goller, çılgın dramalar — sıradaki olaylara inanamayacaksınız!`;
-  const pageDescription = `${homeTeamName}, son haftalarda dikkat çekici galibiyetler ve sağlam savunma performanslarıyla bu maça güçlü bir formda geliyor. Saldırı hattı keskin, birçok fırsat yaratarak rakip hatalarından faydalanıyor. Bu arada, ${awayTeamName} de direncini gösterdi, erken aksaklıklardan geri döndü ve sıralamada istikrarlı bir şekilde yükselmeye başladı. Taraftarlar, her iki takımdan da yüksek enerji, agresif baskı ve yaratıcı oyunlar bekleyebilirler.`;
+  const pageTitle = `${homeTeamName} vs ${awayTeamName} - Live Score, Prediction & Match Stats | ${leagueName}`;
+  const pageDescription = `Get ready for an electrifying clash between ${homeTeamName} and ${awayTeamName}, promising intense competition and thrilling moments for football fans! As these two teams step onto the pitch, all eyes will be on their tactical setups, player performances, and the strategies they bring to secure vital points.`;
   const canonicalUrl = `/football/match/${slug}`;
   return {
     title: pageTitle,
@@ -77,7 +77,7 @@ export async function generateMetadata({
   };
 }
 
-// --- Main Page Component with ENHANCED LAYOUT ---
+// --- Main Page Component with REVISED LAYOUT ---
 export default async function MatchDetailPage({
   params,
 }: {
@@ -109,7 +109,6 @@ export default async function MatchDetailPage({
   return (
     <div className="bg-brand-dark min-h-screen">
       <Header />
-      {/* --- NEW: Two-column grid layout --- */}
       <div className="container mx-auto p-4 md:p-6 lg:grid lg:grid-cols-3 lg:gap-8 lg:items-start">
         {/* --- Main Content Column (2/3 width) --- */}
         <main className="lg:col-span-2 space-y-6">
@@ -131,6 +130,11 @@ export default async function MatchDetailPage({
               location="Away"
             />
           </div>
+
+          {/* --- THE CHANGE IS HERE --- */}
+          {/* Lineups are now in the main column, above H2H */}
+          <MatchLineupsWidget lineups={fixture.lineups} />
+
           <MatchH2HWidget
             h2h={h2h}
             teams={fixture.teams}
@@ -148,7 +152,7 @@ export default async function MatchDetailPage({
           />
         </main>
 
-        {/* --- NEW: Right Sidebar (1/3 width) --- */}
+        {/* --- Right Sidebar (1/3 width) --- */}
         <aside className="lg:col-span-1 space-y-6 lg:sticky lg:top-6 mt-8 lg:mt-0">
           {isLive && <LiveOddsWidget fixtureId={fixtureId} />}
           <CasinoPartnerWidget />
@@ -160,12 +164,13 @@ export default async function MatchDetailPage({
             standingsSeoDescription={standingsSeoDescription}
           />
           <MatchPredictionWidget
-            apiPrediction={analytics.prediction}
+            apiPrediction={null}
             customPrediction={analytics.customPrediction}
             bookmakerOdds={analytics.bookmakerOdds}
             teams={fixture.teams}
           />
-          <MatchLineupsWidget lineups={fixture.lineups} />
+
+          {/* AdSlotWidget remains in the sidebar */}
           <AdSlotWidget location="match_sidebar" />
         </aside>
       </div>
