@@ -6,6 +6,7 @@ import axios from "axios";
 import Image from "next/image";
 import Link from "next/link";
 import { IBanner } from "@/models/Banner";
+import { proxyImageUrl } from "@/lib/image-proxy";
 
 interface AdSlotWidgetProps {
   location: string;
@@ -62,7 +63,7 @@ export default function AdSlotWidget({ location }: AdSlotWidgetProps) {
         aria-label={`Advertisement: ${banner.title}`}
       >
         <Image
-          src={banner.imageUrl}
+          src={proxyImageUrl(banner.imageUrl)}
           alt={banner.title}
           width={300}
           height={250}
