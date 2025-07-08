@@ -214,7 +214,8 @@ export default function DesktopMatchListItem({
               onClick={() => setShowResult(true)}
               className="flex items-center justify-center gap-2 w-full text-sm font-semibold bg-[var(--brand-accent)]/10 border border-[var(--brand-accent)]/50 text-[var(--brand-accent)] hover:bg-[var(--brand-accent)] hover:text-white rounded-md p-2.5 transition-all duration-200"
             >
-              <TrendingUp size={16} /> Show Fanskor Odds
+              <TrendingUp size={16} />
+              Odds
             </button>
           ) : isLoading ? (
             <div className="flex justify-center items-center gap-2 text-sm font-semibold text-text-muted p-2.5">
