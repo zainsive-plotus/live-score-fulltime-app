@@ -6,7 +6,7 @@ import axios from "axios";
 import Image from "next/image";
 import Link from "next/link";
 import { IBanner } from "@/models/Banner";
-// This function is now a simple validator/passthrough
+// This is the helper function we just fixed.
 import { proxyImageUrl } from "@/lib/image-proxy";
 
 interface AdSlotWidgetProps {
@@ -39,7 +39,7 @@ export default function AdSlotWidget({ location }: AdSlotWidgetProps) {
   } = useQuery<IBanner | null>({
     queryKey: ["banner", location],
     queryFn: () => fetchBannerForSlot(location),
-    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
   });
 
@@ -60,14 +60,14 @@ export default function AdSlotWidget({ location }: AdSlotWidgetProps) {
         className="relative block w-full overflow-hidden rounded-lg group"
         aria-label={`Advertisement: ${banner.title}`}
       >
-        {/* --- THIS IS THE KEY PART --- */}
-        {/* 'proxyImageUrl' now returns the direct CDN URL, which is what the Image component needs */}
+        {/* --- NO CHANGE NEEDED HERE --- */}
+        {/* This now correctly calls the updated helper, which creates the /api/image-proxy URL */}
         <Image
           src={proxyImageUrl(banner.imageUrl)}
           alt={banner.title}
           width={300}
           height={250}
-          unoptimized={true}
+          unoptimized={true} // Still important for GIFs
           className="w-full h-auto object-cover transition-transform duration-300 group-hover:scale-105"
         />
 

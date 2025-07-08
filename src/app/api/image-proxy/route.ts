@@ -4,11 +4,10 @@ import { NextRequest, NextResponse } from "next/server";
 import axios from "axios";
 
 // --- SECURITY: A whitelist of allowed domains to prevent abuse ---
-// This ensures our proxy can only be used to fetch images from trusted sources.
 const ALLOWED_DOMAINS = [
   "media.api-sports.io",
-  "cdn.fanskor.com",
-  // Add other trusted image source domains here if needed in the future
+  "cdn.fanskor.com", // Your CDN must be in this list
+  "images.unsplash.com",
 ];
 
 export async function GET(request: NextRequest) {
@@ -28,7 +27,7 @@ export async function GET(request: NextRequest) {
     const urlObject = new URL(imageUrl);
     if (!ALLOWED_DOMAINS.includes(urlObject.hostname)) {
       return NextResponse.json(
-        { error: "Domain not allowed" },
+        { error: `Domain not allowed: ${urlObject.hostname}` },
         { status: 403 }
       );
     }
@@ -39,27 +38,42 @@ export async function GET(request: NextRequest) {
   try {
     // 3. Fetch the image from the external source
     const response = await axios.get(imageUrl, {
-      responseType: "arraybuffer", // Fetch as raw data
+      responseType: "arraybuffer",
+      timeout: 10000, // 10-second timeout
     });
 
     const imageBuffer = Buffer.from(response.data, "binary");
     const contentType = response.headers["content-type"] || "image/png";
 
-    // 4. Return the image with our custom, strong caching headers
+    // 4. Return the image with your custom, strong caching headers
     return new NextResponse(imageBuffer, {
       status: 200,
       headers: {
         "Content-Type": contentType,
-        // Cache for 7 days, immutable means the browser won't even check for updates
-        "Cache-Control": "public, max-age=604800, immutable",
+        // Cache on CDN and client browser for 7 days
+        "Cache-Control": "public, max-age=604800, s-maxage=604800, immutable",
       },
     });
-  } catch (error) {
-    console.error(`[Image Proxy] Failed to fetch ${imageUrl}:`, error);
-    // You could return a placeholder image here if you wanted
+  } catch (error: any) {
+    console.error(`[Image Proxy] Failed to fetch ${imageUrl}:`, error.code);
+
+    // --- IMPROVED ERROR HANDLING ---
+    // If the error is the exact DNS error we saw, return a specific message
+    if (error.code === "ENOTFOUND") {
+      return NextResponse.json(
+        {
+          error: `DNS resolution failed for the target image URL: ${imageUrl}`,
+        },
+        { status: 504 } // 504 Gateway Timeout is appropriate here
+      );
+    }
+
+    // For other errors, return a generic 502 Bad Gateway
     return NextResponse.json(
-      { error: "Failed to fetch image" },
+      {
+        error: `Failed to fetch image from upstream server. Reason: ${error.message}`,
+      },
       { status: 502 }
-    ); // 502 Bad Gateway
+    );
   }
 }
