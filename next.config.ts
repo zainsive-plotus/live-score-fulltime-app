@@ -20,10 +20,7 @@ const nextConfig: NextConfig = {
         pathname: "/**", // Allow any image path from this bucket
       },
     ],
-
-    loader: "custom",
-    loaderFile: "./image-loader.js",
-    domains: ["cdn.fanskor.com"],
+    domains: ["*"],
   },
   i18n: {
     // A list of all locales you want to support
