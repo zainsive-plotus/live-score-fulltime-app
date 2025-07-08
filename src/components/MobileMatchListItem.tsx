@@ -1,58 +1,48 @@
 // src/components/MobileMatchListItem.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Image from "next/image";
 import Link from "@/components/StyledLink";
 import { format } from "date-fns";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import { useVoteStorage } from "@/hooks/useVoteStorage";
-import { Star, ChevronDown } from "lucide-react";
+import {
+  Loader2,
+  BarChart2,
+  TrendingUp,
+  History,
+  CheckCircle,
+  XCircle,
+} from "lucide-react";
 import { generateMatchSlug } from "@/lib/generate-match-slug";
-import OddsDisplay from "./OddsDisplay"; // This is likely for API/general odds
-import { proxyImageUrl } from "@/lib/image-proxy"; // Assuming proxyImageUrl is needed for TeamRow
+import { proxyImageUrl } from "@/lib/image-proxy";
 
-// --- Type Definitions & API Helpers (Unchanged) ---
+// Type & Fetcher (Unchanged)
 type Odds = { home: string; draw: string; away: string } | undefined | null;
-interface VoteData {
-  homeVotes: number;
-  drawVotes: number;
-  awayVotes: number;
-}
-const getVotes = async (fixtureId: number): Promise<VoteData | null> => {
+const fetchFanskorOdds = async (fixtureId: number): Promise<Odds | null> => {
   try {
-    const { data } = await axios.get(`/api/votes?fixture=${fixtureId}`);
-    return data;
-  } catch {
+    const { data } = await axios.post("/api/batch-predictions", {
+      fixtureIds: [fixtureId],
+    });
+    return data[fixtureId] || null;
+  } catch (error) {
+    console.error(
+      `Failed to fetch Fanskor odds for fixture ${fixtureId}`,
+      error
+    );
     return null;
   }
 };
-const submitVote = async ({
-  fixtureId,
-  vote,
-}: {
-  fixtureId: number;
-  vote: string;
-}): Promise<VoteData> => {
-  const { data } = await axios.post("/api/votes", { fixtureId, vote });
-  return data;
-};
 
-// --- Reusable TeamRow sub-component ---
+// TeamRow Sub-component (Unchanged)
 const TeamRow = ({
   team,
   score,
-  onVote,
-  isVotedFor,
-  isDisabled,
   isLive,
 }: {
   team: { name: string; logo: string; winner: boolean };
   score: number | null;
-  onVote: (e: React.MouseEvent) => void;
-  isVotedFor: boolean;
-  isDisabled: boolean;
   isLive: boolean;
 }) => (
   <div className="flex items-center justify-between">
@@ -62,8 +52,7 @@ const TeamRow = ({
         alt={team.name}
         width={24}
         height={24}
-      />{" "}
-      {/* Ensure proxyImageUrl is used */}
+      />
       <span
         className={`font-semibold text-sm truncate ${
           team.winner ? "text-text-primary" : "text-text-secondary"
@@ -72,53 +61,24 @@ const TeamRow = ({
         {team.name}
       </span>
     </div>
-    <div className="flex items-center gap-3">
-      <span
-        className={`font-bold text-sm ${
-          isLive
-            ? "text-green-400"
-            : team.winner
-            ? "text-text-primary"
-            : "text-text-secondary"
-        }`}
-      >
-        {score ?? "-"}
-      </span>
-      {/* <button
-        onClick={onVote}
-        disabled={isDisabled}
-        className="p-1 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        <Star
-          size={20}
-          className={`transition-all duration-200 ${
-            isVotedFor
-              ? "text-brand-yellow fill-brand-yellow"
-              : "text-gray-500 hover:text-brand-yellow"
-          }`}
-        />
-      </button> */}
-    </div>
+    <span
+      className={`font-bold text-sm ${
+        isLive
+          ? "text-green-400"
+          : team.winner
+          ? "text-text-primary"
+          : "text-text-secondary"
+      }`}
+    >
+      {score ?? "-"}
+    </span>
   </div>
 );
 
-export default function MobileMatchListItem({
-  match,
-  liveOdds,
-  customOdds,
-}: {
-  match: any;
-  liveOdds?: Odds;
-  customOdds?: Odds;
-}) {
+// --- MAIN ENHANCED COMPONENT ---
+export default function MobileMatchListItem({ match }: { match: any }) {
   const { fixture, teams, goals } = match;
   const slug = generateMatchSlug(teams.home, teams.away, fixture.id);
-  const queryClient = useQueryClient();
-  const { setVote, getVoteForFixture } = useVoteStorage();
-
-  const [votedFor, setVotedFor] = useState<"home" | "away" | null>(
-    () => getVoteForFixture(fixture.id) as "home" | "away" | null
-  );
   const [isExpanded, setIsExpanded] = useState(false);
 
   const isLive = ["1H", "HT", "2H", "ET", "P", "LIVE"].includes(
@@ -126,47 +86,79 @@ export default function MobileMatchListItem({
   );
   const isFinished = ["FT", "AET", "PEN"].includes(fixture.status.short);
 
-  const { data: voteData } = useQuery({
-    queryKey: ["votes", fixture.id],
-    queryFn: () => getVotes(fixture.id),
-    enabled: !isFinished && !!votedFor,
+  const { data: customOdds, isLoading } = useQuery({
+    queryKey: ["customOdds", fixture.id],
+    queryFn: () => fetchFanskorOdds(fixture.id),
+    enabled: isExpanded, // Enable for both upcoming and finished when expanded
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 
-  const voteMutation = useMutation({
-    mutationFn: submitVote,
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["votes", fixture.id] }),
-  });
+  const { predictedOutcome, lowestOddValue } = useMemo(() => {
+    if (!customOdds) return { predictedOutcome: null, lowestOddValue: null };
+    const odds = {
+      home: parseFloat(customOdds.home || "999"),
+      draw: parseFloat(customOdds.draw || "999"),
+      away: parseFloat(customOdds.away || "999"),
+    };
+    const minOdd = Math.min(odds.home, odds.draw, odds.away);
+    if (minOdd === odds.home)
+      return { predictedOutcome: "Home", lowestOddValue: customOdds.home };
+    if (minOdd === odds.away)
+      return { predictedOutcome: "Away", lowestOddValue: customOdds.away };
+    return { predictedOutcome: "Draw", lowestOddValue: customOdds.draw };
+  }, [customOdds]);
 
-  const handleVote = (e: React.MouseEvent, choice: "home" | "away") => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (votedFor || isFinished) return;
-    setVotedFor(choice);
-    setVote(fixture.id, choice);
-    voteMutation.mutate({ fixtureId: fixture.id, vote: choice });
-    if (!isExpanded) setIsExpanded(true); // Automatically expand on vote
+  const actualResult = useMemo(() => {
+    if (!isFinished) return null;
+    if (teams.home.winner) return "Home";
+    if (teams.away.winner) return "Away";
+    return "Draw";
+  }, [isFinished, teams]);
+
+  const wasPredictionCorrect = predictedOutcome === actualResult;
+
+  const CustomOddBox = ({
+    value,
+    label,
+    isFavorite,
+  }: {
+    value: string | undefined;
+    label: string;
+    isFavorite: boolean;
+  }) => {
+    const favoriteClasses =
+      "bg-gradient-to-br from-[var(--brand-accent)] to-[#c54c14] text-white";
+    const defaultClasses =
+      "bg-[var(--color-primary)] text-[var(--text-secondary)]";
+    return (
+      <div
+        className={`flex flex-col flex-1 items-center justify-center p-2 rounded-md transition-all duration-300 ${
+          isFavorite ? favoriteClasses : defaultClasses
+        }`}
+      >
+        <span
+          className={`text-xs font-semibold ${
+            isFavorite ? "opacity-80" : "text-[var(--text-muted)]"
+          }`}
+        >
+          {label}
+        </span>
+        <span className="text-sm font-black">{value || "-"}</span>
+      </div>
+    );
   };
-
-  const totalVotes = (voteData?.homeVotes || 0) + (voteData?.awayVotes || 0);
-  const homePercent =
-    totalVotes > 0
-      ? Math.round(((voteData?.homeVotes || 0) / totalVotes) * 100)
-      : 50;
 
   return (
     <div
-      className="rounded-lg p-2"
+      className="rounded-lg overflow-hidden"
       style={{ backgroundColor: "var(--color-secondary)" }}
     >
-      <div className="flex items-start gap-2">
-        <Link
-          href={`/football/match/${slug}`}
-          className="flex-1 flex items-center gap-3"
-        >
+      <Link href={`/football/match/${slug}`}>
+        <div className="flex items-center gap-2 p-3">
           <div className="w-12 flex-shrink-0 text-center text-xs font-bold">
             {isLive ? (
-              <div className="flex items-center justify-center gap-1.5 text-green-400">
+              <div className="flex flex-col items-center justify-center gap-1 text-green-400">
                 <span className="h-1.5 w-1.5 rounded-full bg-green-500"></span>
                 <span>{fixture.status.elapsed}'</span>
               </div>
@@ -177,94 +169,109 @@ export default function MobileMatchListItem({
             )}
           </div>
           <div className="flex-1 flex flex-col gap-2">
-            <TeamRow
-              team={teams.home}
-              score={goals.home}
-              onVote={(e) => handleVote(e, "home")}
-              isVotedFor={votedFor === "home"}
-              isDisabled={!!votedFor || isFinished}
-              isLive={isLive}
-            />
-            <TeamRow
-              team={teams.away}
-              score={goals.away}
-              onVote={(e) => handleVote(e, "away")}
-              isVotedFor={votedFor === "away"}
-              isDisabled={!!votedFor || isFinished}
-              isLive={isLive}
-            />
+            <TeamRow team={teams.home} score={goals.home} isLive={isLive} />
+            <TeamRow team={teams.away} score={goals.away} isLive={isLive} />
           </div>
-        </Link>
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="p-2 text-text-muted"
-        >
-          <ChevronDown
-            size={20}
-            className={`transition-transform duration-200 ${
-              isExpanded ? "rotate-180" : ""
-            }`}
-          />
-        </button>
-      </div>
+        </div>
+      </Link>
 
       {isExpanded && (
-        <div className="mt-2 pt-2 ml-14 border-t border-gray-700/50 space-y-3">
-          {votedFor && (
-            <div className="flex w-full h-1.5 rounded-full overflow-hidden bg-gray-700">
-              <div
-                className="bg-brand-purple"
-                style={{ width: `${homePercent}%` }}
-              ></div>
-              <div
-                className="bg-blue-600"
-                style={{ width: `${100 - homePercent}%` }}
-              ></div>
+        <div className="mx-3 mb-3 pt-3 border-t border-[var(--color-primary)]">
+          {isLoading ? (
+            <div className="flex justify-center items-center gap-2 text-sm font-semibold text-text-muted p-2.5">
+              <Loader2 size={16} className="animate-spin" /> Loading...
             </div>
-          )}
-
-          {/* Existing OddsDisplay (likely for API/general odds) */}
-          {/* Only show if not finished and if OddsDisplay has content */}
-          {!isFinished && (
-            <OddsDisplay fixtureId={fixture.id} initialOdds={liveOdds} />
-          )}
-
-          {/* --- NEW: Fanskor Odds Display --- */}
-          {customOdds && !isFinished && (
-            <div className="space-y-1">
-              <h4 className="text-xs font-semibold text-brand-light">
-                Fanskor Odds
-              </h4>
-              <div className="grid grid-cols-3 gap-2 text-center text-white font-bold text-sm">
-                <div className="bg-brand-purple/20 p-2 rounded-md">
-                  1: {customOdds.home}
-                </div>
-                <div className="bg-brand-purple/20 p-2 rounded-md">
-                  X: {customOdds.draw}
-                </div>
-                <div className="bg-brand-purple/20 p-2 rounded-md">
-                  2: {customOdds.away}
-                </div>
+          ) : customOdds ? (
+            isFinished ? (
+              // --- FINISHED MATCH RESULT DISPLAY ---
+              <div
+                className={`flex items-center justify-center gap-2 p-2.5 rounded-md text-sm font-bold ${
+                  wasPredictionCorrect
+                    ? "bg-green-500/10 text-green-400"
+                    : "bg-gray-700/50 text-text-muted"
+                }`}
+              >
+                {wasPredictionCorrect ? (
+                  <CheckCircle size={18} />
+                ) : (
+                  <XCircle size={18} />
+                )}
+                <span>
+                  Predicted: {predictedOutcome} ({lowestOddValue})
+                </span>
               </div>
-            </div>
+            ) : (
+              // --- UPCOMING MATCH ODDS DISPLAY ---
+              <div className="flex items-center justify-around gap-2">
+                <CustomOddBox
+                  value={customOdds.home}
+                  label="Home"
+                  isFavorite={predictedOutcome === "Home"}
+                />
+                <CustomOddBox
+                  value={customOdds.draw}
+                  label="Draw"
+                  isFavorite={predictedOutcome === "Draw"}
+                />
+                <CustomOddBox
+                  value={customOdds.away}
+                  label="Away"
+                  isFavorite={predictedOutcome === "Away"}
+                />
+              </div>
+            )
+          ) : (
+            <p className="text-xs text-center text-text-muted p-2">
+              Prediction data not available for this match.
+            </p>
           )}
         </div>
       )}
+
+      <div
+        className="flex items-center justify-between p-2"
+        style={{ backgroundColor: "var(--color-primary)" }}
+      >
+        <Link
+          href={`/football/match/${slug}`}
+          className="flex items-center gap-1.5 text-xs text-text-muted font-semibold hover:text-white transition-colors px-2 py-1"
+        >
+          <BarChart2 size={14} />
+          Match Details
+        </Link>
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="flex items-center gap-1.5 text-xs font-semibold bg-[var(--brand-accent)]/10 text-[var(--brand-accent)] hover:bg-[var(--brand-accent)] hover:text-white rounded-full px-3 py-1.5 transition-all duration-200"
+        >
+          {isFinished ? <History size={14} /> : <TrendingUp size={14} />}
+          <span>
+            {isExpanded
+              ? isFinished
+                ? "Hide Result"
+                : "Hide Odds"
+              : isFinished
+              ? "See Result"
+              : "Fanskor Odds"}
+          </span>
+        </button>
+      </div>
     </div>
   );
 }
 
-// Skeleton remains unchanged.
+// Skeleton remains the same
 export const MobileMatchListItemSkeleton = () => (
   <div
-    className="flex items-center p-3 rounded-lg animate-pulse"
+    className="flex flex-col p-3 rounded-lg animate-pulse"
     style={{ backgroundColor: "var(--color-secondary)" }}
   >
-    <div className="w-12 h-8 rounded bg-gray-600/50"></div>
-    <div className="flex-1 ml-3 space-y-2">
-      <div className="h-4 w-4/5 rounded bg-gray-600/50"></div>
-      <div className="h-4 w-3/5 rounded bg-gray-600/50"></div>
+    <div className="flex items-center gap-3">
+      <div className="w-12 h-8 rounded bg-[var(--color-primary)]"></div>
+      <div className="flex-1 space-y-2">
+        <div className="h-4 w-4/5 rounded bg-[var(--color-primary)]"></div>
+        <div className="h-4 w-3/5 rounded bg-[var(--color-primary)]"></div>
+      </div>
     </div>
-    <div className="w-10 h-6 rounded bg-gray-600/50"></div>
+    <div className="h-8 mt-3 rounded-md bg-[var(--color-primary)]"></div>
   </div>
 );

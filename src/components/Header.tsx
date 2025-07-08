@@ -58,6 +58,7 @@ export default function Header() {
             alt="fanskor-logo"
             width={250}
             height={100}
+            unoptimized={true}
           />
         </StyledLink>
 

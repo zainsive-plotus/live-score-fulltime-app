@@ -1,158 +1,128 @@
 // src/lib/prediction-engine.ts
-// This file contains the core logic for the simple prediction engine.
 
-import type {
-  ApiSportsFixture,
-  ApiSportsStandings,
-  CleanOdds,
-} from "@/services/sportsApi/allsportsApiService"; // Assuming these types exist
-
-// Define the interfaces used by the prediction engine.
-// These are duplicated here for clarity in this file; ideally, they would be in a shared `types` directory.
-export interface PredictionResult {
-  prediction: "1" | "X" | "2";
-  text: string;
-  confidence: number;
-  homeScore: number;
-  awayScore: number;
-  drawScore: number;
+// --- HELPER: Factorial function (unchanged) ---
+function factorial(n: number): number {
+  if (n < 0) return -1;
+  if (n === 0 || n === 1) return 1;
+  let result = 1;
+  for (let i = 2; i <= n; i++) {
+    result *= i;
+  }
+  return result;
 }
 
-interface PredictionData {
-  fixture: ApiSportsFixture;
-  h2h: ApiSportsFixture[];
-  standings: ApiSportsStandings[];
-  homeTeamForm: ApiSportsFixture[];
-  awayTeamForm: ApiSportsFixture[];
+// --- HELPER: Poisson Distribution function (unchanged) ---
+function poissonProbability(k: number, lambda: number): number {
+  if (lambda < 0) return 0;
+  return (Math.pow(lambda, k) * Math.exp(-lambda)) / factorial(k);
 }
 
-/**
- * Generates a simple match prediction based on recent form, standings, and Head-to-Head (H2H) records.
- *
- * @param {PredictionData} data - An object containing fixture details, H2H matches, league standings,
- *                                 and recent form for both home and away teams.
- * @returns {PredictionResult} The predicted outcome (Home Win, Draw, or Away Win) with confidence score.
- */
-export function generateSimplePrediction({
-  fixture,
-  h2h,
-  standings,
-  homeTeamForm,
-  awayTeamForm,
-}: PredictionData): PredictionResult {
-  let homeScore = 1.0; // Base score for home team
-  let awayScore = 1.0; // Base score for away team
-  let drawScore = 1.0; // Base score for a draw
+// --- NEW HELPER: Convert bookmaker odds to normalized probabilities ---
+function convertOddsToNormalizedProbabilities(odds: {
+  home: string;
+  draw: string;
+  away: string;
+}): { home: number; draw: number; away: number } {
+  const homeOdd = parseFloat(odds.home);
+  const drawOdd = parseFloat(odds.draw);
+  const awayOdd = parseFloat(odds.away);
 
-  const homeTeamId = fixture.teams.home.id;
-  const awayTeamId = fixture.teams.away.id;
+  // Calculate implied probability, accounting for the bookmaker's margin (overround)
+  const impliedHome = 1 / homeOdd;
+  const impliedDraw = 1 / drawOdd;
+  const impliedAway = 1 / awayOdd;
+  const totalImplied = impliedHome + impliedDraw + impliedAway;
 
-  // Helper function to analyze a team's recent form
-  const analyzeForm = (formFixtures: ApiSportsFixture[], teamId: number) => {
-    let formPoints = 0;
-    // Filter for finished games and consider only the last 5 relevant matches
-    const finishedGames = formFixtures
-      .filter((f) => f.fixture.status.short === "FT")
-      .slice(0, 5);
-    finishedGames.forEach((game) => {
-      // Check if the team won (either as home or away)
-      if (
-        (game.teams.home.id === teamId && game.teams.home.winner) ||
-        (game.teams.away.id === teamId && game.teams.away.winner)
-      ) {
-        formPoints += 0.8; // Reward for a win
-      } else if (!game.teams.home.winner && !game.teams.away.winner) {
-        // It was a draw (neither team won)
-        formPoints += 0.3; // Smaller reward for a draw
-      }
-      // No points for a loss
-    });
-    return formPoints;
-  };
+  // Normalize to 100%
+  const normalizedHome = (impliedHome / totalImplied) * 100;
+  const normalizedDraw = (impliedDraw / totalImplied) * 100;
+  const normalizedAway = (impliedAway / totalImplied) * 100;
 
-  // Apply form analysis to home and away teams
-  homeScore += analyzeForm(homeTeamForm, homeTeamId);
-  awayScore += analyzeForm(awayTeamForm, awayTeamId);
+  return { home: normalizedHome, draw: normalizedDraw, away: normalizedAway };
+}
 
-  // Analyze League Standings
-  const leagueStandings = standings[0]?.league?.standings[0]; // Assuming first standing is the main one
-  if (leagueStandings && leagueStandings.length > 0) {
-    const homeTeamData = leagueStandings.find(
-      (t: any) => t.team.id === homeTeamId
+// --- MAIN FUNCTION: Renamed and updated to create a Hybrid Prediction ---
+export function generateHybridPrediction(
+  homeTeamStats: any,
+  awayTeamStats: any,
+  bookmakerOdds?: { home: string; draw: string; away: string } | null
+): { home: number; draw: number; away: number } {
+  // --- Step 1: Calculate Our Internal Poisson Probabilities ---
+  const leagueGoals = homeTeamStats?.goals;
+  if (!leagueGoals) {
+    console.warn(
+      "Prediction Engine: Missing league goal stats. Falling back to default."
     );
-    const awayTeamData = leagueStandings.find(
-      (t: any) => t.team.id === awayTeamId
-    );
-
-    if (homeTeamData && awayTeamData) {
-      const rankDiff = Math.abs(homeTeamData.rank - awayTeamData.rank);
-      // Reward higher-ranked team based on rank difference, scaled by league size
-      if (homeTeamData.rank < awayTeamData.rank) {
-        homeScore += (rankDiff / leagueStandings.length) * 3;
-      } else if (awayTeamData.rank < homeTeamData.rank) {
-        awayScore += (rankDiff / leagueStandings.length) * 3;
-      }
-      // Increase draw potential if teams are very close in rank
-      if (rankDiff <= 3) {
-        drawScore += (1 - rankDiff / 4) * 2; // Stronger draw bias if rank difference is small
-      }
+    return { home: 34, draw: 33, away: 33 };
+  }
+  const avgLeagueGoalsHome = parseFloat(leagueGoals.for.average.home) || 1.4;
+  const avgLeagueGoalsAway = parseFloat(leagueGoals.for.average.away) || 1.1;
+  const homeAttackStrength =
+    (parseFloat(homeTeamStats.goals.for.average.home) || avgLeagueGoalsHome) /
+    avgLeagueGoalsHome;
+  const homeDefenseStrength =
+    (parseFloat(homeTeamStats.goals.against.average.home) ||
+      avgLeagueGoalsAway) / avgLeagueGoalsAway;
+  const awayAttackStrength =
+    (parseFloat(awayTeamStats.goals.for.average.away) || avgLeagueGoalsAway) /
+    avgLeagueGoalsAway;
+  const awayDefenseStrength =
+    (parseFloat(awayTeamStats.goals.against.average.away) ||
+      avgLeagueGoalsHome) / avgLeagueGoalsHome;
+  const lambdaHome =
+    homeAttackStrength * awayDefenseStrength * avgLeagueGoalsHome;
+  const lambdaAway =
+    awayAttackStrength * homeDefenseStrength * avgLeagueGoalsAway;
+  let poissonHomeProb = 0,
+    poissonDrawProb = 0,
+    poissonAwayProb = 0;
+  const maxGoals = 8;
+  for (let i = 0; i <= maxGoals; i++) {
+    for (let j = 0; j <= maxGoals; j++) {
+      const scorelineProbability =
+        poissonProbability(i, lambdaHome) * poissonProbability(j, lambdaAway);
+      if (i > j) poissonHomeProb += scorelineProbability;
+      else if (j > i) poissonAwayProb += scorelineProbability;
+      else poissonDrawProb += scorelineProbability;
     }
   }
+  const totalPoissonProb = poissonHomeProb + poissonDrawProb + poissonAwayProb;
 
-  // Analyze Head-to-Head (H2H) Records
-  if (h2h && h2h.length > 0) {
-    let h2hHomeWins = 0;
-    let h2hAwayWins = 0;
-    // Consider only the most recent 5 H2H matches
-    h2h.slice(0, 5).forEach((match) => {
-      // Check if home team of the current fixture won the H2H match
-      if (
-        (match.teams.home.id === homeTeamId && match.teams.home.winner) ||
-        (match.teams.away.id === homeTeamId && match.teams.away.winner)
-      ) {
-        h2hHomeWins++;
-      }
-      // Check if away team of the current fixture won the H2H match
-      if (
-        (match.teams.home.id === awayTeamId && match.teams.home.winner) ||
-        (match.teams.away.id === awayTeamId && match.teams.away.winner)
-      ) {
-        h2hAwayWins++;
-      }
-    });
-    homeScore += h2hHomeWins * 0.4;
-    awayScore += h2hAwayWins * 0.4;
+  const poissonPercentages = {
+    home:
+      totalPoissonProb > 0 ? (poissonHomeProb / totalPoissonProb) * 100 : 34,
+    draw:
+      totalPoissonProb > 0 ? (poissonDrawProb / totalPoissonProb) * 100 : 33,
+    away:
+      totalPoissonProb > 0 ? (poissonAwayProb / totalPoissonProb) * 100 : 33,
+  };
+
+  // --- Step 2: If no bookmaker odds are provided, return our pure model ---
+  if (!bookmakerOdds) {
+    return poissonPercentages;
   }
 
-  // Calculate total score and normalize to percentages for confidence
-  const totalScore = homeScore + awayScore + drawScore;
+  // --- Step 3: Calculate Market Probabilities ---
+  const marketPercentages = convertOddsToNormalizedProbabilities(bookmakerOdds);
 
-  if (homeScore > awayScore && homeScore > drawScore) {
-    return {
-      prediction: "1", // Home Win
-      text: "Home Win",
-      confidence: Math.round((homeScore / totalScore) * 100),
-      homeScore,
-      awayScore,
-      drawScore,
-    };
-  } else if (awayScore > homeScore && awayScore > drawScore) {
-    return {
-      prediction: "2", // Away Win
-      text: "Away Win",
-      confidence: Math.round((awayScore / totalScore) * 100),
-      homeScore,
-      awayScore,
-      drawScore,
-    };
-  } else {
-    return {
-      prediction: "X", // Draw
-      text: "Draw",
-      confidence: Math.round((drawScore / totalScore) * 100),
-      homeScore,
-      awayScore,
-      drawScore,
-    };
-  }
+  // --- Step 4: Combine models using a weighted average (The "Secret Sauce") ---
+  const FANSKOR_MODEL_WEIGHT = 0.6; // Our model gets 60% of the say
+  const MARKET_ODDS_WEIGHT = 0.4; // The market gets 40%
+
+  const finalHome =
+    poissonPercentages.home * FANSKOR_MODEL_WEIGHT +
+    marketPercentages.home * MARKET_ODDS_WEIGHT;
+  const finalDraw =
+    poissonPercentages.draw * FANSKOR_MODEL_WEIGHT +
+    marketPercentages.draw * MARKET_ODDS_WEIGHT;
+  const finalAway =
+    poissonPercentages.away * FANSKOR_MODEL_WEIGHT +
+    marketPercentages.away * MARKET_ODDS_WEIGHT;
+
+  // --- Step 5: Return the final, rounded hybrid probabilities ---
+  return {
+    home: Math.round(finalHome),
+    draw: Math.round(finalDraw),
+    away: Math.round(100 - Math.round(finalHome) - Math.round(finalDraw)), // Ensure it sums to 100
+  };
 }

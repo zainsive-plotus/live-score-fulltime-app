@@ -1,15 +1,8 @@
 // src/app/api/batch-predictions/route.ts
 import { NextResponse } from "next/server";
 import axios from "axios";
-import {
-  generateSimplePrediction,
-  PredictionResult,
-} from "@/lib/prediction-engine";
+import { generateHybridPrediction } from "@/lib/prediction-engine"; // Import our new hybrid engine
 import { convertPercentageToOdds } from "@/lib/odds-converter";
-import {
-  ApiSportsFixture,
-  ApiSportsStandings,
-} from "@/services/sportsApi/allsportsApiService";
 
 type FanskorOdds = {
   home: string;
@@ -17,31 +10,31 @@ type FanskorOdds = {
   away: string;
 };
 
-// Reusable helper for making API-Football requests
-const apiRequest = async (endpoint: string, params: object): Promise<any> => {
+// This helper is still useful for making requests robustly
+const apiRequest = async (
+  endpoint: string,
+  params: object
+): Promise<any | null> => {
   const options = {
     method: "GET",
     url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/${endpoint}`,
     params,
     headers: { "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
+    timeout: 8000,
   };
   try {
     const response = await axios.request(options);
     return response.data.response;
-  } catch (error) {
+  } catch (error: any) {
     console.error(
-      `Error fetching from API-Football endpoint '${endpoint}':`,
-      error
+      `[API-Football Sub-Request Error] Endpoint: '${endpoint}', Params: ${JSON.stringify(
+        params
+      )}, Error: ${error.message}`
     );
-    return []; // Return empty array on error to not break the entire batch
+    return null;
   }
 };
 
-/**
- * This API endpoint takes an array of fixture IDs, fetches all necessary data
- * for each fixture, runs the custom prediction engine, and returns a map
- * of fixture IDs to their calculated "Fanskor Odds".
- */
 export async function POST(request: Request) {
   try {
     const { fixtureIds }: { fixtureIds: number[] } = await request.json();
@@ -52,83 +45,127 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+    console.log(
+      `[Batch Predictions] Received request for ${fixtureIds.length} fixtures.`
+    );
 
-    // 1. Fetch all fixture details in one batch
-    const fixtures: ApiSportsFixture[] = await apiRequest("fixtures", {
+    const fixtures: any[] | null = await apiRequest("fixtures", {
       ids: fixtureIds.join("-"),
     });
 
     if (!fixtures || fixtures.length === 0) {
-      return NextResponse.json({}, { status: 200 }); // Return empty if no valid fixtures found
+      console.warn(
+        "[Batch Predictions] No valid fixtures found from initial ID fetch."
+      );
+      return NextResponse.json({});
     }
 
-    // 2. Create an array of promises to fetch all necessary data for each fixture concurrently
+    // Create promises to fetch all necessary data for each fixture
     const dataPromises = fixtures.map(async (fixture) => {
       const { teams, league } = fixture;
-      const [h2h, standings, homeTeamForm, awayTeamForm] = await Promise.all([
-        apiRequest("fixtures/headtohead", {
-          h2h: `${teams.home.id}-${teams.away.id}`,
-        }),
-        apiRequest("standings", { league: league.id, season: league.season }),
-        apiRequest("fixtures", {
+
+      // Fetch stats and bookmaker odds in parallel
+      const [homeTeamStats, awayTeamStats, oddsData] = await Promise.all([
+        apiRequest("teams/statistics", {
+          league: league.id,
+          season: league.season,
           team: teams.home.id,
-          last: 5,
-          season: league.season,
         }),
-        apiRequest("fixtures", {
+        apiRequest("teams/statistics", {
+          league: league.id,
+          season: league.season,
           team: teams.away.id,
-          last: 5,
-          season: league.season,
         }),
+        apiRequest("odds", {
+          fixture: fixture.fixture.id,
+          bookmaker: 8,
+          bet: 1,
+        }), // Bet365, Match Winner
       ]);
+
+      // If team stats are missing, we cannot proceed. Odds are optional.
+      if (!homeTeamStats || !awayTeamStats) {
+        return { fixtureId: fixture.fixture.id, predictionData: null };
+      }
+
+      // Extract the relevant odds values if they exist
+      const bookmakerOdds = oddsData?.[0]?.bookmakers?.[0]?.bets?.[0]?.values;
+      const odds = bookmakerOdds
+        ? {
+            home:
+              bookmakerOdds.find((v: any) => v.value === "Home")?.odd || null,
+            draw:
+              bookmakerOdds.find((v: any) => v.value === "Draw")?.odd || null,
+            away:
+              bookmakerOdds.find((v: any) => v.value === "Away")?.odd || null,
+          }
+        : null;
+
+      // Ensure all three odds values are present to be considered valid
+      const validOdds =
+        odds && odds.home && odds.draw && odds.away ? odds : null;
 
       return {
         fixtureId: fixture.fixture.id,
         predictionData: {
-          fixture,
-          h2h,
-          standings,
-          homeTeamForm,
-          awayTeamForm,
+          homeTeamStats,
+          awayTeamStats,
+          bookmakerOdds: validOdds,
         },
       };
     });
 
-    const allData = await Promise.all(dataPromises);
+    const settledResults = await Promise.allSettled(dataPromises);
+    console.log(
+      `[Batch Predictions] All sub-requests settled. Processing ${settledResults.length} results.`
+    );
 
-    // 3. Run the prediction engine for each fixture and create the final odds map
     const oddsMap: Record<number, FanskorOdds> = {};
 
-    allData.forEach((data) => {
-      if (data) {
-        // Run the prediction engine
-        const predictionResult: PredictionResult = generateSimplePrediction(
-          data.predictionData
+    settledResults.forEach((result) => {
+      if (result.status === "fulfilled" && result.value?.predictionData) {
+        const { fixtureId, predictionData } = result.value;
+        try {
+          const predictionResult = generateHybridPrediction(
+            predictionData.homeTeamStats,
+            predictionData.awayTeamStats,
+            predictionData.bookmakerOdds // Pass the bookmaker odds to the engine
+          );
+
+          oddsMap[fixtureId] = {
+            home: convertPercentageToOdds(predictionResult.home),
+            draw: convertPercentageToOdds(predictionResult.draw),
+            away: convertPercentageToOdds(predictionResult.away),
+          };
+        } catch (engineError: any) {
+          console.error(
+            `[Prediction Engine Error] for fixture ${fixtureId}: ${engineError.message}`
+          );
+        }
+      } else if (result.status === "rejected") {
+        console.error(
+          `[Batch Predictions] Data promise failed for a fixture:`,
+          result.reason
         );
-
-        // Convert the raw prediction scores to percentages
-        const totalScore =
-          predictionResult.homeScore +
-          predictionResult.awayScore +
-          predictionResult.drawScore;
-        const homePercent = (predictionResult.homeScore / totalScore) * 100;
-        const awayPercent = (predictionResult.awayScore / totalScore) * 100;
-        const drawPercent = (predictionResult.drawScore / totalScore) * 100;
-
-        // Convert percentages to decimal odds
-        oddsMap[data.fixtureId] = {
-          home: convertPercentageToOdds(homePercent),
-          draw: convertPercentageToOdds(drawPercent),
-          away: convertPercentageToOdds(awayPercent),
-        };
       }
     });
 
+    console.log(
+      `[Batch Predictions] Successfully generated hybrid odds for ${
+        Object.keys(oddsMap).length
+      } fixtures.`
+    );
     return NextResponse.json(oddsMap);
   } catch (error) {
-    console.error("[API/batch-predictions] Critical error:", error);
+    console.error(
+      "[Batch Predictions] Critical unhandled error in POST handler:",
+      error
+    );
     return NextResponse.json(
-      { error: "Failed to generate batch predictions." },
+      {
+        error:
+          "Failed to generate batch predictions due to a critical server error.",
+      },
       { status: 500 }
     );
   }

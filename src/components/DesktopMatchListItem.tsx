@@ -1,243 +1,285 @@
 // src/components/DesktopMatchListItem.tsx
 "use client";
 
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import Image from "next/image";
 import Link from "@/components/StyledLink";
 import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import { Star } from "lucide-react";
+import {
+  Star,
+  TrendingUp,
+  Loader2,
+  History,
+  CheckCircle,
+  XCircle,
+} from "lucide-react";
 import { generateMatchSlug } from "@/lib/generate-match-slug";
-import { proxyImageUrl } from "@/lib/image-proxy"; // Make sure proxyImageUrl is imported
+import { proxyImageUrl } from "@/lib/image-proxy";
 
-// --- Type Definition for Odds ---
-type Odds =
-  | {
-      home: string;
-      draw: string;
-      away: string;
-    }
-  | undefined
-  | null;
-
-// --- API Fetcher for Pre-Match Odds ---
-const fetchPreMatchOdds = async (fixtureId: number): Promise<Odds> => {
+// Type Definition & Fetcher (Unchanged)
+type Odds = { home: string; draw: string; away: string } | undefined | null;
+const fetchFanskorOdds = async (fixtureId: number): Promise<Odds | null> => {
   try {
-    const { data } = await axios.get(`/api/odds?fixture=${fixtureId}`);
-    return data;
-  } catch {
+    const { data } = await axios.post("/api/batch-predictions", {
+      fixtureIds: [fixtureId],
+    });
+    return data[fixtureId] || null;
+  } catch (error) {
+    console.error(
+      `Failed to fetch Fanskor odds for fixture ${fixtureId}`,
+      error
+    );
     return null;
   }
 };
 
-// --- Main Component ---
 interface DesktopMatchListItemProps {
   match: any;
-  liveOdds?: Odds;
   isLive: boolean;
-  customOdds?: Odds; // NEW: Custom calculated odds
 }
 
 export default function DesktopMatchListItem({
   match,
-  liveOdds,
   isLive,
-  customOdds, // NEW: Destructure customOdds
 }: DesktopMatchListItemProps) {
   const { fixture, teams, goals } = match;
   const slug = generateMatchSlug(teams.home, teams.away, fixture.id);
-
   const isFinished = ["FT", "AET", "PEN"].includes(fixture.status.short);
 
-  const { data: preMatchOdds, isLoading: isLoadingPreMatchOdds } = useQuery({
-    queryKey: ["preMatchOdds", fixture.id],
-    queryFn: () => fetchPreMatchOdds(fixture.id),
-    enabled: !isFinished && !isLive,
-    staleTime: 1000 * 60 * 60,
+  // --- THIS IS THE FIX ---
+  // The state variable is named 'showResult', so we must use it consistently.
+  const [showResult, setShowResult] = useState(false);
+
+  const { data: customOdds, isLoading } = useQuery({
+    queryKey: ["customOdds", fixture.id],
+    queryFn: () => fetchFanskorOdds(fixture.id),
+    enabled: showResult, // Use the correct state variable here
+    staleTime: Infinity,
     refetchOnWindowFocus: false,
   });
 
-  const displayOdds = isLive ? liveOdds : preMatchOdds;
+  const { predictedOutcome, lowestOddValue } = useMemo(() => {
+    if (!customOdds) return { predictedOutcome: null, lowestOddValue: null };
+    const odds = {
+      home: parseFloat(customOdds.home || "999"),
+      draw: parseFloat(customOdds.draw || "999"),
+      away: parseFloat(customOdds.away || "999"),
+    };
+    const minOdd = Math.min(odds.home, odds.draw, odds.away);
+    if (minOdd === odds.home)
+      return { predictedOutcome: "Home", lowestOddValue: customOdds.home };
+    if (minOdd === odds.away)
+      return { predictedOutcome: "Away", lowestOddValue: customOdds.away };
+    return { predictedOutcome: "Draw", lowestOddValue: customOdds.draw };
+  }, [customOdds]);
 
-  const lowestOdd = useMemo(() => {
-    if (!displayOdds) return null;
-    const oddValues = [
-      parseFloat(displayOdds.home),
-      parseFloat(displayOdds.draw),
-      parseFloat(displayOdds.away),
-    ];
-    return Math.min(...oddValues);
-  }, [displayOdds]);
+  const actualResult = useMemo(() => {
+    if (!isFinished) return null;
+    if (teams.home.winner) return "Home";
+    if (teams.away.winner) return "Away";
+    return "Draw";
+  }, [isFinished, teams]);
 
-  const OddBox = ({ value }: { value: string | undefined }) => {
-    const isLowest = parseFloat(value || "999") === lowestOdd;
+  const wasPredictionCorrect = predictedOutcome === actualResult;
+
+  const CustomOddBox = ({
+    value,
+    label,
+    isFavorite,
+  }: {
+    value: string | undefined;
+    label: string;
+    isFavorite: boolean;
+  }) => {
+    const favoriteClasses =
+      "bg-gradient-to-br from-[var(--brand-accent)] to-[#c54c14] text-white shadow-lg shadow-[var(--brand-accent)]/20";
+    const defaultClasses =
+      "bg-[var(--color-primary)] text-[var(--text-secondary)]";
     return (
       <div
-        className={`flex items-center justify-center p-2 rounded-md w-14 h-8 text-sm font-bold transition-colors duration-200 hover:bg-gray-600 ${
-          isLowest
-            ? "bg-yellow-500/20 text-brand-yellow"
-            : "bg-transparent text-text-secondary"
+        className={`flex flex-col items-center justify-center p-1 rounded-md w-16 h-12 transition-all duration-300 ${
+          isFavorite ? favoriteClasses : defaultClasses
         }`}
       >
-        {value || "-"}
-      </div>
-    );
-  };
-
-  // --- NEW: CustomOddBox for Fanskor's odds ---
-  const CustomOddBox = ({ value }: { value: string | undefined }) => {
-    return (
-      <div className="flex items-center justify-center p-2 rounded-md w-14 h-8 text-sm font-bold bg-brand-purple/20 text-white">
-        {value || "-"}
+        <span
+          className={`text-xs font-semibold ${
+            isFavorite ? "opacity-80" : "text-[var(--text-muted)]"
+          }`}
+        >
+          {label}
+        </span>
+        <span className="text-base font-black">{value || "-"}</span>
       </div>
     );
   };
 
   return (
-    <Link
-      href={`/football/match/${slug}`}
-      className="group flex items-center p-2 rounded-lg transition-all duration-300 ease-in-out border border-transparent hover:-translate-y-1 hover:shadow-xl hover:shadow-[#ed5c19]/10 hover:border-[#ed5c19]"
+    <div
+      className="group flex items-center p-2 rounded-lg transition-all duration-300 ease-in-out border border-transparent hover:border-[var(--brand-accent)]/20 hover:bg-[var(--color-primary)]"
       style={{ backgroundColor: "var(--color-secondary)" }}
     >
-      {/* Column 1: Status */}
-      <div className="w-16 flex-shrink-0 text-center text-sm font-semibold">
-        {isLive ? (
-          <div className="flex items-center justify-center gap-1.5 text-green-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-green-500"></span>
-            <span>{fixture.status.elapsed}'</span>
-          </div>
-        ) : isFinished ? (
-          <div className="text-text-muted">FT</div>
-        ) : (
-          <div className="text-text-primary">
-            {format(new Date(fixture.date), "HH:mm")}
-          </div>
-        )}
-      </div>
-
-      {/* Column 2: Teams */}
-      <div className="flex-1 flex flex-col gap-1.5">
-        <div className="flex items-center gap-3">
-          <Image
-            src={proxyImageUrl(teams.home.logo)}
-            alt={teams.home.name}
-            width={20}
-            height={20}
-          />
-          <span className="font-semibold text-base text-text-primary">
-            {teams.home.name}
-          </span>
+      <Link
+        href={`/football/match/${slug}`}
+        className="flex flex-1 items-center min-w-0"
+      >
+        {/* Left side content (status, teams, score) is unchanged */}
+        <div className="w-16 flex-shrink-0 text-center text-sm font-semibold">
+          {isLive ? (
+            <div className="flex items-center justify-center gap-1.5 text-green-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-green-500"></span>
+              <span>{fixture.status.elapsed}'</span>
+            </div>
+          ) : isFinished ? (
+            <div className="text-text-muted">FT</div>
+          ) : (
+            <div className="text-text-primary">
+              {format(new Date(fixture.date), "HH:mm")}
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-3">
-          <Image
-            src={proxyImageUrl(teams.away.logo)}
-            alt={teams.away.name}
-            width={20}
-            height={20}
-          />
-          <span className="font-semibold text-base text-text-primary">
-            {teams.away.name}
-          </span>
-        </div>
-      </div>
-
-      {/* Column 3: Odds Display (API/Live Odds) */}
-      <div className="flex-1 flex items-center justify-center gap-1">
-        {isFinished ? (
-          <div className="h-8"></div>
-        ) : isLoadingPreMatchOdds ? (
-          <div className="flex items-center justify-center gap-1 w-full">
-            <div
-              className="w-14 h-8 rounded-md animate-pulse"
-              style={{ backgroundColor: "var(--color-primary)" }}
-            ></div>
-            <div
-              className="w-14 h-8 rounded-md animate-pulse"
-              style={{ backgroundColor: "var(--color-primary)" }}
-            ></div>
-            <div
-              className="w-14 h-8 rounded-md animate-pulse"
-              style={{ backgroundColor: "var(--color-primary)" }}
-            ></div>
-          </div>
-        ) : displayOdds ? (
-          <>
-            <OddBox value={displayOdds.home} />
-            <OddBox value={displayOdds.draw} />
-            <OddBox value={displayOdds.away} />
-          </>
-        ) : (
-          <div className="flex items-center justify-center w-full h-8">
-            <span className="text-xs font-semibold text-text-muted">
-              No Odds Available
+        <div className="flex-1 flex flex-col gap-1.5 pr-4">
+          <div className="flex items-center gap-3">
+            <Image
+              src={proxyImageUrl(teams.home.logo)}
+              alt={teams.home.name}
+              width={20}
+              height={20}
+            />
+            <span className="font-semibold text-base text-text-primary">
+              {teams.home.name}
             </span>
           </div>
-        )}
-      </div>
-
-      {/* --- NEW COLUMN: Fanskor Odds --- */}
-      {/* This column is conditionally rendered based on `customOdds` */}
-      {customOdds && !isFinished && (
-        <div className="flex-1 flex flex-col items-center justify-center gap-1 text-center">
-          <span className="text-xs text-brand-muted font-semibold">
-            Fanskor Odds
-          </span>
-          <div className="flex items-center justify-center gap-1">
-            <CustomOddBox value={customOdds.home} />
-            <CustomOddBox value={customOdds.draw} />
-            <CustomOddBox value={customOdds.away} />
+          <div className="flex items-center gap-3">
+            <Image
+              src={proxyImageUrl(teams.away.logo)}
+              alt={teams.away.name}
+              width={20}
+              height={20}
+            />
+            <span className="font-semibold text-base text-text-primary">
+              {teams.away.name}
+            </span>
           </div>
         </div>
-      )}
+        <div
+          className={`w-10 flex-shrink-0 flex flex-col items-center gap-1.5 text-base font-bold ${
+            isLive ? "text-green-400" : "text-text-primary"
+          }`}
+        >
+          <span>{goals.home ?? "-"}</span>
+          <span>{goals.away ?? "-"}</span>
+        </div>
+      </Link>
 
-      {/* Column 4: Scores */}
-      <div
-        className={`w-10 flex-shrink-0 flex flex-col items-center gap-1.5 text-base font-bold ${
-          isLive ? "text-green-400" : "text-text-primary"
-        }`}
-      >
-        <span>{goals.home ?? "-"}</span>
-        <span>{goals.away ?? "-"}</span>
-      </div>
-
-      {/* Column 5: Favorite Action */}
-      <div className="w-16 flex-shrink-0 flex items-center justify-end">
-        <button className="p-2 text-text-muted transition-colors duration-300 group-hover:text-brand-yellow">
+      <div className="w-64 flex-shrink-0 flex items-center justify-end gap-4 pl-4 border-l border-gray-700/50">
+        <div className="flex-1 text-center">
+          {isFinished ? (
+            !showResult ? (
+              <button
+                onClick={() => setShowResult(true)}
+                className="flex items-center justify-center gap-2 w-full text-sm font-semibold bg-[var(--color-primary)] border border-[var(--text-muted)]/20 text-text-muted hover:bg-[var(--text-muted)] hover:text-black rounded-md p-2.5 transition-all duration-200"
+              >
+                <History size={16} /> See Prediction Result
+              </button>
+            ) : isLoading ? (
+              <div className="flex justify-center items-center gap-2 text-sm font-semibold text-text-muted p-2.5">
+                <Loader2 size={16} className="animate-spin" /> Loading Result...
+              </div>
+            ) : customOdds ? (
+              <div
+                className={`flex items-center justify-center gap-2 p-2.5 rounded-md text-sm font-bold ${
+                  wasPredictionCorrect
+                    ? "bg-green-500/10 text-green-400"
+                    : "bg-gray-700/50 text-text-muted"
+                }`}
+              >
+                {wasPredictionCorrect ? (
+                  <CheckCircle size={18} />
+                ) : (
+                  <XCircle size={18} />
+                )}
+                <span>
+                  Predicted: {predictedOutcome} ({lowestOddValue})
+                </span>
+              </div>
+            ) : (
+              <span className="text-xs text-text-muted font-semibold">
+                Prediction data not available.
+              </span>
+            )
+          ) : !showResult ? ( // Use showResult here
+            <button
+              onClick={() => setShowResult(true)}
+              className="flex items-center justify-center gap-2 w-full text-sm font-semibold bg-[var(--brand-accent)]/10 border border-[var(--brand-accent)]/50 text-[var(--brand-accent)] hover:bg-[var(--brand-accent)] hover:text-white rounded-md p-2.5 transition-all duration-200"
+            >
+              <TrendingUp size={16} /> Show Fanskor Odds
+            </button>
+          ) : isLoading ? (
+            <div className="flex justify-center items-center gap-2 text-sm font-semibold text-text-muted p-2.5">
+              <Loader2 size={16} className="animate-spin" /> Calculating...
+            </div>
+          ) : customOdds ? (
+            <div className="flex items-center justify-around gap-1">
+              <CustomOddBox
+                value={customOdds.home}
+                label="1"
+                isFavorite={predictedOutcome === "Home"}
+              />
+              <CustomOddBox
+                value={customOdds.draw}
+                label="X"
+                isFavorite={predictedOutcome === "Draw"}
+              />
+              <CustomOddBox
+                value={customOdds.away}
+                label="2"
+                isFavorite={predictedOutcome === "Away"}
+              />
+            </div>
+          ) : (
+            <span className="text-xs text-text-muted font-semibold">
+              Odds not available.
+            </span>
+          )}
+        </div>
+        <button className="p-2 text-text-muted transition-colors duration-300 hover:text-brand-yellow">
           <Star size={20} />
         </button>
       </div>
-    </Link>
+    </div>
   );
 }
 
-// Skeleton code is unchanged.
+// Skeleton component is unchanged.
 export const MatchListItemSkeleton = () => (
   <div
-    className="flex items-center p-3 rounded-lg animate-pulse"
+    className="flex items-center p-2 rounded-lg animate-pulse"
     style={{ backgroundColor: "var(--color-secondary)" }}
   >
-    <div className="w-20 flex-shrink-0">
-      <div className="h-5 w-10 mx-auto rounded bg-gray-600/50"></div>
-    </div>
-    <div className="flex-1 flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 w-3/5">
-          <div className="w-6 h-6 rounded-full bg-gray-600/50"></div>
-          <div className="h-5 w-full rounded bg-gray-600/50"></div>
-        </div>
-        <div className="h-5 w-6 rounded bg-gray-600/50"></div>
+    <div className="flex-1 flex items-center">
+      <div className="w-16 flex-shrink-0">
+        <div className="h-5 w-10 mx-auto rounded bg-[var(--color-primary)]"></div>
       </div>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 w-3/5">
-          <div className="w-6 h-6 rounded-full bg-gray-600/50"></div>
-          <div className="h-5 w-full rounded bg-gray-600/50"></div>
+      <div className="flex-1 flex flex-col gap-3">
+        <div className="flex items-center gap-3 w-4/5">
+          <div className="w-6 h-6 rounded-full bg-[var(--color-primary)]"></div>
+          <div className="h-5 w-full rounded bg-[var(--color-primary)]"></div>
         </div>
-        <div className="h-5 w-6 rounded bg-gray-600/50"></div>
+        <div className="flex items-center gap-3 w-4/5">
+          <div className="w-6 h-6 rounded-full bg-[var(--color-primary)]"></div>
+          <div className="h-5 w-full rounded bg-[var(--color-primary)]"></div>
+        </div>
+      </div>
+      <div className="w-10 flex-shrink-0 flex flex-col items-center gap-3">
+        <div className="h-5 w-4 bg-[var(--color-primary)] rounded"></div>
+        <div className="h-5 w-4 bg-[var(--color-primary)] rounded"></div>
       </div>
     </div>
-    <div className="w-16 flex-shrink-0 flex items-center justify-end">
-      <div className="h-6 w-6 rounded-full bg-gray-600/50"></div>
+    <div className="w-64 flex-shrink-0 pl-4 border-l border-gray-700/50 flex items-center justify-end gap-4">
+      <div className="w-full h-11 rounded-md bg-[var(--color-primary)]"></div>
+      <div className="w-6 h-6 rounded-full bg-[var(--color-primary)]"></div>
     </div>
   </div>
 );

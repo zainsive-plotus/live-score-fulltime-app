@@ -95,6 +95,7 @@ export default function StickyFooterAd() {
               layout="fill"
               objectFit="cover"
               className="rounded-md"
+              unoptimized={true}
             />
           </div>
           <div className="flex-grow min-w-0">
