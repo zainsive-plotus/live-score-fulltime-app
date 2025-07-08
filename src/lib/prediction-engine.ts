@@ -17,7 +17,7 @@ function poissonProbability(k: number, lambda: number): number {
   return (Math.pow(lambda, k) * Math.exp(-lambda)) / factorial(k);
 }
 
-// --- NEW HELPER: Convert bookmaker odds to normalized probabilities ---
+// --- HELPER: Odds to probability conversion (unchanged) ---
 function convertOddsToNormalizedProbabilities(odds: {
   home: string;
   draw: string;
@@ -26,33 +26,38 @@ function convertOddsToNormalizedProbabilities(odds: {
   const homeOdd = parseFloat(odds.home);
   const drawOdd = parseFloat(odds.draw);
   const awayOdd = parseFloat(odds.away);
-
-  // Calculate implied probability, accounting for the bookmaker's margin (overround)
   const impliedHome = 1 / homeOdd;
   const impliedDraw = 1 / drawOdd;
   const impliedAway = 1 / awayOdd;
   const totalImplied = impliedHome + impliedDraw + impliedAway;
-
-  // Normalize to 100%
+  if (totalImplied === 0) return { home: 33.3, draw: 33.3, away: 33.3 };
   const normalizedHome = (impliedHome / totalImplied) * 100;
   const normalizedDraw = (impliedDraw / totalImplied) * 100;
   const normalizedAway = (impliedAway / totalImplied) * 100;
-
   return { home: normalizedHome, draw: normalizedDraw, away: normalizedAway };
 }
 
-// --- MAIN FUNCTION: Renamed and updated to create a Hybrid Prediction ---
+// --- NEW HELPER: Find the top scorer from a squad list ---
+function findTopScorer(squad: any[]): any | null {
+  if (!squad || squad.length === 0) return null;
+  // Sort players by goals descending to find the top scorer
+  return squad.sort((a, b) => (b.goals?.total || 0) - (a.goals?.total || 0))[0];
+}
+
+// --- MAIN FUNCTION: Upgraded to be context-aware ---
 export function generateHybridPrediction(
   homeTeamStats: any,
   awayTeamStats: any,
-  bookmakerOdds?: { home: string; draw: string; away: string } | null
+  bookmakerOdds: { home: string; draw: string; away: string } | null,
+  homeLineup: any | null,
+  awayLineup: any | null,
+  homeSquad: any[] | null,
+  awaySquad: any[] | null
 ): { home: number; draw: number; away: number } {
-  // --- Step 1: Calculate Our Internal Poisson Probabilities ---
+  // --- Step 1: Calculate Base Poisson Probabilities (Unchanged logic) ---
   const leagueGoals = homeTeamStats?.goals;
   if (!leagueGoals) {
-    console.warn(
-      "Prediction Engine: Missing league goal stats. Falling back to default."
-    );
+    console.warn("Prediction Engine: Missing league goal stats. Falling back.");
     return { home: 34, draw: 33, away: 33 };
   }
   const avgLeagueGoalsHome = parseFloat(leagueGoals.for.average.home) || 1.4;
@@ -69,10 +74,43 @@ export function generateHybridPrediction(
   const awayDefenseStrength =
     (parseFloat(awayTeamStats.goals.against.average.away) ||
       avgLeagueGoalsHome) / avgLeagueGoalsHome;
-  const lambdaHome =
+
+  let lambdaHome =
     homeAttackStrength * awayDefenseStrength * avgLeagueGoalsHome;
-  const lambdaAway =
+  let lambdaAway =
     awayAttackStrength * homeDefenseStrength * avgLeagueGoalsAway;
+
+  // --- NEW: Step 2: Adjust Expected Goals Based on Key Player Availability ---
+  const KEY_PLAYER_ABSENCE_PENALTY = 0.82; // Apply an 18% penalty to expected goals.
+
+  const homeTopScorer = findTopScorer(homeSquad);
+  const awayTopScorer = findTopScorer(awaySquad);
+
+  if (homeTopScorer && homeLineup?.startXI) {
+    const isScorerStarting = homeLineup.startXI.some(
+      (p: any) => p.player.id === homeTopScorer.id
+    );
+    if (!isScorerStarting) {
+      lambdaHome *= KEY_PLAYER_ABSENCE_PENALTY;
+      console.log(
+        `Prediction Engine: Home top scorer (${homeTopScorer.name}) is NOT starting. Applying penalty.`
+      );
+    }
+  }
+
+  if (awayTopScorer && awayLineup?.startXI) {
+    const isScorerStarting = awayLineup.startXI.some(
+      (p: any) => p.player.id === awayTopScorer.id
+    );
+    if (!isScorerStarting) {
+      lambdaAway *= KEY_PLAYER_ABSENCE_PENALTY;
+      console.log(
+        `Prediction Engine: Away top scorer (${awayTopScorer.name}) is NOT starting. Applying penalty.`
+      );
+    }
+  }
+
+  // --- Step 3: Calculate Probabilities with (potentially adjusted) lambdas ---
   let poissonHomeProb = 0,
     poissonDrawProb = 0,
     poissonAwayProb = 0;
@@ -97,32 +135,26 @@ export function generateHybridPrediction(
       totalPoissonProb > 0 ? (poissonAwayProb / totalPoissonProb) * 100 : 33,
   };
 
-  // --- Step 2: If no bookmaker odds are provided, return our pure model ---
+  // --- Step 4 & 5: Blend with Market and Finalize (Unchanged) ---
   if (!bookmakerOdds) {
-    return poissonPercentages;
+    return {
+      home: Math.round(poissonPercentages.home),
+      draw: Math.round(poissonPercentages.draw),
+      away: Math.round(poissonPercentages.away),
+    };
   }
-
-  // --- Step 3: Calculate Market Probabilities ---
   const marketPercentages = convertOddsToNormalizedProbabilities(bookmakerOdds);
-
-  // --- Step 4: Combine models using a weighted average (The "Secret Sauce") ---
-  const FANSKOR_MODEL_WEIGHT = 0.6; // Our model gets 60% of the say
-  const MARKET_ODDS_WEIGHT = 0.4; // The market gets 40%
-
+  const FANSKOR_MODEL_WEIGHT = 0.6;
+  const MARKET_ODDS_WEIGHT = 0.4;
   const finalHome =
     poissonPercentages.home * FANSKOR_MODEL_WEIGHT +
     marketPercentages.home * MARKET_ODDS_WEIGHT;
   const finalDraw =
     poissonPercentages.draw * FANSKOR_MODEL_WEIGHT +
     marketPercentages.draw * MARKET_ODDS_WEIGHT;
-  const finalAway =
-    poissonPercentages.away * FANSKOR_MODEL_WEIGHT +
-    marketPercentages.away * MARKET_ODDS_WEIGHT;
-
-  // --- Step 5: Return the final, rounded hybrid probabilities ---
   return {
     home: Math.round(finalHome),
     draw: Math.round(finalDraw),
-    away: Math.round(100 - Math.round(finalHome) - Math.round(finalDraw)), // Ensure it sums to 100
+    away: Math.round(100 - Math.round(finalHome) - Math.round(finalDraw)),
   };
 }

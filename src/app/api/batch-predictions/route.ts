@@ -64,8 +64,15 @@ export async function POST(request: Request) {
     const dataPromises = fixtures.map(async (fixture) => {
       const { teams, league } = fixture;
 
-      // Fetch stats and bookmaker odds in parallel
-      const [homeTeamStats, awayTeamStats, oddsData] = await Promise.all([
+      // Fetch stats, odds, lineups, and squads in parallel
+      const [
+        homeTeamStats,
+        awayTeamStats,
+        oddsData,
+        lineupsData,
+        homeSquad,
+        awaySquad,
+      ] = await Promise.all([
         apiRequest("teams/statistics", {
           league: league.id,
           season: league.season,
@@ -80,15 +87,16 @@ export async function POST(request: Request) {
           fixture: fixture.fixture.id,
           bookmaker: 8,
           bet: 1,
-        }), // Bet365, Match Winner
+        }),
+        apiRequest("fixtures/lineups", { fixture: fixture.fixture.id }),
+        apiRequest("players/squads", { team: teams.home.id }),
+        apiRequest("players/squads", { team: teams.away.id }),
       ]);
 
-      // If team stats are missing, we cannot proceed. Odds are optional.
       if (!homeTeamStats || !awayTeamStats) {
         return { fixtureId: fixture.fixture.id, predictionData: null };
       }
 
-      // Extract the relevant odds values if they exist
       const bookmakerOdds = oddsData?.[0]?.bookmakers?.[0]?.bets?.[0]?.values;
       const odds = bookmakerOdds
         ? {
@@ -100,10 +108,13 @@ export async function POST(request: Request) {
               bookmakerOdds.find((v: any) => v.value === "Away")?.odd || null,
           }
         : null;
-
-      // Ensure all three odds values are present to be considered valid
       const validOdds =
         odds && odds.home && odds.draw && odds.away ? odds : null;
+
+      const homeLineup =
+        lineupsData?.find((l: any) => l.team.id === teams.home.id) || null;
+      const awayLineup =
+        lineupsData?.find((l: any) => l.team.id === teams.away.id) || null;
 
       return {
         fixtureId: fixture.fixture.id,
@@ -111,6 +122,10 @@ export async function POST(request: Request) {
           homeTeamStats,
           awayTeamStats,
           bookmakerOdds: validOdds,
+          homeLineup,
+          awayLineup,
+          homeSquad: homeSquad?.[0]?.players || null,
+          awaySquad: awaySquad?.[0]?.players || null,
         },
       };
     });
@@ -129,7 +144,11 @@ export async function POST(request: Request) {
           const predictionResult = generateHybridPrediction(
             predictionData.homeTeamStats,
             predictionData.awayTeamStats,
-            predictionData.bookmakerOdds // Pass the bookmaker odds to the engine
+            predictionData.bookmakerOdds,
+            predictionData.homeLineup,
+            predictionData.awayLineup,
+            predictionData.homeSquad,
+            predictionData.awaySquad
           );
 
           oddsMap[fixtureId] = {
@@ -151,7 +170,7 @@ export async function POST(request: Request) {
     });
 
     console.log(
-      `[Batch Predictions] Successfully generated hybrid odds for ${
+      `[Batch Predictions] Successfully generated advanced hybrid odds for ${
         Object.keys(oddsMap).length
       } fixtures.`
     );

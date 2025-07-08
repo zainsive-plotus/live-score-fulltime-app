@@ -244,9 +244,6 @@ export default function DesktopMatchListItem({
             </span>
           )}
         </div>
-        <button className="p-2 text-text-muted transition-colors duration-300 hover:text-brand-yellow">
-          <Star size={20} />
-        </button>
       </div>
     </div>
   );
