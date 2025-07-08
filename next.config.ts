@@ -19,11 +19,11 @@ const nextConfig: NextConfig = {
         port: "",
         pathname: "/**", // Allow any image path from this bucket
       },
-      {
-        protocol: "https",
-        hostname: "pub-3be31cb53bcb40ce80d5ebf5d83238f0.r2.dev",
-      },
     ],
+
+    loader: "custom",
+    loaderFile: "./image-loader.js",
+    domains: ["cdn.fanskor.com"],
   },
   i18n: {
     // A list of all locales you want to support
