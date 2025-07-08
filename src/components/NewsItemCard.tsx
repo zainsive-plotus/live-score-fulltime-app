@@ -1,5 +1,5 @@
-import Image from 'next/image';
-import Link from '@/components/StyledLink'; 
+import Image from "next/image";
+import Link from "@/components/StyledLink";
 
 // --- 1. Define the TypeScript interface for a single news article ---
 export interface NewsArticleType {
@@ -18,15 +18,20 @@ interface NewsItemCardProps {
 export default function NewsItemCard({ article }: NewsItemCardProps) {
   return (
     // The entire card is a clickable link for better UX
-    <Link href={article.articleUrl} target="_blank" rel="noopener noreferrer" className="block">
+    <Link
+      href={article.articleUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block"
+    >
       <div className="bg-brand-secondary rounded-xl overflow-hidden group transition-all duration-300 hover:shadow-lg hover:shadow-purple-900/20">
-        
         {/* Image Container with hover effect */}
         <div className="relative w-full h-40">
           <Image
             src={article.imageUrl}
             alt={article.title}
             layout="fill"
+            unoptimized={true}
             objectFit="cover"
             className="transition-transform duration-300 group-hover:scale-110"
           />
@@ -48,15 +53,15 @@ export default function NewsItemCard({ article }: NewsItemCardProps) {
 
 // --- 3. Skeleton Component (can be in this file or its own) ---
 export const NewsItemCardSkeleton = () => {
-    return (
-        <div className="bg-brand-secondary rounded-xl overflow-hidden animate-pulse">
-            <div className="w-full h-40 bg-gray-600/50"></div>
-            <div className="p-4 space-y-3">
-                <div className="h-5 w-full rounded bg-gray-600/50"></div>
-                <div className="h-5 w-4/5 rounded bg-gray-600/50"></div>
-                <div className="h-3 w-full rounded bg-gray-600/50 mt-2"></div>
-                <div className="h-3 w-1/2 rounded bg-gray-600/50"></div>
-            </div>
-        </div>
-    )
-}
+  return (
+    <div className="bg-brand-secondary rounded-xl overflow-hidden animate-pulse">
+      <div className="w-full h-40 bg-gray-600/50"></div>
+      <div className="p-4 space-y-3">
+        <div className="h-5 w-full rounded bg-gray-600/50"></div>
+        <div className="h-5 w-4/5 rounded bg-gray-600/50"></div>
+        <div className="h-3 w-full rounded bg-gray-600/50 mt-2"></div>
+        <div className="h-3 w-1/2 rounded bg-gray-600/50"></div>
+      </div>
+    </div>
+  );
+};
