@@ -103,6 +103,7 @@ const CasinoPartnerWidget: React.FC<CasinoPartnerWidgetProps> = () => {
                 width={60} // Slightly larger logo
                 height={60} // Maintain aspect ratio
                 objectFit="contain"
+                unoptimized={true}
                 className=" rounded-lg bg-gray-900 p-1 z-10" // Darker background for logo, larger padding
               />
             </div>
