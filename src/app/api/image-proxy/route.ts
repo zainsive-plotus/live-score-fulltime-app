@@ -7,6 +7,7 @@ import axios from "axios";
 // This ensures our proxy can only be used to fetch images from trusted sources.
 const ALLOWED_DOMAINS = [
   "media.api-sports.io",
+  "cdn.fanskor.com",
   // Add other trusted image source domains here if needed in the future
 ];
 
