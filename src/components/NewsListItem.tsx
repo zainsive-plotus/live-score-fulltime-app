@@ -44,6 +44,7 @@ export default function NewsListItem({ post }: NewsListItemProps) {
               alt={post.featuredImageAltText || post.title}
               layout="fill"
               objectFit="cover"
+              unoptimized={true}
               className="rounded-t-lg sm:rounded-l-lg sm:rounded-tr-none"
             />
           ) : (
