@@ -63,7 +63,7 @@ export default function AdSlotWidget({ location }: AdSlotWidgetProps) {
         {/* --- NO CHANGE NEEDED HERE --- */}
         {/* This now correctly calls the updated helper, which creates the /api/image-proxy URL */}
         <Image
-          src={proxyImageUrl(banner.imageUrl)}
+          src={banner.imageUrl}
           alt={banner.title}
           width={300}
           height={250}
