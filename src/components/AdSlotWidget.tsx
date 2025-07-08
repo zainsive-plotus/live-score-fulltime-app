@@ -67,7 +67,7 @@ export default function AdSlotWidget({ location }: AdSlotWidgetProps) {
           alt={banner.title}
           width={300}
           height={250}
-          unoptimized={banner.imageUrl.endsWith(".gif")}
+          unoptimized={true}
           className="w-full h-auto object-cover transition-transform duration-300 group-hover:scale-105"
         />
 
