@@ -4,50 +4,6 @@ import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import { MainContent } from "@/components/MainContent"; // This is a Client Component
 import { SidebarSkeleton } from "@/components/LayoutSkeletons";
-import type { Metadata } from "next";
-
-// --- DYNAMIC METADATA GENERATION FOR HOMEPAGE ---
-export async function generateMetadata(): Promise<Metadata> {
-  const pageTitle = "Fan Skor | Türkiye'nin 1 numaralı Canlı Skor sitesi";
-  const pageDescription =
-    "Oyuntaktik.com, Türkiye'nin bir numaralı inceleme sitesi, en iyi oyun rehberleri, taktikler ve güncel değerlendirmelerle oyuncuların yanında!";
-
-  const canonicalUrl = `/`;
-
-  console.log(
-    `[Homepage Metadata] Generating metadata for homepage. Canonical: ${canonicalUrl}`
-  );
-
-  return {
-    title: pageTitle,
-    description: pageDescription,
-    alternates: {
-      canonical: canonicalUrl,
-    },
-    openGraph: {
-      title: pageTitle,
-      description: pageDescription,
-      url: `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}`,
-      siteName: "Fan Skor",
-      images: [
-        {
-          url: `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/og-image.jpg`,
-          width: 1200,
-          height: 630,
-          alt: "Fan Skor - Türkiye Canlı Skor Sitesi",
-        },
-      ],
-      type: "website",
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: pageTitle,
-      description: pageDescription,
-      creator: "@fanskor_official",
-      images: [`${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/twitter-image.jpg`],
-    },
-  };
-}
 
 export default async function HomePage() {
   // --- Generate Homepage About SEO Text ---

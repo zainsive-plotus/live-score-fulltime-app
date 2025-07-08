@@ -22,9 +22,9 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/",
   },
-  title: "Fan Skor | Türkiye'nin 1 numaralı Canlı Skor sitesi",
+  title: "Fan Skor | Canlı Skorlar, Tahminler ve En İyi Futbol Ligleri",
   description:
-    "Oyuntaktik.com, Türkiye'nin bir numaralı inceleme sitesi, en iyi oyun rehberleri, taktikler ve güncel değerlendirmelerle oyuncuların yanında!",
+    "Fan Skor, canlı skorlar, haberler, tahminler, en iyi ligler, takım istatistikleri, uzman makaleleri ve güvenilir ortaklıkları tek bir platformda sunar.",
   icons: {
     icon: [{ url: "/favicon.ico", type: "image/png" }],
     apple: [{ url: "/favicon.ico" }],
@@ -39,9 +39,9 @@ export const metadata: Metadata = {
   },
   // --- ADDED DEFAULT OPEN GRAPH TAGS ---
   openGraph: {
-    title: "Fan Skor | Türkiye'nin 1 numaralı Canlı Skor sitesi",
+    title: "Fan Skor | Canlı Skorlar, Tahminler ve En İyi Futbol Ligleri",
     description:
-      "Oyuntaktik.com, Türkiye'nin bir numaralı inceleme sitesi, en iyi oyun rehberleri, taktikler ve güncel değerlendirmelerle oyuncuların yanında!",
+      "Fan Skor, canlı skorlar, haberler, tahminler, en iyi ligler, takım istatistikleri, uzman makaleleri ve güvenilir ortaklıkları tek bir platformda sunar.",
     url: METADATA_BASE_URL, // Canonical URL for the site root
     siteName: "Fan Skor",
     images: [
@@ -58,9 +58,9 @@ export const metadata: Metadata = {
   // --- ADDED DEFAULT TWITTER CARD TAGS ---
   twitter: {
     card: "summary_large_image",
-    title: "Fan Skor | Türkiye'nin 1 numaralı Canlı Skor sitesi",
+    title: "Fan Skor | Canlı Skorlar, Tahminler ve En İyi Futbol Ligleri",
     description:
-      "Oyuntaktik.com, Türkiye'nin bir numaralı inceleme sitesi, en iyi oyun rehberleri, taktikler ve güncel değerlendirmelerle oyuncuların yanında!",
+      "Fan Skor, canlı skorlar, haberler, tahminler, en iyi ligler, takım istatistikleri, uzman makaleleri ve güvenilir ortaklıkları tek bir platformda sunar.",
     creator: "@fanskor_official", // Your Twitter handle
     images: [`${METADATA_BASE_URL}/twitter-image.jpg`], // You should create this image in your public folder
   },
