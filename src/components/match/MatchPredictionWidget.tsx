@@ -204,51 +204,7 @@ export default function MatchPredictionWidget({
   return (
     <div className="bg-brand-secondary p-4 rounded-lg">
       <div className="flex items-center gap-2 mb-4">
-        <BrainCircuit size={20} className="text-brand-purple" />
         <h3 className="text-lg font-bold text-white">Prediction Comparison</h3>
-      </div>
-
-      {/* --- NEW, CLEARER PREDICTION UI --- */}
-      <div className="space-y-4">
-        <OutcomeComparison
-          icon={
-            <Image
-              src={proxyImageUrl(teams.home.logo)}
-              alt={teams.home.name}
-              width={24}
-              height={24}
-            />
-          }
-          label={`${teams.home.name} Win`}
-          apiValue={parsedApiPrediction?.home}
-          customValue={customPrediction?.home}
-          colorClass="bg-green-500"
-        />
-        <OutcomeComparison
-          icon={
-            <div className="w-6 h-6 flex items-center justify-center font-bold text-2xl text-brand-muted">
-              =
-            </div>
-          }
-          label="Draw"
-          apiValue={parsedApiPrediction?.draw}
-          customValue={customPrediction?.draw}
-          colorClass="bg-yellow-500"
-        />
-        <OutcomeComparison
-          icon={
-            <Image
-              src={proxyImageUrl(teams.away.logo)}
-              alt={teams.away.name}
-              width={24}
-              height={24}
-            />
-          }
-          label={`${teams.away.name} Win`}
-          apiValue={parsedApiPrediction?.away}
-          customValue={customPrediction?.away}
-          colorClass="bg-red-500"
-        />
       </div>
 
       {/* Average Market Odds & Bookmaker Comparison Sections */}

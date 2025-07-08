@@ -3,11 +3,12 @@ import { notFound } from "next/navigation";
 import axios from "axios";
 import type { Metadata } from "next";
 
-// Import all the components used on this page
-import { MatchHeader } from "@/components/match/MatchHeader"; // Correctly import the named export
+// Import all the components
+import { MatchHeader } from "@/components/match/MatchHeader";
 import MatchStatusBanner from "@/components/match/MatchStatusBanner";
 import MatchH2HWidget from "@/components/match/MatchH2HWidget";
-import MatchLineupsWidget from "@/components/match/MatchLineupsWidget"; // The new, enhanced widget
+import MatchLineupsWidget from "@/components/match/MatchLineupsWidget";
+import MatchStatsWidget from "@/components/match/MatchStatsWidget";
 import AdSlotWidget from "@/components/AdSlotWidget";
 import MatchPredictionWidget from "@/components/match/MatchPredictionWidget";
 import TeamFormWidget from "@/components/match/TeamFormWidget";
@@ -34,7 +35,7 @@ const fetchMatchDetailsServer = async (fixtureId: string) => {
   }
   const apiUrl = `${publicAppUrl}/api/match-details?fixture=${fixtureId}`;
   try {
-    const { data } = await axios.get(apiUrl, { timeout: 15000 }); // Increased timeout for more data
+    const { data } = await axios.get(apiUrl, { timeout: 15000 });
     return data;
   } catch (error: any) {
     console.error(
@@ -77,7 +78,7 @@ export async function generateMetadata({
   };
 }
 
-// --- Main Page Component with REVISED LAYOUT ---
+// --- Main Page Component ---
 export default async function MatchDetailPage({
   params,
 }: {
@@ -95,9 +96,16 @@ export default async function MatchDetailPage({
   }
 
   const isLive = ["1H", "HT", "2H", "ET", "BT", "P", "LIVE"].includes(
-    data.fixture.status?.short
+    data.fixture.fixture.status?.short
   );
-  const { fixture, h2h, analytics } = data;
+
+  // --- THIS IS THE FIX ---
+  // Added optional chaining (?.) to safely access .short
+  const isFinished = ["FT", "AET", "PEN"].includes(
+    data.fixture.fixture.status?.short
+  );
+
+  const { fixture, h2h, analytics, statistics } = data;
   const { home: homeTeam, away: awayTeam } = fixture.teams;
 
   // SEO descriptions remain the same
@@ -110,7 +118,6 @@ export default async function MatchDetailPage({
     <div className="bg-brand-dark min-h-screen">
       <Header />
       <div className="container mx-auto p-4 md:p-6 lg:grid lg:grid-cols-3 lg:gap-8 lg:items-start">
-        {/* --- Main Content Column (2/3 width) --- */}
         <main className="lg:col-span-2 space-y-6">
           <MatchHeader
             fixture={fixture}
@@ -130,29 +137,25 @@ export default async function MatchDetailPage({
               location="Away"
             />
           </div>
-
-          {/* --- THE CHANGE IS HERE --- */}
-          {/* Lineups are now in the main column, above H2H */}
           <MatchLineupsWidget lineups={fixture.lineups} />
-
           <MatchH2HWidget
             h2h={h2h}
             teams={fixture.teams}
             currentFixtureId={fixtureId}
             h2hSeoDescription={h2hSeoDescription}
           />
+          {(isLive || isFinished) && (
+            <MatchStatsWidget statistics={statistics} teams={fixture.teams} />
+          )}
           <MatchActivityWidget
             fixtureId={fixtureId}
             homeTeamId={homeTeam.id}
             awayTeamId={awayTeam.id}
-            homeTeamLogo={homeTeam.logo}
-            awayTeamLogo={awayTeam.logo}
             isLive={isLive}
             activitySeoDescription={activitySeoDescription}
           />
         </main>
 
-        {/* --- Right Sidebar (1/3 width) --- */}
         <aside className="lg:col-span-1 space-y-6 lg:sticky lg:top-6 mt-8 lg:mt-0">
           {isLive && <LiveOddsWidget fixtureId={fixtureId} />}
           <CasinoPartnerWidget />
@@ -169,8 +172,6 @@ export default async function MatchDetailPage({
             bookmakerOdds={analytics.bookmakerOdds}
             teams={fixture.teams}
           />
-
-          {/* AdSlotWidget remains in the sidebar */}
           <AdSlotWidget location="match_sidebar" />
         </aside>
       </div>

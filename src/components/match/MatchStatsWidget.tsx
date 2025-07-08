@@ -1,67 +1,115 @@
-import { memo } from 'react';
+// src/components/match/MatchStatsWidget.tsx
+"use client";
 
-// This is the core display logic, kept as a memoized sub-component for cleanliness.
-const StatsContent = memo(function StatsContent({ statistics, teams }: { statistics: any[], teams: any }) {
-    // Find the statistics for each team. Default to an empty array if not found.
-    const homeStats = statistics.find(s => s.team.id === teams.home.id)?.statistics || [];
-    const awayStats = statistics.find(s => s.team.id === teams.away.id)?.statistics || [];
+import { memo } from "react";
+import { BarChart3, Info } from "lucide-react";
 
-    // Create a unique set of all available stat types from both teams.
-    // This ensures all stats are displayed even if one team has a stat the other doesn't.
-    const allStatTypes = Array.from(new Set([...homeStats.map((s: any) => s.type), ...awayStats.map((s: any) => s.type)]));
+interface MatchStatsWidgetProps {
+  statistics: any[];
+  teams: { home: any; away: any };
+}
+
+// A sub-component for rendering a single statistic row with its progress bar
+const StatRow = memo(
+  ({
+    stat,
+    homeValue,
+    awayValue,
+  }: {
+    stat: string;
+    homeValue: string | number;
+    awayValue: string | number;
+  }) => {
+    // Sanitize and convert values to numbers for calculation
+    const homeNum = parseFloat(String(homeValue).replace("%", "")) || 0;
+    const awayNum = parseFloat(String(awayValue).replace("%", "")) || 0;
+    const total = homeNum + awayNum;
+    const homePercent = total > 0 ? (homeNum / total) * 100 : 50;
 
     return (
-        // The main container for the stats grid. It's a single column on mobile and two columns on desktop.
-        <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
-            {allStatTypes.map(type => {
-                // Find the specific stat value for each team, defaulting to '0'.
-                const homeStatValue = homeStats.find((s: any) => s.type === type)?.value ?? '0';
-                const awayStatValue = awayStats.find((s: any) => s.type === type)?.value ?? '0';
-                
-                // Convert values to numbers, removing '%' if present, for calculating the progress bar width.
-                const homeValueNum = parseFloat(String(homeStatValue).replace('%', ''));
-                const awayValueNum = parseFloat(String(awayStatValue).replace('%', ''));
-                const total = homeValueNum + awayValueNum;
-                
-                // Calculate the percentage width for the home team's bar.
-                const homePercent = total > 0 ? (homeValueNum / total) * 100 : 50;
-
-                return (
-                    <div key={type}>
-                        {/* Header for each stat (e.g., "5  Ball Possession  95") */}
-                        <div className="flex justify-between items-center mb-1.5 text-sm font-semibold">
-                            <span className="text-white w-1/4 text-left">{homeStatValue}</span>
-                            <span className="text-text-muted w-1/2 text-center">{type}</span>
-                            <span className="text-white w-1/4 text-right">{awayStatValue}</span>
-                        </div>
-                        {/* The visual progress bar */}
-                        <div className="flex w-full h-2 rounded-full" style={{ backgroundColor: 'var(--color-secondary)' }}>
-                            <div className="bg-brand-purple rounded-l-full" style={{ width: `${homePercent}%` }}></div>
-                            <div className="bg-brand-highlight rounded-r-full" style={{ width: `${100 - homePercent}%` }}></div>
-                        </div>
-                    </div>
-                );
-            })}
+      <div className="space-y-1.5">
+        {/* The text labels: Home Value - Stat Name - Away Value */}
+        <div className="flex justify-between items-center text-sm px-1">
+          <span className="font-bold text-white w-1/4 text-left">
+            {homeValue ?? 0}
+          </span>
+          <span className="text-text-muted w-1/2 text-center">{stat}</span>
+          <span className="font-bold text-white w-1/4 text-right">
+            {awayValue ?? 0}
+          </span>
         </div>
+        {/* The visual progress bar */}
+        <div className="flex w-full h-2 rounded-full overflow-hidden bg-[var(--color-primary)]">
+          <div
+            className="bg-[var(--brand-accent)] rounded-l-full"
+            style={{ width: `${homePercent}%` }}
+          ></div>
+          <div
+            className="bg-blue-500 rounded-r-full"
+            style={{ width: `${100 - homePercent}%` }}
+          ></div>
+        </div>
+      </div>
     );
-});
+  }
+);
+StatRow.displayName = "StatRow";
 
-
-// This is the main exported widget component.
-const MatchStatsWidget = memo(function MatchStatsWidget({ statistics, teams }: { statistics: any[], teams: any }) {
-    // If there are no stats for one of the teams, don't render the widget at all.
-    if (!statistics || statistics.length < 2) {
-        return null;
-    }
-    
+// The main widget component
+const MatchStatsWidget = memo(function MatchStatsWidget({
+  statistics,
+  teams,
+}: MatchStatsWidgetProps) {
+  // If stats data is missing or incomplete, show a message.
+  if (!statistics || statistics.length < 2) {
     return (
-        <div className="bg-brand-secondary rounded-xl">
-            <h3 className="text-lg font-bold p-4 border-b border-gray-700/50">
-                Team Statistics
-            </h3>
-            <StatsContent statistics={statistics} teams={teams} />
+      <div className="bg-brand-secondary rounded-lg p-6">
+        <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+          <BarChart3 size={22} /> Match Statistics
+        </h2>
+        <div className="text-center py-6 text-brand-muted">
+          <Info size={28} className="mx-auto mb-2" />
+          <p>Live statistics are not yet available.</p>
         </div>
+      </div>
     );
+  }
+
+  const homeStats =
+    statistics.find((s) => s.team.id === teams.home.id)?.statistics || [];
+  const awayStats =
+    statistics.find((s) => s.team.id === teams.away.id)?.statistics || [];
+
+  // Create a map of all available stats for easy lookup
+  const statsMap = new Map<
+    string,
+    { home: string | number; away: string | number }
+  >();
+  homeStats.forEach((stat: any) =>
+    statsMap.set(stat.type, { home: stat.value, away: 0 })
+  );
+  awayStats.forEach((stat: any) => {
+    const existing = statsMap.get(stat.type) || { home: 0, away: 0 };
+    statsMap.set(stat.type, { ...existing, away: stat.value });
+  });
+
+  return (
+    <div className="bg-brand-secondary rounded-lg p-4 md:p-6">
+      <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+        <BarChart3 size={22} /> Match Statistics
+      </h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+        {Array.from(statsMap.entries()).map(([stat, values]) => (
+          <StatRow
+            key={stat}
+            stat={stat}
+            homeValue={values.home}
+            awayValue={values.away}
+          />
+        ))}
+      </div>
+    </div>
+  );
 });
 
 export default MatchStatsWidget;
