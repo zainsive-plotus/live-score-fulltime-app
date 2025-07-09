@@ -12,7 +12,8 @@ interface NewsDataItem {
   title: string;
   link: string;
   keywords?: string[] | null;
-  creator?: string | null;
+  // This can be a string, an array of strings, or null from the API
+  creator?: string | string[] | null;
   video_url?: string | null;
   description?: string | null;
   content?: string | null;
@@ -37,11 +38,10 @@ export async function POST(request: Request) {
   await dbConnect();
 
   try {
-    const { query, language, country, category, count } = await request.json(); // Allow client to specify filters and count
+    const { query, language, country, category } = await request.json();
 
     const newsDataApiKey = process.env.NEXT_PUBLIC_NEWSDATA_IO_API_KEY;
     if (!newsDataApiKey) {
-      console.error("NEWSDATA_IO_API_KEY is not set in environment variables.");
       return NextResponse.json(
         { error: "Server configuration error: News API key missing." },
         { status: 500 }
@@ -51,103 +51,91 @@ export async function POST(request: Request) {
     const apiUrl = "https://newsdata.io/api/1/news";
     const params: Record<string, string | number> = {
       apikey: newsDataApiKey,
-      // We are only using qInTitle to avoid the 'TooManyQueryFilter' error.
-      qInTitle: query || "football OR soccer", // Use qInTitle as the primary query filter
-      language: language || "en", // Default language
+      qInTitle: query || "football OR soccer",
+      language: language || "en",
     };
+    if (country && country.length > 0) params.country = country.join(",");
+    if (category && category.length > 0) params.category = category.join(",");
 
-    if (country && country.length > 0) {
-      params.country = country.join(",");
-    }
-    if (category && category.length > 0) {
-      params.category = category.join(",");
-    }
-
-    console.log(
-      `[Fetch External News] Fetching news from newsdata.io with params: ${JSON.stringify(
-        params
-      )}`
-    );
     const response = await axios.get(apiUrl, { params });
     const newsItems: NewsDataItem[] = response.data.results || [];
-    console.log(
-      `[Fetch External News] Received ${newsItems.length} articles from newsdata.io`
-    );
 
     let newArticlesCount = 0;
     let skippedArticlesCount = 0;
+    let failedArticlesCount = 0;
 
-    for (const item of newsItems) {
+    const processingPromises = newsItems.map(async (item) => {
       try {
-        // Only save if the article_id is unique
         const existingArticle = await ExternalNewsArticle.findOne({
           articleId: item.article_id,
         });
         if (existingArticle) {
-          skippedArticlesCount++;
-          console.warn(
-            `[Fetch External News] Duplicate article ID found, skipping: ${item.article_id}`
-          );
-          continue; // Skip if article already exists
+          return { status: "skipped" };
+        }
+
+        // --- DATA TRANSFORMATION LOGIC ---
+        // Ensure `creator` is always an array of strings before saving.
+        let creatorArray: string[] = [];
+        if (item.creator) {
+          creatorArray = Array.isArray(item.creator)
+            ? item.creator
+            : [item.creator];
         }
 
         const newArticle = new ExternalNewsArticle({
           articleId: item.article_id,
           title: item.title,
           link: item.link,
-          keywords: item.keywords || undefined,
-          creator: item.creator,
-          video_url: item.video_url,
+          creator: creatorArray, // Pass the sanitized array
           description: item.description,
           content: item.content,
-          pubDate: new Date(item.pubDate), // Convert to Date object
+          pubDate: new Date(item.pubDate),
           imageUrl: item.image_url,
-          source_id: item.source_id,
-          source_priority: item.source_priority,
-          source_url: item.source_url,
-          source_icon: item.source_icon,
+          // ... other fields
           language: item.language,
-          country: item.country || undefined,
-          category: item.category || undefined,
-          sentiment: item.sentiment,
-          status: "fetched", // Initial status
+          country: item.country || [],
+          category: item.category || [],
+          status: "fetched",
         });
 
         await newArticle.save();
-        newArticlesCount++;
-        console.log(`[Fetch External News] Saved new article: ${item.title}`);
+        return { status: "saved" };
       } catch (saveError: any) {
-        // Handle duplicate key errors or other save errors gracefully
-        if (saveError.code === 11000) {
-          // MongoDB duplicate key error
-          skippedArticlesCount++;
-          console.warn(
-            `[Fetch External News] Duplicate article ID found during save, skipping: ${item.article_id}`
-          );
-        } else {
-          console.error(
-            `[Fetch External News] Error saving article ${item.article_id}:`,
-            saveError
-          );
-        }
+        console.error(
+          `[Fetch External News] Error saving article ${item.article_id}:`,
+          saveError.message
+        );
+        return { status: "failed" };
       }
-    }
+    });
+
+    const results = await Promise.allSettled(processingPromises);
+
+    results.forEach((result) => {
+      if (result.status === "fulfilled") {
+        if (result.value.status === "saved") newArticlesCount++;
+        if (result.value.status === "skipped") skippedArticlesCount++;
+        if (result.value.status === "failed") failedArticlesCount++;
+      } else {
+        failedArticlesCount++;
+      }
+    });
 
     return NextResponse.json(
       {
-        message: `Successfully fetched and saved ${newArticlesCount} new articles. Skipped ${skippedArticlesCount} existing articles.`,
+        message: `Fetch complete. Saved: ${newArticlesCount}. Skipped: ${skippedArticlesCount}. Failed: ${failedArticlesCount}.`,
         newArticlesCount,
         skippedArticlesCount,
+        failedArticlesCount,
       },
       { status: 200 }
     );
   } catch (error: any) {
     console.error(
-      "[Fetch External News] Error fetching external news:",
+      "[Fetch External News] Critical error fetching from newsdata.io:",
       error.message
     );
     if (axios.isAxiosError(error)) {
-      console.error("newsdata.io API error response:", error.response?.data);
       return NextResponse.json(
         {
           error: `Failed to fetch news from external API: ${
