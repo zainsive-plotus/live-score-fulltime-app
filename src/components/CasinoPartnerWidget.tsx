@@ -69,9 +69,9 @@ const CasinoPartnerWidget: React.FC<CasinoPartnerWidgetProps> = () => {
   return (
     <div className="bg-brand-secondary rounded-lg shadow-lg overflow-hidden">
       <div className="p-4 border-b border-gray-700">
-        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+        <p className="text-xl font-bold text-white flex items-center gap-2">
           <Crown size={20} className="text-brand-purple" /> Ortak Casinolar
-        </h2>
+        </p>
       </div>
       <div className="p-4 space-y-3">
         {partners.map((partner) => (

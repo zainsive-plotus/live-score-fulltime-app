@@ -107,11 +107,11 @@ export default function Sidebar() {
           className="flex flex-col gap-2 p-3 rounded-xl"
           style={{ backgroundColor: "var(--color-primary)" }}
         >
-          <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted px-2">
+          <p className="text-sm font-bold uppercase tracking-wider text-text-muted px-2">
             {selectedCountry
               ? `Leagues in ${selectedCountry.name}`
               : t("popular_leagues")}
-          </h2>
+          </p>
           {isLoadingLeagues ? (
             <div className="space-y-1">
               {Array.from({ length: 5 }).map((_, i) => (
@@ -131,9 +131,9 @@ export default function Sidebar() {
           className="flex flex-col gap-2 p-3 rounded-xl sticky top-8"
           style={{ backgroundColor: "var(--color-primary)" }}
         >
-          <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted px-2">
+          <p className="text-sm font-bold uppercase tracking-wider text-text-muted px-2">
             {t("popular_teams")}
-          </h2>
+          </p>
           <PopularTeamsList />
         </section>
       </div>

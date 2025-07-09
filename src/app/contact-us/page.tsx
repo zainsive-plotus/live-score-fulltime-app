@@ -3,11 +3,10 @@ import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import type { Metadata } from "next";
 import { Mail, Phone, MapPin } from "lucide-react";
-import axios from "axios"; // For server-side data fetching
-
 import ContactFormClient from "@/components/ContactFormClient";
-import NewsListItem from "@/components/NewsListItem"; // Reusing for news list (might need prop adjustments)
 import AdSlotWidget from "@/components/AdSlotWidget";
+import RecentNewsWidget from "@/components/RecentNewsWidget";
+import axios from "axios";
 
 const fetchSidebarNews = async (): Promise<any[]> => {
   const publicAppUrl = process.env.NEXT_PUBLIC_PUBLIC_APP_URL;
@@ -54,30 +53,19 @@ export const metadata: Metadata = {
   },
 };
 
-// --- Main Contact Us Page Component (Server-side) ---
 export default async function ContactUsPage() {
-  // Make async to await data fetching
-  // --- SEO Description for the page content ---
   const contactPageSeoText =
     `Fanskor ekibine ulaşmak için doğru yerdesiniz! ` +
     `Sorularınız, geri bildirimleriniz, ortaklık talepleriniz veya herhangi bir konuda yardıma ihtiyacınız olduğunda bize ulaşmaktan çekinmeyin. ` +
     `Müşteri memnuniyeti bizim için önceliktir ve tüm mesajlarınıza en kısa sürede yanıt vermeyi taahhüt ediyoruz. ` +
     `Aşağıdaki formu kullanarak bize doğrudan mesaj gönderebilir veya iletişim bilgilerimiz aracılığıyla bize ulaşabilirsiniz.`;
 
-  // --- Fetch data for right sidebar in parallel ---
-  const [sidebarNews] = await Promise.all([fetchSidebarNews()]);
-
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
       <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr_288px] lg:gap-8 lg:items-start p-4 lg:p-0 lg:py-6">
-        {" "}
-        {/* Changed grid: 288px sidebar, 1fr main, 288px right sidebar */}
-        <Sidebar /> {/* Left sidebar */}
+        <Sidebar />
         <main className="min-w-0">
-          {" "}
-          {/* Main content area */}
-          {/* Page Heading and Description for SEO */}
           <div className="bg-brand-secondary p-6 rounded-lg shadow-xl mb-8">
             <h1 className="text-3xl font-bold text-white mb-3">
               İletişim Kurun
@@ -87,10 +75,7 @@ export default async function ContactUsPage() {
             </p>
           </div>
           <div className="grid grid-cols-1 gap-8">
-            {/* Contact Form (Client Component) */}
             <ContactFormClient />
-
-            {/* Contact Details Section (Server-rendered) */}
             <div className="bg-brand-secondary p-8 rounded-lg shadow-xl">
               <h2 className="text-3xl font-bold text-white mb-6">
                 İletişim Bilgileri
@@ -127,24 +112,10 @@ export default async function ContactUsPage() {
             </div>
           </div>
         </main>
-        {/* --- NEW: Right Sidebar --- */}
-        <aside className="lg:col-span-1 space-y-8 min-w-0">
-          {/* News List Widget */}
-          <section className="bg-brand-secondary rounded-lg shadow-lg p-6">
-            <h2 className="text-2xl font-bold text-white mb-4">Son Haberler</h2>
-            {sidebarNews && sidebarNews.length > 0 ? (
-              <div className="space-y-4">
-                {sidebarNews.map((post: any) => (
-                  <NewsListItem key={post._id} post={post} />
-                ))}
-              </div>
-            ) : (
-              <p className="text-brand-muted text-center text-sm">
-                Güncel haber bulunamadı.
-              </p>
-            )}
-          </section>
-          {/* Ad Slot (Right Sidebar) */}
+
+        {/* --- THE FIX: The entire news section is replaced with the new widget --- */}
+        <aside className="lg:col-span-1 space-y-8 min-w-0 mt-8 lg:mt-0">
+          <RecentNewsWidget />
           <AdSlotWidget location="homepage_right_sidebar" />
         </aside>
       </div>

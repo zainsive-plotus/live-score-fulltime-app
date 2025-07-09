@@ -72,9 +72,9 @@ export default function AdSlotWidget({ location }: AdSlotWidgetProps) {
         />
 
         <div className="absolute bottom-0 left-0 p-4 w-full">
-          <h3 className="text-lg font-bold text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">
+          <p className="text-lg font-bold text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">
             {banner.title}
-          </h3>
+          </p>
           <span className="text-xs text-gray-300 drop-shadow-md">
             Advertisement
           </span>
