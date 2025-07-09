@@ -46,7 +46,6 @@ interface Fixture {
 interface MatchHeaderProps {
   fixture: Fixture;
   analytics: any;
-  matchSeoDescription: string;
 }
 
 // --- Compact StatPill Component (Unchanged) ---
@@ -67,19 +66,17 @@ const StatPill = ({
   </div>
 );
 
-// --- NEW: Prediction Result Widget ---
+// --- ENHANCED Prediction Result Widget ---
 const PredictionResultWidget = ({
-  prediction,
   result,
   teams,
 }: {
-  prediction: any;
   result: any;
   teams: { home: Team; away: Team };
 }) => {
-  if (!prediction) {
+  if (!result.predictedOutcome) {
     return (
-      <div className="text-center text-xs text-text-muted">
+      <div className="text-center text-xs text-text-muted py-4">
         Prediction data not available.
       </div>
     );
@@ -87,14 +84,30 @@ const PredictionResultWidget = ({
 
   // --- State 1: Upcoming Match ---
   if (!result.isFinished) {
+    const predictedTeam =
+      result.predictedOutcome === "Home Win"
+        ? teams.home
+        : result.predictedOutcome === "Away Win"
+        ? teams.away
+        : null;
     return (
-      <div className="w-full space-y-2 bg-[var(--brand-accent)]/10 p-3 rounded-lg text-center">
+      <div className="w-full space-y-2 bg-[var(--brand-accent)]/5 p-3 rounded-lg text-center border border-[var(--brand-accent)]/20">
         <h4 className="text-xs font-bold text-[var(--brand-accent)] uppercase tracking-wider flex items-center justify-center gap-1.5">
           <Sparkles size={14} /> Fanskor Prediction
         </h4>
-        <p className="text-lg font-black text-white">
-          {result.predictedOutcome}
-        </p>
+        <div className="flex items-center justify-center gap-2">
+          {predictedTeam && (
+            <Image
+              src={proxyImageUrl(predictedTeam.logo)}
+              alt={predictedTeam.name}
+              width={24}
+              height={24}
+            />
+          )}
+          <p className="text-lg font-black text-white">
+            {result.predictedOutcome}
+          </p>
+        </div>
         <p className="text-sm font-semibold text-text-muted">
           {result.confidence}% Confidence
         </p>
@@ -104,8 +117,8 @@ const PredictionResultWidget = ({
 
   // --- State 2: Finished Match ---
   const wasCorrect = result.actualOutcome === result.predictedOutcome;
-  const bgColor = wasCorrect ? "bg-green-500/10" : "bg-gray-500/10";
-  const textColor = wasCorrect ? "text-green-400" : "text-text-muted";
+  const bgColor = wasCorrect ? "bg-green-500/10" : "bg-red-500/10";
+  const textColor = wasCorrect ? "text-green-400" : "text-red-400";
   const Icon = wasCorrect ? CheckCircle : XCircle;
 
   return (
@@ -113,14 +126,24 @@ const PredictionResultWidget = ({
       <h4
         className={`text-xs font-bold ${textColor} uppercase tracking-wider flex items-center justify-center gap-1.5`}
       >
-        <Icon size={14} /> Prediction Result
+        <Icon size={14} />{" "}
+        {wasCorrect ? "Prediction Hit!" : "Prediction Missed"}
       </h4>
-      <p className="text-sm text-white">
-        Predicted: <span className="font-bold">{result.predictedOutcome}</span>
-      </p>
-      <p className={`text-sm ${textColor}`}>
-        Actual: <span className="font-bold">{result.actualOutcome}</span>
-      </p>
+      {wasCorrect ? (
+        <p className="text-lg font-black text-white">
+          {result.predictedOutcome}
+        </p>
+      ) : (
+        <div className="text-sm text-white">
+          <p>
+            Predicted:{" "}
+            <span className="font-bold">{result.predictedOutcome}</span>
+          </p>
+          <p className={`${textColor}`}>
+            Actual: <span className="font-bold">{result.actualOutcome}</span>
+          </p>
+        </div>
+      )}
     </div>
   );
 };
@@ -146,61 +169,51 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({
   const finalScoreAway = score?.fulltime?.away ?? goals?.away;
 
   // --- All Data Calculation in a single useMemo for efficiency ---
-  const { homeStrength, awayStrength, prediction, predictionResult } =
-    useMemo(() => {
-      const homeStats = analytics?.homeTeamStats;
-      const awayStats = analytics?.awayTeamStats;
-      const calcRating = (avgFor: any, avgAgainst: any) => ({
+  const { homeStrength, awayStrength, predictionResult } = useMemo(() => {
+    const homeStats = analytics?.homeTeamStats;
+    const awayStats = analytics?.awayTeamStats;
+
+    // --- BUG FIX: Safely access nested properties ---
+    const calcRating = (stats: any) => {
+      const avgFor = stats?.goals?.for?.average?.total ?? "1.0";
+      const avgAgainst = stats?.goals?.against?.average?.total ?? "1.0";
+      return {
         attack: Math.min(10, (parseFloat(avgFor) / 2.0) * 10).toFixed(1),
         defense: Math.min(10, (1.5 / parseFloat(avgAgainst)) * 10).toFixed(1),
-      });
+      };
+    };
 
-      const pred = analytics?.customPrediction;
-      if (!pred)
-        return {
-          homeStrength: {},
-          awayStrength: {},
-          prediction: null,
-          predictionResult: {},
-        };
+    const pred = analytics?.customPrediction;
+    let result = {
+      isFinished,
+      predictedOutcome: null,
+      confidence: 0,
+      actualOutcome: null,
+    };
 
+    if (pred) {
       const maxConfidence = Math.max(pred.home, pred.draw, pred.away);
       let predictedOutcome: "Home Win" | "Draw" | "Away Win" = "Draw";
       if (maxConfidence === pred.home) predictedOutcome = "Home Win";
       if (maxConfidence === pred.away) predictedOutcome = "Away Win";
+      result.predictedOutcome = predictedOutcome;
+      result.confidence = maxConfidence;
+    }
 
-      let result = {
-        isFinished,
-        predictedOutcome,
-        confidence: maxConfidence,
-        actualOutcome: "N/A",
-      };
+    if (isFinished) {
+      result.actualOutcome = teams.home.winner
+        ? "Home Win"
+        : teams.away.winner
+        ? "Away Win"
+        : "Draw";
+    }
 
-      if (isFinished) {
-        result.actualOutcome = teams.home.winner
-          ? "Home Win"
-          : teams.away.winner
-          ? "Away Win"
-          : "Draw";
-      }
-
-      return {
-        homeStrength: homeStats
-          ? calcRating(
-              homeStats.goals.for.average.total,
-              homeStats.goals.against.average.total
-            )
-          : {},
-        awayStrength: awayStats
-          ? calcRating(
-              awayStats.goals.for.average.total,
-              awayStats.goals.against.average.total
-            )
-          : {},
-        prediction: pred,
-        predictionResult: result,
-      };
-    }, [analytics, isFinished, teams]);
+    return {
+      homeStrength: calcRating(homeStats),
+      awayStrength: calcRating(awayStats),
+      predictionResult: result,
+    };
+  }, [analytics, isFinished, teams]);
 
   return (
     <div className="bg-brand-secondary rounded-lg overflow-hidden shadow-lg mb-4">
@@ -231,7 +244,7 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 items-center p-4 md:p-6 gap-4">
+      <div className="grid grid-cols-3 items-center p-4 md:p-6 gap-2 md:gap-4">
         {/* HOME TEAM */}
         <div className="flex flex-col items-center justify-start text-center gap-3">
           <Link href={generateTeamSlug(teams.home.name, teams.home.id)}>
@@ -277,11 +290,7 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({
             {fixtureDetails.status.long}{" "}
             {isLive && `(${fixtureDetails.status.elapsed}')`}
           </span>
-          <PredictionResultWidget
-            prediction={prediction}
-            result={predictionResult}
-            teams={teams}
-          />
+          <PredictionResultWidget result={predictionResult} teams={teams} />
         </div>
 
         {/* AWAY TEAM */}

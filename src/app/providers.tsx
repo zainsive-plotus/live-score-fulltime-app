@@ -18,18 +18,20 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       })
   );
 
- return (
+  return (
     <QueryClientProvider client={queryClient}>
       {/* Add Toaster here. You can customize its position and style. */}
-      <Toaster 
-        position="top-right"
-        toastOptions={{
-          style: {
-            background: '#333',
-            color: '#fff',
-          },
-        }}
-      />
+      <div suppressHydrationWarning={true}>
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            style: {
+              background: "#333",
+              color: "#fff",
+            },
+          }}
+        />
+      </div>
       <ProgressBar />
       {children}
       <ReactQueryDevtools initialIsOpen={false} />
