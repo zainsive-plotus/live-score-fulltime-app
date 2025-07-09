@@ -12,7 +12,7 @@ import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import sharp from "sharp";
 import crypto from "crypto";
 import slugify from "slugify";
-import { generateSimplePrediction } from "@/lib/prediction-engine";
+// import { generateSimplePrediction } from "@/lib/prediction-engine";
 import path from "path";
 
 const s3Client = new S3Client({
@@ -413,20 +413,20 @@ export async function POST(request: Request) {
     }
     const { home: homeTeam, away: awayTeam } = fixtureData.teams;
     const league = fixtureData.league;
-    const predictionResult = generateSimplePrediction({
-      fixture: fixtureData,
-      h2h: h2hRes.data.response || [],
-      standings: standingsRes.data.response || [],
-      homeTeamForm: homeFormRes.data.response || [],
-      awayTeamForm: awayFormRes.data.response || [],
-    });
+    // const predictionResult = generateSimplePrediction({
+    //   fixture: fixtureData,
+    //   h2h: h2hRes.data.response || [],
+    //   standings: standingsRes.data.response || [],
+    //   homeTeamForm: homeFormRes.data.response || [],
+    //   awayTeamForm: awayFormRes.data.response || [],
+    // });
     const fullPredictionDataForAI = {
       fixture: fixtureData,
       h2h: h2hRes.data.response,
       standings: standingsRes.data.response,
       homeTeamForm: homeFormRes.data.response,
       awayTeamForm: awayFormRes.data.response,
-      fanskorPrediction: predictionResult,
+      // fanskorPrediction: predictionResult,
     };
     const journalist = await AIJournalist.findById(journalistId);
     if (journalist && journalist.isActive) {
@@ -436,7 +436,7 @@ export async function POST(request: Request) {
       homeTeam.name,
       awayTeam.name,
       league.name,
-      predictionResult.text,
+      // predictionResult.text,
       journalistId
     );
     const predictionContent = await generatePredictionContent(
@@ -476,7 +476,7 @@ export async function POST(request: Request) {
       featuredImageTitle: featuredImageTitle,
       featuredImageAltText: featuredImageAltText,
       // --- MODIFIED: Assign multiple categories ---
-      sport: ["prediction", sportCategory || "football"] as PostCategory[],
+      sport: ["prediction", sportCategory || "football"] as any[],
       metaTitle: `${newPostTitle} | Maç Tahmini`,
       metaDescription: plainTextContent.substring(0, 150) + "...",
       isAIGenerated: true,
