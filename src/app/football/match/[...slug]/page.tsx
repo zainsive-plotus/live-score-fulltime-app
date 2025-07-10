@@ -21,7 +21,7 @@ import Header from "@/components/Header";
 // Data fetching and metadata functions remain unchanged...
 const getFixtureIdFromSlug = (slug: string): string | null => {
   if (!slug) return null;
-  const parts = slug.split("-");
+  const parts = slug?.split("-");
   const lastPart = parts[parts.length - 1];
   return /^\d+$/.test(lastPart) ? lastPart : null;
 };
