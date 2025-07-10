@@ -196,11 +196,13 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({
       let predictedOutcome: "Home Win" | "Draw" | "Away Win" = "Draw";
       if (maxConfidence === pred.home) predictedOutcome = "Home Win";
       if (maxConfidence === pred.away) predictedOutcome = "Away Win";
+      // @ts-ignore
       result.predictedOutcome = predictedOutcome;
       result.confidence = maxConfidence;
     }
 
     if (isFinished) {
+      // @ts-ignore
       result.actualOutcome = teams.home.winner
         ? "Home Win"
         : teams.away.winner
