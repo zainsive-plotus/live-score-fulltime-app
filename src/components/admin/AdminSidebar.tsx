@@ -17,7 +17,8 @@ import {
   ChevronRight,
   AlertTriangle,
   Shield,
-  UserCircle, // <-- NEW ICON IMPORT
+  UserCircle,
+  DatabaseZap, // <-- NEW ICON IMPORT
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -87,6 +88,7 @@ export default function AdminSidebar() {
       icon: FileText,
     },
     { name: "Author Page", href: "/admin/pages/author", icon: UserCircle },
+    { name: "GDPR Page", href: "/admin/pages/gdpr", icon: DatabaseZap },
   ];
 
   return (

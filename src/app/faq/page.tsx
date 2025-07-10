@@ -12,6 +12,8 @@ import FaqAccordion from "@/components/FaqAccordion";
 import { HelpCircle, Info, Search, MessageSquarePlus } from "lucide-react";
 import CasinoPartnerWidget from "@/components/CasinoPartnerWidget";
 import { IFaq } from "@/models/Faq";
+import AdSlotWidget from "@/components/AdSlotWidget";
+import RecentNewsWidget from "@/components/RecentNewsWidget";
 
 // --- Data Fetching (now uses useQuery) ---
 const fetchFaqs = async (): Promise<IFaq[]> => {
@@ -135,7 +137,9 @@ export default function FaqPage() {
         </main>
 
         <aside className="hidden lg:block lg:col-span-1 space-y-8 min-w-0">
-          <CasinoPartnerWidget />
+          {/* <CasinoPartnerWidget /> */}
+          <RecentNewsWidget />
+          <AdSlotWidget location="homepage_right_sidebar" />
         </aside>
       </div>
     </div>
