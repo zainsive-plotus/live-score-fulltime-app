@@ -1,10 +1,10 @@
-// src/app/api/posts/[postId]/route.ts
+// ===== src/app/api/posts/[postId]/route.ts =====
 
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import dbConnect from "@/lib/dbConnect";
-import Post, { IPost, PostCategory } from "@/models/Post";
+import Post, { IPost } from "@/models/Post"; // Import IPost from the updated model
 
 interface Params {
   params: { postId: string };
@@ -25,8 +25,7 @@ export async function GET(request: Request, { params }: Params) {
   }
 }
 
-// --- PUT (Update) a Post (Updated to handle category array) ---
-// Protected: Only admins can update.
+// --- UPDATED: PUT (Update) a Post ---
 export async function PUT(request: Request, { params }: Params) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") {
@@ -45,22 +44,25 @@ export async function PUT(request: Request, { params }: Params) {
       metaDescription,
       featuredImageTitle,
       featuredImageAltText,
-      sport, // This will now be an array
+      sportsCategory, // Renamed field
+      newsType, // New field
+      linkedFixtureId, // New field
+      linkedLeagueId, // New field
+      linkedTeamId, // New field
     } = body;
 
-    // --- MODIFIED: Validate that `sport` is a non-empty array ---
-    if (!Array.isArray(sport) || sport.length === 0) {
+    if (!Array.isArray(sportsCategory) || sportsCategory.length === 0) {
       return NextResponse.json(
-        { error: "At least one category is required." },
+        { error: "At least one sports category is required." },
         { status: 400 }
       );
     }
 
     await dbConnect();
 
-    const updatedPost = await Post.findByIdAndUpdate(
-      postId,
-      {
+    // Use $set to update fields and $unset to remove them if they are empty/undefined
+    const updatePayload: any = {
+      $set: {
         title,
         content,
         status,
@@ -69,10 +71,38 @@ export async function PUT(request: Request, { params }: Params) {
         metaDescription,
         featuredImageTitle,
         featuredImageAltText,
-        sport: sport as PostCategory[], // --- MODIFIED: Save the array
+        sportsCategory,
+        newsType,
       },
-      { new: true, runValidators: true }
-    );
+      $unset: {},
+    };
+
+    // Conditionally add linked IDs to the payload or unset them
+    if (linkedFixtureId) {
+      updatePayload.$set.linkedFixtureId = linkedFixtureId;
+    } else {
+      updatePayload.$unset.linkedFixtureId = "";
+    }
+    if (linkedLeagueId) {
+      updatePayload.$set.linkedLeagueId = linkedLeagueId;
+    } else {
+      updatePayload.$unset.linkedLeagueId = "";
+    }
+    if (linkedTeamId) {
+      updatePayload.$set.linkedTeamId = linkedTeamId;
+    } else {
+      updatePayload.$unset.linkedTeamId = "";
+    }
+
+    // If there's nothing to unset, remove the empty $unset operator
+    if (Object.keys(updatePayload.$unset).length === 0) {
+      delete updatePayload.$unset;
+    }
+
+    const updatedPost = await Post.findByIdAndUpdate(postId, updatePayload, {
+      new: true,
+      runValidators: true,
+    });
 
     if (!updatedPost) {
       return NextResponse.json({ error: "Post not found" }, { status: 404 });

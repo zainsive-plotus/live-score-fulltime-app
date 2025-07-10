@@ -1,27 +1,38 @@
-// src/app/api/posts/route.ts
+// ===== src/app/api/posts/route.ts =====
 
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import dbConnect from "@/lib/dbConnect";
-import Post, { IPost, PostCategory } from "@/models/Post";
+import Post, { IPost } from "@/models/Post";
 import slugify from "slugify";
 import ExternalNewsArticle from "@/models/ExternalNewsArticle";
 
-// --- GET All Posts (No change needed) ---
+// --- ENHANCED: GET All Posts, now with filtering capabilities ---
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const status = searchParams.get("status");
   const limit = searchParams.get("limit");
+  const linkedFixtureId = searchParams.get("linkedFixtureId");
+  const linkedLeagueId = searchParams.get("linkedLeagueId");
+  const linkedTeamId = searchParams.get("linkedTeamId");
 
-  const query: { status?: string } = {};
-  if (status) {
-    query.status = status;
-  }
+  const query: any = {};
+  if (status) query.status = status;
+  if (linkedFixtureId) query.linkedFixtureId = Number(linkedFixtureId);
+  if (linkedLeagueId) query.linkedLeagueId = Number(linkedLeagueId);
+  if (linkedTeamId) query.linkedTeamId = Number(linkedTeamId);
 
   try {
     await dbConnect();
-    let postsQuery = Post.find(query).sort({ createdAt: -1 }).populate({
+    let postsQuery = Post.find(query).sort({ createdAt: -1 });
+
+    if (limit) {
+      postsQuery = postsQuery.limit(parseInt(limit));
+    }
+
+    // This population is mainly for the admin panel to show the source article
+    postsQuery = postsQuery.populate({
       path: "originalExternalArticleId",
       model: ExternalNewsArticle,
       select: "title link",
@@ -38,7 +49,7 @@ export async function GET(request: Request) {
   }
 }
 
-// --- POST a New Post (Updated to handle category array) ---
+// --- UPDATED: POST a New Post ---
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") {
@@ -56,7 +67,11 @@ export async function POST(request: Request) {
       metaDescription,
       featuredImageTitle,
       featuredImageAltText,
-      sport, // This will now be an array
+      sportsCategory, // Renamed field
+      newsType, // New field
+      linkedFixtureId, // New field
+      linkedLeagueId, // New field
+      linkedTeamId, // New field
     } = body;
 
     if (!title || !content) {
@@ -66,10 +81,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // --- MODIFIED: Validate that `sport` is a non-empty array ---
-    if (!Array.isArray(sport) || sport.length === 0) {
+    if (!Array.isArray(sportsCategory) || sportsCategory.length === 0) {
       return NextResponse.json(
-        { error: "At least one category is required." },
+        { error: "At least one sports category is required." },
         { status: 400 }
       );
     }
@@ -98,7 +112,11 @@ export async function POST(request: Request) {
       metaDescription,
       featuredImageTitle,
       featuredImageAltText,
-      sport: sport as PostCategory[], // --- MODIFIED: Save the array
+      sportsCategory,
+      newsType,
+      linkedFixtureId,
+      linkedLeagueId,
+      linkedTeamId,
     });
 
     await newPost.save();

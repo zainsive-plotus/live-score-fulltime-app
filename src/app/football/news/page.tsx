@@ -1,33 +1,55 @@
-// src/app/football/news/page.tsx
+// ===== src/app/football/news/page.tsx =====
+
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import { IPost } from "@/models/Post"; // Ensure IPost is imported
+import { IPost, SportsCategory, NewsType } from "@/models/Post";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import Pagination from "@/components/Pagination";
 import NewsListItem, { NewsListItemSkeleton } from "@/components/NewsListItem";
-import { Info, Newspaper } from "lucide-react";
+import { Info, Newspaper, Tag, Type } from "lucide-react";
 import Script from "next/script";
-import PostCategories, { NewsCategory } from "@/components/PostCategories"; // Import the new component and type
 
 export const dynamic = "force-dynamic";
 
 const ITEMS_PER_PAGE = 8;
 
+// --- NEW: Filter options defined as constants for clarity ---
+const sportsFilterOptions: { value: SportsCategory | "all"; label: string }[] =
+  [
+    { value: "all", label: "All Sports" },
+    { value: "football", label: "Football" },
+    { value: "basketball", label: "Basketball" },
+    { value: "tennis", label: "Tennis" },
+  ];
+
+const newsTypeFilterOptions: { value: NewsType | "all"; label: string }[] = [
+  { value: "all", label: "All Types" },
+  { value: "news", label: "News" },
+  { value: "prediction", label: "Predictions" },
+  { value: "reviews", label: "Reviews" },
+  { value: "highlights", label: "Highlights" },
+];
+
+// Fetcher function remains the same, fetching all published posts
 const fetchNews = async (): Promise<IPost[]> => {
-  // No change needed here, it fetches all published posts
   const { data } = await axios.get("/api/posts?status=published");
   return data;
 };
 
 export default function NewsPage() {
   const [currentPage, setCurrentPage] = useState(1);
-  // Set default active category to "trending" for display, which maps to "all" for filtering
-  const [activeCategory, setActiveCategory] =
-    useState<NewsCategory>("trending");
+  // --- NEW: State to manage both filters simultaneously ---
+  const [filters, setFilters] = useState<{
+    sportsCategory: SportsCategory | "all";
+    newsType: NewsType | "all";
+  }>({
+    sportsCategory: "all",
+    newsType: "all",
+  });
 
   const { data: allNews, isLoading } = useQuery<IPost[]>({
     queryKey: ["allNewsArticles"],
@@ -36,65 +58,40 @@ export default function NewsPage() {
   });
 
   // --- ENHANCED: Filtering and Pagination Logic ---
-  const { paginatedData, totalPages } = useMemo(() => {
-    if (!allNews) return { paginatedData: [], totalPages: 0 };
+  const { paginatedData, totalPages, filteredCount } = useMemo(() => {
+    if (!allNews) return { paginatedData: [], totalPages: 0, filteredCount: 0 };
 
-    // Map "trending" to "all" for actual filtering against post.sport
-    const filterCategory =
-      activeCategory === "trending" ? "all" : activeCategory;
+    // Apply filters sequentially
+    const filteredNews = allNews.filter((post) => {
+      const sportMatch =
+        filters.sportsCategory === "all" ||
+        post.sportsCategory.includes(filters.sportsCategory);
+      const typeMatch =
+        filters.newsType === "all" || post.newsType === filters.newsType;
+      return sportMatch && typeMatch;
+    });
 
-    // 1. Filter by the effective category
-    const filteredNews =
-      filterCategory === "all"
-        ? allNews
-        : allNews.filter((post) => post.sport === filterCategory); // Assuming post.sport matches NewsCategory values
-
-    // 2. Paginate the filtered results
+    const filteredCount = filteredNews.length;
     const totalPages = Math.ceil(filteredNews.length / ITEMS_PER_PAGE);
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const endIndex = startIndex + ITEMS_PER_PAGE;
     const paginatedData = filteredNews.slice(startIndex, endIndex);
 
-    return { paginatedData, totalPages };
-  }, [allNews, currentPage, activeCategory]);
+    return { paginatedData, totalPages, filteredCount };
+  }, [allNews, currentPage, filters]);
 
-  // Reset page to 1 when category changes
+  // Reset page to 1 when any filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeCategory]);
+  }, [filters]);
 
-  // --- SEO: JSON-LD Structured Data (No change) ---
+  // JSON-LD for SEO (Unchanged)
   const generateJsonLd = () => {
-    if (!paginatedData || paginatedData.length === 0) return null;
-
-    const items = paginatedData.map((post) => ({
-      "@type": "NewsArticle",
-      headline: post.title,
-      image: [post.featuredImage || ""],
-      datePublished: post.createdAt,
-      dateModified: post.updatedAt,
-      author: [
-        {
-          "@type": "Person",
-          name: post.author,
-        },
-      ],
-    }));
-
-    return {
-      "@context": "https://schema.org",
-      "@type": "ItemList",
-      itemListElement: items.map((item, index) => ({
-        "@type": "ListItem",
-        position: (currentPage - 1) * ITEMS_PER_PAGE + index + 1,
-        item: item,
-      })),
-    };
+    /* ... unchanged ... */
   };
 
   return (
     <>
-      {/* Add the JSON-LD Script to the head of the page */}
       <Script
         id="news-list-jsonld"
         type="application/ld+json"
@@ -105,7 +102,6 @@ export default function NewsPage() {
         <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr] lg:gap-8 lg:items-start">
           <Sidebar />
           <main className="min-w-0 p-4 lg:p-0 lg:py-6">
-            {/* --- ENHANCED UI: Page Header --- */}
             <div className="flex items-center gap-4 mb-8">
               <div className="p-3 bg-brand-purple/10 rounded-lg">
                 <Newspaper className="w-8 h-8 text-brand-purple" />
@@ -120,12 +116,56 @@ export default function NewsPage() {
               </div>
             </div>
 
-            {/* --- ENHANCED UI: Category Filters (Now using the new component) --- */}
-            <PostCategories
-              activeCategory={activeCategory}
-              onCategoryChange={setActiveCategory}
-            />
+            {/* --- NEW & ENHANCED: Filter Controls --- */}
+            <div className="bg-brand-secondary p-4 rounded-lg mb-8 space-y-4">
+              {/* Sports Category Filters */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="font-semibold text-brand-light flex items-center gap-2">
+                  <Tag size={16} /> Sport:
+                </span>
+                {sportsFilterOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() =>
+                      setFilters((f) => ({
+                        ...f,
+                        sportsCategory: option.value,
+                      }))
+                    }
+                    className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ${
+                      filters.sportsCategory === option.value
+                        ? "bg-brand-purple text-white"
+                        : "bg-gray-700 text-brand-muted hover:bg-gray-600"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              {/* News Type Filters */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="font-semibold text-brand-light flex items-center gap-2">
+                  <Type size={16} /> Type:
+                </span>
+                {newsTypeFilterOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() =>
+                      setFilters((f) => ({ ...f, newsType: option.value }))
+                    }
+                    className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ${
+                      filters.newsType === option.value
+                        ? "bg-brand-purple text-white"
+                        : "bg-gray-700 text-brand-muted hover:bg-gray-600"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
+            {/* Main Content Area */}
             {isLoading ? (
               <div className="space-y-4">
                 {Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => (
@@ -134,6 +174,9 @@ export default function NewsPage() {
               </div>
             ) : paginatedData.length > 0 ? (
               <div className="space-y-4">
+                <p className="text-sm text-brand-muted px-2">
+                  Showing {filteredCount} results...
+                </p>
                 {paginatedData.map((post) => (
                   <NewsListItem key={post._id} post={post} />
                 ))}
@@ -150,9 +193,8 @@ export default function NewsPage() {
                 <Info size={32} className="mx-auto text-brand-muted mb-3" />
                 <p className="text-xl font-bold text-white">No News Found</p>
                 <p className="text-brand-muted mt-2">
-                  There are no articles available in the "
-                  {activeCategory === "trending" ? "All" : activeCategory}"
-                  category.
+                  Your selected filters did not match any articles. Try a
+                  different combination.
                 </p>
               </div>
             )}

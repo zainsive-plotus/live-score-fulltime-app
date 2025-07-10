@@ -1,11 +1,12 @@
-// src/app/api/admin/ai-journalists/route.ts
+// ===== src/app/api/admin/ai-prompt/route.ts =====
+
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import dbConnect from "@/lib/dbConnect";
-import AIJournalist, { IAIJournalist } from "@/models/AIJournalist";
+import AIPrompt, { IAIPrompt, AIPromptType } from "@/models/AIPrompt";
 
-// GET handler to retrieve a list of all AI Journalists (UNCHANGED)
+// GET handler to find a specific prompt by name and type
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") {
@@ -15,19 +16,38 @@ export async function GET(request: Request) {
   await dbConnect();
 
   try {
-    const journalists = await AIJournalist.find({}).sort({ name: 1 }).lean();
-    return NextResponse.json(journalists, { status: 200 });
+    const { searchParams } = new URL(request.url);
+    const name = searchParams.get("name");
+    const type = searchParams.get("type") as AIPromptType;
+
+    if (!name || !type) {
+      return NextResponse.json(
+        { error: "Prompt name and type are required." },
+        { status: 400 }
+      );
+    }
+
+    const prompt = await AIPrompt.findOne({ name, type }).lean();
+
+    if (!prompt) {
+      return NextResponse.json(
+        { error: `Prompt '${name}' of type '${type}' not found.` },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(prompt, { status: 200 });
   } catch (error: any) {
-    console.error("Error fetching AI Journalists:", error.message);
+    console.error("Error fetching AI Prompt:", error.message);
     return NextResponse.json(
-      { error: "Server error fetching AI Journalists." },
+      { error: "Server error fetching AI Prompt." },
       { status: 500 }
     );
   }
 }
 
-// POST handler to create a new AI Journalist
-export async function POST(request: Request) {
+// --- NEW: PUT handler to update an existing AI Prompt ---
+export async function PUT(request: Request) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -36,36 +56,35 @@ export async function POST(request: Request) {
   await dbConnect();
 
   try {
-    const body: Partial<IAIJournalist> = await request.json();
-    const { name, description, tonePrompt, isActive } = body;
+    const body: { id: string; description?: string; prompt: string } =
+      await request.json();
+    const { id, description, prompt } = body;
 
-    if (!name || !tonePrompt) {
+    if (!id || !prompt) {
       return NextResponse.json(
-        { error: "Name and Tone Prompt are required." },
+        { error: "Prompt ID and content are required for update." },
         { status: 400 }
       );
     }
 
-    const newJournalist = new AIJournalist({
-      name,
-      description,
-      tonePrompt,
-      isActive: isActive !== undefined ? isActive : true, // Default to active
-    });
+    const updatedPrompt = await AIPrompt.findByIdAndUpdate(
+      id,
+      { description, prompt },
+      { new: true, runValidators: true } // Return the updated document
+    );
 
-    await newJournalist.save();
-    return NextResponse.json(newJournalist, { status: 201 });
-  } catch (error: any) {
-    console.error("Error creating AI Journalist:", error.message);
-    if (error.code === 11000) {
-      // Duplicate key error
+    if (!updatedPrompt) {
       return NextResponse.json(
-        { error: "Journalist with this name already exists." },
-        { status: 409 }
+        { error: "AI Prompt not found." },
+        { status: 404 }
       );
     }
+
+    return NextResponse.json(updatedPrompt, { status: 200 });
+  } catch (error: any) {
+    console.error("Error updating AI Prompt:", error.message);
     return NextResponse.json(
-      { error: "Server error creating AI Journalist." },
+      { error: "Server error updating AI Prompt." },
       { status: 500 }
     );
   }

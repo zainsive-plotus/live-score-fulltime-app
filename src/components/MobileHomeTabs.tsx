@@ -1,16 +1,13 @@
 "use client";
 
 import { useState, Dispatch, SetStateAction } from "react";
-// Import BrainCircuit for Analytics icon
-import { List, Newspaper, BrainCircuit, Compass } from "lucide-react";
+import { List, Newspaper, Compass } from "lucide-react";
 import { League } from "@/types/api-football";
-
-// Import the content components
 import MatchList from "./MatchList";
 import NewsSection from "./NewsSection";
 import ExploreTab from "./ExploreTab";
 
-// Define the NEW tabs we want to show
+// The TABS array remains the same.
 const TABS = [
   { id: "matches", label: "Matches", icon: List },
   { id: "explore", label: "Explore", icon: Compass },
@@ -22,6 +19,32 @@ interface MobileHomeTabsProps {
   setLiveLeagues: Dispatch<SetStateAction<League[]>>;
 }
 
+// --- Reusable Button Sub-component for cleanliness ---
+const TabButton = ({
+  tab,
+  isActive,
+  onClick,
+}: {
+  tab: (typeof TABS)[0];
+  isActive: boolean;
+  onClick: () => void;
+}) => (
+  <button
+    onClick={onClick}
+    className={`flex h-12 w-1/3 flex-col items-center justify-center gap-0.5 rounded-full transition-all duration-300 ease-in-out
+      ${
+        isActive
+          ? "bg-[var(--brand-accent)] text-white" // Active state with solid accent background
+          : "bg-transparent text-text-muted hover:text-white" // Inactive state
+      }
+    `}
+    aria-label={tab.label}
+  >
+    <tab.icon size={20} /> {/* Reduced icon size to 20px */}
+    <span className="text-xs font-bold">{tab.label}</span>
+  </button>
+);
+
 export default function MobileHomeTabs({
   liveLeagues,
   setLiveLeagues,
@@ -29,30 +52,33 @@ export default function MobileHomeTabs({
   const [activeTab, setActiveTab] = useState("matches");
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex-grow p-2 sm:p-4 space-y-8 overflow-y-auto">
+    // The main container ensures content can scroll behind the fixed tab bar
+    <div className="flex flex-col h-full w-full">
+      {/* --- CONTENT AREA --- */}
+      {/* Adjusted bottom padding (pb-20) to account for the smaller dock height */}
+      <main className="flex-grow p-2 sm:p-4 space-y-8 overflow-y-auto pb-20">
         {activeTab === "matches" && (
           <MatchList setLiveLeagues={setLiveLeagues} />
         )}
         {activeTab === "explore" && <ExploreTab />}
         {activeTab === "news" && <NewsSection />}
-      </div>
+      </main>
 
-      <div className="sticky bottom-0 left-0 right-0 bg-brand-secondary border-t border-gray-700/50 shadow-lg z-999999">
-        <div className="flex justify-around items-center h-16">
+      {/* --- FLOATING DOCK (REDESIGNED TAB BAR) --- */}
+      {/* Reduced outer padding (px-3 pb-3) and inner padding of the dock itself (p-1) */}
+      <div className="fixed bottom-0 left-0 right-0 z-[100] px-3 pb-3 pointer-events-none">
+        <div
+          className="pointer-events-auto mx-auto flex max-w-xs items-center justify-around rounded-full 
+                     bg-black/50 p-1 shadow-2xl shadow-black/30 backdrop-blur-lg 
+                     border border-white/10"
+        >
           {TABS.map((tab) => (
-            <button
+            <TabButton
               key={tab.id}
+              tab={tab}
+              isActive={activeTab === tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex flex-col items-center justify-center gap-1 w-full h-full transition-colors duration-200 ${
-                activeTab === tab.id
-                  ? "text-brand-purple"
-                  : "text-brand-muted hover:text-white"
-              }`}
-            >
-              <tab.icon size={22} />
-              <span className="text-xs font-semibold">{tab.label}</span>
-            </button>
+            />
           ))}
         </div>
       </div>

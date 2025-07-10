@@ -1,14 +1,12 @@
-// src/models/Post.ts
+// ===== src/models/Post.ts =====
+
 import mongoose, { Schema, Document } from "mongoose";
 
-// Define the types of sports/categories a post can belong to
-export type PostCategory =
-  | "football"
-  | "basketball"
-  | "tennis"
-  | "general"
-  | "prediction"
-  | "match_reports";
+// --- REFINED: This type now only defines the sport itself. ---
+export type SportsCategory = "football" | "basketball" | "tennis" | "general";
+
+// The type of the news article (what it's about, not the sport).
+export type NewsType = "news" | "highlights" | "reviews" | "prediction";
 
 export interface IPost extends Document {
   title: string;
@@ -23,11 +21,17 @@ export interface IPost extends Document {
   featuredImageAltText?: string;
   metaTitle?: string;
   metaDescription?: string;
-  // --- MODIFIED: `sport` is now an array of PostCategory ---
-  sport: PostCategory[];
+
+  // --- RENAMED & REFINED: The field is now `sportsCategory`. ---
+  sportsCategory: SportsCategory[];
+
   isAIGenerated?: boolean;
   originalExternalArticleId?: mongoose.Types.ObjectId;
   originalFixtureId?: number;
+  newsType: NewsType;
+  linkedFixtureId?: number;
+  linkedLeagueId?: number;
+  linkedTeamId?: number;
 }
 
 const PostSchema: Schema = new Schema(
@@ -48,19 +52,13 @@ const PostSchema: Schema = new Schema(
     featuredImageAltText: { type: String, trim: true },
     metaTitle: { type: String, trim: true },
     metaDescription: { type: String, trim: true },
-    // --- MODIFIED: Schema definition for `sport` field ---
-    sport: {
+
+    // --- RENAMED & REFINED: Schema definition for the `sportsCategory` field. ---
+    sportsCategory: {
       type: [
         {
           type: String,
-          enum: [
-            "football",
-            "basketball",
-            "tennis",
-            "general",
-            "prediction",
-            "match_reports",
-          ],
+          enum: ["football", "basketball", "tennis", "general"],
         },
       ],
       default: ["general"], // Default to an array with 'general'
@@ -77,6 +75,27 @@ const PostSchema: Schema = new Schema(
       required: false,
       unique: true,
       sparse: true,
+    },
+    newsType: {
+      type: String,
+      enum: ["news", "highlights", "reviews", "prediction"],
+      default: "news",
+      required: true,
+    },
+    linkedFixtureId: {
+      type: Number,
+      required: false,
+      index: true,
+    },
+    linkedLeagueId: {
+      type: Number,
+      required: false,
+      index: true,
+    },
+    linkedTeamId: {
+      type: Number,
+      required: false,
+      index: true,
     },
   },
   {

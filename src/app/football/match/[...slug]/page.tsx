@@ -1,4 +1,5 @@
-// src/app/football/match/[...slug]/page.tsx
+// ===== src/app/football/match/[...slug]/page.tsx =====
+
 import { notFound } from "next/navigation";
 import axios from "axios";
 import type { Metadata } from "next";
@@ -17,6 +18,9 @@ import MatchActivityWidget from "@/components/match/MatchActivityWidget";
 import TeamStandingsWidget from "@/components/match/TeamStandingsWidget";
 import CasinoPartnerWidget from "@/components/CasinoPartnerWidget";
 import Header from "@/components/Header";
+
+// --- NEW WIDGET IMPORT ---
+import LinkedNewsWidget from "@/components/match/LinkedNewsWidget";
 
 // Data fetching and metadata functions remain unchanged...
 const getFixtureIdFromSlug = (slug: string): string | null => {
@@ -98,9 +102,6 @@ export default async function MatchDetailPage({
   const isLive = ["1H", "HT", "2H", "ET", "BT", "P", "LIVE"].includes(
     data.fixture.fixture.status?.short
   );
-
-  // --- THIS IS THE FIX ---
-  // Added optional chaining (?.) to safely access .short
   const isFinished = ["FT", "AET", "PEN"].includes(
     data.fixture.fixture.status?.short
   );
@@ -108,7 +109,6 @@ export default async function MatchDetailPage({
   const { fixture, h2h, analytics, statistics } = data;
   const { home: homeTeam, away: awayTeam } = fixture.teams;
 
-  // SEO descriptions remain the same
   const matchSeoDescription = `${homeTeam.name}, son haftalarda dikkat çekici galibiyetler ve sağlam savunma performanslarıyla bu maça güçlü bir formda geliyor. Saldırı hattı keskin, birçok fırsat yaratarak rakip hatalarından faydalanıyor. Bu arada, ${awayTeam.name}  de direncini gösterdi, erken aksaklıklardan geri döndü ve sıralamada istikrarlı bir şekilde yükselmeye başladı. Taraftarlar, her iki takımdan da yüksek enerji, agresif baskı ve yaratıcı oyunlar bekleyebilirler.`;
   const h2hSeoDescription = `Tarihsel olarak, ${homeTeam.name} ve ${awayTeam.name} arasındaki karşılaşmalar sıkı geçmiş, skor farkları dar ve son dakika dramalarıyla dolu olmuştur. Topa sahip olma yüzdeleri, kaleye atılan şutlar ve pas tamamlama oranları gibi detaylı istatistikler, her kritik anı takip edebilmeniz için gerçek zamanlı olarak güncellenecek.`;
   const standingsSeoDescription = `${homeTeam.name}'nın güçlü orta saha motoruna ve yıldız forvetine dikkat edin, her ikisi de savunmaları aşmak için hayati öneme sahip. Ancak, ${awayTeam.name} esas olarak güçlü stoper kombinasyonuna ve maçın seyrini her an değiştirebilecek hızlı kanat oyuncularına bağımlıdır.`;
@@ -122,7 +122,7 @@ export default async function MatchDetailPage({
           <MatchHeader
             fixture={fixture}
             analytics={analytics}
-            matchSeoDescription={matchSeoDescription}
+            // matchSeoDescription is now a prop, no changes needed here
           />
           <MatchStatusBanner fixture={fixture} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -158,6 +158,10 @@ export default async function MatchDetailPage({
 
         <aside className="lg:col-span-1 space-y-6 lg:sticky lg:top-6 mt-8 lg:mt-0">
           {isLive && <LiveOddsWidget fixtureId={fixtureId} />}
+
+          {/* --- NEW WIDGET INCLUDED HERE --- */}
+          <LinkedNewsWidget fixtureId={fixture.fixture.id} />
+
           <CasinoPartnerWidget />
           <TeamStandingsWidget
             leagueId={fixture.league.id}
