@@ -12,6 +12,7 @@ import MatchListItem, { MatchListItemSkeleton } from "./MatchListItem";
 import MatchDateNavigator from "./MatchDateNavigator";
 import { Globe, ChevronsDown, Search, XCircle } from "lucide-react";
 import { format } from "date-fns";
+import { proxyImageUrl } from "@/lib/image-proxy";
 
 // This debounce hook is crucial for a good search experience.
 function useDebounce(value: string, delay: number) {
