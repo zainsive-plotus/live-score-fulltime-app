@@ -8,7 +8,7 @@ import AdSlotWidget from "@/components/AdSlotWidget";
 import TeamHeader from "./TeamHeader";
 import TeamInfoWidget from "./TeamInfoWidget";
 import TeamTrophiesWidget from "./TeamTrophiesWidget";
-import TeamSquadTab from "./TeamSquadTab";
+import TeamSquadTab from "./TeamSquadWidget";
 // We can reuse the fixtures widget from the league page
 import LeagueFixturesWidget from "@/components/league-detail-view/LeagueFixturesWidget";
 

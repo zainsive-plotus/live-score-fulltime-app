@@ -2,12 +2,11 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Info } from "lucide-react";
-// We can reuse the same list item component for a consistent look
-import MatchListItem from "../MatchListItem";
+import { Info, CalendarClock } from "lucide-react"; // Using a more descriptive icon
+import MatchListItem, { MatchListItemSkeleton } from "../MatchListItem";
 
 interface TeamFixturesWidgetProps {
-  fixtures: any[]; // The array of fixtures fetched on the server
+  fixtures: any[];
 }
 
 export default function TeamFixturesWidget({
@@ -20,38 +19,40 @@ export default function TeamFixturesWidget({
   const filteredMatches = useMemo(() => {
     if (!fixtures) return [];
 
-    // Sort all fixtures by date first to ensure correct order
     const sortedFixtures = [...fixtures].sort(
       (a, b) =>
         new Date(a.fixture.date).getTime() - new Date(b.fixture.date).getTime()
     );
 
     if (activeTab === "upcoming") {
-      // Filter for matches that are not finished
       return sortedFixtures.filter(
         (m: any) => !["FT", "AET", "PEN"].includes(m.fixture.status.short)
       );
     } else {
-      // Filter for finished matches and reverse to show most recent first
       return sortedFixtures
         .filter((m: any) =>
           ["FT", "AET", "PEN"].includes(m.fixture.status.short)
         )
-        .reverse();
+        .reverse(); // Show most recent results first
     }
   }, [fixtures, activeTab]);
 
   return (
-    <div className="bg-brand-secondary rounded-xl p-4">
-      <div className="flex justify-end items-center mb-4">
-        {/* The control tabs for switching between views */}
-        <div className="flex items-center gap-1 bg-gray-700/50 p-1 rounded-lg">
+    <div className="bg-brand-secondary rounded-xl">
+      {/* --- NEW: Unified Header --- */}
+      <div className="flex justify-between items-center p-4 border-b border-gray-700/50">
+        <h3 className="text-xl font-bold text-white flex items-center gap-2">
+          <CalendarClock size={22} />
+          Match Schedule
+        </h3>
+        {/* --- NEW: Segmented Control for Filters --- */}
+        <div className="flex items-center gap-1 bg-[var(--color-primary)] p-1 rounded-lg">
           <button
             onClick={() => setActiveTab("upcoming")}
             className={`px-3 py-1 text-sm rounded-md font-semibold transition-colors ${
               activeTab === "upcoming"
-                ? "bg-brand-purple text-white"
-                : "text-brand-muted hover:bg-gray-700"
+                ? "bg-[var(--brand-accent)] text-white"
+                : "text-text-muted hover:bg-gray-700"
             }`}
           >
             Upcoming
@@ -60,8 +61,8 @@ export default function TeamFixturesWidget({
             onClick={() => setActiveTab("results")}
             className={`px-3 py-1 text-sm rounded-md font-semibold transition-colors ${
               activeTab === "results"
-                ? "bg-brand-purple text-white"
-                : "text-brand-muted hover:bg-gray-700"
+                ? "bg-[var(--brand-accent)] text-white"
+                : "text-text-muted hover:bg-gray-700"
             }`}
           >
             Results
@@ -69,15 +70,21 @@ export default function TeamFixturesWidget({
         </div>
       </div>
 
-      <div className="space-y-3 max-h-[800px] overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gray-600 pr-2">
-        {filteredMatches && filteredMatches.length > 0 ? (
+      {/* --- Content Area --- */}
+      <div className="p-2 space-y-2 max-h-[800px] overflow-y-auto custom-scrollbar">
+        {fixtures.length === 0 ? (
+          <div className="text-center py-20 text-brand-muted">
+            <Info size={32} className="mx-auto mb-3" />
+            <p className="font-semibold">Fixture data not available.</p>
+          </div>
+        ) : filteredMatches.length > 0 ? (
           filteredMatches.map((match: any) => (
             <MatchListItem key={match.fixture.id} match={match} />
           ))
         ) : (
-          <div className="text-center py-10 text-brand-muted">
+          <div className="text-center py-20 text-brand-muted">
             <Info size={32} className="mx-auto mb-3" />
-            <p>No {activeTab} matches found.</p>
+            <p className="font-semibold">No {activeTab} matches found.</p>
           </div>
         )}
       </div>
