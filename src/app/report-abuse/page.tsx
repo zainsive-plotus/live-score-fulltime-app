@@ -6,6 +6,8 @@ import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import { AlertTriangle } from "lucide-react";
 import CasinoPartnerWidget from "@/components/CasinoPartnerWidget";
+import AdSlotWidget from "@/components/AdSlotWidget";
+import RecentNewsWidget from "@/components/RecentNewsWidget";
 
 const PAGE_SLUG = "report-abuse";
 
