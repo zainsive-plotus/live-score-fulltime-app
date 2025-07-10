@@ -9,8 +9,6 @@ import { Users } from "lucide-react";
 // --- HELPER FUNCTION: Maps a formation to player coordinates ---
 const mapFormationToPositions = (formation: string, startXI: any[]) => {
   // --- THIS IS THE FIX ---
-  // If formation is null, undefined, or an empty string, immediately return a default grid layout.
-  // This prevents the .split() method from ever being called on a non-string value.
   if (!formation) {
     console.warn(
       `Invalid or missing formation string received. Using fallback grid layout.`

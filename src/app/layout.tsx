@@ -72,7 +72,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="tr">
       <body
         className={`${inter.className} bg-background text-text-primary`}
         suppressHydrationWarning={true}
