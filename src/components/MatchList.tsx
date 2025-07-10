@@ -83,6 +83,7 @@ const LeagueGroupHeader = ({
             alt={league.country}
             width={28}
             height={28}
+            unoptimized={true}
             className="rounded-full object-cover"
           />
         )
