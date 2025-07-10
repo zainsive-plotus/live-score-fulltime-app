@@ -2,25 +2,25 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { useQueries } from "@tanstack/react-query"; // Keep useQueries for live/active status polling
+import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { League } from "@/types/api-football";
 import DirectoryCard, {
   DirectoryCardSkeleton,
 } from "@/components/DirectoryCard";
 import Pagination from "@/components/Pagination";
-import { Search } from "lucide-react"; // Import Search icon
+import { Search, SearchX } from "lucide-react"; // Using SearchX for the empty state
 
 const ITEMS_PER_PAGE = 15;
 
-// Fetcher function for the IDs of currently active leagues (can still be client-side fetched)
+// Fetcher function for active league IDs (unchanged)
 const fetchActiveLeagueIds = async (): Promise<number[]> => {
   const { data } = await axios.get("/api/active-leagues");
   return data;
 };
 
 interface LeagueListClientProps {
-  initialAllLeagues: League[]; // Server-fetched leagues passed as prop
+  initialAllLeagues: League[];
 }
 
 export default function LeagueListClient({
@@ -30,28 +30,18 @@ export default function LeagueListClient({
   const [filter, setFilter] = useState<"all" | "league" | "cup">("all");
   const [currentPage, setCurrentPage] = useState(1);
 
-  // useQueries to fetch active league IDs.
-  // We don't fetch all leagues here again, we use `initialAllLeagues`.
-  const { data: activeLeagueIds, isLoading: isLoadingActive } = useQueries({
-    queries: [
-      {
-        queryKey: ["activeLeagueIds"],
-        queryFn: fetchActiveLeagueIds,
-        staleTime: 1000 * 60 * 10, // Re-check for active leagues every 10 minutes
-      },
-    ],
-  })[0]; // Get the first (and only) query result
+  // useQuery for active league IDs (unchanged)
+  const { data: activeLeagueIds, isLoading: isLoadingActive } = useQuery({
+    queryKey: ["activeLeagueIds"],
+    queryFn: fetchActiveLeagueIds,
+    staleTime: 1000 * 60 * 10,
+  });
 
-  const isLoading = isLoadingActive; // Only active status loading is client-side dynamic now
+  // --- This is the main enhancement to the logic ---
+  const filteredLeagues = useMemo(() => {
+    const activeIdsSet = new Set(activeLeagueIds || []);
 
-  // The main logic for filtering and sorting the leagues
-  const { paginatedData, totalPages } = useMemo(() => {
-    // Use the initialAllLeagues provided by the server
-    const allLeagues = initialAllLeagues;
-    const activeIdsSet = new Set(activeLeagueIds || []); // Ensure activeIdsSet is always a Set
-
-    // First, apply the user's search and type filters
-    const filtered = allLeagues.filter((league) => {
+    const filtered = initialAllLeagues.filter((league) => {
       const matchesSearch = league.name
         .toLowerCase()
         .includes(searchTerm.toLowerCase());
@@ -60,111 +50,122 @@ export default function LeagueListClient({
       return matchesSearch && matchesFilter;
     });
 
-    // Separate the filtered list into active and inactive leagues
     const activeLeagues = filtered.filter((l) => activeIdsSet.has(l.id));
     const inactiveLeagues = filtered.filter((l) => !activeIdsSet.has(l.id));
 
-    // Sort each sub-list alphabetically for consistent ordering
     activeLeagues.sort((a, b) => a.name.localeCompare(b.name));
     inactiveLeagues.sort((a, b) => a.name.localeCompare(b.name));
 
-    // Combine the lists, with active leagues appearing first
-    const sortedAndFiltered = [...activeLeagues, ...inactiveLeagues];
+    return [...activeLeagues, ...inactiveLeagues];
+  }, [initialAllLeagues, activeLeagueIds, searchTerm, filter]);
 
-    // Apply pagination to the final, sorted list
-    const totalPages = Math.ceil(sortedAndFiltered.length / ITEMS_PER_PAGE);
+  const { paginatedData, totalPages } = useMemo(() => {
+    const total = Math.ceil(filteredLeagues.length / ITEMS_PER_PAGE);
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const endIndex = startIndex + ITEMS_PER_PAGE;
-    const paginatedData = sortedAndFiltered.slice(startIndex, endIndex);
+    return {
+      paginatedData: filteredLeagues.slice(startIndex, endIndex),
+      totalPages: total,
+    };
+  }, [filteredLeagues, currentPage]);
 
-    return { paginatedData, totalPages };
-  }, [initialAllLeagues, activeLeagueIds, searchTerm, filter, currentPage]);
-
-  // Reset to the first page whenever the filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, filter]);
 
   return (
     <>
-      <div className="flex flex-col md:flex-row gap-4 mb-8">
-        <div className="relative flex-grow">
+      {/* --- NEW: Control Panel --- */}
+      <div className="bg-brand-secondary p-4 rounded-lg mb-8 flex flex-col md:flex-row items-center gap-4">
+        <div className="relative flex-grow w-full">
           <Search
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-brand-muted"
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted"
             size={20}
           />
           <input
             type="text"
-            placeholder="Search by name..."
+            placeholder="Lig veya kupa adına göre ara..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full md:w-1/3 p-3 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-purple pl-12"
+            className="w-full bg-[var(--color-primary)] border border-gray-700/50 rounded-lg p-3 pl-12 text-white focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
           />
         </div>
-        <div className="flex items-center gap-2 p-1 rounded-lg bg-brand-secondary">
+        <div className="flex items-center gap-2 p-1 rounded-lg bg-[var(--color-primary)] w-full md:w-auto">
           <button
             onClick={() => setFilter("all")}
-            className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-colors ${
+            className={`flex-1 md:flex-none px-4 py-1.5 rounded-md text-sm font-semibold transition-colors ${
               filter === "all"
-                ? "bg-brand-purple text-white"
-                : "text-brand-muted hover:bg-gray-700/50"
+                ? "bg-[var(--brand-accent)] text-white"
+                : "text-text-muted hover:bg-gray-700/50"
             }`}
           >
             All
           </button>
           <button
             onClick={() => setFilter("league")}
-            className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-colors ${
+            className={`flex-1 md:flex-none px-4 py-1.5 rounded-md text-sm font-semibold transition-colors ${
               filter === "league"
-                ? "bg-brand-purple text-white"
-                : "text-brand-muted hover:bg-gray-700/50"
+                ? "bg-[var(--brand-accent)] text-white"
+                : "text-text-muted hover:bg-gray-700/50"
             }`}
           >
-            Leagues
+            Ligler
           </button>
           <button
             onClick={() => setFilter("cup")}
-            className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-colors ${
+            className={`flex-1 md:flex-none px-4 py-1.5 rounded-md text-sm font-semibold transition-colors ${
               filter === "cup"
-                ? "bg-brand-purple text-white"
-                : "text-brand-muted hover:bg-gray-700/50"
+                ? "bg-[var(--brand-accent)] text-white"
+                : "text-text-muted hover:bg-gray-700/50"
             }`}
           >
-            Cups
+            Bardaklar
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {isLoadingActive // Show skeleton only for active status loading
-          ? Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => (
+      {/* --- Main Content Area --- */}
+      <div>
+        {isLoadingActive ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => (
               <DirectoryCardSkeleton key={i} />
-            ))
-          : paginatedData.map((league) => (
-              <DirectoryCard
-                key={league.id}
-                {...league}
-                isPopular={activeLeagueIds?.includes(league.id)}
-              />
             ))}
+          </div>
+        ) : paginatedData.length > 0 ? (
+          <>
+            {/* --- NEW: Results Header --- */}
+            <div className="mb-4">
+              <h2 className="text-xl font-bold text-white">
+                {filteredLeagues.length} Yarışma gösteriliyor
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {paginatedData.map((league) => (
+                <DirectoryCard
+                  key={league.id}
+                  {...league}
+                  isPopular={activeLeagueIds?.includes(league.id)}
+                />
+              ))}
+            </div>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          </>
+        ) : (
+          // --- NEW: Enhanced Empty State ---
+          <div className="text-center py-20 bg-brand-secondary rounded-lg">
+            <SearchX size={48} className="mx-auto text-text-muted mb-4" />
+            <p className="text-xl font-bold text-white">Sonuç Bulunamadı</p>
+            <p className="text-text-muted mt-2">
+              "{searchTerm}" aramanız hiçbir yarışmayla eşleşmedi.
+            </p>
+          </div>
+        )}
       </div>
-
-      {!isLoadingActive && paginatedData.length > 0 && (
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-        />
-      )}
-
-      {!isLoadingActive && paginatedData.length === 0 && (
-        <div className="text-center py-20 bg-brand-secondary rounded-lg">
-          <p className="text-xl font-bold text-white">No Results Found</p>
-          <p className="text-brand-muted mt-2">
-            Try adjusting your search or filter.
-          </p>
-        </div>
-      )}
     </>
   );
 }
