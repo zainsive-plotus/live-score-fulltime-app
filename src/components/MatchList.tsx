@@ -78,8 +78,8 @@ const LeagueGroupHeader = ({
         <Globe size={24} className="text-text-muted" />
       ) : (
         league.flag && (
-          <Image
-            src={proxyImageUrl(league.flag)}
+          <img
+            src={league.flag}
             alt={league.country}
             width={28}
             height={28}
