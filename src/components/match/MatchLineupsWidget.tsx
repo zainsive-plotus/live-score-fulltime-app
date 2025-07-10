@@ -8,9 +8,22 @@ import { Users } from "lucide-react";
 
 // --- HELPER FUNCTION: Maps a formation to player coordinates ---
 const mapFormationToPositions = (formation: string, startXI: any[]) => {
+  // --- THIS IS THE FIX ---
+  // If formation is null, undefined, or an empty string, immediately return a default grid layout.
+  // This prevents the .split() method from ever being called on a non-string value.
+  if (!formation) {
+    console.warn(
+      `Invalid or missing formation string received. Using fallback grid layout.`
+    );
+    return startXI.map((p, i) => ({
+      ...p,
+      pos: { x: (i % 4) * 25 + 12.5, y: Math.floor(i / 4) * 25 + 15 },
+    }));
+  }
+  // --- END OF FIX ---
+
   const formationParts = formation.split("-").map(Number);
   if (formationParts.some(isNaN) || startXI.length < 11) {
-    // Fallback for invalid formations or incomplete data
     return startXI.map((p, i) => ({
       ...p,
       pos: { x: (i % 4) * 25 + 12.5, y: Math.floor(i / 4) * 25 + 15 },
@@ -20,19 +33,16 @@ const mapFormationToPositions = (formation: string, startXI: any[]) => {
   const players = [...startXI];
   const positionedPlayers = [];
 
-  // 1. Goalkeeper
   const goalkeeper = players.find((p) => p.player.pos === "G");
   if (goalkeeper) {
     positionedPlayers.push({ ...goalkeeper, pos: { x: 50, y: 95 } });
   }
   const outfieldPlayers = players.filter((p) => p.player.pos !== "G").reverse();
 
-  // 2. Outfield Players
   const totalRows = formationParts.length;
   let playerIndex = 0;
 
   formationParts.forEach((playersInRow, rowIndex) => {
-    // Distribute rows more realistically on the pitch
     const y = 85 - ((rowIndex + 1) / (totalRows + 1)) * 75;
     const playersToPosition = outfieldPlayers.slice(
       playerIndex,
@@ -49,7 +59,7 @@ const mapFormationToPositions = (formation: string, startXI: any[]) => {
   return positionedPlayers;
 };
 
-// --- NEW SUB-COMPONENT: The Football Pitch Visualization ---
+// The rest of the file (FootballPitch, SubsList, MatchLineupsWidget) is unchanged.
 const FootballPitch = ({
   team,
   positionedPlayers,
@@ -63,14 +73,11 @@ const FootballPitch = ({
     className="relative aspect-[7/10] w-full rounded-lg overflow-hidden border border-white/10"
     style={{ background: "radial-gradient(circle, #057F3A 0%, #034F24 100%)" }}
   >
-    {/* Pitch Markings */}
     <div className="absolute inset-0 z-0">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[30%] aspect-square rounded-full border border-white/10"></div>
       <div className="absolute top-1/2 left-0 w-full h-px bg-white/10"></div>
       <div className="absolute top-0 left-[25%] w-[50%] h-[15%] rounded-b-md border-b border-l border-r border-white/10"></div>
     </div>
-
-    {/* Integrated Header */}
     <div className="absolute top-0 left-0 right-0 p-3 bg-gradient-to-b from-black/50 to-transparent z-20 flex justify-between items-center">
       <div className="flex items-center gap-2">
         <Image
@@ -82,11 +89,9 @@ const FootballPitch = ({
         <h3 className="font-bold text-base text-white">{team.team.name}</h3>
       </div>
       <span className="text-sm font-semibold text-text-muted bg-black/30 px-2 py-1 rounded-md">
-        {team.formation}
+        {team.formation || "N/A"}
       </span>
     </div>
-
-    {/* Players */}
     <div className="absolute inset-0 z-10">
       {positionedPlayers.map(({ player, pos }) => (
         <div
@@ -108,8 +113,6 @@ const FootballPitch = ({
     </div>
   </div>
 );
-
-// --- Compact Substitutes List ---
 const SubsList = ({ players }: { players: any[] }) => {
   if (!players || players.length === 0) return null;
   return (
@@ -132,8 +135,6 @@ const SubsList = ({ players }: { players: any[] }) => {
     </div>
   );
 };
-
-// --- The Main, Redesigned Lineups Widget ---
 const MatchLineupsWidget = memo(function MatchLineupsWidget({
   lineups,
 }: {
@@ -149,10 +150,8 @@ const MatchLineupsWidget = memo(function MatchLineupsWidget({
       </div>
     );
   }
-
   const homeLineup = lineups[0];
   const awayLineup = lineups[1];
-
   const homePositionedPlayers = mapFormationToPositions(
     homeLineup.formation,
     homeLineup.startXI
@@ -161,13 +160,11 @@ const MatchLineupsWidget = memo(function MatchLineupsWidget({
     awayLineup.formation,
     awayLineup.startXI
   );
-
   return (
     <div className="bg-brand-secondary rounded-lg p-4 md:p-6">
       <h2 className="text-2xl font-bold text-white mb-4 text-center">
         Formations
       </h2>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <FootballPitch
@@ -189,5 +186,4 @@ const MatchLineupsWidget = memo(function MatchLineupsWidget({
     </div>
   );
 });
-
 export default MatchLineupsWidget;
