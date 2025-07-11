@@ -14,7 +14,6 @@ import { Globe, ChevronsDown, Search, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import { proxyImageUrl } from "@/lib/image-proxy";
 
-// This debounce hook is crucial for a good search experience.
 function useDebounce(value: string, delay: number) {
   const [debouncedValue, setDebouncedValue] = useState(value);
   useEffect(() => {
@@ -28,7 +27,6 @@ function useDebounce(value: string, delay: number) {
   return debouncedValue;
 }
 
-// All other types and fetchers remain the same as they are still used for non-search views.
 type StatusFilter = "all" | "live" | "finished" | "scheduled";
 const STATUS_MAP: Record<StatusFilter, string[]> = {
   all: [],
@@ -53,8 +51,6 @@ const fetchGlobalLiveMatches = async (): Promise<any[]> => {
   const { data } = await axios.get("/api/global-live");
   return data;
 };
-
-// This function correctly calls our new, robust search API.
 const searchFixtures = async (query: string): Promise<any[]> => {
   if (query.length < 3) return [];
   const { data } = await axios.get(
@@ -63,7 +59,8 @@ const searchFixtures = async (query: string): Promise<any[]> => {
   return data;
 };
 
-// Sub-components are unchanged.
+// --- THIS IS THE FIX ---
+// The LeagueGroupHeader is updated to use next/image and the proxy.
 const LeagueGroupHeader = ({
   league,
 }: {
@@ -78,8 +75,9 @@ const LeagueGroupHeader = ({
         <Globe size={24} className="text-text-muted" />
       ) : (
         league.flag && (
-          <img
-            src={league.flag}
+          // Use the Image component and proxy the URL
+          <Image
+            src={proxyImageUrl(league.flag)}
             alt={league.country}
             width={28}
             height={28}
@@ -94,6 +92,8 @@ const LeagueGroupHeader = ({
     </div>
   </div>
 );
+
+// TabButton sub-component remains the same
 const TabButton = ({
   label,
   isActive,
@@ -130,7 +130,6 @@ const TabButton = ({
   </button>
 );
 
-// The main component logic is already set up to handle the switch between search and normal view.
 export default function MatchList({
   setLiveLeagues,
 }: {
@@ -146,7 +145,6 @@ export default function MatchList({
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
-  // This query for the date-based view is correctly disabled when searching.
   const {
     data: allMatches,
     isLoading,
@@ -161,14 +159,12 @@ export default function MatchList({
     enabled: activeStatusFilter !== "live" && !debouncedSearchTerm,
   });
 
-  // This query for the live view is also correctly disabled when searching.
   const { data: liveMatchesData, isLoading: isLoadingLive } = useQuery({
     queryKey: ["globalLiveMatchesList"],
     queryFn: fetchGlobalLiveMatches,
     enabled: activeStatusFilter === "live" && !debouncedSearchTerm,
   });
 
-  // This new query for search is only enabled when the user has typed enough characters.
   const { data: searchResults, isLoading: isLoadingSearch } = useQuery({
     queryKey: ["fixtureSearch", debouncedSearchTerm],
     queryFn: () => searchFixtures(debouncedSearchTerm),
@@ -187,7 +183,6 @@ export default function MatchList({
     setVisibleMatchCounts({});
   }, [selectedDate, activeStatusFilter, debouncedSearchTerm]);
 
-  // This memoized calculation correctly switches between search results and other views.
   const groupedMatches = useMemo(() => {
     const isSearching = debouncedSearchTerm.length >= 3;
     const matchesToProcess = isSearching
@@ -206,14 +201,12 @@ export default function MatchList({
           )
         : matchesToProcess;
 
-    // Sort logic is robust for both search and normal view
     matchesToGroup.sort(
       (a, b) =>
         new Date(a.fixture.date).getTime() - new Date(b.fixture.date).getTime()
     );
 
     return matchesToGroup.reduce((acc, match) => {
-      // Grouping logic correctly uses date for search results and league for normal view
       const groupKey = isSearching
         ? format(new Date(match.fixture.date), "yyyy-MM-dd")
         : match.league.id;
@@ -250,10 +243,8 @@ export default function MatchList({
     (isLoadingLive && !debouncedSearchTerm && activeStatusFilter === "live") ||
     (isLoadingSearch && debouncedSearchTerm.length >= 3);
 
-  // The rest of the JSX rendering logic is already set up to handle the output of `groupedMatches`.
   return (
     <div className="space-y-4">
-      {/* Search bar and tabs are correctly rendered */}
       <div
         className="flex flex-col gap-3 p-2 rounded-xl"
         style={{ backgroundColor: "var(--color-primary)" }}
@@ -308,7 +299,6 @@ export default function MatchList({
         )}
       </div>
 
-      {/* Display logic for loading/results/no results is all in place */}
       <div className="space-y-4">
         {isCurrentlyLoading ? (
           <div
@@ -321,7 +311,7 @@ export default function MatchList({
           </div>
         ) : Object.keys(groupedMatches).length > 0 ? (
           Object.entries(groupedMatches).map(
-            ([groupKey, { leagueInfo, matches }]) => {
+            ([groupKey, { leagueInfo, matches }]: any) => {
               const visibleCount =
                 visibleMatchCounts[groupKey] || INITIAL_MATCHES_TO_SHOW;
               const remainingMatches = matches.length - visibleCount;
