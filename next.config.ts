@@ -32,7 +32,6 @@ const nextConfig: NextConfig = {
         pathname: "/flags/**", // Or just '/', depending on how specific you want to be
       },
     ],
-    domains: ["*"],
   },
   i18n: {
     // A list of all locales you want to support
