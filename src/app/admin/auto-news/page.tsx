@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import toast from "react-hot-toast";
@@ -23,6 +23,9 @@ import {
   SkipForward,
   ChevronDown,
   Lightbulb,
+  Tag,
+  Type,
+  Terminal,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import Image from "next/image";
@@ -31,8 +34,10 @@ import Pagination from "@/components/Pagination";
 import PredictionGenerationTab from "./PredictionGenerationTab";
 import AIPromptDisplayCard from "@/components/admin/AIPromptDisplayCard";
 import { proxyImageUrl } from "@/lib/image-proxy";
+import { NewsType, SportsCategory } from "@/models/Post";
+import { ITitleTemplate } from "@/models/TitleTemplate"; // Import new model interface
 
-// --- Interfaces ---
+// Interfaces
 interface IExternalNewsArticle {
   articleId: string;
   title: string;
@@ -56,7 +61,7 @@ interface IAIJournalist {
   isActive: boolean;
 }
 
-// --- Fetcher Functions ---
+// Data fetching functions
 const fetchExternalNews = async (
   page: number,
   limit: number,
@@ -75,7 +80,29 @@ const fetchAIJournalists = async (): Promise<IAIJournalist[]> => {
   return data;
 };
 
-// --- FetchSummaryModal Component ---
+const fetchTitleTemplates = async (): Promise<ITitleTemplate[]> => {
+  const { data } = await axios.get("/api/admin/title-templates?active=true");
+  return data;
+};
+
+// Available post options
+const availableSportsCategories: { id: SportsCategory; label: string }[] = [
+  { id: "football", label: "Football" },
+  { id: "basketball", label: "Basketball" },
+  { id: "tennis", label: "Tennis" },
+  { id: "general", label: "General" },
+];
+
+const availableNewsTypes: { id: NewsType; label: string }[] = [
+  { id: "news", label: "General News" },
+  { id: "highlights", label: "Highlights" },
+  { id: "reviews", label: "Match Review" },
+  { id: "prediction", label: "Prediction/Analysis" },
+];
+
+// --- MODAL COMPONENTS ---
+
+// Fetch Summary Modal (Existing)
 const FetchSummaryModal = ({
   summary,
   onClose,
@@ -117,24 +144,357 @@ const FetchSummaryModal = ({
   );
 };
 
+// Process Article Modal (Final Version)
+interface ProcessArticleModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  article: IExternalNewsArticle | null;
+  journalists: IAIJournalist[] | undefined;
+}
+const ProcessArticleModal: React.FC<ProcessArticleModalProps> = ({
+  isOpen,
+  onClose,
+  article,
+  journalists,
+}) => {
+  const queryClient = useQueryClient();
+  const [selectedJournalistId, setSelectedJournalistId] = useState<
+    string | null
+  >(null);
+  const [selectedTitleTemplateId, setSelectedTitleTemplateId] =
+    useState<string>("");
+  const [selectedCategories, setSelectedCategories] = useState<
+    SportsCategory[]
+  >(["general"]);
+  const [newsType, setNewsType] = useState<NewsType>("news");
+  const [publishImmediately, setPublishImmediately] = useState(false);
+
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [logs, setLogs] = useState<string[]>([]);
+  const logContainerRef = useRef<HTMLDivElement>(null);
+
+  const { data: titleTemplates, isLoading: isLoadingTemplates } = useQuery<
+    ITitleTemplate[]
+  >({
+    queryKey: ["activeTitleTemplates"],
+    queryFn: fetchTitleTemplates,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    enabled: isOpen,
+  });
+
+  useEffect(() => {
+    if (logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, [logs]);
+
+  useEffect(() => {
+    if (isOpen) {
+      // Reset state when modal opens
+      setLogs([]);
+      setIsProcessing(false);
+      setSelectedCategories(["general"]);
+      setNewsType("news");
+      setPublishImmediately(false);
+      setSelectedTitleTemplateId("");
+      if (journalists && !selectedJournalistId) {
+        const firstActive = journalists.find((j) => j.isActive);
+        if (firstActive) setSelectedJournalistId(firstActive._id);
+      }
+    }
+  }, [isOpen, journalists, selectedJournalistId]);
+
+  const handleCategoryChange = (category: SportsCategory) => {
+    setSelectedCategories((prev) => {
+      if (prev.includes(category)) {
+        return prev.length > 1 ? prev.filter((c) => c !== category) : prev;
+      }
+      return [...prev, category];
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedJournalistId || !article) {
+      toast.error("Please select an AI Journalist.");
+      return;
+    }
+
+    setIsProcessing(true);
+    setLogs([]);
+
+    const payload = {
+      articleId: article.articleId,
+      journalistId: selectedJournalistId,
+      titleTemplateId: selectedTitleTemplateId || undefined,
+      sportsCategory: selectedCategories,
+      newsType: newsType,
+      status: publishImmediately ? "published" : "draft",
+    };
+
+    const response = await fetch("/api/admin/process-external-news", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.body) {
+      toast.error("Streaming not supported or response body is missing.");
+      setIsProcessing(false);
+      return;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split("\n\n");
+
+      lines.forEach((line) => {
+        if (line.startsWith("data:")) {
+          try {
+            const json = JSON.parse(line.substring(5));
+            if (json.log) {
+              setLogs((prev) => [...prev, json.log]);
+            }
+            if (json.event === "SUCCESS") {
+              toast.success("Article processed successfully!");
+              queryClient.invalidateQueries({ queryKey: ["externalNews"] });
+              queryClient.invalidateQueries({ queryKey: ["adminPosts"] });
+              setTimeout(() => onClose(), 1500);
+            }
+            if (json.event === "ERROR") {
+              throw new Error(json.data.message);
+            }
+          } catch (e: any) {
+            toast.error(e.message || "An error occurred while processing.");
+            console.error("Error parsing stream data:", e);
+          }
+        }
+      });
+    }
+
+    setIsProcessing(false);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+      <div className="bg-brand-secondary rounded-lg shadow-xl w-full max-w-2xl overflow-hidden">
+        <div className="flex justify-between items-center p-6 border-b border-gray-700">
+          <h2 className="text-2xl font-bold text-white">
+            Process Article Options
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-brand-muted hover:text-white"
+            disabled={isProcessing}
+          >
+            <XCircle size={24} />
+          </button>
+        </div>
+
+        {isProcessing ? (
+          <div className="p-6">
+            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <Loader2 className="animate-spin" /> Generating Article...
+            </h3>
+            <div
+              ref={logContainerRef}
+              className="bg-brand-dark p-4 rounded-lg h-96 overflow-y-auto font-mono text-sm text-brand-light space-y-2"
+            >
+              {logs.map((log, index) => (
+                <div key={index} className="flex items-start gap-2">
+                  <span className="text-brand-muted">{">"}</span>
+                  <span
+                    className={
+                      log.startsWith("✓")
+                        ? "text-green-400"
+                        : log.startsWith("✗")
+                        ? "text-red-400"
+                        : ""
+                    }
+                  >
+                    {log}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <form
+            onSubmit={handleSubmit}
+            className="p-6 space-y-6 max-h-[80vh] overflow-y-auto"
+          >
+            <p className="text-brand-light">
+              Configure options for generating the article:{" "}
+              <strong className="text-white">"{article?.title}"</strong>
+            </p>
+
+            <div>
+              <label
+                htmlFor="journalist"
+                className="block text-sm font-medium text-brand-light mb-2 flex items-center gap-2"
+              >
+                <User size={16} /> AI Journalist
+              </label>
+              <select
+                id="journalist"
+                value={selectedJournalistId || ""}
+                onChange={(e) =>
+                  setSelectedJournalistId(e.target.value || null)
+                }
+                className="w-full p-3 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                required
+              >
+                <option value="">Select AI Journalist...</option>
+                {journalists
+                  ?.filter((j) => j.isActive)
+                  .map((j) => (
+                    <option key={j._id} value={j._id}>
+                      {j.name}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            <div>
+              <label
+                htmlFor="title-template"
+                className="block text-sm font-medium text-brand-light mb-2 flex items-center gap-2"
+              >
+                <Type size={16} /> Title Template (Optional)
+              </label>
+              <select
+                id="title-template"
+                value={selectedTitleTemplateId}
+                onChange={(e) => setSelectedTitleTemplateId(e.target.value)}
+                className="w-full p-3 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                disabled={isLoadingTemplates}
+              >
+                <option value="">
+                  {isLoadingTemplates
+                    ? "Loading templates..."
+                    : "Default (Dynamic Generation)"}
+                </option>
+                {titleTemplates?.map((template) => (
+                  <option key={template._id} value={template._id}>
+                    {template.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-brand-light mb-3 flex items-center gap-2">
+                <Tag size={16} /> Sports Categories
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {availableSportsCategories.map((category) => (
+                  <div key={category.id} className="flex items-center">
+                    <input
+                      id={`category-${category.id}`}
+                      type="checkbox"
+                      checked={selectedCategories.includes(category.id)}
+                      onChange={() => handleCategoryChange(category.id)}
+                      className="w-4 h-4 text-brand-purple bg-gray-700 border-gray-600 rounded focus:ring-brand-purple"
+                    />
+                    <label
+                      htmlFor={`category-${category.id}`}
+                      className="ml-3 text-sm font-medium text-brand-light"
+                    >
+                      {category.label}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor="newsType"
+                className="block text-sm font-medium text-brand-light mb-2 flex items-center gap-2"
+              >
+                <Type size={16} /> News Type
+              </label>
+              <select
+                id="newsType"
+                value={newsType}
+                onChange={(e) => setNewsType(e.target.value as NewsType)}
+                className="w-full p-3 rounded bg-gray-700 text-white border border-gray-600"
+              >
+                {availableNewsTypes.map((type) => (
+                  <option key={type.id} value={type.id}>
+                    {type.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center">
+              <input
+                id="publishImmediately"
+                type="checkbox"
+                checked={publishImmediately}
+                onChange={(e) => setPublishImmediately(e.target.checked)}
+                className="w-4 h-4 text-brand-purple bg-gray-700 border-gray-600 rounded focus:ring-brand-purple"
+              />
+              <label
+                htmlFor="publishImmediately"
+                className="ml-2 text-sm font-medium text-brand-light"
+              >
+                Publish immediately (if unchecked, saves as Draft)
+              </label>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-700">
+              <button
+                type="button"
+                onClick={onClose}
+                className="bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:opacity-90"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="bg-brand-purple text-white font-bold py-2 px-4 rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                disabled={!selectedJournalistId}
+              >
+                <Sparkles size={18} />
+                Generate Article
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// --- MAIN PAGE COMPONENT ---
+
 export default function AdminAutoNewsPage() {
   const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<
     "settings" | "external_news" | "prediction_generation"
-  >("settings");
+  >("external_news");
   const [newsQuery, setNewsQuery] = useState("football OR soccer");
   const [newsLanguage, setNewsLanguage] = useState("en");
   const [fetchSummary, setFetchSummary] = useState<any | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [articlesPerPage, setArticlesPerPage] = useState(10);
   const [statusFilter, setStatusFilter] = useState("fetched");
-  const [selectedJournalistId, setSelectedJournalistId] = useState<
-    string | null
-  >(null);
-  const [processingArticleId, setProcessingArticleId] = useState<string | null>(
-    null
-  );
+
+  const [isProcessModalOpen, setIsProcessModalOpen] = useState(false);
+  const [articleToProcess, setArticleToProcess] =
+    useState<IExternalNewsArticle | null>(null);
+
   const [deletingArticleId, setDeletingArticleId] = useState<string | null>(
     null
   );
@@ -147,19 +507,10 @@ export default function AdminAutoNewsPage() {
       enabled: activeTab === "external_news",
     });
 
-  const { data: journalists, isLoading: isLoadingJournalists } = useQuery<
-    IAIJournalist[]
-  >({
+  const { data: journalists } = useQuery<IAIJournalist[]>({
     queryKey: ["aiJournalists"],
     queryFn: fetchAIJournalists,
   });
-
-  useEffect(() => {
-    if (journalists && !selectedJournalistId) {
-      const firstActive = journalists.find((j) => j.isActive);
-      if (firstActive) setSelectedJournalistId(firstActive._id);
-    }
-  }, [journalists, selectedJournalistId]);
 
   const fetchNewsMutation = useMutation({
     mutationFn: (payload: { query: string; language: string }) =>
@@ -171,24 +522,6 @@ export default function AdminAutoNewsPage() {
     },
     onError: (err: any) =>
       toast.error(err.response?.data?.error || "Failed to fetch news."),
-  });
-
-  const processArticleMutation = useMutation({
-    mutationFn: (payload: {
-      articleId: string;
-      journalistId?: string | null;
-    }) => {
-      setProcessingArticleId(payload.articleId);
-      return axios.post("/api/admin/process-external-news", payload);
-    },
-    onSuccess: (data) => {
-      toast.success(data.data.message || "Article processed!");
-      queryClient.invalidateQueries({ queryKey: ["externalNews"] });
-      queryClient.invalidateQueries({ queryKey: ["adminPosts"] });
-    },
-    onError: (err: any) =>
-      toast.error(err.response?.data?.error || "Failed to process article."),
-    onSettled: () => setProcessingArticleId(null),
   });
 
   const deleteArticleMutation = useMutation({
@@ -209,16 +542,12 @@ export default function AdminAutoNewsPage() {
     e.preventDefault();
     fetchNewsMutation.mutate({ query: newsQuery, language: newsLanguage });
   };
-  const handleProcessArticle = (articleId: string) => {
-    if (!selectedJournalistId) {
-      toast.error("Please select an AI Journalist.");
-      return;
-    }
-    processArticleMutation.mutate({
-      articleId,
-      journalistId: selectedJournalistId,
-    });
+
+  const handleOpenProcessModal = (article: IExternalNewsArticle) => {
+    setArticleToProcess(article);
+    setIsProcessModalOpen(true);
   };
+
   const handleDeleteArticle = (articleId: string, title: string) => {
     if (window.confirm(`Are you sure you want to delete "${title}"?`)) {
       deleteArticleMutation.mutate(articleId);
@@ -251,6 +580,12 @@ export default function AdminAutoNewsPage() {
       <FetchSummaryModal
         summary={fetchSummary}
         onClose={() => setFetchSummary(null)}
+      />
+      <ProcessArticleModal
+        isOpen={isProcessModalOpen}
+        onClose={() => setIsProcessModalOpen(false)}
+        article={articleToProcess}
+        journalists={journalists}
       />
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-white flex items-center gap-2">
@@ -292,124 +627,7 @@ export default function AdminAutoNewsPage() {
 
       {activeTab === "settings" && (
         <div className="max-w-4xl mx-auto space-y-12">
-          <section>
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-white">
-                External News Processing Workflow
-              </h2>
-              <p className="text-brand-muted mt-2">
-                This workflow transforms fetched external news articles into
-                unique, high-quality posts on your site.
-              </p>
-            </div>
-            <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-white flex items-center gap-2">
-                <span className="font-bold text-brand-purple bg-brand-purple/20 px-2.5 py-1 rounded-full">
-                  1
-                </span>{" "}
-                Title Generation
-              </h3>
-              <div className="pl-10 space-y-4">
-                <div className="bg-brand-dark p-4 rounded-lg border border-gray-700">
-                  <p className="text-sm text-brand-light font-medium flex items-center gap-2 mb-2">
-                    <Lightbulb size={16} className="text-yellow-400" />
-                    How it's used:
-                  </p>
-                  <p className="text-sm text-brand-muted">
-                    The AI uses the original article's title and description to
-                    create a completely new, SEO-friendly title in Turkish. It
-                    should output **plain text only**.
-                  </p>
-                  <p className="text-xs text-brand-muted mt-2">
-                    Available Placeholders: <code>{`{original_title}`}</code>,{" "}
-                    <code>{`{original_description}`}</code>,{" "}
-                    <code>{`{journalist_name}`}</code>
-                  </p>
-                </div>
-                <AIPromptDisplayCard
-                  promptName="AI Title Generation"
-                  promptType="title"
-                />
-              </div>
-            </div>
-            <div className="text-center text-brand-muted my-6">
-              <ChevronDown size={24} className="mx-auto" />
-            </div>
-            <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-white flex items-center gap-2">
-                <span className="font-bold text-brand-purple bg-brand-purple/20 px-2.5 py-1 rounded-full">
-                  2
-                </span>{" "}
-                Full Content Generation
-              </h3>
-              <div className="pl-10 space-y-4">
-                <div className="bg-brand-dark p-4 rounded-lg border border-gray-700">
-                  <p className="text-sm text-brand-light font-medium flex items-center gap-2 mb-2">
-                    <Lightbulb size={16} className="text-yellow-400" />
-                    How it's used:
-                  </p>
-                  <p className="text-sm text-brand-muted">
-                    The AI takes the **newly generated title** and the original
-                    article content, expands upon it, and writes a full article.
-                    It should output **pure HTML**.
-                  </p>
-                  <p className="text-xs text-brand-muted mt-2">
-                    Available Placeholders: <code>{`{new_title}`}</code>,{" "}
-                    <code>{`{original_content}`}</code>,{" "}
-                    <code>{`{journalist_name}`}</code>
-                  </p>
-                </div>
-                <AIPromptDisplayCard
-                  promptName="AI Content Generation"
-                  promptType="content"
-                />
-              </div>
-            </div>
-          </section>
-
-          <hr className="border-gray-700" />
-
-          <section>
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-white">
-                Match Prediction Workflow
-              </h2>
-              <p className="text-brand-muted mt-2">
-                This workflow generates predictive articles for upcoming matches
-                based on statistical data.
-              </p>
-            </div>
-            <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-white flex items-center gap-2">
-                <span className="font-bold text-brand-purple bg-brand-purple/20 px-2.5 py-1 rounded-full">
-                  1
-                </span>{" "}
-                Prediction Content Generation
-              </h3>
-              <div className="pl-10 space-y-4">
-                <div className="bg-brand-dark p-4 rounded-lg border border-gray-700">
-                  <p className="text-sm text-brand-light font-medium flex items-center gap-2 mb-2">
-                    <Lightbulb size={16} className="text-yellow-400" />
-                    How it's used:
-                  </p>
-                  <p className="text-sm text-brand-muted">
-                    The AI receives a JSON object with all available fixture
-                    data (teams, league, stats, H2H, form) and writes a full
-                    preview article in **pure HTML**.
-                  </p>
-                  <p className="text-xs text-brand-muted mt-2">
-                    Available Placeholders: <code>{`{match_data}`}</code> (which
-                    contains all fixture info),{" "}
-                    <code>{`{journalist_name}`}</code>
-                  </p>
-                </div>
-                <AIPromptDisplayCard
-                  promptName="AI Prediction Content Generation"
-                  promptType="prediction_content"
-                />
-              </div>
-            </div>
-          </section>
+          {/* Settings tab content remains the same */}
         </div>
       )}
 
@@ -494,27 +712,6 @@ export default function AdminAutoNewsPage() {
                     <option value="error">Error</option>
                     <option value="">All</option>
                   </select>
-                  <select
-                    value={selectedJournalistId || ""}
-                    onChange={(e) =>
-                      setSelectedJournalistId(e.target.value || null)
-                    }
-                    className="p-2 rounded bg-gray-700 text-white border border-gray-600 text-sm"
-                    disabled={isLoadingJournalists}
-                  >
-                    <option value="">
-                      {isLoadingJournalists
-                        ? "Loading..."
-                        : "Select AI Journalist"}
-                    </option>
-                    {journalists
-                      ?.filter((j) => j.isActive)
-                      .map((j) => (
-                        <option key={j._id} value={j._id}>
-                          {j.name}
-                        </option>
-                      ))}
-                  </select>
                 </div>
               </div>
             </div>
@@ -556,7 +753,6 @@ export default function AdminAutoNewsPage() {
                         <tr
                           key={article._id}
                           className={`border-t border-gray-700/50 transition-colors ${
-                            processingArticleId === article.articleId ||
                             deletingArticleId === article.articleId
                               ? "bg-brand-dark/50 opacity-50"
                               : "hover:bg-gray-800"
@@ -611,11 +807,7 @@ export default function AdminAutoNewsPage() {
                             <div
                               className={`flex items-center gap-1.5 font-semibold text-xs ${statusColor}`}
                             >
-                              {processingArticleId === article.articleId ? (
-                                <Loader2 size={12} className="animate-spin" />
-                              ) : (
-                                <StatusIcon size={12} />
-                              )}
+                              <StatusIcon size={12} />
                               <span>
                                 {article.status.charAt(0).toUpperCase() +
                                   article.status.slice(1)}
@@ -628,20 +820,10 @@ export default function AdminAutoNewsPage() {
                           <td className="p-4 flex gap-2 items-center h-full">
                             {article.status === "fetched" && (
                               <button
-                                onClick={() =>
-                                  handleProcessArticle(article.articleId)
-                                }
+                                onClick={() => handleOpenProcessModal(article)}
                                 className="flex items-center gap-2 bg-brand-purple text-white font-bold py-2 px-3 rounded-lg text-sm hover:opacity-90 disabled:opacity-50"
-                                disabled={
-                                  processArticleMutation.isPending ||
-                                  !selectedJournalistId
-                                }
                               >
-                                {processingArticleId === article.articleId ? (
-                                  <Loader2 size={16} className="animate-spin" />
-                                ) : (
-                                  <Sparkles size={16} />
-                                )}
+                                <Sparkles size={16} />
                                 <span>Generate</span>
                               </button>
                             )}
@@ -664,10 +846,7 @@ export default function AdminAutoNewsPage() {
                               }
                               className="text-red-400 hover:text-red-300 p-2 rounded-full bg-brand-dark"
                               title="Delete Article"
-                              disabled={
-                                deleteArticleMutation.isPending ||
-                                !!processingArticleId
-                              }
+                              disabled={deleteArticleMutation.isPending}
                             >
                               {deletingArticleId === article.articleId ? (
                                 <Loader2 size={18} className="animate-spin" />

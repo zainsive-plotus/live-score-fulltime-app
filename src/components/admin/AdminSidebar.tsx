@@ -1,4 +1,5 @@
-// src/components/admin/AdminSidebar.tsx
+// ===== src/components/admin/AdminSidebar.tsx =====
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -18,7 +19,9 @@ import {
   AlertTriangle,
   Shield,
   UserCircle,
-  DatabaseZap, // <-- NEW ICON IMPORT
+  DatabaseZap,
+  Type,
+  Bot,
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -26,22 +29,25 @@ import { useTranslation } from "@/hooks/useTranslation";
 const SubNavItem = ({
   href,
   name,
+  icon: Icon,
   isActive,
 }: {
   href: string;
   name: string;
+  icon: React.ElementType;
   isActive: boolean;
 }) => (
   <li>
     <Link
       href={href}
-      className={`block p-2 pl-11 rounded-md text-sm transition-colors ${
+      className={`flex items-center gap-3 p-2 pl-4 rounded-md text-sm transition-colors ${
         isActive
           ? "text-white bg-brand-purple/50"
           : "text-brand-muted hover:text-white hover:bg-gray-700/50"
       }`}
     >
-      {name}
+      <Icon size={16} />
+      <span>{name}</span>
     </Link>
   </li>
 );
@@ -51,9 +57,19 @@ export default function AdminSidebar() {
   const { data: session } = useSession();
   const { t } = useTranslation();
 
+  const isAiSectionActive =
+    pathname.startsWith("/admin/auto-news") ||
+    pathname.startsWith("/admin/ai-journalists") ||
+    pathname.startsWith("/admin/title-templates");
   const isPagesSectionActive =
     pathname.startsWith("/admin/faqs") || pathname.startsWith("/admin/pages");
+
+  const [isAiOpen, setIsAiOpen] = useState(isAiSectionActive);
   const [isPagesOpen, setIsPagesOpen] = useState(isPagesSectionActive);
+
+  useEffect(() => {
+    setIsAiOpen(isAiSectionActive);
+  }, [isAiSectionActive]);
 
   useEffect(() => {
     setIsPagesOpen(isPagesSectionActive);
@@ -62,14 +78,17 @@ export default function AdminSidebar() {
   const navItems = [
     { name: t("dashboard"), href: "/admin/dashboard", icon: LayoutDashboard },
     { name: t("manage_news"), href: "/admin/news", icon: Newspaper },
-    { name: "Automated News", href: "/admin/auto-news", icon: Sparkles },
-    { name: "AI Journalists", href: "/admin/ai-journalists", icon: User },
     { name: "Casino Partners", href: "/admin/casino-partners", icon: Crown },
     { name: "File Manager", href: "/admin/file-manager", icon: FileText },
     { name: t("manage_banners"), href: "/admin/banners", icon: ImageIcon },
   ];
 
-  // --- ADDED THE NEW PAGE TO THE SUB-NAVIGATION ---
+  const aiSubNav = [
+    { name: "News Engine", href: "/admin/auto-news", icon: Sparkles },
+    { name: "AI Journalists", href: "/admin/ai-journalists", icon: User },
+    { name: "Title Templates", href: "/admin/title-templates", icon: Type },
+  ];
+
   const pagesSubNav = [
     { name: "Manage FAQs", href: "/admin/faqs", icon: HelpCircle },
     {
@@ -117,6 +136,49 @@ export default function AdminSidebar() {
             );
           })}
 
+          {/* AI Content Section */}
+          <div>
+            <button
+              onClick={() => setIsAiOpen(!isAiOpen)}
+              className={`w-full flex items-center justify-between p-3 rounded-lg transition-colors duration-200 ${
+                isAiSectionActive
+                  ? "bg-brand-purple text-white"
+                  : "text-brand-muted hover:bg-gray-700 hover:text-white"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Bot size={20} />
+                <span>Automated Content</span>
+              </div>
+              <ChevronRight
+                size={18}
+                className={`transition-transform duration-300 ${
+                  isAiOpen ? "rotate-90" : ""
+                }`}
+              />
+            </button>
+            <div
+              className={`grid transition-all duration-300 ease-in-out ${
+                isAiOpen
+                  ? "grid-rows-[1fr] opacity-100 pt-1"
+                  : "grid-rows-[0fr] opacity-0"
+              }`}
+            >
+              <ul className="overflow-hidden space-y-1 pl-4">
+                {aiSubNav.map((item) => (
+                  <SubNavItem
+                    key={item.name}
+                    href={item.href}
+                    name={item.name}
+                    icon={item.icon}
+                    isActive={pathname.startsWith(item.href)}
+                  />
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          {/* Pages Section */}
           <div>
             <button
               onClick={() => setIsPagesOpen(!isPagesOpen)}
@@ -128,7 +190,7 @@ export default function AdminSidebar() {
             >
               <div className="flex items-center gap-3">
                 <FileStack size={20} />
-                <span>Pages</span>
+                <span>Pages & FAQs</span>
               </div>
               <ChevronRight
                 size={18}
@@ -137,7 +199,6 @@ export default function AdminSidebar() {
                 }`}
               />
             </button>
-
             <div
               className={`grid transition-all duration-300 ease-in-out ${
                 isPagesOpen
@@ -145,12 +206,13 @@ export default function AdminSidebar() {
                   : "grid-rows-[0fr] opacity-0"
               }`}
             >
-              <ul className="overflow-hidden space-y-1">
+              <ul className="overflow-hidden space-y-1 pl-4">
                 {pagesSubNav.map((item) => (
                   <SubNavItem
                     key={item.name}
                     href={item.href}
                     name={item.name}
+                    icon={item.icon}
                     isActive={pathname.startsWith(item.href)}
                   />
                 ))}

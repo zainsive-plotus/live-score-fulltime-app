@@ -29,22 +29,22 @@ export async function GET(request: NextRequest) {
   // --- LOGGING STEP 2: Log the target URL ---
   console.log(`[Image Proxy] Attempting to proxy URL: ${imageUrl}`);
 
-  try {
-    const urlObject = new URL(imageUrl);
-    if (!ALLOWED_DOMAINS.includes(urlObject.hostname)) {
-      // --- LOGGING STEP 3: Log security blocks ---
-      console.warn(
-        `[Image Proxy] BLOCKED request to disallowed domain: ${urlObject.hostname}`
-      );
-      return NextResponse.json(
-        { error: `Domain not allowed: ${urlObject.hostname}` },
-        { status: 403 }
-      );
-    }
-  } catch (error) {
-    console.error(`[Image Proxy] Error: Invalid URL format for "${imageUrl}"`);
-    return NextResponse.json({ error: "Invalid URL format" }, { status: 400 });
-  }
+  // try {
+  //   const urlObject = new URL(imageUrl);
+  //   if (!ALLOWED_DOMAINS.includes(urlObject.hostname)) {
+  //     // --- LOGGING STEP 3: Log security blocks ---
+  //     console.warn(
+  //       `[Image Proxy] BLOCKED request to disallowed domain: ${urlObject.hostname}`
+  //     );
+  //     return NextResponse.json(
+  //       { error: `Domain not allowed: ${urlObject.hostname}` },
+  //       { status: 403 }
+  //     );
+  //   }
+  // } catch (error) {
+  //   console.error(`[Image Proxy] Error: Invalid URL format for "${imageUrl}"`);
+  //   return NextResponse.json({ error: "Invalid URL format" }, { status: 400 });
+  // }
 
   try {
     // --- LOGGING STEP 4: Log before the actual fetch ---

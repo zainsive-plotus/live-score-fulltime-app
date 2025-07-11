@@ -1,127 +1,220 @@
-// src/lib/ai-processing.ts
+// ===== src/lib/ai-processing.ts =====
+
 import dbConnect from "@/lib/dbConnect";
 import ExternalNewsArticle, {
   IExternalNewsArticle,
 } from "@/models/ExternalNewsArticle";
-import Post, { PostCategory } from "@/models/Post";
+import Post, { NewsType, SportsCategory } from "@/models/Post";
+import AIJournalist from "@/models/AIJournalist";
+import TitleTemplate from "@/models/TitleTemplate";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import slugify from "slugify";
-import { proxyAndUploadImage } from "./image-processing-server"; // Assuming image processing is refactored
+import { proxyAndUploadImage } from "./image-processing-server";
 
 const genAI = new GoogleGenerativeAI(
   process.env.NEXT_PUBLIC_GEMINI_API_KEY as string
 );
 const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
 
-// --- STAGE 1: TITLE HUMANIZER FUNCTION ---
+// --- Helper Functions for AI Generation ---
+
 async function generateHumanizedTitle(
   originalTitle: string,
-  originalDescription: string
+  originalDescription: string,
+  journalistName?: string,
+  template?: string
 ): Promise<string> {
-  const prompt = `
-    You are an expert Turkish sports journalist and a master of crafting captivating headlines.
-    Your ONLY task is to generate a new, original, and SEO-friendly news title in TURKISH.
-    
-    GUIDELINES:
-    1.  **Language:** The title MUST be in Turkish.
-    2.  **Format:** Output MUST be plain text only, on a single line. NO HTML, NO Markdown, NO quotes, NO prefixes like "Title: ".
-    3.  **Humanize:** Do not just translate. Find a unique, emotional, or analytical angle based on the context. Ask a question, create intrigue, or state a bold claim.
-    4.  **SEO:** Naturally include the most important entities (team or player names).
+  let prompt: string;
 
-    CONTEXT:
-    - Original Title: "${originalTitle}"
-    - Original Description: "${originalDescription}"
+  // --- FIX START: Create a specific prompt when a template is used ---
+  if (template) {
+    // This new prompt structure forces the AI to use the template as an instruction, not a topic of conversation.
+    prompt = `
+      You are a title generation assistant. Your ONLY task is to use the provided template and context to generate a final, clean news title in TURKISH.
 
-    YOUR GENERATED TURKISH TITLE:
-  `;
+      TEMPLATE:
+      "${template}"
+
+      CONTEXT:
+      - {original_title}: "${originalTitle}"
+      - {original_description}: "${
+        originalDescription || "No description available."
+      }"
+      - {journalist_name}: "${journalistName || "Fanskor AI"}"
+
+      INSTRUCTIONS:
+      1. Replace the placeholders in the TEMPLATE with the values from the CONTEXT.
+      2. Output ONLY the final, generated title as a single line of plain text.
+      3. Do not add any extra words, explanations, or formatting like quotes or asterisks.
+
+      FINAL TITLE:
+    `;
+  } else {
+    // Fallback to the original dynamic prompt if no template is selected
+    prompt = `
+      You are an expert Turkish sports journalist named "${
+        journalistName || "Fanskor AI"
+      }".
+      Your ONLY task is to generate a new, original, and SEO-friendly news title in TURKISH based on the context below.
+
+      GUIDELINES:
+      1.  **Language:** The title MUST be in Turkish.
+      2.  **Format:** Output MUST be plain text only, on a single line. NO HTML, NO Markdown, NO quotes.
+      3.  **Humanize:** Do not just translate. Find a unique, emotional, or analytical angle.
+
+      CONTEXT:
+      - Original Title: "${originalTitle}"
+      - Original Description: "${originalDescription}"
+
+      YOUR GENERATED TURKISH TITLE:
+    `;
+  }
+  // --- FIX END ---
 
   const result = await model.generateContent(prompt);
   const responseText = (await result.response).text().trim();
 
-  // Clean up any accidental markdown or newlines
   return responseText.replace(/[\*#"\n]/g, "");
 }
 
-// --- STAGE 2: CONTENT EXPANDER FUNCTION ---
 async function generateExpandedContent(
   newTitle: string,
-  originalDescription: string
+  originalContent: string,
+  journalistName?: string,
+  journalistTonePrompt?: string
 ): Promise<string> {
   const prompt = `
-    You are an expert Turkish sports journalist and an SEO specialist.
+    You are an expert Turkish sports journalist named "${
+      journalistName || "Fanskor AI"
+    }" and an SEO specialist.
+    Your unique journalistic voice and tone should be: ${
+      journalistTonePrompt || "Objective and informative."
+    }
+
     Your ONLY task is to expand upon the provided context and generate a comprehensive, 700-word news article formatted in PURE HTML.
 
     CRITICAL INSTRUCTIONS:
     1.  **HTML ONLY:** Your entire response MUST be valid HTML. Use tags like <h2>, <h3>, <p>, <strong>, and <ul>.
     2.  **NO WRAPPERS:** DO NOT include \`\`\`html, \`\`\`, \`<html>\`, \`<head>\`, or \`<body>\` tags. Your response must start directly with an HTML tag (e.g., <h2>).
     3.  **LANGUAGE:** The entire article must be in Turkish.
-    4.  **EXPAND & ANALYZE:** The "Original Description" is just a starting point. Your main job is to expand it into a full article. Add background details, analyze the impact, discuss what might happen next, and provide expert commentary. Create a complete narrative.
+    4.  **EXPAND & ANALYZE:** The "Original Content" is a starting point. Your main job is to expand it into a full article. Add background details, analyze the impact, discuss what might happen next, and provide expert commentary. Create a complete narrative.
     5.  **SEO HIERARCHY:** Use the provided "New Turkish Title" as the conceptual H1. Structure the article with multiple <h2> and <h3> tags that use relevant keywords. Make the content rich and valuable for the reader.
 
     ARTICLE CONTEXT:
     - New Turkish Title: "${newTitle}"
-    - Original Description: "${originalDescription}"
+    - Original Content: "${originalContent}"
 
     YOUR GENERATED HTML ARTICLE:
   `;
 
   const result = await model.generateContent(prompt);
-  return (await result.response).text().trim();
+  return (await result.response)
+    .text()
+    .trim()
+    .replace(/^```(?:html)?\n?|```$/g, "")
+    .trim();
 }
 
-/**
- * The main processing function, now orchestrating the two-stage AI pipeline.
- */
+// --- Main Processing Logic ---
+interface ProcessArticleOptions {
+  journalistId?: string;
+  titleTemplateId?: string;
+  sportsCategory: SportsCategory[];
+  newsType: NewsType;
+  status: "draft" | "published";
+  onProgress?: (log: string) => void;
+}
+
 export async function processSingleArticle(
-  externalArticle: IExternalNewsArticle
+  externalArticle: IExternalNewsArticle,
+  options: ProcessArticleOptions
 ): Promise<{ success: boolean; postId?: string; slug?: string }> {
-  await dbConnect();
+  const { onProgress = () => {} } = options;
 
   try {
+    onProgress("Initializing...");
+    await dbConnect();
+
     if (["processed", "processing"].includes(externalArticle.status)) {
-      console.log(
-        `[AI Processor] Skipping article ${externalArticle.articleId} (status: ${externalArticle.status})`
-      );
-      return { success: true };
+      const message = `Article already processed (Status: ${externalArticle.status}). Skipping.`;
+      onProgress(message);
+      console.log(`[AI Processor] ${message}`);
+      return {
+        success: true,
+        postId: externalArticle.processedPostId?.toString(),
+      };
     }
 
+    onProgress("Updating article status to 'processing'...");
     externalArticle.status = "processing";
     await externalArticle.save();
-    console.log(
-      `[AI Processor] Stage 0: Starting processing for article: ${externalArticle.articleId}`
-    );
 
-    // --- STAGE 1 ---
-    console.log(`[AI Processor] Stage 1: Generating humanized title...`);
+    onProgress("Fetching AI Journalist details...");
+    const journalist = options.journalistId
+      ? await AIJournalist.findById(options.journalistId)
+      : null;
+    onProgress(`-> Using journalist: ${journalist?.name || "Default AI"}`);
+
+    let titleTemplateContent: string | undefined = undefined;
+    if (options.titleTemplateId) {
+      onProgress("Fetching title template...");
+      const titleTemplate = await TitleTemplate.findById(
+        options.titleTemplateId
+      );
+      if (titleTemplate && titleTemplate.isActive) {
+        titleTemplateContent = titleTemplate.template;
+        onProgress(`-> Using title template: "${titleTemplate.name}"`);
+      } else {
+        onProgress(
+          `-> Warning: Template not found or inactive. Reverting to dynamic title generation.`
+        );
+      }
+    } else {
+      onProgress("No title template selected. Using dynamic generation.");
+    }
+
+    onProgress("Generating new article title with AI...");
     const newTitle = await generateHumanizedTitle(
       externalArticle.title,
-      externalArticle.description || ""
+      externalArticle.description || "",
+      journalist?.name,
+      titleTemplateContent
     );
-    if (!newTitle)
-      throw new Error("Title generation failed to produce a response.");
-    console.log(`[AI Processor] -> New Title: "${newTitle}"`);
+    if (!newTitle) throw new Error("AI failed to generate a title.");
+    onProgress(`-> Generated Title: "${newTitle}"`);
 
-    // --- STAGE 2 ---
-    console.log(`[AI Processor] Stage 2: Expanding content...`);
+    onProgress("Generating full article content with AI...");
     const newContent = await generateExpandedContent(
       newTitle,
-      externalArticle.description || "No description provided."
+      externalArticle.content ||
+        externalArticle.description ||
+        "No content provided.",
+      journalist?.name,
+      journalist?.tonePrompt
     );
     if (!newContent || !newContent.includes("<p>"))
-      throw new Error("Content generation failed to produce valid HTML.");
-    console.log(
-      `[AI Processor] -> Generated content length: ${newContent.length}`
+      throw new Error("AI failed to generate valid HTML content.");
+    onProgress(
+      `-> Generated content successfully (Length: ${newContent.length}).`
     );
 
-    // --- STAGE 3: Image Processing (using a placeholder for the refactored function) ---
-    console.log(`[AI Processor] Stage 3: Processing image...`);
-    const featuredImageUrl = externalArticle.imageUrl
-      ? await proxyAndUploadImage(externalArticle.imageUrl, newTitle)
-      : null;
-    console.log(`[AI Processor] -> Image URL: ${featuredImageUrl || "None"}`);
+    let featuredImageUrl: string | null = null;
+    if (externalArticle.imageUrl) {
+      onProgress("Processing and uploading featured image...");
+      featuredImageUrl = await proxyAndUploadImage(
+        externalArticle.imageUrl,
+        newTitle
+      );
+      onProgress(
+        featuredImageUrl
+          ? "-> Image uploaded successfully."
+          : "-> Image upload failed, continuing without it."
+      );
+    } else {
+      onProgress("No featured image provided, skipping upload.");
+    }
 
-    // --- STAGE 4: Database Save ---
-    console.log(`[AI Processor] Stage 4: Saving new Post to database...`);
+    onProgress("Creating post slug and checking for duplicates...");
     const slug = slugify(newTitle, {
       lower: true,
       strict: true,
@@ -131,39 +224,46 @@ export async function processSingleArticle(
     const finalSlug = existingPost
       ? `${slug}-${Date.now().toString().slice(-5)}`
       : slug;
+    onProgress(`-> Final slug: "${finalSlug}"`);
 
+    onProgress("Saving new post to database...");
+    const plainTextContent = newContent.replace(/<[^>]*>?/gm, "");
     const newPost = new Post({
       title: newTitle,
       content: newContent,
-      status: "draft", // Always save as draft for review
       slug: finalSlug,
-      author: "Fanskor AI",
+      author: journalist?.name || "Fanskor AI",
       featuredImage: featuredImageUrl,
       featuredImageTitle: newTitle,
       featuredImageAltText: newTitle,
       isAIGenerated: true,
       originalExternalArticleId: externalArticle._id,
-      sport: (externalArticle.category || ["general"]) as PostCategory[],
-      metaTitle: newTitle,
-      metaDescription: newContent.replace(/<[^>]*>?/gm, "").substring(0, 160),
+      metaTitle: `${newTitle} | Haberler`,
+      metaDescription: plainTextContent.substring(0, 160) + "...",
+      status: options.status,
+      sportsCategory: options.sportsCategory,
+      newsType: options.newsType,
     });
     await newPost.save();
+    onProgress("-> New post saved successfully.");
 
+    onProgress("Finalizing article status...");
     externalArticle.status = "processed";
     externalArticle.processedPostId = newPost._id;
     await externalArticle.save();
 
-    console.log(
-      `[AI Processor] ✓ SUCCESS: Processed article ${externalArticle.articleId}. New Post ID: ${newPost._id}`
-    );
+    onProgress("✓ Generation Complete!");
     return {
       success: true,
       postId: newPost._id.toString(),
       slug: newPost.slug,
     };
   } catch (error: any) {
+    const errorMessage = `✗ ERROR: ${error.message}`;
+    onProgress(errorMessage);
     console.error(
-      `[AI Processor] ✗ ERROR: Failed to process article ${externalArticle.articleId}: ${error.message}`
+      `[AI Processor] Failed to process article ${externalArticle.articleId}:`,
+      error
     );
     externalArticle.status = "error";
     await externalArticle.save();

@@ -1,18 +1,60 @@
-// Import necessary Node.js modules
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
-// --- Configuration ---
-// The directory you want to extract files from.
-const SRC_DIR = 'src'; 
-// The name of the file where all the code will be saved.
-const OUTPUT_FILE = 'extracted_code.txt';
-// Extensions of files you want to include.
-const ALLOWED_EXTENSIONS = ['.tsx', '.ts', '.js', '.jsx', '.css', '.json'];
-// Specific filenames you want to include, regardless of extension.
-const ALLOWED_FILENAMES = ['robots.ts', 'sitemap.ts'];
-// Directories to ignore.
-const IGNORED_DIRS = ['node_modules', '.next', 'public'];
+// --- Central Configuration ---
+const CONFIG = {
+  // Directories to scan
+  SRC_DIRS: ["src"],
+  // The name of the file where all the code will be saved.
+  OUTPUT_FILE: "extracted_code.txt",
+  // Extensions of files to include (case-insensitive).
+  ALLOWED_EXTENSIONS: [".tsx", ".ts", ".js", ".jsx", ".css"],
+  // Specific filenames to include, regardless of extension.
+  ALLOWED_FILENAMES: ["next.config.js", "tailwind.config.ts"],
+  // Directories to ignore.
+  IGNORED_DIRS: ["node_modules", ".next", "public", ".vscode", "locales"],
+  // Specific filenames to ignore.
+  IGNORED_FILENAMES: ["package.json", "package-lock.json", "tsconfig.json"],
+
+  // --- Token Optimization Settings ---
+  REMOVE_COMMENTS: true,
+  REMOVE_CONSOLE_LOGS: true,
+  TRIM_WHITESPACE: true,
+};
+
+/**
+ * Processes the raw content of a file to apply various optimizations.
+ * @param {string} content - The raw file content.
+ * @returns {string} The processed, token-optimized content.
+ */
+function processFileContent(content) {
+  let processedContent = content;
+
+  if (CONFIG.REMOVE_COMMENTS) {
+    // Remove multi-line /* ... */ comments and single-line // comments
+    processedContent = processedContent.replace(
+      /\/\*[\s\S]*?\*\/|(?<=[^:])\/\/.*|^\/\/.*/g,
+      ""
+    );
+  }
+
+  if (CONFIG.REMOVE_CONSOLE_LOGS) {
+    // Remove console.log, console.error, etc.
+    processedContent = processedContent.replace(
+      /console\.(log|warn|error|info|debug)\s*\(.*?\);?/g,
+      ""
+    );
+  }
+
+  if (CONFIG.TRIM_WHITESPACE) {
+    // Collapse multiple empty lines into a single empty line and trim trailing whitespace
+    processedContent = processedContent
+      .replace(/\n\s*\n/g, "\n\n")
+      .replace(/[ \t]+$/gm, "");
+  }
+
+  return processedContent.trim();
+}
 
 /**
  * Recursively walks a directory and collects the content of allowed files.
@@ -20,36 +62,48 @@ const IGNORED_DIRS = ['node_modules', '.next', 'public'];
  * @param {Array<string>} fileContentsArray - An array to accumulate file contents.
  */
 function walkAndExtract(dir, fileContentsArray) {
-  const files = fs.readdirSync(dir);
+  const items = fs.readdirSync(dir);
 
-  for (const file of files) {
-    const fullPath = path.join(dir, file);
-    
-    // Check if the path is a directory and not in the ignored list.
-    if (fs.statSync(fullPath).isDirectory()) {
-      if (!IGNORED_DIRS.includes(file)) {
-        walkAndExtract(fullPath, fileContentsArray); // Recurse into subdirectory
+  for (const item of items) {
+    const fullPath = path.join(dir, item);
+
+    if (CONFIG.IGNORED_DIRS.includes(path.basename(dir))) {
+      continue;
+    }
+
+    const stat = fs.statSync(fullPath);
+
+    if (stat.isDirectory()) {
+      if (!CONFIG.IGNORED_DIRS.includes(item)) {
+        walkAndExtract(fullPath, fileContentsArray);
       }
     } else {
-      // Check if the file has an allowed extension or is an allowed filename.
-      const fileExt = path.extname(fullPath);
+      const fileExt = path.extname(fullPath).toLowerCase();
       const fileName = path.basename(fullPath);
-      
-      if (ALLOWED_EXTENSIONS.includes(fileExt) || ALLOWED_FILENAMES.includes(fileName)) {
-        // 1. Get the relative path to use in the header comment.
-        // We use path.sep to ensure it works on both Windows (\) and Unix (/).
-        const relativePath = path.relative(process.cwd(), fullPath).split(path.sep).join('/');
-        
-        // 2. Read the file content.
-        const content = fs.readFileSync(fullPath, 'utf8');
-        
-        // 3. Format the output block.
-        const outputBlock = `// ===== ${relativePath} =====\n\n${content}\n`;
-        
-        // 4. Add the block to our array.
-        fileContentsArray.push(outputBlock);
-        
-        console.log(`✅ Extracted: ${relativePath}`);
+
+      if (CONFIG.IGNORED_FILENAMES.includes(fileName)) {
+        continue; // Skip ignored files
+      }
+
+      if (
+        CONFIG.ALLOWED_EXTENSIONS.includes(fileExt) ||
+        CONFIG.ALLOWED_FILENAMES.includes(fileName)
+      ) {
+        const relativePath = path
+          .relative(process.cwd(), fullPath)
+          .replace(/\\/g, "/");
+        const rawContent = fs.readFileSync(fullPath, "utf8");
+
+        const processedContent = processFileContent(rawContent);
+
+        // Only add the block if there's content left after processing
+        if (processedContent) {
+          const outputBlock = `// ===== ${relativePath} =====\n\n${processedContent}\n`;
+          fileContentsArray.push(outputBlock);
+          console.log(`✅ Extracted & Processed: ${relativePath}`);
+        } else {
+          console.log(`⚪ Skipped (empty after processing): ${relativePath}`);
+        }
       }
     }
   }
@@ -59,27 +113,37 @@ function walkAndExtract(dir, fileContentsArray) {
  * Main function to run the script.
  */
 function main() {
-  console.log(`Starting extraction from directory: "${SRC_DIR}"...`);
-  
+  console.log(`Starting extraction from: "${CONFIG.SRC_DIRS.join(", ")}"...`);
+
   try {
     const allContents = [];
-    walkAndExtract(SRC_DIR, allContents);
-
-    // Join all the collected blocks with a couple of newlines for separation.
-    const finalOutput = allContents.join('\n');
-    
-    // Write the combined content to the output file.
-    fs.writeFileSync(OUTPUT_FILE, finalOutput, 'utf8');
-    
-    console.log(`\n🎉 Success! All code has been extracted to "${OUTPUT_FILE}".`);
-
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-        console.error(`❌ Error: The source directory "${SRC_DIR}" was not found.`);
-        console.error('Please make sure you are running this script from your project\'s root directory.');
-    } else {
-        console.error('An unexpected error occurred:', error);
+    for (const dir of CONFIG.SRC_DIRS) {
+      if (!fs.existsSync(dir)) {
+        console.warn(
+          `⚠️ Warning: Source directory "${dir}" not found. Skipping.`
+        );
+        continue;
+      }
+      walkAndExtract(dir, allContents);
     }
+
+    if (allContents.length === 0) {
+      console.log("\n🟡 No files were extracted. Check your configuration.");
+      return;
+    }
+
+    const finalOutput = allContents.join("\n");
+    fs.writeFileSync(CONFIG.OUTPUT_FILE, finalOutput, "utf8");
+
+    const stats = fs.statSync(CONFIG.OUTPUT_FILE);
+    const fileSizeInKB = (stats.size / 1024).toFixed(2);
+
+    console.log(
+      `\n🎉 Success! ${allContents.length} files have been extracted to "${CONFIG.OUTPUT_FILE}".`
+    );
+    console.log(`   Total size: ${fileSizeInKB} KB`);
+  } catch (error) {
+    console.error("❌ An unexpected error occurred:", error);
   }
 }
 
