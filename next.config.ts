@@ -1,6 +1,16 @@
 import type { NextConfig } from "next";
+const { fontFamily } = require("tailwindcss/defaultTheme");
 
 const nextConfig: NextConfig = {
+  theme: {
+    extend: {
+      fontFamily: {
+        // Add a new 'sans' property and spread the default sans fonts
+        sans: ["Inter", ...fontFamily.sans],
+      },
+      // ... your other theme extensions
+    },
+  },
   eslint: {
     // Warning: This allows production builds to successfully complete even if
     // your project has ESLint errors.
@@ -32,12 +42,6 @@ const nextConfig: NextConfig = {
         pathname: "/flags/**", // Or just '/', depending on how specific you want to be
       },
     ],
-  },
-  i18n: {
-    // A list of all locales you want to support
-    locales: ["en", "tr"],
-    // The default locale to use when none is specified in the URL (e.g., at the root domain)
-    defaultLocale: "en",
   },
 };
 

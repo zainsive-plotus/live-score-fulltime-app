@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
 import { LeagueProvider } from "@/context/LeagueContext";
@@ -11,8 +10,6 @@ import { Suspense } from "react";
 import StickyFooterAd from "@/components/StickyFooterAd";
 import Loading from "./loading";
 import Footer from "@/components/Footer";
-
-const inter = Inter({ subsets: ["latin"] });
 
 const METADATA_BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
@@ -74,7 +71,7 @@ export default function RootLayout({
   return (
     <html lang="tr">
       <body
-        className={`${inter.className} bg-background text-text-primary`}
+        className={`bg-background text-text-primary`}
         suppressHydrationWarning={true}
       >
         <Suspense fallback={<Loading />}>
