@@ -25,6 +25,12 @@ const nextConfig: NextConfig = {
         port: "",
         pathname: "/**", // Allow any image path from this bucket
       },
+      {
+        protocol: "https",
+        hostname: "media.api-sports.io",
+        port: "",
+        pathname: "/flags/**", // Or just '/', depending on how specific you want to be
+      },
     ],
     domains: ["*"],
   },
