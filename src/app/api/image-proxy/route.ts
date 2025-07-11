@@ -23,17 +23,17 @@ export async function GET(request: NextRequest) {
   }
 
   // 2. Security Check: Ensure the requested URL is from an allowed domain
-  try {
-    const urlObject = new URL(imageUrl);
-    if (!ALLOWED_DOMAINS.includes(urlObject.hostname)) {
-      return NextResponse.json(
-        { error: `Domain not allowed: ${urlObject.hostname}` },
-        { status: 403 }
-      );
-    }
-  } catch (error) {
-    return NextResponse.json({ error: "Invalid URL format" }, { status: 400 });
-  }
+  // try {
+  //   const urlObject = new URL(imageUrl);
+  //   if (!ALLOWED_DOMAINS.includes(urlObject.hostname)) {
+  //     return NextResponse.json(
+  //       { error: `Domain not allowed: ${urlObject.hostname}` },
+  //       { status: 403 }
+  //     );
+  //   }
+  // } catch (error) {
+  //   return NextResponse.json({ error: "Invalid URL format" }, { status: 400 });
+  // }
 
   try {
     // 3. Fetch the image from the external source
@@ -41,6 +41,8 @@ export async function GET(request: NextRequest) {
       responseType: "arraybuffer",
       timeout: 10000, // 10-second timeout
     });
+
+    console.log(response.headers);
 
     const imageBuffer = Buffer.from(response.data, "binary");
     const contentType = response.headers["content-type"] || "image/png";
