@@ -1,4 +1,5 @@
-// src/components/MatchList.tsx
+// ===== src/components/MatchList.tsx =====
+
 "use client";
 
 import { useEffect, useMemo, useState, Dispatch, SetStateAction } from "react";
@@ -6,11 +7,17 @@ import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import Image from "next/image";
 import { useLeagueContext } from "@/context/LeagueContext";
-import { useTranslation } from "@/hooks/useTranslation";
 import { League } from "@/types/api-football";
 import MatchListItem, { MatchListItemSkeleton } from "./MatchListItem";
 import MatchDateNavigator from "./MatchDateNavigator";
-import { Globe, ChevronsDown, Search, XCircle } from "lucide-react";
+import {
+  Globe,
+  ChevronsDown,
+  Search,
+  XCircle,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { format } from "date-fns";
 import { proxyImageUrl } from "@/lib/image-proxy";
 
@@ -36,6 +43,8 @@ const STATUS_MAP: Record<StatusFilter, string[]> = {
 };
 const INITIAL_MATCHES_TO_SHOW = 5;
 const MATCHES_PER_PAGE = 10;
+const LEAGUES_PER_PAGE = 8; // ADDED: Constant for league pagination
+
 const fetchAllMatches = async (
   leagueId: number | null,
   date: Date
@@ -59,8 +68,6 @@ const searchFixtures = async (query: string): Promise<any[]> => {
   return data;
 };
 
-// --- THIS IS THE FIX ---
-// The LeagueGroupHeader is updated to use next/image and the proxy.
 const LeagueGroupHeader = ({
   league,
 }: {
@@ -75,7 +82,6 @@ const LeagueGroupHeader = ({
         <Globe size={24} className="text-text-muted" />
       ) : (
         league.flag && (
-          // Use the Image component and proxy the URL
           <Image
             src={proxyImageUrl(league.flag)}
             alt={league.country}
@@ -93,7 +99,6 @@ const LeagueGroupHeader = ({
   </div>
 );
 
-// TabButton sub-component remains the same
 const TabButton = ({
   label,
   isActive,
@@ -145,6 +150,9 @@ export default function MatchList({
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
+  // ADDED: State for league pagination
+  const [currentPage, setCurrentPage] = useState(1);
+
   const {
     data: allMatches,
     isLoading,
@@ -179,11 +187,14 @@ export default function MatchList({
     staleTime: 25000,
   });
 
+  // MODIFIED: This effect now also resets the league page
   useEffect(() => {
     setVisibleMatchCounts({});
+    setCurrentPage(1); // Reset to first page on filter change
   }, [selectedDate, activeStatusFilter, debouncedSearchTerm]);
 
   const groupedMatches = useMemo(() => {
+    // ... (grouping logic remains the same)
     const isSearching = debouncedSearchTerm.length >= 3;
     const matchesToProcess = isSearching
       ? searchResults
@@ -229,6 +240,21 @@ export default function MatchList({
     activeStatusFilter,
     debouncedSearchTerm,
   ]);
+
+  // ADDED: Memoized calculation for paginated league groups
+  const paginatedLeagueGroups = useMemo(() => {
+    const leagueEntries = Object.entries(groupedMatches);
+    const totalPages = Math.ceil(leagueEntries.length / LEAGUES_PER_PAGE);
+
+    const startIndex = (currentPage - 1) * LEAGUES_PER_PAGE;
+    const endIndex = startIndex + LEAGUES_PER_PAGE;
+
+    return {
+      paginatedEntries: leagueEntries.slice(startIndex, endIndex),
+      totalPages,
+      totalLeagues: leagueEntries.length,
+    };
+  }, [groupedMatches, currentPage]);
 
   const handleLoadMore = (leagueId: string | number) => {
     setVisibleMatchCounts((prevCounts) => ({
@@ -309,40 +335,67 @@ export default function MatchList({
               <MatchListItemSkeleton key={i} />
             ))}
           </div>
-        ) : Object.keys(groupedMatches).length > 0 ? (
-          Object.entries(groupedMatches).map(
-            ([groupKey, { leagueInfo, matches }]: any) => {
-              const visibleCount =
-                visibleMatchCounts[groupKey] || INITIAL_MATCHES_TO_SHOW;
-              const remainingMatches = matches.length - visibleCount;
-              const hasMore = remainingMatches > 0;
-              return (
-                <div
-                  key={groupKey}
-                  style={{ backgroundColor: "var(--color-primary)" }}
-                  className="rounded-lg overflow-hidden"
-                >
-                  <LeagueGroupHeader league={leagueInfo} />
-                  <div className="p-2 space-y-2">
-                    {matches.slice(0, visibleCount).map((match: any) => (
-                      <MatchListItem key={match.fixture.id} match={match} />
-                    ))}
-                    {hasMore && (
-                      <button
-                        onClick={() => handleLoadMore(groupKey)}
-                        className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-text-muted p-3 rounded-lg transition-colors hover:text-white"
-                        style={{ backgroundColor: "var(--color-secondary)" }}
-                      >
-                        <ChevronsDown size={16} /> Show{" "}
-                        {Math.min(MATCHES_PER_PAGE, remainingMatches)} more
-                        matches
-                      </button>
-                    )}
+        ) : paginatedLeagueGroups.paginatedEntries.length > 0 ? (
+          <>
+            {paginatedLeagueGroups.paginatedEntries.map(
+              ([groupKey, { leagueInfo, matches }]: any) => {
+                const visibleCount =
+                  visibleMatchCounts[groupKey] || INITIAL_MATCHES_TO_SHOW;
+                const remainingMatches = matches.length - visibleCount;
+                const hasMore = remainingMatches > 0;
+                return (
+                  <div
+                    key={groupKey}
+                    style={{ backgroundColor: "var(--color-primary)" }}
+                    className="rounded-lg overflow-hidden"
+                  >
+                    <LeagueGroupHeader league={leagueInfo} />
+                    <div className="p-2 space-y-2">
+                      {matches.slice(0, visibleCount).map((match: any) => (
+                        <MatchListItem key={match.fixture.id} match={match} />
+                      ))}
+                      {hasMore && (
+                        <button
+                          onClick={() => handleLoadMore(groupKey)}
+                          className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-text-muted p-3 rounded-lg transition-colors hover:text-white"
+                          style={{ backgroundColor: "var(--color-secondary)" }}
+                        >
+                          <ChevronsDown size={16} /> Show{" "}
+                          {Math.min(MATCHES_PER_PAGE, remainingMatches)} more
+                          matches
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            }
-          )
+                );
+              }
+            )}
+
+            {/* ADDED: Pagination controls for league groups */}
+            {paginatedLeagueGroups.totalPages > 1 && (
+              <div className="flex items-center justify-between p-2">
+                <button
+                  onClick={() => setCurrentPage((p) => p - 1)}
+                  disabled={currentPage === 1}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-secondary rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-700/50 transition-colors"
+                >
+                  <ChevronLeft size={16} />
+                  <span>Previous</span>
+                </button>
+                <span className="text-sm font-semibold text-brand-muted">
+                  Page {currentPage} of {paginatedLeagueGroups.totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage((p) => p + 1)}
+                  disabled={currentPage === paginatedLeagueGroups.totalPages}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-secondary rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-700/50 transition-colors"
+                >
+                  <span>Next</span>
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            )}
+          </>
         ) : (
           <div
             className="text-center py-20 rounded-lg"
