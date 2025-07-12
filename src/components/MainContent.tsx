@@ -11,6 +11,7 @@ import StandingsDisplay from "./StandingsDisplay";
 import NewsSection from "./NewsSection";
 import LeagueDetailView from "./league-detail-view";
 import AdSlotWidget from "./AdSlotWidget";
+import LatestHighlightsWidget from "./LatestHighlightsWidget"; // ADDED
 
 interface MainContentProps {
   sidebarAboutSeoText: string;
@@ -51,8 +52,12 @@ export const MainContent: React.FC<MainContentProps> = ({
 
         {/* Sidebar Column (Widgets) */}
         <div className="lg:col-span-1 flex flex-col gap-6">
+          <LatestHighlightsWidget />
           <AdSlotWidget location="homepage_right_sidebar" />
           <StandingsDisplay />
+
+          {/* ADDED: LatestHighlightsWidget placed in the sidebar */}
+
           <div className="space-y-8 gap-8">
             <section className="bg-brand-secondary rounded-lg shadow-lg p-6">
               <h2 className="text-2xl font-bold text-white mb-4">

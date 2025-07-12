@@ -178,7 +178,7 @@ export default function AdminSidebar() {
             </div>
           </div>
 
-          {/* Pages Section */}
+          {/* Pages & FAQs Section */}
           <div>
             <button
               onClick={() => setIsPagesOpen(!isPagesOpen)}

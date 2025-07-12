@@ -1,90 +1,75 @@
+// ===== src/components/NewsSection.tsx =====
+
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import NewsItemCard, {
-  NewsArticleType,
-  NewsItemCardSkeleton,
-} from "./NewsItemCard";
 import axios from "axios";
 import { IPost } from "@/models/Post";
-import StyledLink from "./StyledLink"; // Import the StyledLink component
-import { ArrowRight } from "lucide-react"; // Import an icon for the button
+import StyledLink from "./StyledLink";
+import { ArrowRight, Newspaper, Info } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
+import SidebarNewsItemWithImage, {
+  SidebarNewsItemWithImageSkeleton,
+} from "./SidebarNewsItemWithImage";
 
-// The fetcher function remains the same, it fetches all published posts.
-const fetchNews = async (): Promise<NewsArticleType[]> => {
-  const { data } = await axios.get("/api/posts?status=published");
-  // Transform the API response into the format the card component expects.
-  const transformedNews: NewsArticleType[] = data.map((post: IPost) => ({
-    id: post._id,
-    title: post.title,
-    excerpt: post.content.replace(/<[^>]*>?/gm, "").substring(0, 150) + "...",
-    imageUrl:
-      post.featuredImage ||
-      "https://images.unsplash.com/photo-1599508704512-2f19efd1e35f?q=80&w=1935&auto=format&fit=crop",
-    articleUrl: `/football/news/${post.slug}`,
-  }));
-
-  return transformedNews;
+// Fetch 5 posts for a vertical list in the sidebar
+const fetchNews = async (limit: number = 5): Promise<IPost[]> => {
+  const { data } = await axios.get(
+    `/api/posts?status=published&limit=${limit}`
+  );
+  return data;
 };
 
 export default function NewsSection() {
   const {
     data: news,
     isLoading,
-    error,
-  } = useQuery<NewsArticleType[]>({
-    queryKey: ["newsArticles"],
-    queryFn: fetchNews,
-    staleTime: 1000 * 60 * 10, // Cache for 10 minutes
+    isError,
+  } = useQuery<IPost[]>({
+    queryKey: ["newsArticlesSidebarWidget"],
+    queryFn: () => fetchNews(5),
+    staleTime: 1000 * 60 * 10,
   });
 
   const { t } = useTranslation();
 
   return (
-    <section>
-      {/* --- NEW: Section Header with Title and "See All" Button --- */}
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-xl font-bold text-white">{t("latest_news")}</h3>
-        {/* The button only shows if there are more than 2 articles */}
-        {news && news.length > 2 && (
-          <StyledLink
-            href="/football/news"
-            className="flex items-center gap-1 text-sm font-semibold text-text-muted transition-colors hover:text-white"
-          >
-            See all
-            <ArrowRight size={16} />
-          </StyledLink>
-        )}
+    <section className="bg-brand-secondary rounded-lg shadow-lg">
+      <div className="flex justify-between items-center p-4 border-b border-gray-700/50">
+        <h3 className="text-xl font-bold text-white flex items-center gap-2">
+          <Newspaper size={20} className="text-brand-purple" />
+          {t("latest_news")}
+        </h3>
+        <StyledLink
+          href="/football/news"
+          className="flex items-center gap-1 text-xs font-semibold text-text-muted transition-colors hover:text-white"
+        >
+          See all
+          <ArrowRight size={14} />
+        </StyledLink>
       </div>
 
-      <div className="space-y-4">
+      <div className="p-2 space-y-1">
         {isLoading ? (
-          // Show two skeletons while loading
           <>
-            <NewsItemCardSkeleton />
-            <NewsItemCardSkeleton />
+            <SidebarNewsItemWithImageSkeleton />
+            <SidebarNewsItemWithImageSkeleton />
+            <SidebarNewsItemWithImageSkeleton />
+            <SidebarNewsItemWithImageSkeleton />
+            <SidebarNewsItemWithImageSkeleton />
           </>
-        ) : error ? (
-          <div
-            className="rounded-xl p-6 text-center text-text-muted"
-            style={{ backgroundColor: "var(--color-primary)" }}
-          >
+        ) : isError ? (
+          <div className="rounded-lg p-6 text-center text-red-400">
             <p>Could not load news articles.</p>
           </div>
         ) : news && news.length > 0 ? (
-          // --- ENHANCEMENT: Use .slice(0, 2) to only show the first two articles ---
-          news
-            .slice(0, 2)
-            .map((article) => (
-              <NewsItemCard key={article.id} article={article} />
-            ))
+          news.map((post) => (
+            <SidebarNewsItemWithImage key={post._id} post={post} />
+          ))
         ) : (
-          <div
-            className="rounded-xl p-6 text-center text-text-muted"
-            style={{ backgroundColor: "var(--color-primary)" }}
-          >
-            <p>No news articles available yet.</p>
+          <div className="rounded-lg p-6 text-center text-text-muted">
+            <Info size={28} className="mx-auto mb-2" />
+            <p className="text-sm">No news articles available yet.</p>
           </div>
         )}
       </div>

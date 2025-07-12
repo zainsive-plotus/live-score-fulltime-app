@@ -1,4 +1,5 @@
-// src/components/Footer.tsx
+// ===== src/components/Footer.tsx =====
+
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
@@ -8,7 +9,6 @@ import Image from "next/image";
 import { IPost } from "@/models/Post";
 import { useTranslation } from "@/hooks/useTranslation";
 
-// --- Reusable Sub-components for clean code ---
 const FooterLink = ({
   href,
   children,
@@ -36,13 +36,11 @@ const FooterColumn = ({
   </div>
 );
 
-// --- Fetchers for Dynamic Content ---
 const fetchRecentPosts = async (): Promise<IPost[]> => {
   const { data } = await axios.get("/api/posts?status=published&limit=5");
   return data;
 };
 
-// Placeholder for fetching recent scores
 const fetchRecentFootballScores = async () => {
   return [
     { id: 1, home: "RB Salzburg", away: "Real Madrid", href: "#" },
@@ -69,11 +67,11 @@ export default function Footer() {
   });
 
   return (
-    <footer className="bg-brand-secondary text-white py-12 hidden md:block">
+    <footer className="bg-brand-secondary text-white py-12">
       <div className="container mx-auto px-4">
-        {/* --- TOP SECTION: 4-column grid --- */}
+        {/* Main Footer Links */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
-          {/* Column 1: About & News */}
+          {/* Column 1 */}
           <div className="space-y-8">
             <div>
               <h4 className="font-bold text-white uppercase tracking-wider mb-4">
@@ -102,7 +100,7 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Column 2: Football Leagues */}
+          {/* Column 2 */}
           <div className="space-y-8">
             <FooterColumn title="Football">
               <FooterLink href="https://fanskor.com/football/league/premier-league-39">
@@ -126,7 +124,7 @@ export default function Footer() {
             </FooterColumn>
           </div>
 
-          {/* Column 3: Football Scores */}
+          {/* Column 3 */}
           <div>
             <FooterColumn title="Football Scores">
               {footballScores?.map((score) => (
@@ -137,7 +135,7 @@ export default function Footer() {
             </FooterColumn>
           </div>
 
-          {/* Column 4: Company & Legal Links */}
+          {/* Column 4 */}
           <div>
             <FooterColumn title="Information">
               <FooterLink href="/contact-us">{t("contact_us")}</FooterLink>
@@ -152,7 +150,7 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* --- MODIFIED MIDDLE SECTION: Credibility and Responsible Gaming Logos --- */}
+        {/* Responsibility Logos */}
         <div className="flex flex-col md:flex-row justify-between items-center border-t border-gray-700/50 pt-8 mb-8">
           <div className="mb-6 md:mb-0">
             <Image
@@ -198,7 +196,7 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* --- BOTTOM SECTION: Copyright and Legal Links --- */}
+        {/* Copyright */}
         <div className="flex flex-col md:flex-row justify-between items-center text-sm text-brand-muted">
           <p className="mb-4 md:mb-0">
             © {new Date().getFullYear()} Fanskor - All rights reserved.

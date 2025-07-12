@@ -4,7 +4,6 @@ import { notFound } from "next/navigation";
 import axios from "axios";
 import type { Metadata } from "next";
 
-// Import all the components
 import { MatchHeader } from "@/components/match/MatchHeader";
 import MatchStatusBanner from "@/components/match/MatchStatusBanner";
 import MatchH2HWidget from "@/components/match/MatchH2HWidget";
@@ -18,11 +17,9 @@ import MatchActivityWidget from "@/components/match/MatchActivityWidget";
 import TeamStandingsWidget from "@/components/match/TeamStandingsWidget";
 import CasinoPartnerWidget from "@/components/CasinoPartnerWidget";
 import Header from "@/components/Header";
-
-// --- NEW WIDGET IMPORT ---
+import MatchHighlightsWidget from "@/components/match/MatchHighlightsWidget"; // ADDED
 import LinkedNewsWidget from "@/components/match/LinkedNewsWidget";
 
-// Data fetching and metadata functions remain unchanged...
 const getFixtureIdFromSlug = (slug: string): string | null => {
   if (!slug) return null;
   const parts = slug?.split("-");
@@ -82,7 +79,6 @@ export async function generateMetadata({
   };
 }
 
-// --- Main Page Component ---
 export default async function MatchDetailPage({
   params,
 }: {
@@ -119,12 +115,12 @@ export default async function MatchDetailPage({
       <Header />
       <div className="container mx-auto p-4 md:p-6 lg:grid lg:grid-cols-3 lg:gap-8 lg:items-start">
         <main className="lg:col-span-2 space-y-6">
-          <MatchHeader
-            fixture={fixture}
-            analytics={analytics}
-            // matchSeoDescription is now a prop, no changes needed here
-          />
+          <MatchHeader fixture={fixture} analytics={analytics} />
           <MatchStatusBanner fixture={fixture} />
+
+          {/* ADDED: MatchHighlightsWidget integrated here */}
+          <MatchHighlightsWidget fixtureId={fixtureId} />
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <TeamFormWidget
               teamStats={analytics.homeTeamStats}
@@ -159,7 +155,6 @@ export default async function MatchDetailPage({
         <aside className="lg:col-span-1 space-y-6 lg:sticky lg:top-6 mt-8 lg:mt-0">
           {isLive && <LiveOddsWidget fixtureId={fixtureId} />}
 
-          {/* --- NEW WIDGET INCLUDED HERE --- */}
           <LinkedNewsWidget fixtureId={fixture.fixture.id} />
 
           <CasinoPartnerWidget />

@@ -10,13 +10,12 @@ import TitleTemplate from "@/models/TitleTemplate";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import slugify from "slugify";
 import { proxyAndUploadImage } from "./image-processing-server";
+import axios from "axios"; // ADDED
 
 const genAI = new GoogleGenerativeAI(
   process.env.NEXT_PUBLIC_GEMINI_API_KEY as string
 );
 const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
-
-// --- Helper Functions for AI Generation ---
 
 async function generateHumanizedTitle(
   originalTitle: string,
@@ -26,9 +25,7 @@ async function generateHumanizedTitle(
 ): Promise<string> {
   let prompt: string;
 
-  // --- FIX START: Create a specific prompt when a template is used ---
   if (template) {
-    // This new prompt structure forces the AI to use the template as an instruction, not a topic of conversation.
     prompt = `
       You are a title generation assistant. Your ONLY task is to use the provided template and context to generate a final, clean news title in TURKISH.
 
@@ -50,7 +47,6 @@ async function generateHumanizedTitle(
       FINAL TITLE:
     `;
   } else {
-    // Fallback to the original dynamic prompt if no template is selected
     prompt = `
       You are an expert Turkish sports journalist named "${
         journalistName || "Fanskor AI"
@@ -69,7 +65,6 @@ async function generateHumanizedTitle(
       YOUR GENERATED TURKISH TITLE:
     `;
   }
-  // --- FIX END ---
 
   const result = await model.generateContent(prompt);
   const responseText = (await result.response).text().trim();
@@ -77,12 +72,20 @@ async function generateHumanizedTitle(
   return responseText.replace(/[\*#"\n]/g, "");
 }
 
+// MODIFIED: Added highlightEmbedHtml parameter
 async function generateExpandedContent(
   newTitle: string,
   originalContent: string,
   journalistName?: string,
-  journalistTonePrompt?: string
+  journalistTonePrompt?: string,
+  highlightEmbedHtml?: string
 ): Promise<string> {
+  const highlightInstruction = highlightEmbedHtml
+    ? `
+    **HIGHLIGHT EMBED:** A video highlight is provided in the "{highlight_embed_html}" placeholder. You MUST include this placeholder in your response. Place it in a logical position, such as after the introductory paragraph, to visually complement the text. Wrap it in a div like this for proper spacing: <div class="my-6">${highlightEmbedHtml}</div>
+    `
+    : "";
+
   const prompt = `
     You are an expert Turkish sports journalist named "${
       journalistName || "Fanskor AI"
@@ -99,10 +102,12 @@ async function generateExpandedContent(
     3.  **LANGUAGE:** The entire article must be in Turkish.
     4.  **EXPAND & ANALYZE:** The "Original Content" is a starting point. Your main job is to expand it into a full article. Add background details, analyze the impact, discuss what might happen next, and provide expert commentary. Create a complete narrative.
     5.  **SEO HIERARCHY:** Use the provided "New Turkish Title" as the conceptual H1. Structure the article with multiple <h2> and <h3> tags that use relevant keywords. Make the content rich and valuable for the reader.
+    ${highlightInstruction}
 
     ARTICLE CONTEXT:
     - New Turkish Title: "${newTitle}"
     - Original Content: "${originalContent}"
+    - Highlight Embed Code: "${highlightEmbedHtml || "Not available."}"
 
     YOUR GENERATED HTML ARTICLE:
   `;
@@ -115,16 +120,17 @@ async function generateExpandedContent(
     .trim();
 }
 
-// --- Main Processing Logic ---
 interface ProcessArticleOptions {
   journalistId?: string;
   titleTemplateId?: string;
   sportsCategory: SportsCategory[];
   newsType: NewsType;
   status: "draft" | "published";
+  linkedFixtureId?: number; // ADDED
   onProgress?: (log: string) => void;
 }
 
+// MODIFIED: Now accepts a linkedFixtureId and fetches highlights
 export async function processSingleArticle(
   externalArticle: IExternalNewsArticle,
   options: ProcessArticleOptions
@@ -138,7 +144,6 @@ export async function processSingleArticle(
     if (["processed", "processing"].includes(externalArticle.status)) {
       const message = `Article already processed (Status: ${externalArticle.status}). Skipping.`;
       onProgress(message);
-      console.log(`[AI Processor] ${message}`);
       return {
         success: true,
         postId: externalArticle.processedPostId?.toString(),
@@ -173,6 +178,27 @@ export async function processSingleArticle(
       onProgress("No title template selected. Using dynamic generation.");
     }
 
+    // ADDED: Logic to fetch highlight embed code
+    let highlightEmbedHtml: string | undefined;
+    if (options.newsType === "reviews" && options.linkedFixtureId) {
+      onProgress(
+        `Fetching highlights for fixture ID: ${options.linkedFixtureId}...`
+      );
+      try {
+        const highlightsApiUrl = `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/api/highlights?fixtureId=${options.linkedFixtureId}`;
+        const { data } = await axios.get(highlightsApiUrl);
+        const mainHighlight = data?.highlights?.[0];
+        if (mainHighlight?.embedUrl) {
+          highlightEmbedHtml = `<div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; height: auto; border-radius: 8px; margin: 1.5rem 0;"><iframe src="${mainHighlight.embedUrl}" frameborder="0" allowfullscreen style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></iframe></div>`;
+          onProgress("-> Highlight video found and embed code generated.");
+        } else {
+          onProgress("-> No highlights found for this fixture.");
+        }
+      } catch (e) {
+        onProgress("-> Could not fetch highlights for this fixture.");
+      }
+    }
+
     onProgress("Generating new article title with AI...");
     const newTitle = await generateHumanizedTitle(
       externalArticle.title,
@@ -190,7 +216,8 @@ export async function processSingleArticle(
         externalArticle.description ||
         "No content provided.",
       journalist?.name,
-      journalist?.tonePrompt
+      journalist?.tonePrompt,
+      highlightEmbedHtml // Pass embed code to content generator
     );
     if (!newContent || !newContent.includes("<p>"))
       throw new Error("AI failed to generate valid HTML content.");
@@ -243,6 +270,7 @@ export async function processSingleArticle(
       status: options.status,
       sportsCategory: options.sportsCategory,
       newsType: options.newsType,
+      linkedFixtureId: options.linkedFixtureId, // Save the linked fixture ID
     });
     await newPost.save();
     onProgress("-> New post saved successfully.");
