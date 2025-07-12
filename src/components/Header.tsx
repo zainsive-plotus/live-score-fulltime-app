@@ -1,6 +1,7 @@
+// ===== src/components/Header.tsx =====
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 import {
@@ -9,6 +10,9 @@ import {
   FaUsers,
   FaNewspaper,
 } from "react-icons/fa";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import { IPost } from "@/models/Post";
 
 import { IoMdFootball } from "react-icons/io";
 import { IoTennisball } from "react-icons/io5";
@@ -16,9 +20,9 @@ import LanguageDropdown from "./LanguageDropdown";
 import { useTranslation } from "@/hooks/useTranslation";
 import StyledLink from "./StyledLink";
 import NavDropdown from "./NavDropdown";
+import NotificationDropdown from "./NotificationDropdown";
 import { ArrowRight, Bell, Menu, X } from "lucide-react";
 
-// Define a type for the Lucide icon components
 type NavIcon = React.ElementType;
 
 interface SubLink {
@@ -36,66 +40,98 @@ interface NavItem {
   subLinks?: SubLink[];
 }
 
+const fetchLatestPost = async (): Promise<IPost | null> => {
+  try {
+    const { data } = await axios.get("/api/posts?status=published&limit=1");
+    return data[0] || null;
+  } catch {
+    return null;
+  }
+};
+
 export default function Header() {
   const { t } = useTranslation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isSearchExpanded, setIsSearchExpanded] = useState(false); // New state for desktop search
-  const [searchTerm, setSearchTerm] = useState(""); // New state for search input
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [hasUnread, setHasUnread] = useState(false);
+  const notificationRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+
+  const { data: latestPost } = useQuery<IPost | null>({
+    queryKey: ["latestPostForIndicator"],
+    queryFn: fetchLatestPost,
+    staleTime: 1000 * 60, // Check for a new post every minute
+  });
+
+  useEffect(() => {
+    if (latestPost) {
+      const lastReadPostId = localStorage.getItem("lastReadPostId");
+      if (latestPost._id !== lastReadPostId) {
+        setHasUnread(true);
+      }
+    }
+  }, [latestPost]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        notificationRef.current &&
+        !notificationRef.current.contains(event.target as Node)
+      ) {
+        setIsNotificationOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleNotificationToggle = () => {
+    setIsNotificationOpen((prev) => !prev);
+    if (hasUnread && latestPost) {
+      localStorage.setItem("lastReadPostId", latestPost._id);
+      setHasUnread(false);
+    }
+  };
 
   const navItems: NavItem[] = [
     {
       title: t("football"),
       href: "/football",
-      icon: IoMdFootball, // Using FaSoccerBall from react-icons/fa
+      icon: IoMdFootball,
       isDropdown: true,
       subLinks: [
         {
           name: t("leagues"),
           href: "/football/leagues",
           description: "Browse all competitions",
-          icon: FaTrophy, // Using FaTrophy from react-icons/fa
+          icon: FaTrophy,
         },
         {
           name: t("teams"),
           href: "/football/teams",
           description: "Find your favorite club",
-          icon: FaUsers, // Using FaUsers from react-icons/fa
+          icon: FaUsers,
         },
         {
           name: t("news"),
           href: "/football/news",
           description: "The latest headlines",
-          icon: FaNewspaper, // Using FaNewspaper from react-icons/fa
+          icon: FaNewspaper,
         },
       ],
     },
-    { title: t("basketball"), href: "#", icon: FaBasketballBall }, // Using FaBasketballBall
-    { title: t("tennis"), href: "#", icon: IoTennisball }, // Using FaTennisBall
+    { title: t("basketball"), href: "#", icon: FaBasketballBall },
+    { title: t("tennis"), href: "#", icon: IoTennisball },
   ];
 
   const handleMobileLinkClick = () => {
     setIsMobileMenuOpen(false);
   };
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchTerm.trim()) {
-      // Implement your search logic here, e.g., redirect to a search results page
-      console.log("Searching for:", searchTerm);
-      // router.push(`/search?q=${encodeURIComponent(searchTerm)}`);
-      setIsSearchExpanded(false); // Collapse search bar after search
-      setSearchTerm("");
-      setIsMobileMenuOpen(false); // Close mobile menu if search initiated from there
-    }
-  };
-
   return (
     <>
-      {/* Main Header (Non-sticky for desktop, sticky for mobile) */}
       <header className="relative w-full border-b border-gray-700/50 shadow-xl shadow-black/20 z-50 lg:static">
         <div className="container mx-auto flex h-24 items-center justify-between px-4 lg:px-6">
-          {/* Logo */}
           <StyledLink href="/" className="flex items-center flex-shrink-0">
             <Image
               src={"/fanskor.webp"}
@@ -104,8 +140,6 @@ export default function Header() {
               height={60}
             />
           </StyledLink>
-
-          {/* DESKTOP NAVIGATION */}
           <nav className="hidden lg:flex items-center flex-grow justify-center gap-12 px-8">
             {navItems.map((item) => (
               <li key={item.title} className="list-none">
@@ -122,13 +156,11 @@ export default function Header() {
                       pathname.startsWith(item.href)
                         ? "text-white"
                         : "text-[var(--text-secondary)] hover:text-white"
-                    } 
-                    ${
+                    } ${
                       pathname.startsWith(item.href)
                         ? "after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-[var(--brand-accent)] after:rounded-t-sm"
                         : "after:absolute after:bottom-0 after:left-1/2 after:w-0 after:h-0.5 after:bg-[var(--brand-accent)] after:rounded-t-sm group-hover:after:w-full group-hover:after:left-0 after:transition-all after:duration-300"
-                    }
-                    `}
+                    }`}
                   >
                     <item.icon size={20} />
                     {item.title}
@@ -138,22 +170,61 @@ export default function Header() {
             ))}
           </nav>
 
-          {/* Right-Hand Utility Icons (Desktop) */}
-          <div className="hidden lg:flex items-center gap-6 flex-shrink-0">
-            <button className="text-[var(--text-primary)] hover:text-white transition-colors p-2">
-              <Bell size={24} />
-            </button>
+          <div
+            className="hidden lg:flex items-center gap-6 flex-shrink-0"
+            ref={notificationRef}
+          >
+            <div className="relative">
+              <button
+                onClick={handleNotificationToggle}
+                className="text-brand-light hover:text-white transition-colors p-2"
+              >
+                <Bell
+                  size={24}
+                  className={`text-[var(--brand-accent)] ${
+                    hasUnread ? "animate-ring" : ""
+                  }`}
+                />
+                {hasUnread && (
+                  <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-brand-dark" />
+                )}
+              </button>
+              {isNotificationOpen && (
+                <NotificationDropdown
+                  onClose={() => setIsNotificationOpen(false)}
+                />
+              )}
+            </div>
             <LanguageDropdown />
-            {/* <CountryDropdown /> */}
           </div>
 
-          {/* MOBILE MENU BUTTONS (always visible on mobile) */}
-          <div className="flex lg:hidden items-center gap-4 flex-shrink-0">
-            <button className="text-[var(--text-primary)] hover:text-white transition-colors p-2">
-              <Bell size={24} />
-            </button>
+          <div
+            className="flex lg:hidden items-center gap-2 flex-shrink-0"
+            ref={notificationRef}
+          >
+            <div className="relative">
+              <button
+                onClick={handleNotificationToggle}
+                className="text-brand-light hover:text-white transition-colors p-2"
+              >
+                <Bell
+                  size={24}
+                  className={`text-[var(--brand-accent)] ${
+                    hasUnread ? "animate-ring" : ""
+                  }`}
+                />
+                {hasUnread && (
+                  <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-brand-dark" />
+                )}
+              </button>
+              {isNotificationOpen && (
+                <NotificationDropdown
+                  onClose={() => setIsNotificationOpen(false)}
+                />
+              )}
+            </div>
             <button
-              className="text-[var(--text-primary)] hover:text-white transition-colors p-2"
+              className="text-brand-light hover:text-white transition-colors p-2"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               aria-label="Toggle mobile menu"
             >
@@ -163,10 +234,8 @@ export default function Header() {
         </div>
       </header>
 
-      {/* MOBILE MENU OVERLAY */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 bg-black/95 z-[999] flex flex-col transform translate-x-0 animate-slide-in-right">
-          {/* Header within Overlay */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800/50 flex-shrink-0">
             <StyledLink href="/" className="flex items-center gap-3 group">
               <Image
@@ -178,37 +247,22 @@ export default function Header() {
             </StyledLink>
             <button
               onClick={() => setIsMobileMenuOpen(false)}
-              className="text-[var(--text-primary)] hover:text-white transition-colors p-2"
+              className="text-brand-light hover:text-white transition-colors p-2"
               aria-label="Close mobile menu"
             >
               <X size={32} />
             </button>
           </div>
-
-          <div
-            className="mt-8 pb-4 border-b
-           border-gray-800/50 flex flex-col gap-4 px-6 flex-shrink-0"
-          >
+          <div className="mt-8 pb-4 border-b border-gray-800/50 flex flex-col gap-4 px-6 flex-shrink-0">
             <LanguageDropdown />
-            {/* <CountryDropdown /> */}
           </div>
-
-          {/* Main Navigation in Mobile Menu */}
-          <nav className="flex-1 overflow-y-auto custom-scrollbar p-6 pt-0">
+          <nav className="flex-1 overflow-y-auto custom-scrollbar p-6 pt-4">
             <ul className="space-y-4">
               {navItems.map((item) => (
                 <li key={item.title}>
                   {item.isDropdown ? (
                     <div className="space-y-3">
-                      <button
-                        onClick={() => {
-                          // This simulates opening the dropdown in mobile
-                          // You might want to pass state to NavDropdown for true controlled open/close
-                          // For simplicity, for now it will act as a heading for its sub-links.
-                          // A more advanced mobile dropdown would toggle an inner div.
-                        }}
-                        className="w-full text-left px-4 py-3 text-lg font-bold uppercase text-[var(--text-muted)] tracking-wider border-b border-gray-800/50 flex items-center gap-3"
-                      >
+                      <button className="w-full text-left px-4 py-3 text-lg font-bold uppercase text-[var(--text-muted)] tracking-wider border-b border-gray-800/50 flex items-center gap-3">
                         <item.icon size={24} />
                         {item.title}
                       </button>
@@ -218,7 +272,7 @@ export default function Header() {
                             <StyledLink
                               href={subLink.href}
                               onClick={handleMobileLinkClick}
-                              className="flex justify-between items-center w-full rounded-lg p-3 text-lg font-medium text-[var(--text-primary)] hover:bg-[var(--color-secondary)]"
+                              className="flex justify-between items-center w-full rounded-lg p-3 text-lg font-medium text-brand-light hover:bg-brand-secondary"
                             >
                               <span className="flex items-center gap-3">
                                 {subLink.icon && <subLink.icon size={24} />}{" "}
@@ -237,7 +291,7 @@ export default function Header() {
                     <StyledLink
                       href={item.href}
                       onClick={handleMobileLinkClick}
-                      className="block w-full rounded-lg p-4 text-xl font-bold text-[var(--text-primary)] hover:bg-[var(--color-secondary)] flex items-center gap-4"
+                      className="block w-full rounded-lg p-4 text-xl font-bold text-brand-light hover:bg-brand-secondary flex items-center gap-4"
                     >
                       <item.icon size={28} />
                       {item.title}
@@ -247,8 +301,6 @@ export default function Header() {
               ))}
             </ul>
           </nav>
-
-          {/* Utility Section in Mobile Menu */}
         </div>
       )}
     </>

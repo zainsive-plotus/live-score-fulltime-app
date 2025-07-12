@@ -1,42 +1,43 @@
-/* inter-regular - latin */
+/* ===== src/app/globals.css ===== */
+
 @font-face {
-  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
+  font-display: swap;
   font-family: "Inter";
   font-style: normal;
   font-weight: 400;
-  src: url("../../public/fonts/inter-v19-latin-regular.woff2") format("woff2"); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
+  src: url("../../public/fonts/inter-v19-latin-regular.woff2") format("woff2");
 }
-/* inter-500 - latin */
+
 @font-face {
-  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
+  font-display: swap;
   font-family: "Inter";
   font-style: normal;
   font-weight: 500;
-  src: url("../../public/fonts/inter-v19-latin-500.woff2") format("woff2"); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
+  src: url("../../public/fonts/inter-v19-latin-500.woff2") format("woff2");
 }
-/* inter-600 - latin */
+
 @font-face {
-  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
+  font-display: swap;
   font-family: "Inter";
   font-style: normal;
   font-weight: 600;
-  src: url("../../public/fonts/inter-v19-latin-600.woff2") format("woff2"); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
+  src: url("../../public/fonts/inter-v19-latin-600.woff2") format("woff2");
 }
-/* inter-700 - latin */
+
 @font-face {
-  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
+  font-display: swap;
   font-family: "Inter";
   font-style: normal;
   font-weight: 700;
-  src: url("../../public/fonts/inter-v19-latin-700.woff2") format("woff2"); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
+  src: url("../../public/fonts/inter-v19-latin-700.woff2") format("woff2");
 }
-/* inter-800 - latin */
+
 @font-face {
-  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
+  font-display: swap;
   font-family: "Inter";
   font-style: normal;
   font-weight: 800;
-  src: url("../../public/fonts/inter-v19-latin-800.woff2") format("woff2"); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
+  src: url("../../public/fonts/inter-v19-latin-800.woff2") format("woff2");
 }
 
 @import "tailwindcss";
@@ -48,46 +49,75 @@
 @import "slick-carousel/slick/slick.css";
 @import "slick-carousel/slick/slick-theme.css";
 
+/* ADDED: Keyframes and utility class for the bell ringing animation */
+@keyframes ring {
+  0% {
+    transform: rotate(0);
+  }
+  10% {
+    transform: rotate(14deg);
+  }
+  20% {
+    transform: rotate(-8deg);
+  }
+  30% {
+    transform: rotate(14deg);
+  }
+  40% {
+    transform: rotate(-4deg);
+  }
+  50% {
+    transform: rotate(10deg);
+  }
+  60% {
+    transform: rotate(0);
+  }
+  100% {
+    transform: rotate(0);
+  }
+}
+
+.animate-ring {
+  transform-origin: top center;
+  animation: ring 2s ease-in-out infinite;
+}
+
 .prose h2 {
-  color: #e0e0e0; /* text-brand-light or white, matching your theme */
-  font-size: 2.25rem; /* text-4xl equivalent */
-  font-weight: 800; /* font-extrabold equivalent */
-  margin-top: 2.5em; /* More space above */
-  margin-bottom: 1em; /* More space below */
-  border-bottom: 2px solid #ea591d; /* brand-purple color */
-  padding-bottom: 0.5rem; /* Space under the line */
+  color: #e0e0e0;
+  font-size: 2.25rem;
+  font-weight: 800;
+  margin-top: 2.5em;
+  margin-bottom: 1em;
+  border-bottom: 2px solid #ea591d;
+  padding-bottom: 0.5rem;
   line-height: 1.2;
 }
 
-/* Targeting H3 within a prose container */
 .prose h3 {
-  color: #e0e0e0; /* text-brand-light or white */
-  font-size: 1.75rem; /* text-3xl equivalent */
-  font-weight: 700; /* font-bold equivalent */
+  color: #e0e0e0;
+  font-size: 1.75rem;
+  font-weight: 700;
   margin-top: 2em;
   margin-bottom: 0.75em;
   line-height: 1.3;
 }
 
-/* Optional: If you're using prose-xl, you might want more aggressive styling */
-/* For example, if .prose-xl h2 needs to be even bigger */
 .prose-xl h2 {
-  font-size: 2.5rem; /* Even larger for prose-xl on large screens */
+  font-size: 2.5rem;
   margin-top: 3em;
   margin-bottom: 1.2em;
 }
 .prose-xl h3 {
-  font-size: 2rem; /* Even larger for prose-xl on large screens */
+  font-size: 2rem;
   margin-top: 2.5em;
   margin-bottom: 1em;
 }
 
-/* Ensure other prose elements like strong, em are not overridden by mistake if you added them */
 .prose strong {
-  color: #ffffff; /* Ensure bold is white */
+  color: #ffffff;
 }
 .prose em {
-  color: #e0e0e0; /* Ensure italic is brand-light */
+  color: #e0e0e0;
 }
 .prose ul,
 .prose ol {
@@ -95,34 +125,28 @@
   padding-left: 1.5em;
 }
 .prose ul > li::before {
-  background-color: #ea591d; /* Bullet color matching brand purple */
+  background-color: #ea591d;
 }
 .prose a {
-  color: #ea591d; /* Link color matching brand purple */
+  color: #ea591d;
   text-decoration: none;
 }
 .prose a:hover {
   text-decoration: underline;
 }
 
-/* @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'); */
-
-/* --- NEW: High-Contrast Orange & Black Color System --- */
 :root {
-  /* Core Layout Colors */
-  --color-background: #020202; /* Your deep black for the main background */
-  --color-primary: #1a1a1a; /* A slightly lighter black for primary containers */
-  --color-secondary: #2a2a2a; /* The lightest black for interactive cards */
+  --color-background: #020202;
+  --color-primary: #1a1a1a;
+  --color-secondary: #2a2a2a;
 
-  /* Text Colors */
-  --text-primary: #fffffd; /* Your bright white for key info */
-  --text-secondary: #e0e0e0; /* A slightly dimmer white for secondary text */
-  --text-muted: #9e9e9e; /* A muted gray for non-critical details */
+  --text-primary: #fffffd;
+  --text-secondary: #e0e0e0;
+  --text-muted: #9e9e9e;
 
-  /* Brand & Accent Colors */
-  --brand-accent: #ed5c19; /* Your vibrant orange for primary actions */
-  --brand-live: #ef4444; /* Red is still best for "live" indicators */
-  --brand-yellow: #fbbf24; /* A complementary yellow for highlights like odds */
+  --brand-accent: #ed5c19;
+  --brand-live: #ef4444;
+  --brand-yellow: #fbbf24;
 }
 
 body {
@@ -135,23 +159,20 @@ body {
   overflow-y: auto;
   scroll-behavior: smooth;
 
-  /* For Firefox */
   scrollbar-width: thin;
-  scrollbar-color: #393f47 transparent; /* thumb-color track-color */
+  scrollbar-color: #393f47 transparent;
 }
 
-/* For WebKit-based browsers (Chrome, Safari, Edge) 
-*/
 .custom-scrollbar::-webkit-scrollbar {
   width: 8px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background-color: #f3f4f6; /* Equivalent to track-gray-100 */
+  background-color: #f3f4f6;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: #1f2937; /* Equivalent to thumb-gray-800 */
+  background-color: #1f2937;
   border-radius: 10px;
 }
 .bg-brand-secondary {
@@ -162,27 +183,22 @@ body {
   background-color: #8b5cf6 !important;
 }
 
-/* 1. Define the animation's steps using @keyframes */
 @keyframes breathing-glow {
   0%,
   100% {
-    /* A subtle green glow at the start and end */
     box-shadow: 0 0 10px 0px rgba(52, 211, 153, 0.4);
     transform: scale(1);
   }
   50% {
-    /* A brighter, larger green glow in the middle of the animation */
     box-shadow: 0 0 25px 5px rgba(52, 211, 153, 0.7);
     transform: scale(1.05);
   }
 }
 
-/* 2. Create a reusable class that applies the animation */
 .animate-breathing-glow {
   animation: breathing-glow 2.5s ease-in-out infinite;
 }
 
-/* Style the content generated by Tiptap */
 .tiptap > * + * {
   margin-top: 0.75em;
 }
@@ -203,14 +219,14 @@ body {
 
 .tiptap code {
   background-color: rgba(255, 255, 255, 0.1);
-  color: #a1a1aa; /* zinc-400 */
+  color: #a1a1aa;
   padding: 0.2rem 0.4rem;
   border-radius: 0.25rem;
   font-size: 0.9em;
 }
 
 .tiptap pre {
-  background: #18181b; /* zinc-900 */
+  background: #18181b;
   color: #fff;
   font-family: "JetBrainsMono", "Courier New", Courier, monospace;
   padding: 0.75rem 1rem;
@@ -241,13 +257,9 @@ body {
 }
 
 .slick-dots li.slick-active div {
-  background-color: #8b5cf6; /* This is a Tailwind color for brand-purple */
+  background-color: #8b5cf6;
 }
 
-/* 
-  Custom NProgress styles to match your brand color.
-  This targets the bar and the "peg" (the little circle at the end).
-*/
 #nprogress .bar {
   background: var(--brand-accent) !important;
   height: 3px !important;
@@ -256,8 +268,6 @@ body {
   box-shadow: 0 0 10px var(--brand-accent), 0 0 5px var(--brand-accent) !important;
 }
 
-/* DEPRECATED: We will stop using these classes directly */
-/* .bg-brand-dark { background-color: var(--color-background); } */
 .bg-brand-secondary {
   background-color: var(--color-primary);
 }
@@ -268,7 +278,6 @@ body {
   color: var(--text-muted);
 }
 
-/* Add fade-in animation for mobile menu */
 @keyframes fade-in {
   from {
     opacity: 0;
