@@ -133,6 +133,11 @@ export default async function MatchDetailPage({
     awayTeam: awayTeam.name,
   });
 
+  console.log("analytics.homeTeamStats");
+  console.log(analytics.homeTeamStats);
+  console.log("analytics.awayTeamStats");
+  console.log(analytics.awayTeamStats);
+
   return (
     <div className="bg-brand-dark min-h-screen">
       <Header />

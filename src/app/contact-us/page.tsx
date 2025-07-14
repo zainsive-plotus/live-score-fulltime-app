@@ -7,24 +7,6 @@ import AdSlotWidget from "@/components/AdSlotWidget";
 import RecentNewsWidget from "@/components/RecentNewsWidget";
 import { getI18n } from "@/lib/i18n/server"; // <-- Import server helper
 
-// --- Metadata for the Contact Us page (Server-side) ---
-export const metadata: Metadata = {
-  title: "Contact Us | Fan Skor Destek",
-  description:
-    "Get in touch with Fanskor support team. Send us your questions, feedback, or inquiries through our contact form or find our contact details here.",
-  alternates: {
-    canonical: `/contact-us`,
-  },
-  openGraph: {
-    title: "Contact Us | Fan Skor Destek",
-    description:
-      "Get in touch with Fanskor support team. Send us your questions, feedback, or inquiries through our contact form or find our contact details here.",
-    url: `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/contact-us`,
-    siteName: "Fan Skor",
-    type: "website",
-  },
-};
-
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getI18n(); // <-- Get translations
   const pageTitle = t("contact_us_page_title");
