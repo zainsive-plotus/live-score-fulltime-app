@@ -9,8 +9,8 @@ import { getI18n } from "@/lib/i18n/server"; // <-- Import server helper
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getI18n(); // <-- Get translations
-  const pageTitle = t("contact_us_page_title");
-  const pageDescription = t("contact_us_page_description");
+  const pageTitle = `Bize Ulaşın | Fan Skor Destek`;
+  const pageDescription = `Fanskor destek ekibiyle iletişime geçin. Sorularınızı, geri bildirimlerinizi veya taleplerinizi iletişim formumuz aracılığıyla gönderin veya iletişim bilgilerimizi buradan bulun.`;
 
   return {
     title: pageTitle,

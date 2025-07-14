@@ -24,8 +24,8 @@ async function fetchFaqs(): Promise<IFaq[]> {
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getI18n();
   return {
-    title: t("faq_page_title"),
-    description: t("faq_page_description"),
+    title: `Sıkça Sorulan Sorular | Fanskor`,
+    description: `Fanskor hakkında sıkça sorulan soruların yanıtlarını bulun. Özelliklerimiz, verilerimiz ve platformumuzu etkili bir şekilde nasıl kullanacağınız hakkında bilgi edinin.`,
     alternates: {
       canonical: `/faq`,
     },

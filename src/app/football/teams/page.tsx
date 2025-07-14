@@ -32,8 +32,9 @@ const fetchPopularTeams = async () => {
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getI18n();
   return {
-    title: t("all_teams_page_title"),
-    description: t("all_teams_page_description"),
+    title: `Futbol Takımı Rehberi | Favori Kulübünüzü Bulun`,
+    // description: t("all_teams_page_description"),
+    description: `Dünya genelindeki popüler liglerden futbol takımlarının kapsamlı bir rehberine göz atın. Detaylı bilgi, kadrolar, fikstürler ve daha fazlasını bulun.`,
     alternates: {
       canonical: `/football/teams`,
     },

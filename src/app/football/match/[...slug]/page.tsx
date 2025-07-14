@@ -66,16 +66,9 @@ export async function generateMetadata({
 
   const homeTeamName = matchData.fixture.teams.home.name;
   const awayTeamName = matchData.fixture.teams.away.name;
-  const leagueName = matchData.fixture.league.name;
-  const pageTitle = t("match_page_title", {
-    homeTeam: homeTeamName,
-    awayTeam: awayTeamName,
-    leagueName: leagueName,
-  });
-  const pageDescription = t("match_page_description", {
-    homeTeam: homeTeamName,
-    awayTeam: awayTeamName,
-  });
+  // const leagueName = matchData.fixture.league.name;
+  const pageTitle = `${homeTeamName} vs ${awayTeamName}! Dünyayı kim şok edecek, kim çökecek? Ağızları açık bırakan goller, çılgın dramalar — sıradaki olaylara inanamayacaksınız!`;
+  const pageDescription = `${homeTeamName}, son haftalarda dikkat çekici galibiyetler ve sağlam savunma performanslarıyla bu maça güçlü bir formda geliyor. Saldırı hattı keskin, birçok fırsat yaratarak rakip hatalarından faydalanıyor. Bu arada, ${awayTeamName} de direncini gösterdi, erken aksaklıklardan geri döndü ve sıralamada istikrarlı bir şekilde yükselmeye başladı. Taraftarlar, her iki takımdan da yüksek enerji, agresif baskı ve yaratıcı oyunlar bekleyebilirler.`;
 
   const canonicalUrl = `/football/match/${slug}`;
   return {

@@ -444,5 +444,10 @@
   "bookmaker": "Casa de apuestas",
   "partner_casinos_title": "Casinos Asociados",
   "error_loading_partners": "Error al cargar socios.",
-  "no_active_partners": "No se encontraron socios activos."
+  "no_active_partners": "No se encontraron socios activos.",
+  "faq_title": "Preguntas Frecuentes",
+  "author_title": "Autor",
+  "report_abuse_title": "Denunciar Abuso",
+  "privacy_policy_title": "Política de Privacidad",
+  "terms_and_conditions_title": "Términos y Condiciones"
 }

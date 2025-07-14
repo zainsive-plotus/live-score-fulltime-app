@@ -34,8 +34,10 @@ const fetchAllLeaguesServer = async (): Promise<League[]> => {
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getI18n();
-  const pageTitle = t("all_leagues_page_title");
-  const pageDescription = t("all_leagues_page_description");
+  // const pageTitle = t("all_leagues_page_title");
+  const pageTitle = `Tüm Futbol Ligleri ve Kupalar | Favori Müsabakanızı Bulun`;
+  const pageDescription = `Dünya genelindeki futbol ligleri ve kupalarının kapsamlı bir listesini keşfedin. En iyi ligler ve uluslararası müsabakalar için detaylı bilgi, puan durumu, fikstür ve daha fazlasını bulun.`;
+  // const pageDescription = t("all_leagues_page_description");
   const canonicalUrl = `/football/leagues`;
 
   return {

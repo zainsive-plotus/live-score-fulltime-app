@@ -4,8 +4,8 @@ import TeamDetailView from "@/components/TeamDetailView";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { fetchTeamDetails } from "@/lib/data/team";
-import RecentNewsWidget from "@/components/RecentNewsWidget";
-import AdSlotWidget from "@/components/AdSlotWidget";
+// import RecentNewsWidget from "@/components/RecentNewsWidget";
+// import AdSlotWidget from "@/components/AdSlotWidget";
 import { getI18n } from "@/lib/i18n/server"; // <-- Import server helper
 
 const getTeamIdFromSlug = (slug: string): string | null => {
@@ -30,8 +30,8 @@ export async function generateMetadata({
   if (!teamData) return { title: t("not_found_title") };
 
   const { team } = teamData.teamInfo;
-  const pageTitle = t("team_page_title", { teamName: team.name });
-  const pageDescription = t("team_page_description", { teamName: team.name });
+  const pageTitle = `Fanskor | ${team.name} Oyuncular, Fikstürler ve Sıralamala`;
+  const pageDescription = `${team.name} için ayrıntılı istatistiklere, maç geçmişine, oyuncu bilgilerine ve lig sıralamalarına tek bir yerden, doğru ve hazır bir şekilde ulaşın.`;
 
   return {
     title: pageTitle,

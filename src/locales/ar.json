@@ -444,5 +444,10 @@
   "bookmaker": "شركة المراهنات",
   "partner_casinos_title": "كازينوهات الشركاء",
   "error_loading_partners": "فشل تحميل الشركاء.",
-  "no_active_partners": "لم يتم العثور على شركاء نشطين."
+  "no_active_partners": "لم يتم العثور على شركاء نشطين.",
+  "faq_title": "الأسئلة الشائعة",
+  "author_title": "المؤلف",
+  "report_abuse_title": "الإبلاغ عن إساءة",
+  "privacy_policy_title": "سياسة الخصوصية",
+  "terms_and_conditions_title": "الشروط والأحكام"
 }

@@ -444,5 +444,10 @@
   "bookmaker": "Bahis Şirketi",
   "partner_casinos_title": "Ortak Casinolar",
   "error_loading_partners": "Ortaklar yüklenemedi.",
-  "no_active_partners": "Aktif ortak bulunamadı."
+  "no_active_partners": "Aktif ortak bulunamadı.",
+  "faq_title": "SSS",
+  "author_title": "Yazar",
+  "report_abuse_title": "Kötüye Kullanımı Bildir",
+  "privacy_policy_title": "Gizlilik Politikası",
+  "terms_and_conditions_title": "Şartlar ve Koşullar"
 }

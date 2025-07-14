@@ -444,5 +444,10 @@
   "bookmaker": "Bookmaker",
   "partner_casinos_title": "Partner Casinos",
   "error_loading_partners": "Failed to load partners.",
-  "no_active_partners": "No active partners found."
+  "no_active_partners": "No active partners found.",
+  "faq_title": "FAQ",
+  "author_title": "Author",
+  "report_abuse_title": "Report Abuse",
+  "privacy_policy_title": "Privacy Policy",
+  "terms_and_conditions_title": "Terms and Conditions"
 }

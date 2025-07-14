@@ -74,18 +74,18 @@ export async function generateMetadata({
   }
 
   const { league, country } = leagueData;
-  const pageTitle = t("league_page_title", {
-    leagueName: league.name,
-    countryName: country.name,
-  });
-  const pageDescription = t("league_page_description", {
-    leagueName: league.name,
-    countryName: country.name,
-  });
+  // const pageTitle = t("league_page_title", {
+  //   leagueName: league.name,
+  //   countryName: country.name,
+  // });
+  // const pageDescription = t("league_page_description", {
+  //   leagueName: league.name,
+  //   countryName: country.name,
+  // });
 
   return {
-    title: pageTitle,
-    description: pageDescription,
+    title: `${league.name} (${country.name}) - Fikstürler, Puan Durumu ve Haberler`,
+    description: `${league.name} ligini keşfedin: ${country.name} bölgesindeki en iyi futbol ligi için en son fikstürleri, sonuçları, detaylı puan durumlarını ve haberleri alın.`,
     alternates: {
       canonical: `/football/league/${slug}`,
     },
