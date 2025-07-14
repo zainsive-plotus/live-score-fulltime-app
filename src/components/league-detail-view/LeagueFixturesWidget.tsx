@@ -1,4 +1,3 @@
-// src/components/league-detail-view/LeagueFixturesWidget.tsx
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
@@ -6,14 +5,16 @@ import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
-import { format } from "date-fns";
-import { Calendar, Info, Loader2 } from "lucide-react";
+import { format, Locale } from "date-fns";
+import { enUS, tr, de, fr, es, ar } from "date-fns/locale"; // <-- Import locales
+import { Calendar, Info } from "lucide-react";
 import MatchListItem, { MatchListItemSkeleton } from "../MatchListItem";
 import { useTranslation } from "@/hooks/useTranslation";
 
 type FixtureView = "upcoming" | "today" | "date";
 
-// Fetcher function (unchanged)
+const dateLocales: Record<string, Locale> = { en: enUS, tr, de, fr, es, ar };
+
 const fetchFixtures = async (params: {
   leagueId: number;
   upcoming?: boolean;
@@ -22,7 +23,8 @@ const fetchFixtures = async (params: {
   const queryParams = new URLSearchParams({
     league: params.leagueId.toString(),
   });
-  if (params.upcoming) queryParams.set("upcoming", "true");
+  // The API doesn't have an 'upcoming' param, we handle this logic in MatchList
+  // For simplicity here, we can just fetch for a specific date or default to today
   if (params.date) queryParams.set("date", params.date);
   const { data } = await axios.get(`/api/fixtures?${queryParams.toString()}`);
   return data;
@@ -35,23 +37,22 @@ export default function LeagueFixturesWidget({
   leagueId: number;
   season: number;
 }) {
-  const [view, setView] = useState<FixtureView>("upcoming");
+  const [view, setView] = useState<FixtureView>("today");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const calendarRef = useRef<HTMLDivElement>(null);
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
 
   const queryParams = useMemo(() => {
     const baseParams = { leagueId, season };
     switch (view) {
-      case "upcoming":
-        return { ...baseParams, upcoming: true };
       case "today":
         return { ...baseParams, date: format(new Date(), "yyyy-MM-dd") };
       case "date":
         return { ...baseParams, date: format(selectedDate, "yyyy-MM-dd") };
+      // Fallback for upcoming or other views if needed in future
       default:
-        return { ...baseParams, upcoming: true };
+        return { ...baseParams, date: format(new Date(), "yyyy-MM-dd") };
     }
   }, [view, leagueId, season, selectedDate]);
 
@@ -88,25 +89,19 @@ export default function LeagueFixturesWidget({
   };
 
   const renderDateButtonText = () => {
-    if (view === "date") return format(selectedDate, "do MMM");
-    return "Select Date";
+    const currentLocale = dateLocales[locale] || enUS;
+    if (view === "date")
+      return format(selectedDate, "do MMM", { locale: currentLocale });
+    return t("select_date");
   };
+
+  const currentLocale = dateLocales[locale] || enUS;
 
   return (
     <div className="bg-brand-secondary rounded-xl">
       <div className="flex justify-between items-center p-4 border-b border-gray-700/50">
         <h3 className="text-xl font-bold text-white">{t("fixtures")}</h3>
         <div className="flex items-center gap-1 bg-[var(--color-primary)] p-1 rounded-lg">
-          <button
-            onClick={() => setView("upcoming")}
-            className={`px-3 py-1 text-sm rounded-md font-semibold transition-colors ${
-              view === "upcoming"
-                ? "bg-[var(--brand-accent)] text-white"
-                : "text-text-muted hover:bg-gray-700"
-            }`}
-          >
-            {t("upcoming")}
-          </button>
           <button
             onClick={() => setView("today")}
             className={`px-3 py-1 text-sm rounded-md font-semibold transition-colors ${
@@ -120,7 +115,7 @@ export default function LeagueFixturesWidget({
           <div className="relative" ref={calendarRef}>
             <button
               onClick={() => setIsCalendarOpen(!isCalendarOpen)}
-              className={`flex items-center gap-1.5 px-3 py-1 text-sm rounded-md font-semibold transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-1 text-sm rounded-md font-semibold transition-colors capitalize ${
                 view === "date"
                   ? "bg-[var(--brand-accent)] text-white"
                   : "text-text-muted hover:bg-gray-700"
@@ -130,8 +125,6 @@ export default function LeagueFixturesWidget({
               {renderDateButtonText()}
             </button>
             {isCalendarOpen && (
-              // --- THIS IS THE FIX ---
-              // Added `bg-brand-dark` to make the pop-up opaque.
               <div className="absolute top-full right-0 mt-2 z-20 bg-brand-dark border border-gray-700 rounded-lg shadow-lg">
                 <DayPicker
                   mode="single"
@@ -139,6 +132,7 @@ export default function LeagueFixturesWidget({
                   onSelect={handleDateSelect}
                   className="text-white"
                   initialFocus
+                  locale={currentLocale}
                 />
               </div>
             )}

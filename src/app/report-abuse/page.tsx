@@ -1,17 +1,15 @@
-// src/app/report-abuse/page.tsx
 import type { Metadata } from "next";
 import axios from "axios";
 import { notFound } from "next/navigation";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import { AlertTriangle } from "lucide-react";
-import CasinoPartnerWidget from "@/components/CasinoPartnerWidget";
-import AdSlotWidget from "@/components/AdSlotWidget";
 import RecentNewsWidget from "@/components/RecentNewsWidget";
+import AdSlotWidget from "@/components/AdSlotWidget";
+import { getI18n } from "@/lib/i18n/server"; // <-- Import server helper
 
 const PAGE_SLUG = "report-abuse";
 
-// --- Server-side data fetching function ---
 async function getPageContent() {
   try {
     const response = await axios.get(
@@ -19,41 +17,36 @@ async function getPageContent() {
     );
     return response.data;
   } catch (error) {
-    console.error(`[Page/${PAGE_SLUG}] Failed to fetch page content:`, error);
-    return null; // Return null on error to handle it gracefully
+    console.error("Failed to fetch Report Abuse page content:", error);
+    return null;
   }
 }
 
-// --- Dynamic SEO Metadata ---
 export async function generateMetadata(): Promise<Metadata> {
+  const t = await getI18n();
   const pageContent = await getPageContent();
 
-  // Provide default metadata if the page content isn't found
-  if (!pageContent || !pageContent.title) {
-    return {
-      title: "İstismarı Bildir | Fan Skor Güvenliği",
-      description:
-        "Fan Skor’da bir sorun mu yaşadınız? Hemen İstismarı Bildir ve bize yardımcı olun!",
-    };
-  }
+  const title = pageContent?.title
+    ? t("dynamic_page_title", { title: pageContent.title })
+    : t("report_abuse_default_page_title");
+
+  const description = pageContent?.content
+    ? pageContent.content.replace(/<[^>]*>?/gm, "").substring(0, 160)
+    : t("report_abuse_default_page_description");
 
   return {
-    title: `${pageContent.title}`,
-    description: pageContent.content
-      .replace(/<[^>]*>?/gm, "")
-      .substring(0, 160),
+    title: title,
+    description: description,
     alternates: {
       canonical: `/${PAGE_SLUG}`,
     },
   };
 }
 
-// --- The Main Page Component ---
 export default async function ReportAbusePage() {
   const pageContent = await getPageContent();
 
-  // If no content is found in the database for this slug, show a 404 page.
-  if (!pageContent) {
+  if (!pageContent || !pageContent.content) {
     notFound();
   }
 
@@ -74,7 +67,6 @@ export default async function ReportAbusePage() {
               </h1>
             </div>
 
-            {/* Render the HTML content from the database */}
             <div
               className="prose prose-invert lg:prose-xl max-w-none text-text-secondary"
               dangerouslySetInnerHTML={{ __html: pageContent.content }}
@@ -83,7 +75,6 @@ export default async function ReportAbusePage() {
         </main>
 
         <aside className="hidden lg:block lg:col-span-1 space-y-8 min-w-0">
-          {/* <CasinoPartnerWidget /> */}
           <RecentNewsWidget />
           <AdSlotWidget location="homepage_right_sidebar" />
         </aside>

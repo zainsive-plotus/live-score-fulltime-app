@@ -1,4 +1,3 @@
-// src/components/match/MatchHeader.tsx
 "use client";
 
 import Image from "next/image";
@@ -17,8 +16,8 @@ import Link from "next/link";
 import { proxyImageUrl } from "@/lib/image-proxy";
 import { generateLeagueSlug } from "@/lib/generate-league-slug";
 import { generateTeamSlug } from "@/lib/generate-team-slug";
+import { useTranslation } from "@/hooks/useTranslation"; // <-- Import hook
 
-// --- TYPE DEFINITIONS ---
 interface Team {
   id: number;
   name: string;
@@ -48,7 +47,6 @@ interface MatchHeaderProps {
   analytics: any;
 }
 
-// --- Compact StatPill Component (Unchanged) ---
 const StatPill = ({
   icon: Icon,
   value,
@@ -66,23 +64,36 @@ const StatPill = ({
   </div>
 );
 
-// --- ENHANCED Prediction Result Widget ---
+// This sub-component now gets the 't' function passed down
 const PredictionResultWidget = ({
   result,
   teams,
+  t,
 }: {
   result: any;
   teams: { home: Team; away: Team };
+  t: (key: string, params?: any) => string;
 }) => {
   if (!result.predictedOutcome) {
     return (
       <div className="text-center text-xs text-text-muted py-4">
-        Prediction data not available.
+        {t("prediction_data_unavailable")}
       </div>
     );
   }
 
-  // --- State 1: Upcoming Match ---
+  const outcomeTranslations: Record<string, string> = {
+    "Home Win": t("outcome_home_win"),
+    "Away Win": t("outcome_away_win"),
+    Draw: t("outcome_draw"),
+  };
+
+  const predictedOutcomeText =
+    outcomeTranslations[result.predictedOutcome] || result.predictedOutcome;
+  const actualOutcomeText = result.actualOutcome
+    ? outcomeTranslations[result.actualOutcome] || result.actualOutcome
+    : null;
+
   if (!result.isFinished) {
     const predictedTeam =
       result.predictedOutcome === "Home Win"
@@ -93,7 +104,7 @@ const PredictionResultWidget = ({
     return (
       <div className="w-full space-y-2 bg-[var(--brand-accent)]/5 p-3 rounded-lg text-center border border-[var(--brand-accent)]/20">
         <h4 className="text-xs font-bold text-[var(--brand-accent)] uppercase tracking-wider flex items-center justify-center gap-1.5">
-          <Sparkles size={14} /> Fanskor Prediction
+          <Sparkles size={14} /> {t("fanskor_prediction")}
         </h4>
         <div className="flex items-center justify-center gap-2">
           {predictedTeam && (
@@ -105,17 +116,16 @@ const PredictionResultWidget = ({
             />
           )}
           <p className="text-lg font-black text-white">
-            {result.predictedOutcome}
+            {predictedOutcomeText}
           </p>
         </div>
         <p className="text-sm font-semibold text-text-muted">
-          {result.confidence}% Confidence
+          {t("confidence_percent", { confidence: result.confidence })}
         </p>
       </div>
     );
   }
 
-  // --- State 2: Finished Match ---
   const wasCorrect = result.actualOutcome === result.predictedOutcome;
   const bgColor = wasCorrect ? "bg-green-500/10" : "bg-red-500/10";
   const textColor = wasCorrect ? "text-green-400" : "text-red-400";
@@ -127,20 +137,19 @@ const PredictionResultWidget = ({
         className={`text-xs font-bold ${textColor} uppercase tracking-wider flex items-center justify-center gap-1.5`}
       >
         <Icon size={14} />{" "}
-        {wasCorrect ? "Prediction Hit!" : "Prediction Missed"}
+        {wasCorrect ? t("prediction_hit") : t("prediction_missed")}
       </h4>
       {wasCorrect ? (
-        <p className="text-lg font-black text-white">
-          {result.predictedOutcome}
-        </p>
+        <p className="text-lg font-black text-white">{predictedOutcomeText}</p>
       ) : (
         <div className="text-sm text-white">
           <p>
-            Predicted:{" "}
-            <span className="font-bold">{result.predictedOutcome}</span>
+            {t("predicted_label")}:{" "}
+            <span className="font-bold">{predictedOutcomeText}</span>
           </p>
           <p className={`${textColor}`}>
-            Actual: <span className="font-bold">{result.actualOutcome}</span>
+            {t("actual_label")}:{" "}
+            <span className="font-bold">{actualOutcomeText}</span>
           </p>
         </div>
       )}
@@ -148,12 +157,13 @@ const PredictionResultWidget = ({
   );
 };
 
-// --- MAIN COMPONENT ---
 export const MatchHeader: React.FC<MatchHeaderProps> = ({
   fixture,
   analytics,
 }) => {
+  const { t } = useTranslation(); // Use hook in the main component
   const { teams, league, fixture: fixtureDetails, goals, score } = fixture;
+
   const isLive = useMemo(
     () =>
       ["1H", "HT", "2H", "ET", "BT", "P", "LIVE"].includes(
@@ -165,15 +175,13 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({
     () => ["FT", "AET", "PEN"].includes(fixtureDetails.status.short),
     [fixtureDetails.status.short]
   );
+
   const finalScoreHome = score?.fulltime?.home ?? goals?.home;
   const finalScoreAway = score?.fulltime?.away ?? goals?.away;
 
-  // --- All Data Calculation in a single useMemo for efficiency ---
   const { homeStrength, awayStrength, predictionResult } = useMemo(() => {
     const homeStats = analytics?.homeTeamStats;
     const awayStats = analytics?.awayTeamStats;
-
-    // --- BUG FIX: Safely access nested properties ---
     const calcRating = (stats: any) => {
       const avgFor = stats?.goals?.for?.average?.total ?? "1.0";
       const avgAgainst = stats?.goals?.against?.average?.total ?? "1.0";
@@ -182,7 +190,6 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({
         defense: Math.min(10, (1.5 / parseFloat(avgAgainst)) * 10).toFixed(1),
       };
     };
-
     const pred = analytics?.customPrediction;
     let result = {
       isFinished,
@@ -190,26 +197,21 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({
       confidence: 0,
       actualOutcome: null,
     };
-
     if (pred) {
       const maxConfidence = Math.max(pred.home, pred.draw, pred.away);
       let predictedOutcome: "Home Win" | "Draw" | "Away Win" = "Draw";
       if (maxConfidence === pred.home) predictedOutcome = "Home Win";
       if (maxConfidence === pred.away) predictedOutcome = "Away Win";
-      // @ts-ignore
       result.predictedOutcome = predictedOutcome;
       result.confidence = maxConfidence;
     }
-
     if (isFinished) {
-      // @ts-ignore
       result.actualOutcome = teams.home.winner
         ? "Home Win"
         : teams.away.winner
         ? "Away Win"
         : "Draw";
     }
-
     return {
       homeStrength: calcRating(homeStats),
       awayStrength: calcRating(awayStats),
@@ -247,7 +249,6 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({
       </div>
 
       <div className="grid grid-cols-3 items-center p-4 md:p-6 gap-2 md:gap-4">
-        {/* HOME TEAM */}
         <div className="flex flex-col items-center justify-start text-center gap-3">
           <Link href={generateTeamSlug(teams.home.name, teams.home.id)}>
             <Image
@@ -277,7 +278,6 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({
           )}
         </div>
 
-        {/* CENTER COLUMN: SCORE & PREDICTION */}
         <div className="flex flex-col items-center justify-center text-center gap-4">
           <span className="text-4xl md:text-5xl font-black text-white">
             {finalScoreHome ?? "?"} - {finalScoreAway ?? "?"}
@@ -292,10 +292,13 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({
             {fixtureDetails.status.long}{" "}
             {isLive && `(${fixtureDetails.status.elapsed}')`}
           </span>
-          <PredictionResultWidget result={predictionResult} teams={teams} />
+          <PredictionResultWidget
+            result={predictionResult}
+            teams={teams}
+            t={t}
+          />
         </div>
 
-        {/* AWAY TEAM */}
         <div className="flex flex-col items-center justify-start text-center gap-3">
           <Link href={generateTeamSlug(teams.away.name, teams.away.id)}>
             <Image

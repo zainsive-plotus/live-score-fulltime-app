@@ -1,4 +1,3 @@
-// src/components/league-detail-view/LeagueStandingsWidget.tsx
 "use client";
 
 import Image from "next/image";
@@ -6,13 +5,14 @@ import { proxyImageUrl } from "@/lib/image-proxy";
 import StyledLink from "@/components/StyledLink";
 import { Info } from "lucide-react";
 import { generateTeamSlug } from "@/lib/generate-team-slug";
+import { useTranslation } from "@/hooks/useTranslation"; // <-- Import hook
 
-// Type definitions remain the same
 interface TeamStanding {
   rank: number;
   team: { id: number; name: string; logo: string };
   points: number;
   all: { played: number };
+  goalsDiff: number; // Added for translation
   description: string | null;
 }
 interface League {
@@ -26,7 +26,6 @@ interface LeagueStandingsWidgetProps {
   league: League;
 }
 
-// --- ENHANCED COLORING HELPER ---
 const getRankIndicatorClass = (description: string | null): string => {
   if (!description) return "bg-gray-700 text-text-secondary";
   const desc = description.toLowerCase();
@@ -43,6 +42,7 @@ export default function LeagueStandingsWidget({
   standings,
   league,
 }: LeagueStandingsWidgetProps) {
+  const { t } = useTranslation(); // <-- Use hook
   const mainStandings = standings?.[0] || [];
 
   if (mainStandings.length === 0) {
@@ -50,7 +50,7 @@ export default function LeagueStandingsWidget({
       <div className="bg-brand-secondary p-4 rounded-lg text-center h-full flex flex-col justify-center">
         <Info size={28} className="mx-auto text-text-muted mb-2" />
         <p className="text-text-light font-semibold text-sm">
-          Standings not available.
+          {t("standings_not_available")}
         </p>
       </div>
     );
@@ -59,20 +59,29 @@ export default function LeagueStandingsWidget({
   return (
     <div className="bg-brand-secondary rounded-lg h-full flex flex-col">
       <div className="p-4 border-b border-gray-700/50">
-        <h3 className="text-lg font-bold text-white">League Standings</h3>
+        <h3 className="text-lg font-bold text-white">
+          {t("league_standings")}
+        </h3>
       </div>
 
-      {/* Table container for layout */}
       <div className="flex-grow overflow-hidden">
-        {/* --- STICKY HEADER & SCROLLABLE BODY --- */}
         <div className="h-full overflow-y-auto custom-scrollbar">
           <table className="w-full text-sm border-separate border-spacing-0">
             <thead className="text-left text-text-muted sticky top-0 bg-brand-secondary z-10">
               <tr className="text-xs uppercase">
-                <th className="p-2 w-8 text-center font-semibold">#</th>
-                <th className="p-2 font-semibold">Team</th>
-                <th className="p-2 text-center font-semibold">P</th>
-                <th className="p-2 text-center font-bold">Pts</th>
+                <th className="p-2 w-8 text-center font-semibold">
+                  {t("table_header_rank_short")}
+                </th>
+                <th className="p-2 font-semibold">{t("table_header_team")}</th>
+                <th className="p-2 text-center font-semibold">
+                  {t("table_header_played_short")}
+                </th>
+                <th className="p-2 text-center font-semibold">
+                  {t("table_header_goaldiff_short")}
+                </th>
+                <th className="p-2 text-center font-bold">
+                  {t("table_header_points_short")}
+                </th>
               </tr>
             </thead>
             <tbody className="text-brand-light">
@@ -108,6 +117,9 @@ export default function LeagueStandingsWidget({
                   </td>
                   <td className="p-2 text-center text-text-muted border-t border-gray-700/50">
                     {item.all.played}
+                  </td>
+                  <td className="p-2 text-center text-text-muted border-t border-gray-700/50">
+                    {item.goalsDiff}
                   </td>
                   <td className="p-2 text-center font-bold text-white border-t border-gray-700/50">
                     {item.points}

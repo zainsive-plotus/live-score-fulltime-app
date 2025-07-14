@@ -1,4 +1,3 @@
-// ===== src/components/NotificationList.tsx =====
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
@@ -6,6 +5,7 @@ import axios from "axios";
 import { IPost } from "@/models/Post";
 import NotificationItem from "./NotificationItem";
 import { BellOff } from "lucide-react";
+import { useTranslation } from "@/hooks/useTranslation"; // <-- Import hook
 
 const Skeleton = () => (
   <div className="flex items-start gap-4 p-3 animate-pulse">
@@ -29,6 +29,8 @@ const fetchLatestPosts = async (): Promise<IPost[]> => {
 export default function NotificationList({
   onItemClick,
 }: NotificationListProps) {
+  const { t } = useTranslation(); // <-- Use hook
+
   const {
     data: posts,
     isLoading,
@@ -36,7 +38,7 @@ export default function NotificationList({
   } = useQuery<IPost[]>({
     queryKey: ["latestPostsForNotifications"],
     queryFn: fetchLatestPosts,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5,
   });
 
   if (isLoading) {
@@ -53,7 +55,8 @@ export default function NotificationList({
     return (
       <div className="text-center py-10 text-brand-muted">
         <BellOff size={32} className="mx-auto mb-3" />
-        <p className="text-sm">No new notifications.</p>
+        <p className="text-sm">{t("no_new_notifications")}</p>{" "}
+        {/* <-- Translate message */}
       </div>
     );
   }
@@ -62,7 +65,7 @@ export default function NotificationList({
     <div className="space-y-1">
       {posts.map((post) => (
         <NotificationItem
-          key={post._id}
+          key={post._id as string}
           post={post}
           onItemClick={onItemClick}
         />

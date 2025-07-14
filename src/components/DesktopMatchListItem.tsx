@@ -1,4 +1,3 @@
-// src/components/DesktopMatchListItem.tsx
 "use client";
 
 import { useState, useMemo } from "react";
@@ -17,8 +16,8 @@ import {
 } from "lucide-react";
 import { generateMatchSlug } from "@/lib/generate-match-slug";
 import { proxyImageUrl } from "@/lib/image-proxy";
+import { useTranslation } from "@/hooks/useTranslation"; // <-- Import hook
 
-// Type Definition & Fetcher (Unchanged)
 type Odds = { home: string; draw: string; away: string } | undefined | null;
 const fetchFanskorOdds = async (fixtureId: number): Promise<Odds | null> => {
   try {
@@ -45,17 +44,16 @@ export default function DesktopMatchListItem({
   isLive,
 }: DesktopMatchListItemProps) {
   const { fixture, teams, goals } = match;
+  const { t } = useTranslation(); // <-- Use hook
   const slug = generateMatchSlug(teams.home, teams.away, fixture.id);
   const isFinished = ["FT", "AET", "PEN"].includes(fixture.status.short);
 
-  // --- THIS IS THE FIX ---
-  // The state variable is named 'showResult', so we must use it consistently.
   const [showResult, setShowResult] = useState(false);
 
   const { data: customOdds, isLoading } = useQuery({
     queryKey: ["customOdds", fixture.id],
     queryFn: () => fetchFanskorOdds(fixture.id),
-    enabled: showResult, // Use the correct state variable here
+    enabled: showResult,
     staleTime: Infinity,
     refetchOnWindowFocus: false,
   });
@@ -124,7 +122,6 @@ export default function DesktopMatchListItem({
         href={`/football/match/${slug}`}
         className="flex flex-1 items-center min-w-0"
       >
-        {/* Left side content (status, teams, score) is unchanged */}
         <div className="w-16 flex-shrink-0 text-center text-sm font-semibold">
           {isLive ? (
             <div className="flex items-center justify-center gap-1.5 text-green-400">
@@ -132,7 +129,7 @@ export default function DesktopMatchListItem({
               <span>{fixture.status.elapsed}'</span>
             </div>
           ) : isFinished ? (
-            <div className="text-text-muted">FT</div>
+            <div className="text-text-muted">{t("ft_short")}</div>
           ) : (
             <div className="text-text-primary">
               {format(new Date(fixture.date), "HH:mm")}
@@ -181,11 +178,12 @@ export default function DesktopMatchListItem({
                 onClick={() => setShowResult(true)}
                 className="flex items-center justify-center gap-2 w-full text-sm font-semibold bg-[var(--color-primary)] border border-[var(--text-muted)]/20 text-text-muted hover:bg-[var(--text-muted)] hover:text-black rounded-md p-2.5 transition-all duration-200"
               >
-                <History size={16} /> See Prediction Result
+                <History size={16} /> {t("see_prediction_result")}
               </button>
             ) : isLoading ? (
               <div className="flex justify-center items-center gap-2 text-sm font-semibold text-text-muted p-2.5">
-                <Loader2 size={16} className="animate-spin" /> Loading Result...
+                <Loader2 size={16} className="animate-spin" />{" "}
+                {t("loading_result")}
               </div>
             ) : customOdds ? (
               <div
@@ -201,47 +199,51 @@ export default function DesktopMatchListItem({
                   <XCircle size={18} />
                 )}
                 <span>
-                  Predicted: {predictedOutcome} ({lowestOddValue})
+                  {t("predicted_result", {
+                    outcome: predictedOutcome,
+                    odds: lowestOddValue,
+                  })}
                 </span>
               </div>
             ) : (
               <span className="text-xs text-text-muted font-semibold">
-                Prediction data not available.
+                {t("prediction_data_unavailable")}
               </span>
             )
-          ) : !showResult ? ( // Use showResult here
+          ) : !showResult ? (
             <button
               onClick={() => setShowResult(true)}
               className="flex items-center justify-center gap-2 w-full text-sm font-semibold bg-[var(--brand-accent)]/10 border border-[var(--brand-accent)]/50 text-[var(--brand-accent)] hover:bg-[var(--brand-accent)] hover:text-white rounded-md p-2.5 transition-all duration-200"
             >
               <TrendingUp size={16} />
-              Odds
+              {t("show_odds")}
             </button>
           ) : isLoading ? (
             <div className="flex justify-center items-center gap-2 text-sm font-semibold text-text-muted p-2.5">
-              <Loader2 size={16} className="animate-spin" /> Calculating...
+              <Loader2 size={16} className="animate-spin" />{" "}
+              {t("calculating_odds")}
             </div>
           ) : customOdds ? (
             <div className="flex items-center justify-around gap-1">
               <CustomOddBox
                 value={customOdds.home}
-                label="1"
+                label={t("odd_label_home")}
                 isFavorite={predictedOutcome === "Home"}
               />
               <CustomOddBox
                 value={customOdds.draw}
-                label="X"
+                label={t("odd_label_draw")}
                 isFavorite={predictedOutcome === "Draw"}
               />
               <CustomOddBox
                 value={customOdds.away}
-                label="2"
+                label={t("odd_label_away")}
                 isFavorite={predictedOutcome === "Away"}
               />
             </div>
           ) : (
             <span className="text-xs text-text-muted font-semibold">
-              Odds not available.
+              {t("odds_unavailable")}
             </span>
           )}
         </div>

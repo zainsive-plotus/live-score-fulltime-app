@@ -1,16 +1,14 @@
-// src/components/team/TeamSquadWidget.tsx
 "use client";
 
 import { useState, useMemo } from "react";
 import Image from "next/image";
 import { proxyImageUrl } from "@/lib/image-proxy";
 import { Users, Shield, Zap, Goal, UserCircle } from "lucide-react";
+import { useTranslation } from "@/hooks/useTranslation"; // <-- Import hook
 
-// --- NEW: Player Card Component ---
 const PlayerCard = ({ player }: { player: any }) => {
   return (
     <div className="bg-[var(--color-primary)] rounded-lg overflow-hidden group relative transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl hover:shadow-[var(--brand-accent)]/20">
-      {/* Player Number */}
       <span className="absolute top-2 right-2 text-4xl font-black text-white/10 group-hover:text-white/20 transition-colors duration-300">
         {player.number || "N/A"}
       </span>
@@ -31,7 +29,6 @@ const PlayerCard = ({ player }: { player: any }) => {
         <p className="text-sm text-text-muted">{player.position}</p>
       </div>
 
-      {/* Stats Footer */}
       <div className="bg-black/20 p-2 grid grid-cols-2 gap-2 text-center text-xs">
         <div className="text-text-secondary">
           <strong className="text-white">{player.age}</strong> years
@@ -44,9 +41,9 @@ const PlayerCard = ({ player }: { player: any }) => {
   );
 };
 
-// --- Main Enhanced Widget ---
 export default function TeamSquadWidget({ squad }: { squad: any[] }) {
   const [filter, setFilter] = useState("All");
+  const { t } = useTranslation(); // <-- Use hook
 
   const filteredSquad = useMemo(() => {
     if (filter === "All") return squad;
@@ -63,39 +60,42 @@ export default function TeamSquadWidget({ squad }: { squad: any[] }) {
   }, [squad]);
 
   const filterButtons = [
-    { label: "All", icon: Users },
-    { label: "Goalkeeper", icon: UserCircle },
-    { label: "Defender", icon: Shield },
-    { label: "Midfielder", icon: Zap },
-    { label: "Attacker", icon: Goal },
+    { label: t("filter_all"), value: "All", icon: Users },
+    {
+      label: t("squad_filter_goalkeeper"),
+      value: "Goalkeeper",
+      icon: UserCircle,
+    },
+    { label: t("squad_filter_defender"), value: "Defender", icon: Shield },
+    { label: t("squad_filter_midfielder"), value: "Midfielder", icon: Zap },
+    { label: t("squad_filter_attacker"), value: "Attacker", icon: Goal },
   ];
 
   return (
     <div className="bg-brand-secondary rounded-lg p-4 md:p-6">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <Users size={22} /> Full Squad
+          <Users size={22} /> {t("full_squad")}
         </h2>
         <div className="flex items-center gap-4">
           <div className="text-right">
-            <p className="text-xs text-text-muted">Total Players</p>
+            <p className="text-xs text-text-muted">{t("total_players")}</p>
             <p className="font-bold text-white">{squadSummary.count}</p>
           </div>
           <div className="text-right">
-            <p className="text-xs text-text-muted">Average Age</p>
+            <p className="text-xs text-text-muted">{t("average_age")}</p>
             <p className="font-bold text-white">{squadSummary.avgAge}</p>
           </div>
         </div>
       </div>
 
-      {/* --- NEW: Filter Controls --- */}
       <div className="flex flex-wrap items-center gap-2 p-1 rounded-lg bg-[var(--color-primary)] mb-6">
-        {filterButtons.map(({ label, icon: Icon }) => (
+        {filterButtons.map(({ label, value, icon: Icon }) => (
           <button
-            key={label}
-            onClick={() => setFilter(label)}
+            key={value}
+            onClick={() => setFilter(value)}
             className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-sm font-semibold transition-colors ${
-              filter === label
+              filter === value
                 ? "bg-[var(--brand-accent)] text-white"
                 : "text-text-muted hover:bg-gray-700/50"
             }`}
@@ -106,7 +106,6 @@ export default function TeamSquadWidget({ squad }: { squad: any[] }) {
         ))}
       </div>
 
-      {/* --- NEW: Grid of Player Cards --- */}
       {squad && squad.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredSquad.map((player) => (
@@ -115,7 +114,7 @@ export default function TeamSquadWidget({ squad }: { squad: any[] }) {
         </div>
       ) : (
         <p className="text-center py-8 text-text-muted">
-          Squad information is not available.
+          {t("squad_info_unavailable")}
         </p>
       )}
     </div>

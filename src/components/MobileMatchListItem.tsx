@@ -1,4 +1,3 @@
-// src/components/MobileMatchListItem.tsx
 "use client";
 
 import { useState, useMemo } from "react";
@@ -17,8 +16,8 @@ import {
 } from "lucide-react";
 import { generateMatchSlug } from "@/lib/generate-match-slug";
 import { proxyImageUrl } from "@/lib/image-proxy";
+import { useTranslation } from "@/hooks/useTranslation"; // <-- Import hook
 
-// Type & Fetcher (Unchanged)
 type Odds = { home: string; draw: string; away: string } | undefined | null;
 const fetchFanskorOdds = async (fixtureId: number): Promise<Odds | null> => {
   try {
@@ -35,7 +34,6 @@ const fetchFanskorOdds = async (fixtureId: number): Promise<Odds | null> => {
   }
 };
 
-// TeamRow Sub-component (Unchanged)
 const TeamRow = ({
   team,
   score,
@@ -75,9 +73,9 @@ const TeamRow = ({
   </div>
 );
 
-// --- MAIN ENHANCED COMPONENT ---
 export default function MobileMatchListItem({ match }: { match: any }) {
   const { fixture, teams, goals } = match;
+  const { t } = useTranslation(); // <-- Use hook
   const slug = generateMatchSlug(teams.home, teams.away, fixture.id);
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -89,7 +87,7 @@ export default function MobileMatchListItem({ match }: { match: any }) {
   const { data: customOdds, isLoading } = useQuery({
     queryKey: ["customOdds", fixture.id],
     queryFn: () => fetchFanskorOdds(fixture.id),
-    enabled: isExpanded, // Enable for both upcoming and finished when expanded
+    enabled: isExpanded,
     staleTime: Infinity,
     refetchOnWindowFocus: false,
   });
@@ -163,7 +161,7 @@ export default function MobileMatchListItem({ match }: { match: any }) {
                 <span>{fixture.status.elapsed}'</span>
               </div>
             ) : isFinished ? (
-              <div className="text-text-muted">FT</div>
+              <div className="text-text-muted">{t("ft_short")}</div>
             ) : (
               <div>{format(new Date(fixture.date), "HH:mm")}</div>
             )}
@@ -179,11 +177,10 @@ export default function MobileMatchListItem({ match }: { match: any }) {
         <div className="mx-3 mb-3 pt-3 border-t border-[var(--color-primary)]">
           {isLoading ? (
             <div className="flex justify-center items-center gap-2 text-sm font-semibold text-text-muted p-2.5">
-              <Loader2 size={16} className="animate-spin" /> Loading...
+              <Loader2 size={16} className="animate-spin" /> {t("loading")}...
             </div>
           ) : customOdds ? (
             isFinished ? (
-              // --- FINISHED MATCH RESULT DISPLAY ---
               <div
                 className={`flex items-center justify-center gap-2 p-2.5 rounded-md text-sm font-bold ${
                   wasPredictionCorrect
@@ -197,32 +194,34 @@ export default function MobileMatchListItem({ match }: { match: any }) {
                   <XCircle size={18} />
                 )}
                 <span>
-                  Predicted: {predictedOutcome} ({lowestOddValue})
+                  {t("predicted_result", {
+                    outcome: predictedOutcome,
+                    odds: lowestOddValue,
+                  })}
                 </span>
               </div>
             ) : (
-              // --- UPCOMING MATCH ODDS DISPLAY ---
               <div className="flex items-center justify-around gap-2">
                 <CustomOddBox
                   value={customOdds.home}
-                  label="Home"
+                  label={t("odd_label_home")}
                   isFavorite={predictedOutcome === "Home"}
                 />
                 <CustomOddBox
                   value={customOdds.draw}
-                  label="Draw"
+                  label={t("odd_label_draw")}
                   isFavorite={predictedOutcome === "Draw"}
                 />
                 <CustomOddBox
                   value={customOdds.away}
-                  label="Away"
+                  label={t("odd_label_away")}
                   isFavorite={predictedOutcome === "Away"}
                 />
               </div>
             )
           ) : (
             <p className="text-xs text-center text-text-muted p-2">
-              Prediction data not available for this match.
+              {t("prediction_data_unavailable")}
             </p>
           )}
         </div>
@@ -237,7 +236,7 @@ export default function MobileMatchListItem({ match }: { match: any }) {
           className="flex items-center gap-1.5 text-xs text-text-muted font-semibold hover:text-white transition-colors px-2 py-1"
         >
           <BarChart2 size={14} />
-          Match Details
+          <span>{t("match_details")}</span>
         </Link>
         <button
           onClick={() => setIsExpanded(!isExpanded)}
@@ -247,11 +246,11 @@ export default function MobileMatchListItem({ match }: { match: any }) {
           <span>
             {isExpanded
               ? isFinished
-                ? "Hide Result"
-                : "Hide Odds"
+                ? t("hide_result")
+                : t("hide_odds")
               : isFinished
-              ? "See Result"
-              : "Fanskor Odds"}
+              ? t("see_result")
+              : t("show_odds")}
           </span>
         </button>
       </div>

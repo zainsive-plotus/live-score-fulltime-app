@@ -1,14 +1,13 @@
-// src/app/football/teams/page.tsx
 import type { Metadata } from "next";
 import axios from "axios";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
-import TeamListClient from "@/components/TeamListClient"; // Import our new client component
+import TeamListClient from "@/components/TeamListClient";
 import RecentNewsWidget from "@/components/RecentNewsWidget";
 import AdSlotWidget from "@/components/AdSlotWidget";
 import { Users } from "lucide-react";
+import { getI18n } from "@/lib/i18n/server"; // <-- Import server helper
 
-// --- Server-side data fetching for the initial popular teams ---
 const fetchPopularTeams = async () => {
   const publicAppUrl = process.env.NEXT_PUBLIC_PUBLIC_APP_URL;
   if (!publicAppUrl) {
@@ -30,22 +29,22 @@ const fetchPopularTeams = async () => {
   }
 };
 
-// --- SEO Metadata ---
-export const metadata: Metadata = {
-  title: "Futbol Takımları Rehberi | Favori Kulübünüzü Bulun",
-  description:
-    "Dünyanın dört bir yanındaki popüler liglerden futbol takımlarının kapsamlı bir dizinine göz atın. Ayrıntılı bilgiler, kadrolar, fikstürler ve daha fazlasını bulun.",
-  alternates: {
-    canonical: `/football/teams`,
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getI18n();
+  return {
+    title: t("all_teams_page_title"),
+    description: t("all_teams_page_description"),
+    alternates: {
+      canonical: `/football/teams`,
+    },
+  };
+}
 
-// --- MAIN PAGE COMPONENT ---
 export default async function TeamsPage() {
   const initialTeams = await fetchPopularTeams();
+  const t = await getI18n();
 
-  const seoDescription =
-    "Profesyonel futbol kulüplerinden oluşan kapsamlı rehberimizi keşfedin. İster en üst düzey devleri takip edin, ister yeni favoriler keşfedin, ihtiyacınız olan tüm bilgileri burada bulabilirsiniz. Takımları arayın, en son performans verilerini görüntüleyin ve kulüp futbolu dünyasına derinlemesine dalın.";
+  const seoDescription = t("teams_page_seo_text");
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -61,10 +60,10 @@ export default async function TeamsPage() {
               </div>
               <div>
                 <h1 className="text-4xl font-extrabold text-white">
-                  Futbol Takımları
+                  {t("football_teams_title")}
                 </h1>
                 <p className="text-text-muted">
-                  Dünyanın dört bir yanındaki kulüplere göz atın ve arama yapın.
+                  {t("football_teams_subtitle")}
                 </p>
               </div>
             </div>
@@ -73,12 +72,10 @@ export default async function TeamsPage() {
             </p>
           </div>
 
-          {/* Render the Client Component with the initial data */}
           <TeamListClient initialTeams={initialTeams} />
         </main>
 
         <aside className="hidden lg:block lg:col-span-1 space-y-8 min-w-0">
-          {/* <CasinoPartnerWidget /> */}
           <RecentNewsWidget />
           <AdSlotWidget location="homepage_right_sidebar" />
         </aside>

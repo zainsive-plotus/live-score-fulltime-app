@@ -1,24 +1,15 @@
-// src/components/TeamDetailView.tsx
-"use client";
-
-// We no longer need useState
-// import { useState } from "react";
-
-// Import all the widget components we will be using
 import TeamHeader from "./team/TeamHeader";
-import TeamSquadWidget from "./team/TeamSquadWidget"; // <-- The newly renamed widget
+import TeamSquadWidget from "./team/TeamSquadWidget";
 import TeamFixturesWidget from "./team/TeamFixturesWidget";
 import LeagueStandingsWidget from "@/components/league-detail-view/LeagueStandingsWidget";
 import { generateLeagueSlug } from "@/lib/generate-league-slug";
+import { getI18n } from "@/lib/i18n/server"; // <-- Import server helper
 
-export default function TeamDetailView({ teamData }: { teamData: any }) {
-  // No longer need activeTab state
-  // const [activeTab, setActiveTab] = useState(TABS[1]);
-
+export default async function TeamDetailView({ teamData }: { teamData: any }) {
+  const t = await getI18n(); // <-- Use server helper
   const { teamInfo, squad, fixtures, standings } = teamData;
   const { team } = teamInfo;
 
-  // Find the primary league from the standings data to pass to the widget
   const primaryLeague = standings?.[0]?.league;
   const leagueWithHref = primaryLeague
     ? {
@@ -28,11 +19,13 @@ export default function TeamDetailView({ teamData }: { teamData: any }) {
     : null;
 
   return (
-    // The component is now just a simple container for the stack of widgets
     <div className="space-y-8">
-      <TeamHeader team={team} countryFlag={fixtures?.[0]?.league?.flag || ""} />
-
-      {/* We no longer render tabs. We render all the widgets directly. */}
+      {/* Pass translated strings as props */}
+      <TeamHeader
+        team={team}
+        countryFlag={fixtures?.[0]?.league?.flag || ""}
+        foundedText={t("founded_in", { year: team.founded })}
+      />
 
       <TeamFixturesWidget fixtures={fixtures} />
 

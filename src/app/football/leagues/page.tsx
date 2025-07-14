@@ -1,18 +1,16 @@
-// src/app/football/leagues/page.tsx
 import type { Metadata } from "next";
 import axios from "axios";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import LeagueListClient from "@/components/LeagueListClient";
 import { League } from "@/types/api-football";
-// --- NEW WIDGET IMPORTS ---
-import CasinoPartnerWidget from "@/components/CasinoPartnerWidget";
+
 import RecentNewsWidget from "@/components/RecentNewsWidget";
 import AdSlotWidget from "@/components/AdSlotWidget";
+import { getI18n } from "@/lib/i18n/server"; // <-- Import server helper
 
 export const dynamic = "force-dynamic";
 
-// --- Server-side Data Fetching (Unchanged) ---
 const fetchAllLeaguesServer = async (): Promise<League[]> => {
   const publicAppUrl = process.env.NEXT_PUBLIC_PUBLIC_APP_URL;
   if (!publicAppUrl) {
@@ -34,13 +32,12 @@ const fetchAllLeaguesServer = async (): Promise<League[]> => {
   }
 };
 
-// --- Metadata Generation (Unchanged) ---
 export async function generateMetadata(): Promise<Metadata> {
-  const pageTitle =
-    "All Football Leagues & Cups | Find Your Favorite Competition";
-  const pageDescription =
-    "Explore a comprehensive list of football leagues and cups from around the world. Find detailed information, standings, fixtures, and more for top divisions and international competitions.";
+  const t = await getI18n();
+  const pageTitle = t("all_leagues_page_title");
+  const pageDescription = t("all_leagues_page_description");
   const canonicalUrl = `/football/leagues`;
+
   return {
     title: pageTitle,
     description: pageDescription,
@@ -60,32 +57,28 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-// --- MAIN PAGE COMPONENT (WITH ENHANCED LAYOUT) ---
 export default async function LeaguesPage() {
   const allLeagues = await fetchAllLeaguesServer();
+  const t = await getI18n();
 
-  const leaguesPageSeoText = `Futbol dünyasının kalbine hoş geldiniz! Bu sayfada, en heyecan verici yerel liglerden prestijli uluslararası kupalara kadar, dünya genelindeki tüm futbol liglerini ve kupalarını keşfedebilirsiniz. Takımların güncel sıralamalarını, yaklaşan fikstürlerini ve tarihi istatistiklerini kolayca bulun. En sevdiğiniz ligin detaylı analizlerine dalın ve futbolun nabzını tutun.`;
+  const leaguesPageSeoText = t("leagues_page_seo_text");
 
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      {/* --- THIS IS THE FIX: The new 3-column grid layout --- */}
       <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr_288px] lg:gap-8 lg:items-start p-4 lg:p-0 lg:py-6">
         <Sidebar />
-
         <main className="min-w-0">
           <h1 className="text-4xl font-extrabold text-white mb-6">
-            Ligler ve Kupalar
+            {t("leagues_and_cups_title")}
           </h1>
           <p className="italic text-[#a3a3a3] leading-relaxed mb-8">
             {leaguesPageSeoText}
           </p>
+          {/* LeagueListClient will handle its own internal translations via its hook */}
           <LeagueListClient initialAllLeagues={allLeagues} />
         </main>
-
-        {/* --- NEW: Right Sidebar Column --- */}
         <aside className="hidden lg:block lg:col-span-1 space-y-8 min-w-0">
-          {/* <CasinoPartnerWidget /> */}
           <RecentNewsWidget />
           <AdSlotWidget location="homepage_right_sidebar" />
         </aside>

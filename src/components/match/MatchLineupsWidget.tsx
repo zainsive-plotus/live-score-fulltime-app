@@ -1,14 +1,12 @@
-// src/components/match/MatchLineupsWidget.tsx
 "use client";
 
 import { memo } from "react";
 import Image from "next/image";
 import { proxyImageUrl } from "@/lib/image-proxy";
 import { Users } from "lucide-react";
+import { useTranslation } from "@/hooks/useTranslation"; // <-- Import hook
 
-// --- HELPER FUNCTION: Maps a formation to player coordinates ---
 const mapFormationToPositions = (formation: string, startXI: any[]) => {
-  // --- THIS IS THE FIX ---
   if (!formation) {
     console.warn(
       `Invalid or missing formation string received. Using fallback grid layout.`
@@ -18,8 +16,6 @@ const mapFormationToPositions = (formation: string, startXI: any[]) => {
       pos: { x: (i % 4) * 25 + 12.5, y: Math.floor(i / 4) * 25 + 15 },
     }));
   }
-  // --- END OF FIX ---
-
   const formationParts = formation.split("-").map(Number);
   if (formationParts.some(isNaN) || startXI.length < 11) {
     return startXI.map((p, i) => ({
@@ -27,37 +23,30 @@ const mapFormationToPositions = (formation: string, startXI: any[]) => {
       pos: { x: (i % 4) * 25 + 12.5, y: Math.floor(i / 4) * 25 + 15 },
     }));
   }
-
   const players = [...startXI];
   const positionedPlayers = [];
-
   const goalkeeper = players.find((p) => p.player.pos === "G");
   if (goalkeeper) {
     positionedPlayers.push({ ...goalkeeper, pos: { x: 50, y: 95 } });
   }
   const outfieldPlayers = players.filter((p) => p.player.pos !== "G").reverse();
-
   const totalRows = formationParts.length;
   let playerIndex = 0;
-
   formationParts.forEach((playersInRow, rowIndex) => {
     const y = 85 - ((rowIndex + 1) / (totalRows + 1)) * 75;
     const playersToPosition = outfieldPlayers.slice(
       playerIndex,
       playerIndex + playersInRow
     );
-
     playersToPosition.forEach((player, i) => {
       const x = (100 / (playersInRow + 1)) * (i + 1);
       positionedPlayers.push({ ...player, pos: { x, y } });
     });
     playerIndex += playersInRow;
   });
-
   return positionedPlayers;
 };
 
-// The rest of the file (FootballPitch, SubsList, MatchLineupsWidget) is unchanged.
 const FootballPitch = ({
   team,
   positionedPlayers,
@@ -111,12 +100,19 @@ const FootballPitch = ({
     </div>
   </div>
 );
-const SubsList = ({ players }: { players: any[] }) => {
+
+const SubsList = ({
+  players,
+  t,
+}: {
+  players: any[];
+  t: (key: string) => string;
+}) => {
   if (!players || players.length === 0) return null;
   return (
     <div className="bg-[var(--color-primary)]/50 p-3 rounded-lg mt-3">
       <h4 className="flex items-center gap-2 font-bold text-sm mb-2 text-text-muted">
-        <Users size={16} /> Substitutes
+        <Users size={16} /> {t("substitutes")}
       </h4>
       <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
         {players.map((p: any) => (
@@ -133,21 +129,25 @@ const SubsList = ({ players }: { players: any[] }) => {
     </div>
   );
 };
+
 const MatchLineupsWidget = memo(function MatchLineupsWidget({
   lineups,
 }: {
   lineups: any[];
 }) {
+  const { t } = useTranslation(); // <-- Use hook
+
   if (!lineups || lineups.length < 2) {
     return (
       <div className="bg-brand-secondary rounded-lg p-6 text-center">
-        <h2 className="text-2xl font-bold text-white mb-2">Starting Lineups</h2>
-        <p className="text-text-muted">
-          Lineups are not yet available for this match.
-        </p>
+        <h2 className="text-2xl font-bold text-white mb-2">
+          {t("starting_lineups")}
+        </h2>
+        <p className="text-text-muted">{t("lineups_unavailable")}</p>
       </div>
     );
   }
+
   const homeLineup = lineups[0];
   const awayLineup = lineups[1];
   const homePositionedPlayers = mapFormationToPositions(
@@ -158,10 +158,11 @@ const MatchLineupsWidget = memo(function MatchLineupsWidget({
     awayLineup.formation,
     awayLineup.startXI
   );
+
   return (
     <div className="bg-brand-secondary rounded-lg p-4 md:p-6">
       <h2 className="text-2xl font-bold text-white mb-4 text-center">
-        Formations
+        {t("formations")}
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
@@ -170,7 +171,7 @@ const MatchLineupsWidget = memo(function MatchLineupsWidget({
             positionedPlayers={homePositionedPlayers}
             colorClass="bg-[var(--brand-accent)]"
           />
-          <SubsList players={homeLineup.substitutes} />
+          <SubsList players={homeLineup.substitutes} t={t} />
         </div>
         <div>
           <FootballPitch
@@ -178,10 +179,11 @@ const MatchLineupsWidget = memo(function MatchLineupsWidget({
             positionedPlayers={awayPositionedPlayers}
             colorClass="bg-blue-600"
           />
-          <SubsList players={awayLineup.substitutes} />
+          <SubsList players={awayLineup.substitutes} t={t} />
         </div>
       </div>
     </div>
   );
 });
+
 export default MatchLineupsWidget;

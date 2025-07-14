@@ -5,43 +5,38 @@ import { i18nCache } from "./i18n.cache";
 type Translations = Record<string, any>;
 
 /**
- * Gets the current locale from the request headers set by the middleware.
- * Must be awaited in a Server Component.
- * @returns A promise that resolves to the current locale string (e.g., 'en').
+ * Gets the current locale by reading the 'x-user-locale' header set by the middleware.
+ * This function must be awaited in an async Server Component.
+ * @returns {Promise<string>} The determined locale code (e.g., 'en', 'tr').
  */
 export async function getLocale(): Promise<string> {
   const headersList = await headers();
-  const locale = headersList.get("x-user-locale"); // Header from our simplified middleware
+  const localeFromHeader = headersList.get("x-user-locale");
 
-  // Validate the locale against our active languages from the cache
+  await i18nCache.initialize(); // Ensure cache is ready
   const activeLocales = await i18nCache.getLocales();
-  if (locale && activeLocales.includes(locale)) {
-    return locale;
+
+  if (localeFromHeader && activeLocales.includes(localeFromHeader)) {
+    return localeFromHeader;
   }
 
   return await i18nCache.getDefaultLocale();
 }
 
 /**
- * A server-side hook to get the translation function 't'.
- * This must be used in Server Components.
- * @returns A promise that resolves to the translation function.
+ * A server-side helper to get the translation function 't'.
+ * This must be awaited in Server Components.
+ * @returns {Promise<Function>} A promise that resolves to the translation function.
  */
 export async function getI18n() {
   const locale = await getLocale();
   const translations = (await i18nCache.getTranslations(locale)) || {};
 
-  /**
-   * The translation function.
-   * @param key - The key of the string to translate.
-   * @param params - Optional parameters for interpolation.
-   * @returns The translated string.
-   */
   return function t(
     key: string,
     params?: { [key: string]: string | number }
   ): string {
-    let translation = translations[key] || key;
+    let translation: string = translations[key] || key;
 
     if (params) {
       Object.keys(params).forEach((paramKey) => {

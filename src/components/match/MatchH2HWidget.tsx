@@ -1,4 +1,3 @@
-// src/components/match/MatchH2HWidget.tsx
 "use client";
 
 import { useMemo, useState } from "react";
@@ -8,17 +7,16 @@ import Link from "next/link";
 import { ChevronRight, CalendarDays } from "lucide-react";
 import { proxyImageUrl } from "@/lib/image-proxy";
 import { generateMatchSlug } from "@/lib/generate-match-slug";
-// No useTranslation import here for h2hSeoDescription
-// import { useTranslation } from '@/hooks/useTranslation';
+import { useTranslation } from "@/hooks/useTranslation"; // <-- Import hook
 
 interface MatchH2HWidgetProps {
-  h2h: any[]; // Array of past match fixtures
+  h2h: any[];
   teams: {
     home: { id: number; name: string; logo: string };
     away: { id: number; name: string; logo: string };
   };
   currentFixtureId: string;
-  h2hSeoDescription: string; // This prop receives the static Turkish string
+  h2hSeoDescription: string;
 }
 
 export default function MatchH2HWidget({
@@ -28,11 +26,14 @@ export default function MatchH2HWidget({
   h2hSeoDescription,
 }: MatchH2HWidgetProps) {
   const [showAll, setShowAll] = useState(false);
+  const { t } = useTranslation(); // <-- Use hook
+
   const filteredH2H = useMemo(
     () =>
       h2h.filter((match) => match.fixture.id !== parseInt(currentFixtureId)),
     [h2h, currentFixtureId]
   );
+
   const displayedH2H = showAll ? filteredH2H : filteredH2H.slice(0, 5);
 
   const headToHeadRecords = useMemo(() => {
@@ -47,17 +48,11 @@ export default function MatchH2HWidget({
     filteredH2H.forEach((match: any) => {
       if (match.fixture.status.short === "FT") {
         if (match.teams.home.winner) {
-          if (match.teams.home.id === teams.home.id) {
-            homeWins++;
-          } else {
-            awayWins++;
-          }
+          if (match.teams.home.id === teams.home.id) homeWins++;
+          else awayWins++;
         } else if (match.teams.away.winner) {
-          if (match.teams.away.id === teams.away.id) {
-            homeWins++;
-          } else {
-            awayWins++;
-          }
+          if (match.teams.away.id === teams.away.id) awayWins++;
+          else homeWins++;
         } else {
           draws++;
         }
@@ -70,24 +65,23 @@ export default function MatchH2HWidget({
   return (
     <div className="bg-brand-secondary rounded-lg shadow-lg overflow-hidden">
       <div className="p-6">
-        <h2 className="text-2xl font-bold text-white mb-4">Head-to-Head</h2>
-
-        {/* --- H2H SEO Optimization Text --- */}
-        {/* This text is now passed as an already formed string from the Server Component */}
+        <h2 className="text-2xl font-bold text-white mb-4">
+          {t("head_to_head")}
+        </h2>
         <p className="italic text-[#a3a3a3] leading-relaxed mb-6">
           {h2hSeoDescription}
         </p>
 
         {filteredH2H.length === 0 ? (
           <p className="text-brand-muted text-center p-4">
-            No head-to-head matches found.
+            {t("no_h2h_matches_found")}
           </p>
         ) : (
           <>
             <div className="grid grid-cols-3 text-center gap-4 mb-6">
               <div className="flex flex-col items-center">
                 <Image
-                  src={teams.home.logo}
+                  src={proxyImageUrl(teams.home.logo)}
                   alt={teams.home.name}
                   width={50}
                   height={50}
@@ -96,17 +90,17 @@ export default function MatchH2HWidget({
                 <span className="text-white font-semibold text-lg">
                   {headToHeadRecords.homeWins}
                 </span>
-                <span className="text-brand-muted text-sm">Wins</span>
+                <span className="text-brand-muted text-sm">{t("wins")}</span>
               </div>
-              <div className="flex flex-col items-center">
+              <div className="flex flex-col items-center justify-center">
                 <span className="text-white font-semibold text-lg">
                   {headToHeadRecords.draws}
                 </span>
-                <span className="text-brand-muted text-sm">Draws</span>
+                <span className="text-brand-muted text-sm">{t("draws")}</span>
               </div>
               <div className="flex flex-col items-center">
                 <Image
-                  src={teams.away.logo}
+                  src={proxyImageUrl(teams.away.logo)}
                   alt={teams.away.name}
                   width={50}
                   height={50}
@@ -115,7 +109,7 @@ export default function MatchH2HWidget({
                 <span className="text-white font-semibold text-lg">
                   {headToHeadRecords.awayWins}
                 </span>
-                <span className="text-brand-muted text-sm">Wins</span>
+                <span className="text-brand-muted text-sm">{t("wins")}</span>
               </div>
             </div>
 
@@ -140,7 +134,7 @@ export default function MatchH2HWidget({
                     <div className="flex items-center gap-3">
                       <div className="flex items-center gap-2">
                         <Image
-                          src={match.teams.home.logo}
+                          src={proxyImageUrl(match.teams.home.logo)}
                           alt={match.teams.home.name}
                           width={24}
                           height={24}
@@ -162,7 +156,7 @@ export default function MatchH2HWidget({
                           {match.teams.away.name}
                         </span>
                         <Image
-                          src={match.teams.away.logo}
+                          src={proxyImageUrl(match.teams.away.logo)}
                           alt={match.teams.away.name}
                           width={24}
                           height={24}
@@ -181,7 +175,9 @@ export default function MatchH2HWidget({
                   onClick={() => setShowAll(!showAll)}
                   className="bg-brand-purple text-white px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity"
                 >
-                  {showAll ? "Show Less" : `Show All (${filteredH2H.length})`}
+                  {showAll
+                    ? t("show_less")
+                    : t("show_all_count", { count: filteredH2H.length })}
                 </button>
               </div>
             )}

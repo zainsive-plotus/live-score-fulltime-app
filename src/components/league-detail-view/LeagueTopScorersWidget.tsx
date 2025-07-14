@@ -1,10 +1,10 @@
-// src/components/league-detail-view/LeagueTopScorersWidget.tsx
 "use client";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import Image from "next/image";
 import { Trophy, Info } from "lucide-react";
 import { proxyImageUrl } from "@/lib/image-proxy";
+import { useTranslation } from "@/hooks/useTranslation"; // <-- Import hook
 
 const fetchTopScorers = async (leagueId: number, season: number) => {
   const { data } = await axios.get(
@@ -13,7 +13,6 @@ const fetchTopScorers = async (leagueId: number, season: number) => {
   return data;
 };
 
-// A sub-component for a single player row
 const PlayerRow = ({ player, rank }: { player: any; rank: number }) => {
   const isTop = rank === 1;
   const bgColor = isTop ? "bg-[var(--brand-accent)]/10" : "bg-transparent";
@@ -59,7 +58,6 @@ const PlayerRow = ({ player, rank }: { player: any; rank: number }) => {
   );
 };
 
-// The main widget component
 export default function LeagueTopScorersWidget({
   leagueId,
   season,
@@ -67,10 +65,11 @@ export default function LeagueTopScorersWidget({
   leagueId: number;
   season: number;
 }) {
+  const { t } = useTranslation(); // <-- Use hook
   const { data: topScorers, isLoading } = useQuery({
     queryKey: ["topScorers", leagueId, season],
     queryFn: () => fetchTopScorers(leagueId, season),
-    staleTime: 1000 * 60 * 60, // Cache for an hour
+    staleTime: 1000 * 60 * 60,
   });
 
   const renderContent = () => {
@@ -97,7 +96,7 @@ export default function LeagueTopScorersWidget({
         <div className="text-center h-full flex flex-col justify-center items-center p-4">
           <Info size={28} className="mx-auto text-text-muted mb-2" />
           <p className="text-text-light font-semibold text-sm">
-            Top scorer data not available.
+            {t("top_scorers_not_available")}
           </p>
         </div>
       );
@@ -115,7 +114,9 @@ export default function LeagueTopScorersWidget({
   return (
     <div className="bg-brand-secondary rounded-lg h-full flex flex-col">
       <div className="p-4 border-b border-gray-700/50">
-        <h3 className="text-lg font-bold text-white">Golden Boot Race</h3>
+        <h3 className="text-lg font-bold text-white">
+          {t("golden_boot_race")}
+        </h3>
       </div>
       <div className="flex-grow">{renderContent()}</div>
     </div>

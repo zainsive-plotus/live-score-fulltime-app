@@ -1,17 +1,15 @@
-// src/app/privacy-policy/page.tsx
 import type { Metadata } from "next";
 import axios from "axios";
 import { notFound } from "next/navigation";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import { Shield } from "lucide-react";
-import CasinoPartnerWidget from "@/components/CasinoPartnerWidget";
 import RecentNewsWidget from "@/components/RecentNewsWidget";
 import AdSlotWidget from "@/components/AdSlotWidget";
+import { getI18n } from "@/lib/i18n/server"; // <-- Import server helper
 
 const PAGE_SLUG = "privacy-policy";
 
-// --- Server-side data fetching function ---
 async function getPageContent() {
   try {
     const response = await axios.get(
@@ -19,35 +17,32 @@ async function getPageContent() {
     );
     return response.data;
   } catch (error) {
-    console.error(`[Page/${PAGE_SLUG}] Failed to fetch page content:`, error);
+    console.error("Failed to fetch Privacy Policy page content:", error);
     return null;
   }
 }
 
-// --- Dynamic SEO Metadata ---
 export async function generateMetadata(): Promise<Metadata> {
+  const t = await getI18n();
   const pageContent = await getPageContent();
 
-  if (!pageContent || !pageContent.title) {
-    return {
-      title: "Gizlilik Politikası ve İçgörüler",
-      description:
-        "Canlı skorlar, istatistikler ve maç tahminlerinin keyfini çıkarırken verilerinizi nasıl topladığımızı, kullandığımızı ve koruduğumuzu öğrenmek için Fanskor'un gizlilik politikası'nı okuyun.",
-    };
-  }
+  const title = pageContent?.title
+    ? t("dynamic_page_title", { title: pageContent.title })
+    : t("privacy_policy_default_page_title");
+
+  const description = pageContent?.content
+    ? pageContent.content.replace(/<[^>]*>?/gm, "").substring(0, 160)
+    : t("privacy_policy_default_page_description");
 
   return {
-    title: `${pageContent.title} | Fan Skor`,
-    description: pageContent.content
-      .replace(/<[^>]*>?/gm, "")
-      .substring(0, 160),
+    title: title,
+    description: description,
     alternates: {
       canonical: `/${PAGE_SLUG}`,
     },
   };
 }
 
-// --- The Main Page Component ---
 export default async function PrivacyPolicyPage() {
   const pageContent = await getPageContent();
 
@@ -72,7 +67,6 @@ export default async function PrivacyPolicyPage() {
               </h1>
             </div>
 
-            {/* Render the HTML content from the database */}
             <div
               className="prose prose-invert lg:prose-xl max-w-none text-text-secondary"
               dangerouslySetInnerHTML={{ __html: pageContent.content }}
@@ -81,7 +75,6 @@ export default async function PrivacyPolicyPage() {
         </main>
 
         <aside className="hidden lg:block lg:col-span-1 space-y-8 min-w-0">
-          {/* <CasinoPartnerWidget /> */}
           <RecentNewsWidget />
           <AdSlotWidget location="homepage_right_sidebar" />
         </aside>

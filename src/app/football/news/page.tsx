@@ -1,5 +1,3 @@
-// ===== src/app/football/news/page.tsx =====
-
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -12,29 +10,12 @@ import Pagination from "@/components/Pagination";
 import NewsListItem, { NewsListItemSkeleton } from "@/components/NewsListItem";
 import { Info, Newspaper, Tag, Type } from "lucide-react";
 import Script from "next/script";
+import { useTranslation } from "@/hooks/useTranslation";
 
 export const dynamic = "force-dynamic";
 
 const ITEMS_PER_PAGE = 8;
 
-// --- NEW: Filter options defined as constants for clarity ---
-const sportsFilterOptions: { value: SportsCategory | "all"; label: string }[] =
-  [
-    { value: "all", label: "All Sports" },
-    { value: "football", label: "Football" },
-    { value: "basketball", label: "Basketball" },
-    { value: "tennis", label: "Tennis" },
-  ];
-
-const newsTypeFilterOptions: { value: NewsType | "all"; label: string }[] = [
-  { value: "all", label: "All Types" },
-  { value: "news", label: "News" },
-  { value: "prediction", label: "Predictions" },
-  { value: "reviews", label: "Reviews" },
-  { value: "highlights", label: "Highlights" },
-];
-
-// Fetcher function remains the same, fetching all published posts
 const fetchNews = async (): Promise<IPost[]> => {
   const { data } = await axios.get("/api/posts?status=published");
   return data;
@@ -42,7 +23,26 @@ const fetchNews = async (): Promise<IPost[]> => {
 
 export default function NewsPage() {
   const [currentPage, setCurrentPage] = useState(1);
-  // --- NEW: State to manage both filters simultaneously ---
+  const { t } = useTranslation();
+
+  const sportsFilterOptions: {
+    value: SportsCategory | "all";
+    label: string;
+  }[] = [
+    { value: "all", label: t("filter_all_sports") },
+    { value: "football", label: t("football") },
+    { value: "basketball", label: t("basketball") },
+    { value: "tennis", label: t("tennis") },
+  ];
+
+  const newsTypeFilterOptions: { value: NewsType | "all"; label: string }[] = [
+    { value: "all", label: t("filter_all_types") },
+    { value: "news", label: t("news") },
+    { value: "prediction", label: t("prediction") },
+    { value: "reviews", label: t("reviews") },
+    { value: "highlights", label: t("highlights") },
+  ];
+
   const [filters, setFilters] = useState<{
     sportsCategory: SportsCategory | "all";
     newsType: NewsType | "all";
@@ -57,11 +57,9 @@ export default function NewsPage() {
     staleTime: 1000 * 60 * 5,
   });
 
-  // --- ENHANCED: Filtering and Pagination Logic ---
   const { paginatedData, totalPages, filteredCount } = useMemo(() => {
     if (!allNews) return { paginatedData: [], totalPages: 0, filteredCount: 0 };
 
-    // Apply filters sequentially
     const filteredNews = allNews.filter((post) => {
       const sportMatch =
         filters.sportsCategory === "all" ||
@@ -80,23 +78,70 @@ export default function NewsPage() {
     return { paginatedData, totalPages, filteredCount };
   }, [allNews, currentPage, filters]);
 
-  // Reset page to 1 when any filter changes
   useEffect(() => {
     setCurrentPage(1);
   }, [filters]);
 
-  // JSON-LD for SEO (Unchanged)
+  // --- Function to generate JSON-LD Structured Data ---
   const generateJsonLd = () => {
-    /* ... unchanged ... */
+    if (!paginatedData || paginatedData.length === 0) {
+      return null;
+    }
+
+    const itemListElement = paginatedData.map((post, index) => {
+      const postUrl = `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/football/news/${post.slug}`;
+      return {
+        "@type": "ListItem",
+        position: (currentPage - 1) * ITEMS_PER_PAGE + index + 1,
+        item: {
+          "@type": "NewsArticle",
+          mainEntityOfPage: {
+            "@type": "WebPage",
+            "@id": postUrl,
+          },
+          headline: post.title,
+          image:
+            post.featuredImage ||
+            `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/og-image.jpg`,
+          datePublished: post.createdAt,
+          dateModified: post.updatedAt,
+          author: {
+            "@type": "Organization",
+            name: "Fan Skor",
+          },
+          publisher: {
+            "@type": "Organization",
+            name: "Fan Skor",
+            logo: {
+              "@type": "ImageObject",
+              url: `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/fanskor-transparent.webp`,
+            },
+          },
+          description: post.metaDescription,
+        },
+      };
+    });
+
+    return {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      name: t("latest_news"),
+      description: t("latest_news_subtitle"),
+      itemListElement: itemListElement,
+    };
   };
+
+  const jsonLdData = generateJsonLd();
 
   return (
     <>
-      <Script
-        id="news-list-jsonld"
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(generateJsonLd()) }}
-      />
+      {jsonLdData && (
+        <Script
+          id="news-list-jsonld"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdData) }}
+        />
+      )}
       <div className="min-h-screen flex flex-col">
         <Header />
         <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr] lg:gap-8 lg:items-start">
@@ -108,20 +153,16 @@ export default function NewsPage() {
               </div>
               <div>
                 <h1 className="text-4xl font-extrabold text-white">
-                  Latest News
+                  {t("latest_news")}
                 </h1>
-                <p className="text-brand-muted">
-                  Stay updated with the latest stories and analysis.
-                </p>
+                <p className="text-brand-muted">{t("latest_news_subtitle")}</p>
               </div>
             </div>
 
-            {/* --- NEW & ENHANCED: Filter Controls --- */}
             <div className="bg-brand-secondary p-4 rounded-lg mb-8 space-y-4">
-              {/* Sports Category Filters */}
               <div className="flex items-center gap-3 flex-wrap">
                 <span className="font-semibold text-brand-light flex items-center gap-2">
-                  <Tag size={16} /> Sport:
+                  <Tag size={16} /> {t("sport_filter_label")}:
                 </span>
                 {sportsFilterOptions.map((option) => (
                   <button
@@ -142,10 +183,9 @@ export default function NewsPage() {
                   </button>
                 ))}
               </div>
-              {/* News Type Filters */}
               <div className="flex items-center gap-3 flex-wrap">
                 <span className="font-semibold text-brand-light flex items-center gap-2">
-                  <Type size={16} /> Type:
+                  <Type size={16} /> {t("type_filter_label")}:
                 </span>
                 {newsTypeFilterOptions.map((option) => (
                   <button
@@ -165,7 +205,6 @@ export default function NewsPage() {
               </div>
             </div>
 
-            {/* Main Content Area */}
             {isLoading ? (
               <div className="space-y-4">
                 {Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => (
@@ -175,7 +214,7 @@ export default function NewsPage() {
             ) : paginatedData.length > 0 ? (
               <div className="space-y-4">
                 <p className="text-sm text-brand-muted px-2">
-                  Showing {filteredCount} results...
+                  {t("showing_results", { count: filteredCount })}
                 </p>
                 {paginatedData.map((post) => (
                   <NewsListItem key={post._id} post={post} />
@@ -191,10 +230,11 @@ export default function NewsPage() {
             ) : (
               <div className="text-center py-20 bg-brand-secondary rounded-lg">
                 <Info size={32} className="mx-auto text-brand-muted mb-3" />
-                <p className="text-xl font-bold text-white">No News Found</p>
+                <p className="text-xl font-bold text-white">
+                  {t("no_news_found_title")}
+                </p>
                 <p className="text-brand-muted mt-2">
-                  Your selected filters did not match any articles. Try a
-                  different combination.
+                  {t("no_news_found_subtitle")}
                 </p>
               </div>
             )}

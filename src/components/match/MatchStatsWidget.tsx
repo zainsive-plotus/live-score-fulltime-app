@@ -1,15 +1,14 @@
-// src/components/match/MatchStatsWidget.tsx
 "use client";
 
 import { memo } from "react";
 import { BarChart3, Info } from "lucide-react";
+import { useTranslation } from "@/hooks/useTranslation"; // <-- Import hook
 
 interface MatchStatsWidgetProps {
   statistics: any[];
   teams: { home: any; away: any };
 }
 
-// A sub-component for rendering a single statistic row with its progress bar
 const StatRow = memo(
   ({
     stat,
@@ -20,7 +19,6 @@ const StatRow = memo(
     homeValue: string | number;
     awayValue: string | number;
   }) => {
-    // Sanitize and convert values to numbers for calculation
     const homeNum = parseFloat(String(homeValue).replace("%", "")) || 0;
     const awayNum = parseFloat(String(awayValue).replace("%", "")) || 0;
     const total = homeNum + awayNum;
@@ -28,7 +26,6 @@ const StatRow = memo(
 
     return (
       <div className="space-y-1.5">
-        {/* The text labels: Home Value - Stat Name - Away Value */}
         <div className="flex justify-between items-center text-sm px-1">
           <span className="font-bold text-white w-1/4 text-left">
             {homeValue ?? 0}
@@ -38,7 +35,6 @@ const StatRow = memo(
             {awayValue ?? 0}
           </span>
         </div>
-        {/* The visual progress bar */}
         <div className="flex w-full h-2 rounded-full overflow-hidden bg-[var(--color-primary)]">
           <div
             className="bg-[var(--brand-accent)] rounded-l-full"
@@ -55,21 +51,21 @@ const StatRow = memo(
 );
 StatRow.displayName = "StatRow";
 
-// The main widget component
 const MatchStatsWidget = memo(function MatchStatsWidget({
   statistics,
   teams,
 }: MatchStatsWidgetProps) {
-  // If stats data is missing or incomplete, show a message.
+  const { t } = useTranslation(); // <-- Use hook
+
   if (!statistics || statistics.length < 2) {
     return (
       <div className="bg-brand-secondary rounded-lg p-6">
         <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-          <BarChart3 size={22} /> Match Statistics
+          <BarChart3 size={22} /> {t("match_statistics")}
         </h2>
         <div className="text-center py-6 text-brand-muted">
           <Info size={28} className="mx-auto mb-2" />
-          <p>Live statistics are not yet available.</p>
+          <p>{t("live_stats_unavailable")}</p>
         </div>
       </div>
     );
@@ -80,33 +76,34 @@ const MatchStatsWidget = memo(function MatchStatsWidget({
   const awayStats =
     statistics.find((s) => s.team.id === teams.away.id)?.statistics || [];
 
-  // Create a map of all available stats for easy lookup
-  const statsMap = new Map<
-    string,
-    { home: string | number; away: string | number }
-  >();
-  homeStats.forEach((stat: any) =>
-    statsMap.set(stat.type, { home: stat.value, away: 0 })
+  const allStatTypes = Array.from(
+    new Set([
+      ...homeStats.map((s: any) => s.type),
+      ...awayStats.map((s: any) => s.type),
+    ])
   );
-  awayStats.forEach((stat: any) => {
-    const existing = statsMap.get(stat.type) || { home: 0, away: 0 };
-    statsMap.set(stat.type, { ...existing, away: stat.value });
-  });
 
   return (
     <div className="bg-brand-secondary rounded-lg p-4 md:p-6">
       <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-        <BarChart3 size={22} /> Match Statistics
+        <BarChart3 size={22} /> {t("match_statistics")}
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
-        {Array.from(statsMap.entries()).map(([stat, values]) => (
-          <StatRow
-            key={stat}
-            stat={stat}
-            homeValue={values.home}
-            awayValue={values.away}
-          />
-        ))}
+        {allStatTypes.map((type) => {
+          const homeStat =
+            homeStats.find((s: any) => s.type === type)?.value ?? 0;
+          const awayStat =
+            awayStats.find((s: any) => s.type === type)?.value ?? 0;
+
+          return (
+            <StatRow
+              key={type}
+              stat={type}
+              homeValue={homeStat}
+              awayValue={awayStat}
+            />
+          );
+        })}
       </div>
     </div>
   );

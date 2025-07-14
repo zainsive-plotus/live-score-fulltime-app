@@ -1,9 +1,9 @@
-// src/components/league-detail-view/TeamCard.tsx
 import Image from "next/image";
 import { proxyImageUrl } from "@/lib/image-proxy";
 import StyledLink from "@/components/StyledLink";
 import { generateTeamSlug } from "@/lib/generate-team-slug";
-import { Users, MapPin } from "lucide-react";
+import { Users, MapPin, Calendar } from "lucide-react"; // <-- Import Calendar
+import { useTranslation } from "@/hooks/useTranslation"; // <-- Import hook
 
 interface TeamCardProps {
   team: any;
@@ -12,11 +12,9 @@ interface TeamCardProps {
   countryName?: string;
   countryFlag?: string;
   squadSize?: number;
-  rankDescription?: string; // NEW: Pass the rank description for coloring
+  rankDescription?: string;
 }
 
-// --- NEW: COLORING HELPER ---
-// This function now returns a set of Tailwind classes for border and text color.
 const getRankClasses = (
   description: string | null
 ): { border: string; text: string } => {
@@ -35,7 +33,6 @@ const getRankClasses = (
 };
 
 export function TeamCardSkeleton() {
-  // Skeleton remains the same, simple and effective.
   return (
     <div className="bg-brand-secondary rounded-lg flex flex-col h-full animate-pulse">
       <div className="p-4 flex items-start gap-4">
@@ -45,7 +42,7 @@ export function TeamCardSkeleton() {
           <div className="h-3 w-1/2 bg-gray-600/50 rounded"></div>
         </div>
       </div>
-      <div className="px-4 pb-4 mt-auto space-y-2">
+      <div className="px-4 pb-4 mt-auto space-y-2 border-t border-gray-700/50 pt-3">
         <div className="h-3 w-full bg-gray-600/50 rounded"></div>
         <div className="h-3 w-2/3 bg-gray-600/50 rounded"></div>
       </div>
@@ -63,17 +60,16 @@ export default function TeamCard({
   rankDescription,
 }: TeamCardProps) {
   const rankClasses = getRankClasses(rankDescription || null);
+  const { t } = useTranslation(); // <-- Use hook
 
   return (
     <StyledLink
       href={generateTeamSlug(team.name, team.id)}
       className="block group h-full"
     >
-      {/* The card now has a dynamic left border color */}
       <div
         className={`bg-brand-secondary rounded-lg flex flex-col h-full border-l-4 ${rankClasses.border} transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg hover:shadow-purple-900/20`}
       >
-        {/* --- TOP SECTION --- */}
         <div className="p-4 flex items-start gap-4">
           <Image
             src={proxyImageUrl(team.logo)}
@@ -99,7 +95,6 @@ export default function TeamCard({
               </div>
             )}
           </div>
-          {/* Prominent Rank Display */}
           {rank && (
             <div className={`text-2xl font-black ${rankClasses.text}`}>
               {rank}
@@ -107,12 +102,19 @@ export default function TeamCard({
           )}
         </div>
 
-        {/* --- DETAILS SECTION (at the bottom) --- */}
         <div className="px-4 pb-4 mt-auto space-y-1.5 border-t border-gray-700/50 pt-3">
           {squadSize && (
             <div className="flex items-center gap-2 text-xs text-brand-muted">
               <Users className="w-3 h-3" />
-              <span>Squad Size: {squadSize}</span>
+              <span>
+                {t("squad_size")}: {squadSize}
+              </span>
+            </div>
+          )}
+          {team.founded && ( // <-- Added new translated item here
+            <div className="flex items-center gap-2 text-xs text-brand-muted">
+              <Calendar size={12} />
+              <span>{t("founded_in", { year: team.founded })}</span>
             </div>
           )}
           {venue?.name && (

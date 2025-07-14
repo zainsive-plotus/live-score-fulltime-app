@@ -14,6 +14,8 @@ export default async function AdminLayout({
     redirect("/login?error=Forbidden");
   }
 
+  // This layout takes over the full screen, effectively hiding the
+  // parent RootLayout's footer for all admin pages.
   return (
     <div className="flex min-h-screen">
       <AdminSidebar />

@@ -1,4 +1,3 @@
-// src/components/LeagueListClient.tsx
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -9,11 +8,11 @@ import DirectoryCard, {
   DirectoryCardSkeleton,
 } from "@/components/DirectoryCard";
 import Pagination from "@/components/Pagination";
-import { Search, SearchX } from "lucide-react"; // Using SearchX for the empty state
+import { Search, SearchX } from "lucide-react";
+import { useTranslation } from "@/hooks/useTranslation"; // <-- Import hook
 
 const ITEMS_PER_PAGE = 15;
 
-// Fetcher function for active league IDs (unchanged)
 const fetchActiveLeagueIds = async (): Promise<number[]> => {
   const { data } = await axios.get("/api/active-leagues");
   return data;
@@ -29,15 +28,14 @@ export default function LeagueListClient({
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState<"all" | "league" | "cup">("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const { t } = useTranslation(); // <-- Use hook
 
-  // useQuery for active league IDs (unchanged)
   const { data: activeLeagueIds, isLoading: isLoadingActive } = useQuery({
     queryKey: ["activeLeagueIds"],
     queryFn: fetchActiveLeagueIds,
     staleTime: 1000 * 60 * 10,
   });
 
-  // --- This is the main enhancement to the logic ---
   const filteredLeagues = useMemo(() => {
     const activeIdsSet = new Set(activeLeagueIds || []);
 
@@ -75,7 +73,6 @@ export default function LeagueListClient({
 
   return (
     <>
-      {/* --- NEW: Control Panel --- */}
       <div className="bg-brand-secondary p-4 rounded-lg mb-8 flex flex-col md:flex-row items-center gap-4">
         <div className="relative flex-grow w-full">
           <Search
@@ -84,7 +81,7 @@ export default function LeagueListClient({
           />
           <input
             type="text"
-            placeholder="Lig veya kupa adına göre ara..."
+            placeholder={t("search_leagues_placeholder")}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-[var(--color-primary)] border border-gray-700/50 rounded-lg p-3 pl-12 text-white focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
@@ -99,7 +96,7 @@ export default function LeagueListClient({
                 : "text-text-muted hover:bg-gray-700/50"
             }`}
           >
-            All
+            {t("filter_all")}
           </button>
           <button
             onClick={() => setFilter("league")}
@@ -109,7 +106,7 @@ export default function LeagueListClient({
                 : "text-text-muted hover:bg-gray-700/50"
             }`}
           >
-            Ligler
+            {t("filter_leagues")}
           </button>
           <button
             onClick={() => setFilter("cup")}
@@ -119,12 +116,11 @@ export default function LeagueListClient({
                 : "text-text-muted hover:bg-gray-700/50"
             }`}
           >
-            Bardaklar
+            {t("filter_cups")}
           </button>
         </div>
       </div>
 
-      {/* --- Main Content Area --- */}
       <div>
         {isLoadingActive ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -134,10 +130,9 @@ export default function LeagueListClient({
           </div>
         ) : paginatedData.length > 0 ? (
           <>
-            {/* --- NEW: Results Header --- */}
             <div className="mb-4">
               <h2 className="text-xl font-bold text-white">
-                {filteredLeagues.length} Yarışma gösteriliyor
+                {t("showing_competitions", { count: filteredLeagues.length })}
               </h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -156,12 +151,13 @@ export default function LeagueListClient({
             />
           </>
         ) : (
-          // --- NEW: Enhanced Empty State ---
           <div className="text-center py-20 bg-brand-secondary rounded-lg">
             <SearchX size={48} className="mx-auto text-text-muted mb-4" />
-            <p className="text-xl font-bold text-white">Sonuç Bulunamadı</p>
+            <p className="text-xl font-bold text-white">
+              {t("no_leagues_found_title")}
+            </p>
             <p className="text-text-muted mt-2">
-              "{searchTerm}" aramanız hiçbir yarışmayla eşleşmedi.
+              {t("no_leagues_found_subtitle", { searchTerm })}
             </p>
           </div>
         )}

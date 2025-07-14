@@ -1,4 +1,3 @@
-// src/components/match/MatchActivityWidget.tsx
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
@@ -11,8 +10,8 @@ import {
   RectangleVertical,
   Info,
 } from "lucide-react";
+import { useTranslation } from "@/hooks/useTranslation"; // <-- Import hook
 
-// --- Type Definitions (Unchanged) ---
 interface MatchEvent {
   time: { elapsed: number };
   team: { id: number; name: string; logo: string };
@@ -28,21 +27,19 @@ interface MatchActivityWidgetProps {
   activitySeoDescription: string;
 }
 
-// --- Fetcher (Unchanged) ---
 const fetchFixtureEvents = async (fixtureId: string): Promise<MatchEvent[]> => {
+  // This endpoint fetches more than just events, let's keep it for now.
   const { data } = await axios.get(`/api/match-details?fixture=${fixtureId}`);
   return data?.events || [];
 };
 
-// --- NEW: Event Styling Helper ---
-// This function returns a set of CSS classes based on the event type.
 const getEventStyles = (type: string, detail: string) => {
   switch (type) {
     case "Goal":
       return {
         bg: "bg-green-500/10",
         iconColor: "text-green-400",
-        glow: "shadow-lg shadow-green-500/10", // Special glow for goals
+        glow: "shadow-lg shadow-green-500/10",
       };
     case "Card":
       return detail.includes("Yellow")
@@ -55,7 +52,6 @@ const getEventStyles = (type: string, detail: string) => {
   }
 };
 
-// --- Event Icon Sub-Component ---
 const EventIcon = memo(({ type, detail }: { type: string; detail: string }) => {
   const styles = getEventStyles(type, detail);
   const Icon =
@@ -76,25 +72,37 @@ const EventIcon = memo(({ type, detail }: { type: string; detail: string }) => {
 });
 EventIcon.displayName = "EventIcon";
 
-// --- Event Row Sub-Component ---
 const EventRow = memo(
-  ({ event, isHomeEvent }: { event: MatchEvent; isHomeEvent: boolean }) => {
+  ({
+    event,
+    isHomeEvent,
+    t,
+  }: {
+    event: MatchEvent;
+    isHomeEvent: boolean;
+    t: (key: string, params?: any) => string;
+  }) => {
     const styles = getEventStyles(event.type, event.detail);
     const cardBaseClasses = `relative ${styles.bg} ${styles.glow} p-3 rounded-lg w-full max-w-xs transition-transform hover:scale-105`;
     const alignmentClasses = isHomeEvent ? "text-right" : "text-left";
+
+    const assistText = event.assist.name
+      ? t("assist_by", { name: event.assist.name })
+      : "";
 
     const eventContent = (
       <div className={`${cardBaseClasses} ${alignmentClasses}`}>
         <p className="font-bold text-white text-sm">{event.player.name}</p>
         {event.type === "subst" ? (
           <p className="text-xs text-text-muted">
-            <span className="text-red-400">OUT</span> →{" "}
-            <span className="text-green-400">IN</span> {event.assist.name}
+            <span className="text-red-400">{t("substitution_out_short")}</span>{" "}
+            →{" "}
+            <span className="text-green-400">{t("substitution_in_short")}</span>{" "}
+            {event.assist.name}
           </p>
         ) : (
           <p className="text-xs text-text-muted">
-            {event.detail}{" "}
-            {event.assist.name && `(Assist: ${event.assist.name})`}
+            {event.detail} {assistText}
           </p>
         )}
       </div>
@@ -125,13 +133,13 @@ const EventRow = memo(
 );
 EventRow.displayName = "EventRow";
 
-// --- Main Enhanced Widget ---
 export default function MatchActivityWidget({
   fixtureId,
   isLive,
   homeTeamId,
   activitySeoDescription,
 }: MatchActivityWidgetProps) {
+  const { t } = useTranslation();
   const {
     data: events,
     isLoading,
@@ -172,7 +180,7 @@ export default function MatchActivityWidget({
     if (isError) {
       return (
         <div className="text-center py-10 text-red-400">
-          <p>Failed to load match activity.</p>
+          <p>{t("error_loading_activity")}</p>
         </div>
       );
     }
@@ -180,7 +188,7 @@ export default function MatchActivityWidget({
       return (
         <div className="text-center py-10 text-brand-muted">
           <Info size={32} className="mx-auto mb-3" />
-          <p>The match has not started yet.</p>
+          <p>{t("match_not_started")}</p>
         </div>
       );
     }
@@ -188,13 +196,12 @@ export default function MatchActivityWidget({
       <div className="relative">
         <div className="absolute top-0 left-1/2 h-full w-0.5 -translate-x-1/2 bg-gray-700/50"></div>
         <div className="space-y-4">
-          {" "}
-          {/* Added spacing for the cards */}
           {sortedEvents.map((event, index) => (
             <EventRow
               key={`${event.time.elapsed}-${event.player.id}-${index}`}
               event={event}
               isHomeEvent={event.team.id === homeTeamId}
+              t={t}
             />
           ))}
         </div>
@@ -205,7 +212,9 @@ export default function MatchActivityWidget({
   return (
     <div className="bg-brand-secondary rounded-lg shadow-lg overflow-hidden">
       <div className="p-4 md:p-6">
-        <h2 className="text-2xl font-bold text-white mb-4">Match Timeline</h2>
+        <h2 className="text-2xl font-bold text-white mb-4">
+          {t("match_timeline")}
+        </h2>
         <p className="italic text-[#a3a3a3] leading-relaxed mb-8 text-sm">
           {activitySeoDescription}
         </p>

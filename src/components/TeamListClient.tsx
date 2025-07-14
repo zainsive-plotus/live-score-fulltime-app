@@ -1,4 +1,3 @@
-// src/components/TeamListClient.tsx
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -7,11 +6,10 @@ import TeamDirectoryCard, {
   TeamDirectoryCardSkeleton,
 } from "./TeamDirectoryCard";
 import Pagination from "./Pagination";
+import { useTranslation } from "@/hooks/useTranslation";
 
-// We can show more teams per page now that they are in a flat list
 const ITEMS_PER_PAGE = 21;
 
-// Define the shape of the data this component expects
 interface TeamData {
   team: { id: number; name: string; logo: string; country: string };
   venue: { name: string; city: string };
@@ -24,8 +22,8 @@ interface TeamListClientProps {
 export default function TeamListClient({ initialTeams }: TeamListClientProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const { t } = useTranslation();
 
-  // --- REFACTORED: Logic now filters a flat list ---
   const filteredTeams = useMemo(() => {
     if (!initialTeams) return [];
 
@@ -36,7 +34,6 @@ export default function TeamListClient({ initialTeams }: TeamListClientProps) {
       : initialTeams;
   }, [initialTeams, searchTerm]);
 
-  // --- REFACTORED: Pagination now works on the flat list of teams ---
   const { paginatedData, totalPages } = useMemo(() => {
     const total = Math.ceil(filteredTeams.length / ITEMS_PER_PAGE);
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -53,7 +50,6 @@ export default function TeamListClient({ initialTeams }: TeamListClientProps) {
 
   return (
     <div>
-      {/* Control Panel: Search Bar (Unchanged) */}
       <div className="bg-brand-secondary p-4 rounded-lg mb-8">
         <div className="relative w-full">
           <Search
@@ -64,18 +60,21 @@ export default function TeamListClient({ initialTeams }: TeamListClientProps) {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by team name..."
+            placeholder={t("search_by_team_name_placeholder")}
             className="w-full bg-[var(--color-primary)] border border-gray-700/50 rounded-lg p-3 pl-12 text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
           />
         </div>
       </div>
 
-      {/* --- Main Content Area: Now a single grid --- */}
       <div>
         {initialTeams.length === 0 ? (
           <div className="text-center py-20 bg-brand-secondary rounded-lg">
-            <p className="text-xl font-bold text-white">Could Not Load Teams</p>
-            <p className="text-text-muted mt-2">Please try again later.</p>
+            <p className="text-xl font-bold text-white">
+              {t("error_loading_teams_title")}
+            </p>
+            <p className="text-text-muted mt-2">
+              {t("error_loading_teams_subtitle")}
+            </p>
           </div>
         ) : paginatedData.length > 0 ? (
           <>
@@ -97,9 +96,11 @@ export default function TeamListClient({ initialTeams }: TeamListClientProps) {
         ) : (
           <div className="text-center py-20 bg-brand-secondary rounded-lg">
             <SearchX size={48} className="mx-auto text-text-muted mb-4" />
-            <p className="text-xl font-bold text-white">No Teams Found</p>
+            <p className="text-xl font-bold text-white">
+              {t("no_teams_found_title")}
+            </p>
             <p className="text-text-muted mt-2">
-              Your search for "{searchTerm}" did not match any teams.
+              {t("no_teams_found_subtitle", { searchTerm: searchTerm })}
             </p>
           </div>
         )}

@@ -15,10 +15,13 @@ import {
   Languages,
   Save,
   FileJson,
+  UploadCloud,
 } from "lucide-react";
+import Image from "next/image";
 
-// --------------- MODAL COMPONENT ---------------
-
+// ##################################################################
+// # 1. MODAL COMPONENT (with Flag Upload)
+// ##################################################################
 interface LanguageFormModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -35,18 +38,41 @@ const LanguageFormModal: React.FC<LanguageFormModalProps> = ({
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [isActive, setIsActive] = useState(true);
+  const [flagUrl, setFlagUrl] = useState<string | undefined>(undefined);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     if (language) {
       setName(language.name);
       setCode(language.code);
       setIsActive(language.isActive);
+      setFlagUrl(language.flagUrl);
     } else {
       setName("");
       setCode("");
       setIsActive(true);
+      setFlagUrl(undefined);
     }
   }, [language]);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const { data } = await axios.post("/api/upload", formData);
+      setFlagUrl(data.url);
+      toast.success("Flag uploaded successfully!");
+    } catch (error) {
+      toast.error("Flag upload failed. Please try again.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const mutation = useMutation({
     mutationFn: (payload: Partial<ILanguage>) =>
@@ -67,8 +93,10 @@ const LanguageFormModal: React.FC<LanguageFormModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    mutation.mutate({ name, code, isActive });
+    mutation.mutate({ name, code, isActive, flagUrl });
   };
+
+  const isMutationPending = mutation.isPending || isUploading;
 
   if (!isOpen) return null;
 
@@ -101,7 +129,7 @@ const LanguageFormModal: React.FC<LanguageFormModalProps> = ({
               onChange={(e) => setName(e.target.value)}
               className="w-full p-3 rounded bg-gray-700 text-white"
               required
-              disabled={mutation.isPending}
+              disabled={isMutationPending}
               placeholder="e.g., German"
             />
           </div>
@@ -119,7 +147,7 @@ const LanguageFormModal: React.FC<LanguageFormModalProps> = ({
               onChange={(e) => setCode(e.target.value)}
               className="w-full p-3 rounded bg-gray-700 text-white"
               required
-              disabled={mutation.isPending || !!language}
+              disabled={isMutationPending || !!language}
               placeholder="e.g., de"
             />
             {!!language && (
@@ -128,6 +156,41 @@ const LanguageFormModal: React.FC<LanguageFormModalProps> = ({
               </p>
             )}
           </div>
+          <div>
+            <label className="block text-sm font-medium text-brand-light mb-1">
+              Flag Image (Optional)
+            </label>
+            <div className="mt-2 flex items-center gap-4">
+              <div className="w-16 h-12 flex-shrink-0 bg-gray-700 rounded-md flex items-center justify-center">
+                {flagUrl ? (
+                  <Image
+                    src={flagUrl}
+                    alt="Flag preview"
+                    width={48}
+                    height={32}
+                    objectFit="contain"
+                  />
+                ) : (
+                  <UploadCloud className="w-8 h-8 text-gray-500" />
+                )}
+              </div>
+              <label
+                htmlFor="flag-upload"
+                className="relative cursor-pointer bg-gray-600 py-2 px-3 border border-gray-500 rounded-md shadow-sm text-sm leading-4 font-medium text-white hover:bg-gray-700"
+              >
+                <span>{isUploading ? "Uploading..." : "Upload File"}</span>
+                <input
+                  id="flag-upload"
+                  name="flag-upload"
+                  type="file"
+                  className="sr-only"
+                  onChange={handleImageUpload}
+                  disabled={isUploading}
+                  accept="image/png, image/jpeg, image/svg+xml, image/webp"
+                />
+              </label>
+            </div>
+          </div>
           <div className="flex items-center">
             <input
               id="isActive"
@@ -135,7 +198,7 @@ const LanguageFormModal: React.FC<LanguageFormModalProps> = ({
               checked={isActive}
               onChange={(e) => setIsActive(e.target.checked)}
               className="w-4 h-4 text-brand-purple bg-gray-700 border-gray-600 rounded"
-              disabled={mutation.isPending}
+              disabled={isMutationPending}
             />
             <label
               htmlFor="isActive"
@@ -149,21 +212,25 @@ const LanguageFormModal: React.FC<LanguageFormModalProps> = ({
               type="button"
               onClick={onClose}
               className="bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:opacity-90"
-              disabled={mutation.isPending}
+              disabled={isMutationPending}
             >
               Cancel
             </button>
             <button
               type="submit"
               className="bg-brand-purple text-white font-bold py-2 px-4 rounded-lg disabled:opacity-50 flex items-center gap-2"
-              disabled={mutation.isPending}
+              disabled={isMutationPending}
             >
-              {mutation.isPending ? (
+              {isMutationPending ? (
                 <Loader2 size={18} className="animate-spin" />
               ) : (
                 <CheckCircle size={18} />
               )}
-              {mutation.isPending ? "Saving..." : "Save Language"}
+              {isUploading
+                ? "Uploading..."
+                : mutation.isPending
+                ? "Saving..."
+                : "Save Language"}
             </button>
           </div>
         </form>
@@ -172,8 +239,9 @@ const LanguageFormModal: React.FC<LanguageFormModalProps> = ({
   );
 };
 
-// --------------- MAIN PAGE COMPONENT ---------------
-
+// ##################################################################
+// # 2. MAIN PAGE COMPONENT
+// ##################################################################
 export default function AdminLanguagesPage() {
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -183,7 +251,6 @@ export default function AdminLanguagesPage() {
   const [selectedLocale, setSelectedLocale] = useState("");
   const [translationContent, setTranslationContent] = useState("");
 
-  // --- Data Fetching ---
   const { data: languages = [], isLoading: isLoadingLanguages } = useQuery<
     ILanguage[]
   >({
@@ -198,7 +265,7 @@ export default function AdminLanguagesPage() {
         axios
           .get("/api/admin/translations?locale=tr")
           .then((res) => JSON.stringify(res.data, null, 2)),
-      enabled: true, // always fetch the default for reference
+      enabled: true,
       staleTime: Infinity,
     });
 
@@ -223,7 +290,6 @@ export default function AdminLanguagesPage() {
     }
   }, [selectedLocale, fetchTranslationFile]);
 
-  // --- Mutations ---
   const updateLanguageMutation = useMutation({
     mutationFn: ({
       id,
@@ -261,7 +327,6 @@ export default function AdminLanguagesPage() {
       ),
   });
 
-  // --- Handlers ---
   const handleOpenEditModal = (lang: ILanguage) => {
     setEditingLanguage(lang);
     setIsModalOpen(true);

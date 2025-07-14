@@ -1,17 +1,18 @@
-// src/components/ContactFormClient.tsx
-"use client"; // This component MUST be a client component
+"use client";
 
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
 import toast from "react-hot-toast";
-import { Loader2, CheckCircle } from "lucide-react"; // Icons for form submission feedback
+import { Loader2, CheckCircle } from "lucide-react";
+import { useTranslation } from "@/hooks/useTranslation"; // <-- Import hook
 
 const ContactFormClient: React.FC = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
+  const { t } = useTranslation(); // <-- Use hook
 
   const contactMutation = useMutation({
     mutationFn: (formData: {
@@ -21,17 +22,14 @@ const ContactFormClient: React.FC = () => {
       message: string;
     }) => axios.post("/api/contact", formData),
     onSuccess: () => {
-      toast.success("Your message has been sent successfully!");
-      // Clear form
+      toast.success(t("contact_form_success_message"));
       setName("");
       setEmail("");
       setSubject("");
       setMessage("");
     },
     onError: (err: any) => {
-      toast.error(
-        err.response?.data?.error || "Failed to send message. Please try again."
-      );
+      toast.error(err.response?.data?.error || t("contact_form_error_message"));
     },
   });
 
@@ -42,14 +40,16 @@ const ContactFormClient: React.FC = () => {
 
   return (
     <div className="bg-brand-secondary p-8 rounded-lg shadow-xl">
-      <h2 className="text-3xl font-bold text-white mb-6">Bize Ulaşın</h2>
+      <h2 className="text-3xl font-bold text-white mb-6">
+        {t("contact_us_form_title")}
+      </h2>
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
           <label
             htmlFor="name"
             className="block text-sm font-medium text-brand-light mb-1"
           >
-            Adınız
+            {t("your_name_label")}
           </label>
           <input
             type="text"
@@ -66,7 +66,7 @@ const ContactFormClient: React.FC = () => {
             htmlFor="email"
             className="block text-sm font-medium text-brand-light mb-1"
           >
-            E-posta Adresiniz
+            {t("your_email_label")}
           </label>
           <input
             type="email"
@@ -83,7 +83,7 @@ const ContactFormClient: React.FC = () => {
             htmlFor="subject"
             className="block text-sm font-medium text-brand-light mb-1"
           >
-            Konu
+            {t("subject_label")}
           </label>
           <input
             type="text"
@@ -100,7 +100,7 @@ const ContactFormClient: React.FC = () => {
             htmlFor="message"
             className="block text-sm font-medium text-brand-light mb-1"
           >
-            Mesajınız
+            {t("your_message_label")}
           </label>
           <textarea
             id="message"
@@ -122,7 +122,9 @@ const ContactFormClient: React.FC = () => {
           ) : (
             <CheckCircle size={20} />
           )}
-          {contactMutation.isPending ? "Gönderiliyor..." : "Mesaj Gönder"}
+          {contactMutation.isPending
+            ? t("sending_button_text")
+            : t("send_message_button_text")}
         </button>
       </form>
     </div>

@@ -1,9 +1,9 @@
-// src/components/team/TeamFixturesWidget.tsx
 "use client";
 
 import { useState, useMemo } from "react";
-import { Info, CalendarClock } from "lucide-react"; // Using a more descriptive icon
+import { Info, CalendarClock } from "lucide-react";
 import MatchListItem, { MatchListItemSkeleton } from "../MatchListItem";
+import { useTranslation } from "@/hooks/useTranslation"; // <-- Import hook
 
 interface TeamFixturesWidgetProps {
   fixtures: any[];
@@ -15,6 +15,7 @@ export default function TeamFixturesWidget({
   const [activeTab, setActiveTab] = useState<"upcoming" | "results">(
     "upcoming"
   );
+  const { t } = useTranslation(); // <-- Use hook
 
   const filteredMatches = useMemo(() => {
     if (!fixtures) return [];
@@ -33,19 +34,17 @@ export default function TeamFixturesWidget({
         .filter((m: any) =>
           ["FT", "AET", "PEN"].includes(m.fixture.status.short)
         )
-        .reverse(); // Show most recent results first
+        .reverse();
     }
   }, [fixtures, activeTab]);
 
   return (
     <div className="bg-brand-secondary rounded-xl">
-      {/* --- NEW: Unified Header --- */}
       <div className="flex justify-between items-center p-4 border-b border-gray-700/50">
         <h3 className="text-xl font-bold text-white flex items-center gap-2">
           <CalendarClock size={22} />
-          Match Schedule
+          {t("match_schedule")}
         </h3>
-        {/* --- NEW: Segmented Control for Filters --- */}
         <div className="flex items-center gap-1 bg-[var(--color-primary)] p-1 rounded-lg">
           <button
             onClick={() => setActiveTab("upcoming")}
@@ -55,7 +54,7 @@ export default function TeamFixturesWidget({
                 : "text-text-muted hover:bg-gray-700"
             }`}
           >
-            Upcoming
+            {t("upcoming")}
           </button>
           <button
             onClick={() => setActiveTab("results")}
@@ -65,17 +64,16 @@ export default function TeamFixturesWidget({
                 : "text-text-muted hover:bg-gray-700"
             }`}
           >
-            Results
+            {t("results")}
           </button>
         </div>
       </div>
 
-      {/* --- Content Area --- */}
       <div className="p-2 space-y-2 max-h-[800px] overflow-y-auto custom-scrollbar">
-        {fixtures.length === 0 ? (
+        {!fixtures || fixtures.length === 0 ? (
           <div className="text-center py-20 text-brand-muted">
             <Info size={32} className="mx-auto mb-3" />
-            <p className="font-semibold">Fixture data not available.</p>
+            <p className="font-semibold">{t("fixture_data_unavailable")}</p>
           </div>
         ) : filteredMatches.length > 0 ? (
           filteredMatches.map((match: any) => (
@@ -84,7 +82,9 @@ export default function TeamFixturesWidget({
         ) : (
           <div className="text-center py-20 text-brand-muted">
             <Info size={32} className="mx-auto mb-3" />
-            <p className="font-semibold">No {activeTab} matches found.</p>
+            <p className="font-semibold">
+              {t("no_matches_found_for_tab", { tab: activeTab })}
+            </p>
           </div>
         )}
       </div>

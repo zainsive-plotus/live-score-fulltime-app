@@ -1,6 +1,7 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface PaginationProps {
   currentPage: number;
@@ -8,8 +9,13 @@ interface PaginationProps {
   onPageChange: (page: number) => void;
 }
 
-export default function Pagination({ currentPage, totalPages, onPageChange }: PaginationProps) {
-  // Don't render pagination if there's only one page or no pages
+export default function Pagination({
+  currentPage,
+  totalPages,
+  onPageChange,
+}: PaginationProps) {
+  const { t } = useTranslation();
+
   if (totalPages <= 1) {
     return null;
   }
@@ -32,21 +38,23 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
         onClick={handlePrevious}
         disabled={currentPage === 1}
         className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-secondary rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-700/50 transition-colors"
+        aria-label={t("previous_page")}
       >
         <ChevronLeft size={16} />
-        <span>Previous</span>
+        <span>{t("previous")}</span>
       </button>
 
       <span className="text-sm font-semibold text-brand-muted">
-        Page {currentPage} of {totalPages}
+        {t("page_of", { currentPage, totalPages })}
       </span>
 
       <button
         onClick={handleNext}
         disabled={currentPage === totalPages}
         className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-secondary rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-700/50 transition-colors"
+        aria-label={t("next_page")}
       >
-        <span>Next</span>
+        <span>{t("next")}</span>
         <ChevronRight size={16} />
       </button>
     </div>

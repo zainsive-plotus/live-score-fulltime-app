@@ -1,9 +1,8 @@
-// src/components/TeamDirectoryCard.tsx
 import Image from "next/image";
 import Link from "next/link";
 import { generateTeamSlug } from "@/lib/generate-team-slug";
 import { proxyImageUrl } from "@/lib/image-proxy";
-import { MapPin, Calendar } from "lucide-react"; // Import new icons
+import { MapPin, Calendar } from "lucide-react";
 
 interface TeamDirectoryCardProps {
   team: {
@@ -14,12 +13,11 @@ interface TeamDirectoryCardProps {
     founded?: number;
   };
   venue: { name: string; city: string };
+  // No translations needed here as all text is dynamic data
 }
 
-// --- NEW, ENHANCED SKELETON ---
 export const TeamDirectoryCardSkeleton = () => (
   <div className="bg-brand-secondary rounded-lg flex flex-col h-full animate-pulse">
-    {/* Top part */}
     <div className="p-4 flex items-center gap-4">
       <div className="w-12 h-12 rounded-full bg-gray-700"></div>
       <div className="flex-1 space-y-2">
@@ -27,7 +25,6 @@ export const TeamDirectoryCardSkeleton = () => (
         <div className="h-4 w-1/2 rounded bg-gray-700"></div>
       </div>
     </div>
-    {/* Bottom part (for the new details) */}
     <div className="mt-auto border-t border-gray-700/50 p-4 space-y-3">
       <div className="h-3 w-3/4 rounded bg-gray-700"></div>
       <div className="h-3 w-2/3 rounded bg-gray-700"></div>
@@ -35,7 +32,6 @@ export const TeamDirectoryCardSkeleton = () => (
   </div>
 );
 
-// --- NEW, ENHANCED CARD ---
 export default function TeamDirectoryCard({
   team,
   venue,
@@ -45,12 +41,11 @@ export default function TeamDirectoryCard({
   return (
     <Link href={href} className="block group h-full">
       <div className="bg-brand-secondary rounded-lg flex flex-col h-full transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl hover:shadow-[var(--brand-accent)]/20">
-        {/* --- Top Section: Team Info --- */}
         <div className="p-4 flex items-center gap-4">
           <Image
             src={proxyImageUrl(team.logo)}
             alt={`${team.name} logo`}
-            width={48} // Slightly larger logo
+            width={48}
             height={48}
             className="flex-shrink-0"
           />
@@ -62,12 +57,11 @@ export default function TeamDirectoryCard({
           </div>
         </div>
 
-        {/* --- Bottom Section: Details --- */}
-        {/* mt-auto pushes this section to the bottom of the card */}
         <div className="mt-auto border-t border-gray-700/50 p-4 space-y-2">
           {team.founded && (
             <div className="flex items-center gap-2.5 text-sm text-text-secondary">
               <Calendar size={14} className="text-text-muted flex-shrink-0" />
+              {/* Note: "Founded" will need to be translated if we add it here */}
               <span className="font-semibold">Founded: {team.founded}</span>
             </div>
           )}

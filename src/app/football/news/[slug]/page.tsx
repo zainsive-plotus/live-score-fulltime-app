@@ -3,11 +3,14 @@ import dbConnect from "@/lib/dbConnect";
 import Post from "@/models/Post";
 import { format } from "date-fns";
 import Header from "@/components/Header";
-import Image from "next/image"; // <-- Import next/image
-import SocialShareButtons from "@/components/SocialShareButtons"; // We will create this next
+import Image from "next/image";
+import SocialShareButtons from "@/components/SocialShareButtons";
 import NewsSidebar from "@/components/NewsSidebar";
+import type { Metadata } from "next";
+import { getI18n } from "@/lib/i18n/server";
+import { proxyImageUrl } from "@/lib/image-proxy";
+import Script from "next/script";
 
-// This function fetches the data on the server
 async function getPost(slug: string) {
   await dbConnect();
   const post: any = await Post.findOne({
@@ -20,97 +23,158 @@ async function getPost(slug: string) {
   return post;
 }
 
-// Update generateMetadata to use the new meta fields if they exist
 export async function generateMetadata({
   params,
 }: {
   params: { slug: string };
-}) {
+}): Promise<Metadata> {
   const post = await getPost(params.slug);
   if (!post) {
     return { title: "Not Found" };
   }
+
+  const description =
+    post.metaDescription ||
+    post.content.replace(/<[^>]*>?/gm, "").substring(0, 160);
+  const imageUrl = post.featuredImage
+    ? proxyImageUrl(post.featuredImage)
+    : `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/og-image.jpg`;
+
   return {
-    // Use specific meta title if available, otherwise fall back to post title
-    title: post.metaTitle || `${post.title} | Fulltime News`,
-    // Use specific meta description if available
-    description:
-      post.metaDescription ||
-      post.content.replace(/<[^>]*>?/gm, "").substring(0, 160),
+    title: post.metaTitle || `${post.title} | Fan Skor`,
+    description: description,
+    alternates: {
+      canonical: `/football/news/${post.slug}`,
+    },
+    openGraph: {
+      title: post.metaTitle || post.title,
+      description: description,
+      url: `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/football/news/${post.slug}`,
+      type: "article",
+      publishedTime: post.createdAt.toISOString(),
+      modifiedTime: post.updatedAt.toISOString(),
+      authors: [post.author || "Fan Skor"],
+      images: [
+        {
+          url: imageUrl,
+          width: 1200,
+          height: 630,
+          alt: post.title,
+        },
+      ],
+    },
   };
 }
 
-// --- The Main Page Component ---
 export default async function NewsArticlePage({
   params,
 }: {
   params: { slug: string };
 }) {
   const post = await getPost(params.slug);
+  const t = await getI18n();
 
   if (!post) {
     notFound();
   }
 
-  // We need to construct the full URL for sharing
-  const postUrl = `${process.env.NEXTAUTH_URL}/news/${post.slug}`;
+  const postUrl = `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/football/news/${post.slug}`;
+  const description =
+    post.metaDescription ||
+    post.content.replace(/<[^>]*>?/gm, "").substring(0, 160);
+  const imageUrl =
+    post.featuredImage ||
+    `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/og-image.jpg`;
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": postUrl,
+    },
+    headline: post.title,
+    image: imageUrl,
+    datePublished: post.createdAt.toISOString(),
+    dateModified: post.updatedAt.toISOString(),
+    author: {
+      "@type": "Organization",
+      name: post.author || "Fan Skor",
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "Fan Skor",
+      logo: {
+        "@type": "ImageObject",
+        url: `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/fanskor-transparent.webp`,
+      },
+    },
+    description: description,
+  };
 
   return (
-    <div className="bg-brand-dark min-h-screen">
-      <Header />
-      {/* --- UPDATED LAYOUT --- */}
-      <main className="container mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-3 gap-12">
-        {/* Main Content (Article) - Spans 2 columns on large screens */}
-        <div className="lg:col-span-2">
-          <article className="bg-brand-secondary rounded-lg overflow-hidden">
-            {post.featuredImage && (
-              <div className="relative w-full h-64 md:h-96">
-                <Image
-                  src={post.featuredImage}
-                  alt={post.featuredImageAltText || post.title}
-                  title={post.featuredImageTitle || post.title}
-                  layout="fill"
-                  objectFit="cover"
-                  priority
+    <>
+      <Script
+        id="news-article-jsonld"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <div className="bg-brand-dark min-h-screen">
+        <Header />
+        <main className="container mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-3 gap-12">
+          <div className="lg:col-span-2">
+            <article className="bg-brand-secondary rounded-lg overflow-hidden">
+              {post.featuredImage && (
+                <div className="relative w-full h-64 md:h-96">
+                  <Image
+                    src={post.featuredImage}
+                    alt={post.featuredImageAltText || post.title}
+                    title={post.featuredImageTitle || post.title}
+                    layout="fill"
+                    objectFit="cover"
+                    priority
+                  />
+                </div>
+              )}
+
+              <div className="p-8">
+                <div className="mb-8 text-center border-b border-gray-700/50 pb-8">
+                  <h1 className="text-4xl md:text-5xl font-extrabold text-white leading-tight mb-4">
+                    {post.title}
+                  </h1>
+                  <p className="text-brand-muted">
+                    {t("published_by_on", {
+                      author: post.author,
+                      date: format(new Date(post.createdAt), "MMMM dd, yyyy"),
+                    })}
+                  </p>
+                </div>
+
+                <div
+                  className="prose prose-invert lg:prose-xl max-w-none"
+                  dangerouslySetInnerHTML={{ __html: post.content }}
                 />
+
+                <div className="mt-12 pt-8 border-t border-gray-700/50">
+                  <h3 className="text-lg font-bold text-center text-brand-muted mb-4">
+                    {t("share_this_article")}
+                  </h3>
+                  <SocialShareButtons url={postUrl} title={post.title} />
+                </div>
               </div>
-            )}
+            </article>
+          </div>
 
-            <div className="p-8">
-              <div className="mb-8 text-center border-b border-gray-700/50 pb-8">
-                <h1 className="text-4xl md:text-5xl font-extrabold text-white leading-tight mb-4">
-                  {post.title}
-                </h1>
-                <p className="text-brand-muted">
-                  Published by {post.author} on{" "}
-                  {format(new Date(), "MMMM dd, yyyy")}
-                </p>
-              </div>
-
-              <div
-                className="prose prose-invert lg:prose-xl max-w-none"
-                dangerouslySetInnerHTML={{ __html: post.content }}
-              />
-
-              <div className="mt-12 pt-8 border-t border-gray-700/50">
-                <h3 className="text-lg font-bold text-center text-brand-muted mb-4">
-                  Share this article
-                </h3>
-                <SocialShareButtons url={postUrl} title={post.title} />
-              </div>
-            </div>
-          </article>
-        </div>
-
-        {/* Sidebar - Spans 1 column on large screens */}
-        <div className="lg:col-span-1">
-          <NewsSidebar />
-        </div>
-      </main>
-    </div>
+          <div className="lg:col-span-1">
+            <NewsSidebar />
+          </div>
+        </main>
+      </div>
+    </>
   );
 }
-// Optional: For better performance in production, generate static pages for each post at build time.
+
+// This function can remain as is
 export async function generateStaticParams() {
   await dbConnect();
   const posts = await Post.find({ status: "published" }).select("slug").lean();

@@ -1,17 +1,17 @@
-// src/components/match/TeamFormWidget.tsx
 "use client";
 
 import { TrendingUp, Shield, BarChart2 } from "lucide-react";
 import Image from "next/image";
 import { proxyImageUrl } from "@/lib/image-proxy";
+import { useTranslation } from "@/hooks/useTranslation"; // <-- Import hook
 
 interface TeamFormWidgetProps {
-  teamStats: any; // e.g., homeTeamStats or awayTeamStats from the API
-  team: any; // The basic team object { id, name, logo }
+  teamStats: any;
+  team: any;
   location: "Home" | "Away";
 }
 
-// --- Reusable Sub-component for a single stat row ---
+// ... StatRow and FormPill components remain the same ...
 const StatRow = ({
   label,
   value,
@@ -30,8 +30,6 @@ const StatRow = ({
     </span>
   </div>
 );
-
-// --- Reusable Sub-component for the W/D/L form display ---
 const FormPill = ({ result }: { result: "W" | "D" | "L" }) => {
   const styles = {
     W: "bg-green-500/80 text-white",
@@ -52,27 +50,27 @@ export default function TeamFormWidget({
   team,
   location,
 }: TeamFormWidgetProps) {
-  // Don't render if we don't have the necessary stats
+  const { t } = useTranslation(); // <-- Use hook
+
   if (!teamStats || !teamStats.form) {
     return (
       <div className="bg-brand-secondary p-4 rounded-lg">
         <h3 className="text-lg font-bold text-white mb-2">
-          Form & Stats ({location})
+          {t("form_and_stats_title", { location })}
         </h3>
         <p className="text-sm text-brand-muted text-center py-4">
-          Detailed stats not available for this team.
+          {t("stats_unavailable_for_team")}
         </p>
       </div>
     );
   }
 
-  const formArray = teamStats.form.slice(-10).split(""); // Get last 10 results
+  const formArray = teamStats.form.slice(-10).split("");
   const goalsFor = teamStats.goals.for.total.total;
   const goalsAgainst = teamStats.goals.against.total.total;
 
   return (
     <div className="bg-brand-secondary p-4 rounded-lg space-y-4">
-      {/* Header */}
       <div className="flex items-center gap-3">
         <Image
           src={proxyImageUrl(team.logo)}
@@ -81,15 +79,17 @@ export default function TeamFormWidget({
           height={40}
         />
         <div>
-          <p className="text-xs text-brand-muted">{location} Team</p>
+          <p className="text-xs text-brand-muted">
+            {location === "Home" ? t("home_team") : t("away_team")}
+          </p>
           <h3 className="text-lg font-bold text-white">{team.name}</h3>
         </div>
       </div>
 
-      {/* Form Section */}
       <div>
         <h4 className="font-semibold text-brand-light mb-2 flex items-center gap-2">
-          <TrendingUp size={16} /> Recent Form (Last {formArray.length})
+          <TrendingUp size={16} />{" "}
+          {t("recent_form_count", { count: formArray.length })}
         </h4>
         <div className="flex items-center gap-1.5">
           {formArray.map((result: "W" | "D" | "L", index: number) => (
@@ -98,45 +98,51 @@ export default function TeamFormWidget({
         </div>
       </div>
 
-      {/* Stats Section */}
       <div>
         <h4 className="font-semibold text-brand-light mb-1 flex items-center gap-2">
-          <BarChart2 size={16} /> Performance
+          <BarChart2 size={16} /> {t("performance_title")}
         </h4>
         <div className="bg-gray-800/50 p-2 rounded-md">
           <StatRow
-            label="Matches Played"
-            value={`${teamStats.fixtures.played.home} (H) / ${teamStats.fixtures.played.away} (A)`}
+            label={t("matches_played")}
+            value={`${teamStats.fixtures.played.home} (${t("home_short")}) / ${
+              teamStats.fixtures.played.away
+            } (${t("away_short")})`}
           />
           <StatRow
-            label="Wins"
-            value={`${teamStats.fixtures.wins.home} (H) / ${teamStats.fixtures.wins.away} (A)`}
+            label={t("wins")}
+            value={`${teamStats.fixtures.wins.home} (${t("home_short")}) / ${
+              teamStats.fixtures.wins.away
+            } (${t("away_short")})`}
           />
           <StatRow
-            label="Draws"
-            value={`${teamStats.fixtures.draws.home} (H) / ${teamStats.fixtures.draws.away} (A)`}
+            label={t("draws")}
+            value={`${teamStats.fixtures.draws.home} (${t("home_short")}) / ${
+              teamStats.fixtures.draws.away
+            } (${t("away_short")})`}
           />
           <StatRow
-            label="Losses"
-            value={`${teamStats.fixtures.loses.home} (H) / ${teamStats.fixtures.loses.away} (A)`}
+            label={t("losses")}
+            value={`${teamStats.fixtures.loses.home} (${t("home_short")}) / ${
+              teamStats.fixtures.loses.away
+            } (${t("away_short")})`}
           />
         </div>
       </div>
 
-      {/* Goals Section */}
       <div>
         <h4 className="font-semibold text-brand-light mb-1 flex items-center gap-2">
-          <Shield size={16} /> Goal Analysis
+          <Shield size={16} /> {t("goal_analysis_title")}
         </h4>
         <div className="bg-gray-800/50 p-2 rounded-md">
-          <StatRow label="Goals For" value={goalsFor} highlight />
-          <StatRow label="Goals Against" value={goalsAgainst} />
+          <StatRow label={t("goals_for")} value={goalsFor} highlight />
+          <StatRow label={t("goals_against")} value={goalsAgainst} />
           <StatRow
-            label="Avg. Scored"
+            label={t("avg_scored")}
             value={teamStats.goals.for.average.total}
           />
           <StatRow
-            label="Avg. Conceded"
+            label={t("avg_conceded")}
             value={teamStats.goals.against.average.total}
           />
         </div>

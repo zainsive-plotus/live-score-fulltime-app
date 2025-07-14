@@ -1,5 +1,3 @@
-// ===== src/components/MatchList.tsx =====
-
 "use client";
 
 import { useEffect, useMemo, useState, Dispatch, SetStateAction } from "react";
@@ -20,6 +18,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { proxyImageUrl } from "@/lib/image-proxy";
+import { useTranslation } from "@/hooks/useTranslation"; // <-- Import hook
 
 function useDebounce(value: string, delay: number) {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -35,15 +34,9 @@ function useDebounce(value: string, delay: number) {
 }
 
 type StatusFilter = "all" | "live" | "finished" | "scheduled";
-const STATUS_MAP: Record<StatusFilter, string[]> = {
-  all: [],
-  live: ["1H", "HT", "2H", "ET", "P", "LIVE"],
-  finished: ["FT", "AET", "PEN"],
-  scheduled: ["NS", "TBD", "PST"],
-};
 const INITIAL_MATCHES_TO_SHOW = 5;
 const MATCHES_PER_PAGE = 10;
-const LEAGUES_PER_PAGE = 8; // ADDED: Constant for league pagination
+const LEAGUES_PER_PAGE = 8;
 
 const fetchAllMatches = async (
   leagueId: number | null,
@@ -149,8 +142,15 @@ export default function MatchList({
   >({});
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
+  const { t } = useTranslation(); // <-- Use hook
 
-  // ADDED: State for league pagination
+  const STATUS_MAP: Record<StatusFilter, string[]> = {
+    all: [],
+    live: ["1H", "HT", "2H", "ET", "P", "LIVE"],
+    finished: ["FT", "AET", "PEN"],
+    scheduled: ["NS", "TBD", "PST"],
+  };
+
   const [currentPage, setCurrentPage] = useState(1);
 
   const {
@@ -187,14 +187,12 @@ export default function MatchList({
     staleTime: 25000,
   });
 
-  // MODIFIED: This effect now also resets the league page
   useEffect(() => {
     setVisibleMatchCounts({});
-    setCurrentPage(1); // Reset to first page on filter change
+    setCurrentPage(1);
   }, [selectedDate, activeStatusFilter, debouncedSearchTerm]);
 
   const groupedMatches = useMemo(() => {
-    // ... (grouping logic remains the same)
     const isSearching = debouncedSearchTerm.length >= 3;
     const matchesToProcess = isSearching
       ? searchResults
@@ -221,14 +219,12 @@ export default function MatchList({
       const groupKey = isSearching
         ? format(new Date(match.fixture.date), "yyyy-MM-dd")
         : match.league.id;
-
       const leagueInfo = {
         ...match.league,
         name: isSearching
           ? format(new Date(match.fixture.date), "eeee, dd MMMM")
           : match.league.name,
       };
-
       if (!acc[groupKey]) acc[groupKey] = { leagueInfo, matches: [] };
       acc[groupKey].matches.push(match);
       return acc;
@@ -239,16 +235,14 @@ export default function MatchList({
     searchResults,
     activeStatusFilter,
     debouncedSearchTerm,
+    STATUS_MAP,
   ]);
 
-  // ADDED: Memoized calculation for paginated league groups
   const paginatedLeagueGroups = useMemo(() => {
     const leagueEntries = Object.entries(groupedMatches);
     const totalPages = Math.ceil(leagueEntries.length / LEAGUES_PER_PAGE);
-
     const startIndex = (currentPage - 1) * LEAGUES_PER_PAGE;
     const endIndex = startIndex + LEAGUES_PER_PAGE;
-
     return {
       paginatedEntries: leagueEntries.slice(startIndex, endIndex),
       totalPages,
@@ -284,7 +278,7 @@ export default function MatchList({
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search fixtures by team or league..."
+            placeholder={t("search_fixtures_placeholder")}
             className="w-full bg-[var(--color-secondary)] border border-gray-700/50 rounded-lg p-3 pl-11 text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
           />
           {searchTerm && (
@@ -308,16 +302,21 @@ export default function MatchList({
               className="flex items-center gap-1 p-1 rounded-xl w-full"
               style={{ backgroundColor: "var(--color-secondary)" }}
             >
-              {["all", "live", "finished", "scheduled"].map((tab) => (
+              {[
+                { key: "all", label: t("filter_all") },
+                { key: "live", label: t("filter_live") },
+                { key: "finished", label: t("filter_finished") },
+                { key: "scheduled", label: t("filter_scheduled") },
+              ].map((tab) => (
                 <TabButton
-                  key={tab}
-                  label={tab.charAt(0).toUpperCase() + tab.slice(1)}
-                  isActive={activeStatusFilter === tab}
-                  liveCount={tab === "live" ? globalLiveCount : undefined}
+                  key={tab.key}
+                  label={tab.label}
+                  isActive={activeStatusFilter === tab.key}
+                  liveCount={tab.key === "live" ? globalLiveCount : undefined}
                   hasLiveIndicator={
-                    tab === "live" && (globalLiveCount ?? 0) > 0
+                    tab.key === "live" && (globalLiveCount ?? 0) > 0
                   }
-                  onClick={() => setActiveStatusFilter(tab as StatusFilter)}
+                  onClick={() => setActiveStatusFilter(tab.key as StatusFilter)}
                 />
               ))}
             </div>
@@ -360,9 +359,10 @@ export default function MatchList({
                           className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-text-muted p-3 rounded-lg transition-colors hover:text-white"
                           style={{ backgroundColor: "var(--color-secondary)" }}
                         >
-                          <ChevronsDown size={16} /> Show{" "}
-                          {Math.min(MATCHES_PER_PAGE, remainingMatches)} more
-                          matches
+                          <ChevronsDown size={16} />{" "}
+                          {t("show_more_matches", {
+                            count: Math.min(MATCHES_PER_PAGE, remainingMatches),
+                          })}
                         </button>
                       )}
                     </div>
@@ -370,8 +370,6 @@ export default function MatchList({
                 );
               }
             )}
-
-            {/* ADDED: Pagination controls for league groups */}
             {paginatedLeagueGroups.totalPages > 1 && (
               <div className="flex items-center justify-between p-2">
                 <button
@@ -380,17 +378,20 @@ export default function MatchList({
                   className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-secondary rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-700/50 transition-colors"
                 >
                   <ChevronLeft size={16} />
-                  <span>Previous</span>
+                  <span>{t("previous")}</span>
                 </button>
                 <span className="text-sm font-semibold text-brand-muted">
-                  Page {currentPage} of {paginatedLeagueGroups.totalPages}
+                  {t("page_of", {
+                    currentPage,
+                    totalPages: paginatedLeagueGroups.totalPages,
+                  })}
                 </span>
                 <button
                   onClick={() => setCurrentPage((p) => p + 1)}
                   disabled={currentPage === paginatedLeagueGroups.totalPages}
                   className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-secondary rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-700/50 transition-colors"
                 >
-                  <span>Next</span>
+                  <span>{t("next")}</span>
                   <ChevronRight size={16} />
                 </button>
               </div>
@@ -402,14 +403,14 @@ export default function MatchList({
             style={{ backgroundColor: "var(--color-primary)" }}
           >
             <p className="text-white font-semibold capitalize">
-              No Matches Found
+              {t("no_matches_found_title")}
             </p>
             <p className="text-sm text-text-muted mt-1">
               {debouncedSearchTerm
-                ? `Your search for "${debouncedSearchTerm}" did not return any matches.`
-                : `There are no ${
-                    activeStatusFilter !== "all" ? activeStatusFilter : ""
-                  } matches for the selected date.`}
+                ? t("no_search_results_subtitle", {
+                    searchTerm: debouncedSearchTerm,
+                  })
+                : t("no_matches_for_date_subtitle")}
             </p>
           </div>
         )}
