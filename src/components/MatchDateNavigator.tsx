@@ -1,8 +1,7 @@
-// src/components/MatchDateNavigator.tsx
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { format, addDays, subDays, isToday } from "date-fns";
+import { format, addDays, subDays, isToday, Locale } from "date-fns";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import {
@@ -11,11 +10,15 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
+// Import date-fns locales for different languages
+import { enUS, tr, de, fr, es, ar } from "date-fns/locale";
 
 interface DateNavigatorProps {
   selectedDate: Date;
   onDateChange: (date: Date) => void;
 }
+
+const dateLocales: Record<string, Locale> = { en: enUS, tr, de, fr, es, ar };
 
 export default function MatchDateNavigator({
   selectedDate,
@@ -23,9 +26,8 @@ export default function MatchDateNavigator({
 }: DateNavigatorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
 
-  // --- ENHANCEMENT: Still handles closing the popover on outside clicks ---
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -51,12 +53,11 @@ export default function MatchDateNavigator({
     setIsOpen(false);
   };
 
+  const currentLocale = dateLocales[locale] || enUS;
+
   return (
-    // --- The outer container now includes the dropdownRef ---
     <div className="relative w-full" ref={dropdownRef}>
-      {/* --- ENHANCEMENT: Redesigned navigator bar for better UX --- */}
       <div className="flex items-center justify-between rounded-lg p-2 bg-brand-secondary">
-        {/* --- NEW: "Today" button for quick navigation --- */}
         <button
           onClick={handleTodayClick}
           disabled={isToday(selectedDate)}
@@ -66,7 +67,6 @@ export default function MatchDateNavigator({
           {t("today")}
         </button>
 
-        {/* --- ENHANCEMENT: Centered date controls --- */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => onDateChange(subDays(selectedDate, 1))}
@@ -82,8 +82,8 @@ export default function MatchDateNavigator({
             aria-expanded={isOpen}
           >
             <CalendarIcon size={18} className="text-text-muted" />
-            <span className="font-bold text-lg text-white">
-              {format(selectedDate, "d MMMM")}
+            <span className="font-bold text-lg text-white capitalize">
+              {format(selectedDate, "d MMMM", { locale: currentLocale })}
             </span>
           </button>
 
@@ -95,17 +95,11 @@ export default function MatchDateNavigator({
             <ChevronRight size={20} />
           </button>
         </div>
-        {/* Placeholder to balance the flex layout */}
         <div className="w-[84px]"></div>
       </div>
 
-      {/* 
-        --- THE FIX & ENHANCEMENT: The Calendar Popup ---
-        - Now has a solid background, border, and shadow.
-        - Uses transition classes for a smooth fade-in/slide-in effect.
-      */}
       <div
-        className={`absolute top-full right-0 mt-2 bg-brand-secondary border border-gray-700/50 rounded-lg shadow-2xl z-20 
+        className={`absolute top-full right-0 mt-2 bg-brand-secondary border border-gray-700/50 rounded-lg shadow-2xl z-20
                    transition-all duration-200 ease-out
                    ${
                      isOpen
@@ -118,11 +112,11 @@ export default function MatchDateNavigator({
           selected={selectedDate}
           onSelect={handleDaySelect}
           initialFocus
-          // --- ENHANCEMENT: Refined classNames for better visual style ---
+          locale={currentLocale}
           classNames={{
             root: "p-3",
             caption: "flex justify-between items-center mb-4",
-            caption_label: "text-base font-bold text-white",
+            caption_label: "text-base font-bold text-white capitalize",
             nav_button:
               "h-8 w-8 flex items-center justify-center rounded-full hover:bg-gray-700 transition-colors",
             head_row: "flex",
@@ -134,7 +128,7 @@ export default function MatchDateNavigator({
             day_selected:
               "bg-brand-purple text-white font-bold hover:bg-brand-purple",
             day_today:
-              "ring-2 ring-brand-purple ring-offset-2 ring-offset-brand-secondary", // Today gets a distinct ring
+              "ring-2 ring-brand-purple ring-offset-2 ring-offset-brand-secondary",
             day_outside: "text-brand-muted/40 cursor-default",
             day_disabled: "text-brand-muted/40 cursor-not-allowed",
           }}

@@ -12,8 +12,8 @@ import slugify from "slugify";
 import PopularTeamsList from "./PopularTeamsList";
 import AdSlotWidget from "./AdSlotWidget";
 import CasinoPartnerWidget from "./CasinoPartnerWidget";
+import { proxyImageUrl } from "@/lib/image-proxy";
 
-// --- (All helper functions and sub-components like LeagueList, LeagueItemSkeleton remain the same) ---
 const generateLeagueSlug = (name: string, id: number) => {
   const slug = slugify(name, { lower: true, strict: true });
   return `/football/league/${slug}-${id}`;
@@ -32,9 +32,13 @@ const fetchLeagues = async (countryName: string | null): Promise<League[]> => {
 
 const LeagueList = ({ leagues }: { leagues: League[] }) => {
   const pathname = usePathname();
+  const { t } = useTranslation();
+
   if (!leagues || leagues.length === 0) {
     return (
-      <p className="text-text-muted text-xs p-2.5">No competitions found.</p>
+      <p className="text-text-muted text-xs p-2.5">
+        {t("no_competitions_found")}
+      </p>
     );
   }
   return (
@@ -53,7 +57,7 @@ const LeagueList = ({ leagues }: { leagues: League[] }) => {
             >
               <div className="flex items-center gap-3 overflow-hidden">
                 <Image
-                  src={league.logoUrl}
+                  src={proxyImageUrl(league.logoUrl)}
                   alt={`${league.name} logo`}
                   width={24}
                   height={24}
@@ -84,33 +88,37 @@ const LeagueItemSkeleton = () => (
   </div>
 );
 
-// --- Main Sidebar Component ---
 export default function Sidebar() {
   const { t } = useTranslation();
   const { selectedCountry } = useLeagueContext();
 
-  const { data: leagues, isLoading: isLoadingLeagues } = useQuery<League[]>({
+  const {
+    data: leagues,
+    isLoading: isLoadingLeagues,
+    isError,
+  } = useQuery<League[]>({
     queryKey: ["leagues", selectedCountry?.name || "global"],
     queryFn: () => fetchLeagues(selectedCountry?.name || null),
   });
 
+  const getSidebarTitle = () => {
+    if (selectedCountry) {
+      return t("leagues_in_country", { country: selectedCountry.name });
+    }
+    return t("popular_leagues");
+  };
+
   return (
-    // --- The outer <aside> is NO LONGER sticky. It's just a simple container. ---
     <aside className="hidden lg:block">
-      {/* --- NEW STICKY CONTAINER --- */}
-      {/* We use another div inside to manage the gap between sticky items. */}
       <div className="flex flex-col gap-4 h-auto">
         <CasinoPartnerWidget />
 
-        {/* --- WIDGET 1: Popular Leagues (This part will scroll normally) --- */}
         <section
           className="flex flex-col gap-2 p-3 rounded-xl"
           style={{ backgroundColor: "var(--color-primary)" }}
         >
           <p className="text-sm font-bold uppercase tracking-wider text-text-muted px-2">
-            {selectedCountry
-              ? `Leagues in ${selectedCountry.name}`
-              : t("popular_leagues")}
+            {getSidebarTitle()}
           </p>
           {isLoadingLeagues ? (
             <div className="space-y-1">
@@ -118,15 +126,17 @@ export default function Sidebar() {
                 <LeagueItemSkeleton key={i} />
               ))}
             </div>
+          ) : isError ? (
+            <p className="text-red-400 text-xs p-2.5">
+              {t("error_loading_leagues")}
+            </p>
           ) : (
             <LeagueList leagues={leagues!} />
           )}
         </section>
 
-        {/* --- AD SLOT WIDGET (Now Sticky) --- */}
         <AdSlotWidget location="homepage_left_sidebar" />
 
-        {/* --- WIDGET 2: Popular Teams (Now Sticky) --- */}
         <section
           className="flex flex-col gap-2 p-3 rounded-xl sticky top-8"
           style={{ backgroundColor: "var(--color-primary)" }}
