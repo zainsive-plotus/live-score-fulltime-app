@@ -1,5 +1,3 @@
-// ===== src/components/admin/AdminSidebar.tsx =====
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -22,6 +20,7 @@ import {
   DatabaseZap,
   Type,
   Bot,
+  Languages, // Added
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -61,6 +60,7 @@ export default function AdminSidebar() {
     pathname.startsWith("/admin/auto-news") ||
     pathname.startsWith("/admin/ai-journalists") ||
     pathname.startsWith("/admin/title-templates");
+
   const isPagesSectionActive =
     pathname.startsWith("/admin/faqs") || pathname.startsWith("/admin/pages");
 
@@ -78,43 +78,52 @@ export default function AdminSidebar() {
   const navItems = [
     { name: t("dashboard"), href: "/admin/dashboard", icon: LayoutDashboard },
     { name: t("manage_news"), href: "/admin/news", icon: Newspaper },
-    { name: "Casino Partners", href: "/admin/casino-partners", icon: Crown },
-    { name: "File Manager", href: "/admin/file-manager", icon: FileText },
+    { name: t("manage_languages"), href: "/admin/languages", icon: Languages }, // Added
+    {
+      name: t("manage_casino_partners"),
+      href: "/admin/casino-partners",
+      icon: Crown,
+    },
+    { name: t("file_manager"), href: "/admin/file-manager", icon: FileText },
     { name: t("manage_banners"), href: "/admin/banners", icon: ImageIcon },
   ];
 
   const aiSubNav = [
-    { name: "News Engine", href: "/admin/auto-news", icon: Sparkles },
-    { name: "AI Journalists", href: "/admin/ai-journalists", icon: User },
-    { name: "Title Templates", href: "/admin/title-templates", icon: Type },
+    { name: t("ai_news_engine"), href: "/admin/auto-news", icon: Sparkles },
+    { name: t("ai_journalists"), href: "/admin/ai-journalists", icon: User },
+    {
+      name: t("ai_title_templates"),
+      href: "/admin/title-templates",
+      icon: Type,
+    },
   ];
 
   const pagesSubNav = [
-    { name: "Manage FAQs", href: "/admin/faqs", icon: HelpCircle },
+    { name: t("manage_faqs"), href: "/admin/faqs", icon: HelpCircle },
     {
-      name: "Report Abuse Page",
+      name: t("page_report_abuse"),
       href: "/admin/pages/report-abuse",
       icon: AlertTriangle,
     },
     {
-      name: "Privacy Policy Page",
+      name: t("page_privacy_policy"),
       href: "/admin/pages/privacy-policy",
       icon: Shield,
     },
     {
-      name: "Terms & Conditions",
+      name: t("page_terms_conditions"),
       href: "/admin/pages/terms-and-conditions",
       icon: FileText,
     },
-    { name: "Author Page", href: "/admin/pages/author", icon: UserCircle },
-    { name: "GDPR Page", href: "/admin/pages/gdpr", icon: DatabaseZap },
+    { name: t("page_author"), href: "/admin/pages/author", icon: UserCircle },
+    { name: t("page_gdpr"), href: "/admin/pages/gdpr", icon: DatabaseZap },
   ];
 
   return (
     <aside className="w-72 bg-brand-secondary h-screen sticky top-0 p-4 flex flex-col justify-between">
       <div>
         <div className="text-2xl font-bold text-white mb-8 px-2">
-          Admin Panel
+          {t("admin_panel")}
         </div>
         <nav className="space-y-1">
           {navItems.map((item) => {
@@ -136,7 +145,6 @@ export default function AdminSidebar() {
             );
           })}
 
-          {/* AI Content Section */}
           <div>
             <button
               onClick={() => setIsAiOpen(!isAiOpen)}
@@ -148,7 +156,7 @@ export default function AdminSidebar() {
             >
               <div className="flex items-center gap-3">
                 <Bot size={20} />
-                <span>Automated Content</span>
+                <span>{t("ai_content_engine")}</span>
               </div>
               <ChevronRight
                 size={18}
@@ -178,7 +186,6 @@ export default function AdminSidebar() {
             </div>
           </div>
 
-          {/* Pages & FAQs Section */}
           <div>
             <button
               onClick={() => setIsPagesOpen(!isPagesOpen)}
@@ -190,7 +197,7 @@ export default function AdminSidebar() {
             >
               <div className="flex items-center gap-3">
                 <FileStack size={20} />
-                <span>Pages & FAQs</span>
+                <span>{t("pages_and_faqs")}</span>
               </div>
               <ChevronRight
                 size={18}
@@ -225,7 +232,7 @@ export default function AdminSidebar() {
       <div className="border-t border-gray-700 pt-4">
         {session?.user && (
           <div className="mb-4 text-brand-muted text-sm px-3">
-            Logged in as{" "}
+            {t("logged_in_as")}{" "}
             <span className="font-semibold text-white">
               {session.user.name || session.user.email}
             </span>

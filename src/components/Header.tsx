@@ -1,4 +1,3 @@
-// ===== src/components/Header.tsx =====
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -60,7 +59,7 @@ export default function Header() {
   const { data: latestPost } = useQuery<IPost | null>({
     queryKey: ["latestPostForIndicator"],
     queryFn: fetchLatestPost,
-    staleTime: 1000 * 60, // Check for a new post every minute
+    staleTime: 1000 * 60,
   });
 
   useEffect(() => {
@@ -103,19 +102,19 @@ export default function Header() {
         {
           name: t("leagues"),
           href: "/football/leagues",
-          description: "Browse all competitions",
+          description: t("leagues_description"),
           icon: FaTrophy,
         },
         {
           name: t("teams"),
           href: "/football/teams",
-          description: "Find your favorite club",
+          description: t("teams_description"),
           icon: FaUsers,
         },
         {
           name: t("news"),
           href: "/football/news",
-          description: "The latest headlines",
+          description: t("news_description"),
           icon: FaNewspaper,
         },
       ],

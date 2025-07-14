@@ -1,34 +1,13 @@
 "use client";
 
-import { useLanguage } from "@/context/LanguageContext";
-import en from "@/locales/en.json";
-import tr from "@/locales/tr.json";
+import { useI18n } from "@/lib/i18n/client";
 
-// The `translations` object now needs a type hint so TypeScript
-// understands its structure without relying on the `en.json` import for types.
-const translations: Record<"en" | "tr", Record<string, string>> = { en, tr };
-
+/**
+ * A custom hook that provides the translation function 't' and the current locale.
+ * This hook is a wrapper around the client-side i18n context and should be
+ * used in any client component that needs access to translations.
+ */
 export function useTranslation() {
-  const { locale } = useLanguage();
-
-  // The function signature now uses our reliable `TranslationKey` type.
-  const t = (
-    key: string,
-    params?: { [key: string]: string | number }
-  ): string => {
-    // We look up the translation using the key.
-    // The `|| key` ensures it falls back gracefully if a key is somehow missing from a language file.
-    let translation = translations[locale][key] || key;
-
-    if (params) {
-      Object.keys(params).forEach((paramKey) => {
-        const regex = new RegExp(`{${paramKey}}`, "g");
-        translation = translation.replace(regex, String(params[paramKey]));
-      });
-    }
-
-    return translation;
-  };
-
+  const { t, locale } = useI18n();
   return { t, locale };
 }

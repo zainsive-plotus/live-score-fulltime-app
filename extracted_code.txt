@@ -7831,6 +7831,103 @@ export async function GET() {
   }
 }
 
+// ===== src/app/api/highlights/latest/route.ts =====
+
+import { NextResponse } from "next/server";
+import { getLatestPopularHighlights } from "@/lib/data/highlightly";
+
+export async function GET(request: Request) {
+  try {
+
+    const latestHighlights = await getLatestPopularHighlights();
+
+    const headers = new Headers();
+    headers.set(
+      "Cache-control",
+      "public, s-maxage=300, stale-while-revalidate=600"
+    );
+
+    return NextResponse.json(
+      { highlights: latestHighlights },
+      { status: 200, headers }
+    );
+  } catch (error: any) {
+    console.error(
+      `[API/highlights/latest] Error fetching popular highlights:`,
+      error.message
+    );
+    return NextResponse.json(
+      { error: "Failed to fetch latest highlights from the provider." },
+      { status: 502 }
+    );
+  }
+}
+
+// ===== src/app/api/highlights/route.ts =====
+
+import { NextResponse } from "next/server";
+import axios from "axios";
+import { getMatchHighlights } from "@/lib/data/highlightly";
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const fixtureId = searchParams.get("fixtureId");
+
+  if (!fixtureId) {
+    return NextResponse.json(
+      { error: "Fixture ID is required" },
+      { status: 400 }
+    );
+  }
+
+  try {
+
+    const sportsApiUrl = `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/fixtures?id=${fixtureId}`;
+    const sportsApiResponse = await axios.get(sportsApiUrl, {
+      headers: { "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
+    });
+
+    const fixtureData = sportsApiResponse.data.response[0];
+    if (!fixtureData) {
+      return NextResponse.json(
+        { error: "Fixture data not found." },
+        { status: 404 }
+      );
+    }
+
+    const { league, teams } = fixtureData;
+
+    const highlightlyParams = {
+      leagueName: league.name,
+      homeTeamName: teams.home.name,
+      awayTeamName: teams.away.name,
+      limit: 40,
+    };
+
+    const highlightsData = await getMatchHighlights(highlightlyParams);
+
+    const headers = new Headers();
+    headers.set(
+      "Cache-Control",
+      "public, s-maxage=600, stale-while-revalidate=1200"
+    );
+
+    let finalData = { highlights: highlightsData.data ?? [] };
+
+    return NextResponse.json(finalData, { status: 200, headers });
+  } catch (error: any) {
+    console.error(
+      `[API/highlights] Error processing highlights for fixture ${fixtureId}:`,
+      error.message
+    );
+
+    return NextResponse.json(
+      { error: "Failed to fetch highlights from the provider." },
+      { status: 502 }
+    );
+  }
+}
+
 // ===== src/app/api/image-proxy/route.ts =====
 
 import { NextRequest, NextResponse } from "next/server";
@@ -10159,7 +10256,7 @@ import MatchActivityWidget from "@/components/match/MatchActivityWidget";
 import TeamStandingsWidget from "@/components/match/TeamStandingsWidget";
 import CasinoPartnerWidget from "@/components/CasinoPartnerWidget";
 import Header from "@/components/Header";
-
+import MatchHighlightsWidget from "@/components/match/MatchHighlightsWidget";
 import LinkedNewsWidget from "@/components/match/LinkedNewsWidget";
 
 const getFixtureIdFromSlug = (slug: string): string | null => {
@@ -10257,12 +10354,12 @@ export default async function MatchDetailPage({
       <Header />
       <div className="container mx-auto p-4 md:p-6 lg:grid lg:grid-cols-3 lg:gap-8 lg:items-start">
         <main className="lg:col-span-2 space-y-6">
-          <MatchHeader
-            fixture={fixture}
-            analytics={analytics}
-
-          />
+          <MatchHeader fixture={fixture} analytics={analytics} />
           <MatchStatusBanner fixture={fixture} />
+
+          {}
+          <MatchHighlightsWidget fixtureId={fixtureId} />
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <TeamFormWidget
               teamStats={analytics.homeTeamStats}
@@ -10297,7 +10394,6 @@ export default async function MatchDetailPage({
         <aside className="lg:col-span-1 space-y-6 lg:sticky lg:top-6 mt-8 lg:mt-0">
           {isLive && <LiveOddsWidget fixtureId={fixtureId} />}
 
-          {}
           <LinkedNewsWidget fixtureId={fixture.fixture.id} />
 
           <CasinoPartnerWidget />
@@ -10649,8 +10745,6 @@ import TeamDetailView from "@/components/TeamDetailView";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { fetchTeamDetails } from "@/lib/data/team";
-
-import CasinoPartnerWidget from "@/components/CasinoPartnerWidget";
 import RecentNewsWidget from "@/components/RecentNewsWidget";
 import AdSlotWidget from "@/components/AdSlotWidget";
 import TeamInfoWidget from "@/components/team/TeamInfoWidget";
@@ -10673,7 +10767,7 @@ export async function generateMetadata({
   const teamData = await fetchTeamDetails(teamId);
   if (!teamData) return { title: "Team Not Found" };
   const { team } = teamData.teamInfo;
-  const pageTitle = `${team.name} - Squad, Fixtures & Standings`;
+  const pageTitle = `Fanskor | ${team.name} Oyuncular, Fikstürler ve Sıralamalar`;
   const pageDescription = `View the full squad, recent fixtures, and current standings for ${team.name}.`;
   return {
     title: pageTitle,
@@ -11137,6 +11231,38 @@ export default async function GdprPage() {
 @import "slick-carousel/slick/slick.css";
 @import "slick-carousel/slick/slick-theme.css";
 
+@keyframes ring {
+  0% {
+    transform: rotate(0);
+  }
+  10% {
+    transform: rotate(14deg);
+  }
+  20% {
+    transform: rotate(-8deg);
+  }
+  30% {
+    transform: rotate(14deg);
+  }
+  40% {
+    transform: rotate(-4deg);
+  }
+  50% {
+    transform: rotate(10deg);
+  }
+  60% {
+    transform: rotate(0);
+  }
+  100% {
+    transform: rotate(0);
+  }
+}
+
+.animate-ring {
+  transform-origin: top center;
+  animation: ring 2s ease-in-out infinite;
+}
+
 .prose h2 {
   color: #e0e0e0;
   font-size: 2.25rem;
@@ -11191,7 +11317,6 @@ export default async function GdprPage() {
 }
 
 :root {
-
   --color-background: #020202;
   --color-primary: #1a1a1a;
   --color-secondary: #2a2a2a;
@@ -11242,12 +11367,10 @@ body {
 @keyframes breathing-glow {
   0%,
   100% {
-
     box-shadow: 0 0 10px 0px rgba(52, 211, 153, 0.4);
     transform: scale(1);
   }
   50% {
-
     box-shadow: 0 0 25px 5px rgba(52, 211, 153, 0.7);
     transform: scale(1.05);
   }
@@ -14298,233 +14421,6 @@ export default function DirectoryCard({
   );
 }
 
-// ===== src/components/explore/BrowseByCountry.tsx =====
-
-"use client";
-
-import StyledLink from "../StyledLink";
-import { Globe } from "lucide-react";
-
-export default function BrowseByCountry() {
-    return (
-        <StyledLink href="/countries" className="block w-full bg-brand-secondary p-4 rounded-lg text-center hover:bg-gray-700/50 transition-colors">
-            <Globe className="mx-auto mb-2 text-brand-muted" size={32} />
-            <h3 className="font-bold text-lg text-white">Browse by Country</h3>
-            <p className="text-sm text-brand-muted">Find leagues and cups from all over the world.</p>
-        </StyledLink>
-    );
-}
-
-// ===== src/components/explore/PopularLeaguesSlider.tsx =====
-
-"use client";
-
-import Slider from "react-slick";
-import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
-import { League } from "@/types/api-football";
-import StyledLink from "../StyledLink";
-import Image from "next/image";
-
-const LeagueSliderCard = ({ league }: { league: League }) => (
-  <div className="px-2">
-    <StyledLink href={league.href} className="block group">
-      <div className="bg-brand-secondary rounded-lg p-3 flex flex-col items-center justify-center text-center h-32 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg hover:shadow-purple-900/20">
-        <Image
-          src={league.logoUrl}
-          alt={league.name}
-          width={48}
-          height={48}
-          className="bg-white rounded-full p-1 mb-2"
-        />
-        <h4 className="font-bold text-white text-sm truncate w-full group-hover:text-brand-purple transition-colors">{league.name}</h4>
-      </div>
-    </StyledLink>
-  </div>
-);
-
-const SkeletonCard = () => (
-    <div className="px-2"><div className="bg-brand-secondary rounded-lg h-32 animate-pulse"></div></div>
-);
-
-const fetchPopularLeagues = async (): Promise<League[]> => {
-
-    const { data } = await axios.get('/api/leagues?type=league');
-    return data;
-};
-
-export default function PopularLeaguesSlider() {
-    const { data: leagues, isLoading } = useQuery({
-        queryKey: ['popularLeaguesExplore'],
-        queryFn: fetchPopularLeagues,
-        staleTime: 1000 * 60 * 60,
-    });
-
-    const sliderSettings = {
-        dots: false,
-        infinite: false,
-        speed: 500,
-        slidesToShow: 4,
-        slidesToScroll: 2,
-        arrows: false,
-        responsive: [
-            { breakpoint: 768, settings: { slidesToShow: 3.2 } },
-            { breakpoint: 640, settings: { slidesToShow: 2.2 } },
-        ]
-    };
-
-    if (isLoading) {
-        return <Slider {...sliderSettings} className="-mx-2"><SkeletonCard /><SkeletonCard /><SkeletonCard /></Slider>;
-    }
-
-    if (!leagues) return null;
-
-    return (
-        <Slider {...sliderSettings} className="-mx-2">
-            {leagues.map(league => (
-                <LeagueSliderCard key={league.id} league={league} />
-            ))}
-        </Slider>
-    );
-}
-
-// ===== src/components/explore/PopularTeamsGrid.tsx =====
-
-"use client";
-
-import { useQuery } from '@tanstack/react-query';
-import axios, { AxiosResponse } from 'axios';
-import StyledLink from '../StyledLink';
-import Image from 'next/image';
-import slugify from 'slugify';
-
-interface TeamData { team: { id: number; name: string; logo: string; } }
-interface ApiResponse { response: TeamData[] }
-
-const POPULAR_TEAM_IDS = [
-    33,
-    40,
-    42,
-    47,
-    50,
-    529,
-    541,
-    157,
-    496,
-    489,
-];
-
-const generateTeamSlug = (name: string, id: number) => {
-    const slug = slugify(name, { lower: true, strict: true });
-    return `/team/${slug}-${id}`;
-};
-
-const fetchPopularTeams = async (): Promise<TeamData[]> => {
-
-    const teamPromises = POPULAR_TEAM_IDS.map(id =>
-        axios.get<ApiResponse>(`${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/teams?id=${id}`, {
-            headers: { 'x-apisports-key': process.env.NEXT_PUBLIC_API_FOOTBALL_KEY }
-        })
-    );
-
-    const results = await Promise.allSettled(teamPromises);
-
-    const successfulTeams = results
-      .filter((result): result is PromiseFulfilledResult<AxiosResponse<ApiResponse>> =>
-          result.status === 'fulfilled' && result.value.data.response.length > 0
-      )
-      .map(result => result.value.data.response[0]);
-
-    return successfulTeams;
-};
-
-const SkeletonCard = () => (
-    <div className="bg-brand-secondary rounded-lg h-24 animate-pulse"></div>
-);
-
-export default function PopularTeamsGrid() {
-    const { data: teams, isLoading } = useQuery<TeamData[]>({
-        queryKey: ['popularTeamsGrid'],
-        queryFn: fetchPopularTeams,
-        staleTime: 1000 * 60 * 60 * 24,
-        refetchOnWindowFocus: false,
-    });
-
-    return (
-        <section>
-            <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-white">Popular Teams</h2>
-            </div>
-
-            {isLoading ? (
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
-                    {Array.from({ length: POPULAR_TEAM_IDS.length }).map((_, i) => <SkeletonCard key={i} />)}
-                </div>
-            ) : !teams || teams.length === 0 ? (
-                 <div className="bg-brand-secondary rounded-lg p-6 text-center text-brand-muted">
-                    <p>Could not load popular teams data.</p>
-                 </div>
-            ) : (
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
-                    {teams.map(({ team }) => (
-                        <StyledLink
-                            key={team.id}
-                            href={generateTeamSlug(team.name, team.id)}
-                            className="bg-brand-secondary rounded-lg p-4 flex items-center justify-center h-24 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg hover:shadow-purple-900/20"
-                            title={team.name}
-                        >
-                            <Image
-                                src={team.logo}
-                                alt={team.name}
-                                width={64}
-                                height={64}
-                                className="object-contain max-h-16"
-                            />
-                        </StyledLink>
-                    ))}
-                </div>
-            )}
-        </section>
-    );
-}
-
-// ===== src/components/ExploreTab.tsx =====
-
-"use client";
-
-import { Search } from 'lucide-react';
-import PopularLeaguesSlider from './explore/PopularLeaguesSlider';
-import PopularTeamsGrid from './explore/PopularTeamsGrid';
-import BrowseByCountry from './explore/BrowseByCountry';
-
-export default function ExploreTab() {
-  return (
-    <div className="p-4 space-y-8">
-      {}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-muted" size={20} />
-        <input
-          type="text"
-          placeholder="Search for leagues, teams..."
-          className="w-full bg-brand-secondary border border-gray-700/50 rounded-lg p-3 pl-10 text-white focus:outline-none focus:ring-2 focus:ring-brand-purple"
-        />
-      </div>
-
-       <section>
-        <h2 className="text-xl font-bold text-white mb-4">Popular Leagues</h2>
-        <PopularLeaguesSlider />
-      </section>
-
-      {}
-      <PopularTeamsGrid />
-
-      <section>
-        <BrowseByCountry />
-      </section>
-    </div>
-  );
-}
-
 // ===== src/components/FaqAccordion.tsx =====
 
 "use client";
@@ -14712,7 +14608,7 @@ export default function Footer() {
   });
 
   return (
-    <footer className="bg-brand-secondary text-white py-12 hidden md:block">
+    <footer className="bg-brand-secondary text-white py-12">
       <div className="container mx-auto px-4">
         {}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
@@ -14863,7 +14759,7 @@ export default function Footer() {
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 import {
@@ -14872,6 +14768,9 @@ import {
   FaUsers,
   FaNewspaper,
 } from "react-icons/fa";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import { IPost } from "@/models/Post";
 
 import { IoMdFootball } from "react-icons/io";
 import { IoTennisball } from "react-icons/io5";
@@ -14879,6 +14778,7 @@ import LanguageDropdown from "./LanguageDropdown";
 import { useTranslation } from "@/hooks/useTranslation";
 import StyledLink from "./StyledLink";
 import NavDropdown from "./NavDropdown";
+import NotificationDropdown from "./NotificationDropdown";
 import { ArrowRight, Bell, Menu, X } from "lucide-react";
 
 type NavIcon = React.ElementType;
@@ -14898,12 +14798,58 @@ interface NavItem {
   subLinks?: SubLink[];
 }
 
+const fetchLatestPost = async (): Promise<IPost | null> => {
+  try {
+    const { data } = await axios.get("/api/posts?status=published&limit=1");
+    return data[0] || null;
+  } catch {
+    return null;
+  }
+};
+
 export default function Header() {
   const { t } = useTranslation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [hasUnread, setHasUnread] = useState(false);
+  const notificationRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+
+  const { data: latestPost } = useQuery<IPost | null>({
+    queryKey: ["latestPostForIndicator"],
+    queryFn: fetchLatestPost,
+    staleTime: 1000 * 60,
+  });
+
+  useEffect(() => {
+    if (latestPost) {
+      const lastReadPostId = localStorage.getItem("lastReadPostId");
+      if (latestPost._id !== lastReadPostId) {
+        setHasUnread(true);
+      }
+    }
+  }, [latestPost]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        notificationRef.current &&
+        !notificationRef.current.contains(event.target as Node)
+      ) {
+        setIsNotificationOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleNotificationToggle = () => {
+    setIsNotificationOpen((prev) => !prev);
+    if (hasUnread && latestPost) {
+      localStorage.setItem("lastReadPostId", latestPost._id);
+      setHasUnread(false);
+    }
+  };
 
   const navItems: NavItem[] = [
     {
@@ -14940,22 +14886,10 @@ export default function Header() {
     setIsMobileMenuOpen(false);
   };
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchTerm.trim()) {
-
-      setIsSearchExpanded(false);
-      setSearchTerm("");
-      setIsMobileMenuOpen(false);
-    }
-  };
-
   return (
     <>
-      {}
       <header className="relative w-full border-b border-gray-700/50 shadow-xl shadow-black/20 z-50 lg:static">
         <div className="container mx-auto flex h-24 items-center justify-between px-4 lg:px-6">
-          {}
           <StyledLink href="/" className="flex items-center flex-shrink-0">
             <Image
               src={"/fanskor.webp"}
@@ -14964,8 +14898,6 @@ export default function Header() {
               height={60}
             />
           </StyledLink>
-
-          {}
           <nav className="hidden lg:flex items-center flex-grow justify-center gap-12 px-8">
             {navItems.map((item) => (
               <li key={item.title} className="list-none">
@@ -14982,13 +14914,11 @@ export default function Header() {
                       pathname.startsWith(item.href)
                         ? "text-white"
                         : "text-[var(--text-secondary)] hover:text-white"
-                    }
-                    ${
+                    } ${
                       pathname.startsWith(item.href)
                         ? "after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-[var(--brand-accent)] after:rounded-t-sm"
                         : "after:absolute after:bottom-0 after:left-1/2 after:w-0 after:h-0.5 after:bg-[var(--brand-accent)] after:rounded-t-sm group-hover:after:w-full group-hover:after:left-0 after:transition-all after:duration-300"
-                    }
-                    `}
+                    }`}
                   >
                     <item.icon size={20} />
                     {item.title}
@@ -14998,22 +14928,61 @@ export default function Header() {
             ))}
           </nav>
 
-          {}
-          <div className="hidden lg:flex items-center gap-6 flex-shrink-0">
-            <button className="text-[var(--text-primary)] hover:text-white transition-colors p-2">
-              <Bell size={24} />
-            </button>
+          <div
+            className="hidden lg:flex items-center gap-6 flex-shrink-0"
+            ref={notificationRef}
+          >
+            <div className="relative">
+              <button
+                onClick={handleNotificationToggle}
+                className="text-brand-light hover:text-white transition-colors p-2"
+              >
+                <Bell
+                  size={24}
+                  className={`text-[var(--brand-accent)] ${
+                    hasUnread ? "animate-ring" : ""
+                  }`}
+                />
+                {hasUnread && (
+                  <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-brand-dark" />
+                )}
+              </button>
+              {isNotificationOpen && (
+                <NotificationDropdown
+                  onClose={() => setIsNotificationOpen(false)}
+                />
+              )}
+            </div>
             <LanguageDropdown />
-            {}
           </div>
 
-          {}
-          <div className="flex lg:hidden items-center gap-4 flex-shrink-0">
-            <button className="text-[var(--text-primary)] hover:text-white transition-colors p-2">
-              <Bell size={24} />
-            </button>
+          <div
+            className="flex lg:hidden items-center gap-2 flex-shrink-0"
+            ref={notificationRef}
+          >
+            <div className="relative">
+              <button
+                onClick={handleNotificationToggle}
+                className="text-brand-light hover:text-white transition-colors p-2"
+              >
+                <Bell
+                  size={24}
+                  className={`text-[var(--brand-accent)] ${
+                    hasUnread ? "animate-ring" : ""
+                  }`}
+                />
+                {hasUnread && (
+                  <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-brand-dark" />
+                )}
+              </button>
+              {isNotificationOpen && (
+                <NotificationDropdown
+                  onClose={() => setIsNotificationOpen(false)}
+                />
+              )}
+            </div>
             <button
-              className="text-[var(--text-primary)] hover:text-white transition-colors p-2"
+              className="text-brand-light hover:text-white transition-colors p-2"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               aria-label="Toggle mobile menu"
             >
@@ -15023,10 +14992,8 @@ export default function Header() {
         </div>
       </header>
 
-      {}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 bg-black/95 z-[999] flex flex-col transform translate-x-0 animate-slide-in-right">
-          {}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800/50 flex-shrink-0">
             <StyledLink href="/" className="flex items-center gap-3 group">
               <Image
@@ -15038,34 +15005,22 @@ export default function Header() {
             </StyledLink>
             <button
               onClick={() => setIsMobileMenuOpen(false)}
-              className="text-[var(--text-primary)] hover:text-white transition-colors p-2"
+              className="text-brand-light hover:text-white transition-colors p-2"
               aria-label="Close mobile menu"
             >
               <X size={32} />
             </button>
           </div>
-
-          <div
-            className="mt-8 pb-4 border-b
-           border-gray-800/50 flex flex-col gap-4 px-6 flex-shrink-0"
-          >
+          <div className="mt-8 pb-4 border-b border-gray-800/50 flex flex-col gap-4 px-6 flex-shrink-0">
             <LanguageDropdown />
-            {}
           </div>
-
-          {}
-          <nav className="flex-1 overflow-y-auto custom-scrollbar p-6 pt-0">
+          <nav className="flex-1 overflow-y-auto custom-scrollbar p-6 pt-4">
             <ul className="space-y-4">
               {navItems.map((item) => (
                 <li key={item.title}>
                   {item.isDropdown ? (
                     <div className="space-y-3">
-                      <button
-                        onClick={() => {
-
-                        }}
-                        className="w-full text-left px-4 py-3 text-lg font-bold uppercase text-[var(--text-muted)] tracking-wider border-b border-gray-800/50 flex items-center gap-3"
-                      >
+                      <button className="w-full text-left px-4 py-3 text-lg font-bold uppercase text-[var(--text-muted)] tracking-wider border-b border-gray-800/50 flex items-center gap-3">
                         <item.icon size={24} />
                         {item.title}
                       </button>
@@ -15075,7 +15030,7 @@ export default function Header() {
                             <StyledLink
                               href={subLink.href}
                               onClick={handleMobileLinkClick}
-                              className="flex justify-between items-center w-full rounded-lg p-3 text-lg font-medium text-[var(--text-primary)] hover:bg-[var(--color-secondary)]"
+                              className="flex justify-between items-center w-full rounded-lg p-3 text-lg font-medium text-brand-light hover:bg-brand-secondary"
                             >
                               <span className="flex items-center gap-3">
                                 {subLink.icon && <subLink.icon size={24} />}{" "}
@@ -15094,7 +15049,7 @@ export default function Header() {
                     <StyledLink
                       href={item.href}
                       onClick={handleMobileLinkClick}
-                      className="block w-full rounded-lg p-4 text-xl font-bold text-[var(--text-primary)] hover:bg-[var(--color-secondary)] flex items-center gap-4"
+                      className="block w-full rounded-lg p-4 text-xl font-bold text-brand-light hover:bg-brand-secondary flex items-center gap-4"
                     >
                       <item.icon size={28} />
                       {item.title}
@@ -15104,11 +15059,37 @@ export default function Header() {
               ))}
             </ul>
           </nav>
-
-          {}
         </div>
       )}
     </>
+  );
+}
+
+// ===== src/components/HighlightSlide.tsx =====
+
+interface Highlight {
+  id: string;
+  embedUrl: string;
+  title: string;
+}
+
+interface HighlightSlideProps {
+  highlight: Highlight;
+}
+
+export default function HighlightSlide({ highlight }: HighlightSlideProps) {
+  return (
+
+    <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
+      <iframe
+        src={highlight.embedUrl}
+        title={highlight.title}
+        frameBorder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+        className="absolute top-0 left-0 w-full h-full"
+      ></iframe>
+    </div>
   );
 }
 
@@ -15282,6 +15263,103 @@ export default function LanguageDropdown() {
         </div>
       )}
     </div>
+  );
+}
+
+// ===== src/components/LatestHighlightsWidget.tsx =====
+
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import Slider from "react-slick";
+import HighlightSlide from "./HighlightSlide";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+
+interface Highlight {
+  id: string;
+  embedUrl: string;
+  title: string;
+}
+
+const fetchLatestHighlights = async (): Promise<Highlight[] | null> => {
+  try {
+    const { data } = await axios.get("/api/highlights/latest");
+    return data?.highlights || null;
+  } catch (error) {
+
+    return null;
+  }
+};
+
+const SliderSkeleton = () => (
+  <div className="aspect-video w-full bg-brand-dark rounded-lg animate-pulse"></div>
+);
+
+const NextArrow = ({ onClick }: { onClick?: () => void }) => (
+  <button
+    onClick={onClick}
+    className="absolute top-4 right-4 z-10 p-2 bg-black/40 text-white rounded-full hover:bg-black/70 transition-colors"
+    aria-label="Next slide"
+  >
+    <ChevronRight size={20} />
+  </button>
+);
+
+const PrevArrow = ({ onClick }: { onClick?: () => void }) => (
+  <button
+    onClick={onClick}
+    className="absolute top-4 right-16 z-10 p-2 bg-black/40 text-white rounded-full hover:bg-black/70 transition-colors"
+    aria-label="Previous slide"
+  >
+    <ChevronLeft size={20} />
+  </button>
+);
+
+export default function LatestHighlightsWidget() {
+  const {
+    data: highlights,
+    isLoading,
+    isError,
+  } = useQuery<Highlight[] | null>({
+    queryKey: ["latestHighlightsWidget"],
+    queryFn: fetchLatestHighlights,
+    staleTime: 1000 * 60 * 10,
+  });
+
+  const sliderSettings = {
+    dots: false,
+    infinite: true,
+    speed: 500,
+    slidesToShow: 1,
+    slidesToScroll: 1,
+    arrows: true,
+    nextArrow: <NextArrow />,
+    prevArrow: <PrevArrow />,
+    autoplay: true,
+    autoplaySpeed: 8000,
+    pauseOnHover: true,
+  };
+
+  if (isError || (!isLoading && (!highlights || highlights.length === 0))) {
+    return null;
+  }
+
+  return (
+    <section className="bg-brand-secondary rounded-lg shadow-lg overflow-hidden">
+      {}
+      <div className="relative w-full">
+        {isLoading ? (
+          <SliderSkeleton />
+        ) : (
+          <Slider {...sliderSettings}>
+            {highlights?.map((highlight) => (
+              <HighlightSlide key={highlight.id} highlight={highlight} />
+            ))}
+          </Slider>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -16613,9 +16691,9 @@ import { League } from "@/types/api-football";
 import MatchList from "./MatchList";
 import StandingsDisplay from "./StandingsDisplay";
 import NewsSection from "./NewsSection";
-import MobileHomeTabs from "./MobileHomeTabs";
 import LeagueDetailView from "./league-detail-view";
 import AdSlotWidget from "./AdSlotWidget";
+import LatestHighlightsWidget from "./LatestHighlightsWidget";
 
 interface MainContentProps {
   sidebarAboutSeoText: string;
@@ -16640,31 +16718,28 @@ export const MainContent: React.FC<MainContentProps> = ({
   return (
     <>
       {}
-      <div className="hidden lg:grid lg:grid-cols-3 lg:gap-8 flex-1 pl-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 p-4 lg:p-0 lg:pl-8">
         {}
-        <div className="lg:col-span-2 flex flex-col">
+        <div className="lg:col-span-2 flex flex-col gap-8">
           <MatchList setLiveLeagues={setLiveLeagues} />
-
-          <div className="container mx-auto px-4 mt-8 pb-8">
-            <div className="bg-brand-secondary rounded-lg shadow-lg p-6">
-              <h2 className="text-2xl font-bold text-white mb-4">
-                Fanskor Hakkında
-              </h2>
-              <p className="text-brand-light text-base leading-relaxed">
-                {homepageAboutSeoText}
-              </p>
-            </div>
+          <div className="bg-brand-secondary rounded-lg shadow-lg p-6">
+            <h2 className="text-2xl font-bold text-white mb-4">
+              Fanskor Hakkında
+            </h2>
+            <p className="text-brand-light text-base leading-relaxed">
+              {homepageAboutSeoText}
+            </p>
           </div>
         </div>
 
         {}
         <div className="lg:col-span-1 flex flex-col gap-6">
-          {}
+          <LatestHighlightsWidget />
           <AdSlotWidget location="homepage_right_sidebar" />
-
           <StandingsDisplay />
 
           {}
+
           <div className="space-y-8 gap-8">
             <section className="bg-brand-secondary rounded-lg shadow-lg p-6">
               <h2 className="text-2xl font-bold text-white mb-4">
@@ -16677,14 +16752,6 @@ export const MainContent: React.FC<MainContentProps> = ({
             <NewsSection />
           </div>
         </div>
-      </div>
-
-      {}
-      <div className="block lg:hidden w-full">
-        <MobileHomeTabs
-          liveLeagues={liveLeagues}
-          setLiveLeagues={setLiveLeagues}
-        />
       </div>
     </>
   );
@@ -17872,6 +17939,166 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({
   );
 };
 
+// ===== src/components/match/MatchHighlightsWidget.tsx =====
+
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import { useState } from "react";
+import { PlayCircle, Film, Info, X } from "lucide-react";
+
+interface Highlight {
+  id: string;
+  title: string;
+  thumbnailUrl: string;
+  embedUrl: string;
+  source: string;
+}
+
+interface MatchHighlightsWidgetProps {
+  fixtureId: string;
+}
+
+const fetchHighlights = async (
+  fixtureId: string
+): Promise<Highlight[] | null> => {
+  try {
+    const { data } = await axios.get(`/api/highlights?fixtureId=${fixtureId}`);
+
+    return data?.highlights || data || null;
+  } catch (error) {
+    console.error(
+      `[Highlights Widget] Failed to fetch highlights for fixture ${fixtureId}`,
+      error
+    );
+    return null;
+  }
+};
+
+const HighlightSkeleton = () => (
+  <div className="bg-brand-secondary rounded-lg p-4 animate-pulse">
+    <div className="h-6 w-3/4 rounded bg-gray-700 mb-4"></div>
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="h-24 bg-gray-700/50 rounded-lg"></div>
+      <div className="h-24 bg-gray-700/50 rounded-lg"></div>
+      <div className="h-24 bg-gray-700/50 rounded-lg"></div>
+    </div>
+  </div>
+);
+
+const VideoPlayerModal = ({
+  embedUrl,
+  title,
+  onClose,
+}: {
+  embedUrl: string;
+  title: string;
+  onClose: () => void;
+}) => (
+  <div
+    className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 animate-fade-in"
+    onClick={onClose}
+  >
+    <div
+      className="bg-brand-dark rounded-lg w-full max-w-4xl shadow-2xl"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="flex justify-between items-center p-4 border-b border-gray-700">
+        <h3 className="font-bold text-white truncate">{title}</h3>
+        <button
+          onClick={onClose}
+          className="p-2 text-brand-muted hover:text-white"
+        >
+          <X size={24} />
+        </button>
+      </div>
+      <div className="aspect-video">
+        <iframe
+          src={embedUrl}
+          title={title}
+          frameBorder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          className="w-full h-full"
+        ></iframe>
+      </div>
+    </div>
+  </div>
+);
+
+export default function MatchHighlightsWidget({
+  fixtureId,
+}: MatchHighlightsWidgetProps) {
+  const [selectedHighlight, setSelectedHighlight] = useState<Highlight | null>(
+    null
+  );
+
+  const {
+    data: highlights,
+    isLoading,
+    isError,
+  } = useQuery<Highlight[] | null>({
+    queryKey: ["matchHighlights", fixtureId],
+    queryFn: () => fetchHighlights(fixtureId),
+    staleTime: 1000 * 60 * 2,
+    refetchOnWindowFocus: false,
+    enabled: !!fixtureId,
+  });
+
+  if (isLoading) {
+    return <HighlightSkeleton />;
+  }
+
+  if (isError || !highlights || highlights.length === 0) {
+
+    return null;
+  }
+
+  return (
+    <>
+      <div className="bg-brand-secondary rounded-lg shadow-lg">
+        <div className="p-4 md:p-6 border-b border-gray-700/50">
+          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+            <Film size={22} className="text-brand-purple" /> Match Highlights
+          </h2>
+        </div>
+        <div className="p-4 md:p-6 grid grid-cols-2 md:grid-cols-3 gap-4">
+          {highlights.map((highlight) => (
+            <button
+              key={highlight.id}
+              onClick={() => setSelectedHighlight(highlight)}
+              className="block group relative rounded-lg overflow-hidden cursor-pointer"
+            >
+              <img
+                src={highlight.thumbnailUrl}
+                alt={highlight.title}
+                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex flex-col justify-end p-3">
+                <PlayCircle
+                  size={40}
+                  className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white/80 group-hover:text-white group-hover:scale-110 transition-all duration-300"
+                />
+                <p className="font-semibold text-white text-sm text-left line-clamp-2">
+                  {highlight.title}
+                </p>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+      {selectedHighlight && (
+        <VideoPlayerModal
+          embedUrl={selectedHighlight.embedUrl}
+          title={selectedHighlight.title}
+          onClose={() => setSelectedHighlight(null)}
+        />
+      )}
+    </>
+  );
+}
+
 // ===== src/components/match/MatchLineupsWidget.tsx =====
 
 "use client";
@@ -19030,11 +19257,17 @@ import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import Image from "next/image";
 import { useLeagueContext } from "@/context/LeagueContext";
-import { useTranslation } from "@/hooks/useTranslation";
 import { League } from "@/types/api-football";
 import MatchListItem, { MatchListItemSkeleton } from "./MatchListItem";
 import MatchDateNavigator from "./MatchDateNavigator";
-import { Globe, ChevronsDown, Search, XCircle } from "lucide-react";
+import {
+  Globe,
+  ChevronsDown,
+  Search,
+  XCircle,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { format } from "date-fns";
 import { proxyImageUrl } from "@/lib/image-proxy";
 
@@ -19060,6 +19293,8 @@ const STATUS_MAP: Record<StatusFilter, string[]> = {
 };
 const INITIAL_MATCHES_TO_SHOW = 5;
 const MATCHES_PER_PAGE = 10;
+const LEAGUES_PER_PAGE = 8;
+
 const fetchAllMatches = async (
   leagueId: number | null,
   date: Date
@@ -19097,7 +19332,6 @@ const LeagueGroupHeader = ({
         <Globe size={24} className="text-text-muted" />
       ) : (
         league.flag && (
-
           <Image
             src={proxyImageUrl(league.flag)}
             alt={league.country}
@@ -19166,6 +19400,8 @@ export default function MatchList({
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
+  const [currentPage, setCurrentPage] = useState(1);
+
   const {
     data: allMatches,
     isLoading,
@@ -19202,9 +19438,11 @@ export default function MatchList({
 
   useEffect(() => {
     setVisibleMatchCounts({});
+    setCurrentPage(1);
   }, [selectedDate, activeStatusFilter, debouncedSearchTerm]);
 
   const groupedMatches = useMemo(() => {
+
     const isSearching = debouncedSearchTerm.length >= 3;
     const matchesToProcess = isSearching
       ? searchResults
@@ -19250,6 +19488,20 @@ export default function MatchList({
     activeStatusFilter,
     debouncedSearchTerm,
   ]);
+
+  const paginatedLeagueGroups = useMemo(() => {
+    const leagueEntries = Object.entries(groupedMatches);
+    const totalPages = Math.ceil(leagueEntries.length / LEAGUES_PER_PAGE);
+
+    const startIndex = (currentPage - 1) * LEAGUES_PER_PAGE;
+    const endIndex = startIndex + LEAGUES_PER_PAGE;
+
+    return {
+      paginatedEntries: leagueEntries.slice(startIndex, endIndex),
+      totalPages,
+      totalLeagues: leagueEntries.length,
+    };
+  }, [groupedMatches, currentPage]);
 
   const handleLoadMore = (leagueId: string | number) => {
     setVisibleMatchCounts((prevCounts) => ({
@@ -19330,40 +19582,67 @@ export default function MatchList({
               <MatchListItemSkeleton key={i} />
             ))}
           </div>
-        ) : Object.keys(groupedMatches).length > 0 ? (
-          Object.entries(groupedMatches).map(
-            ([groupKey, { leagueInfo, matches }]: any) => {
-              const visibleCount =
-                visibleMatchCounts[groupKey] || INITIAL_MATCHES_TO_SHOW;
-              const remainingMatches = matches.length - visibleCount;
-              const hasMore = remainingMatches > 0;
-              return (
-                <div
-                  key={groupKey}
-                  style={{ backgroundColor: "var(--color-primary)" }}
-                  className="rounded-lg overflow-hidden"
-                >
-                  <LeagueGroupHeader league={leagueInfo} />
-                  <div className="p-2 space-y-2">
-                    {matches.slice(0, visibleCount).map((match: any) => (
-                      <MatchListItem key={match.fixture.id} match={match} />
-                    ))}
-                    {hasMore && (
-                      <button
-                        onClick={() => handleLoadMore(groupKey)}
-                        className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-text-muted p-3 rounded-lg transition-colors hover:text-white"
-                        style={{ backgroundColor: "var(--color-secondary)" }}
-                      >
-                        <ChevronsDown size={16} /> Show{" "}
-                        {Math.min(MATCHES_PER_PAGE, remainingMatches)} more
-                        matches
-                      </button>
-                    )}
+        ) : paginatedLeagueGroups.paginatedEntries.length > 0 ? (
+          <>
+            {paginatedLeagueGroups.paginatedEntries.map(
+              ([groupKey, { leagueInfo, matches }]: any) => {
+                const visibleCount =
+                  visibleMatchCounts[groupKey] || INITIAL_MATCHES_TO_SHOW;
+                const remainingMatches = matches.length - visibleCount;
+                const hasMore = remainingMatches > 0;
+                return (
+                  <div
+                    key={groupKey}
+                    style={{ backgroundColor: "var(--color-primary)" }}
+                    className="rounded-lg overflow-hidden"
+                  >
+                    <LeagueGroupHeader league={leagueInfo} />
+                    <div className="p-2 space-y-2">
+                      {matches.slice(0, visibleCount).map((match: any) => (
+                        <MatchListItem key={match.fixture.id} match={match} />
+                      ))}
+                      {hasMore && (
+                        <button
+                          onClick={() => handleLoadMore(groupKey)}
+                          className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-text-muted p-3 rounded-lg transition-colors hover:text-white"
+                          style={{ backgroundColor: "var(--color-secondary)" }}
+                        >
+                          <ChevronsDown size={16} /> Show{" "}
+                          {Math.min(MATCHES_PER_PAGE, remainingMatches)} more
+                          matches
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            }
-          )
+                );
+              }
+            )}
+
+            {}
+            {paginatedLeagueGroups.totalPages > 1 && (
+              <div className="flex items-center justify-between p-2">
+                <button
+                  onClick={() => setCurrentPage((p) => p - 1)}
+                  disabled={currentPage === 1}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-secondary rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-700/50 transition-colors"
+                >
+                  <ChevronLeft size={16} />
+                  <span>Previous</span>
+                </button>
+                <span className="text-sm font-semibold text-brand-muted">
+                  Page {currentPage} of {paginatedLeagueGroups.totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage((p) => p + 1)}
+                  disabled={currentPage === paginatedLeagueGroups.totalPages}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-secondary rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-700/50 transition-colors"
+                >
+                  <span>Next</span>
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            )}
+          </>
         ) : (
           <div
             className="text-center py-20 rounded-lg"
@@ -19484,94 +19763,6 @@ export default function MatchSlide({ match }: MatchSlideProps) {
             <MapPin size={16} />
             <span>{fixture.venue.name}</span>
           </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ===== src/components/MobileHomeTabs.tsx =====
-
-"use client";
-
-import { useState, Dispatch, SetStateAction } from "react";
-import { List, Newspaper, Compass } from "lucide-react";
-import { League } from "@/types/api-football";
-import MatchList from "./MatchList";
-import NewsSection from "./NewsSection";
-import ExploreTab from "./ExploreTab";
-
-const TABS = [
-  { id: "matches", label: "Matches", icon: List },
-  { id: "explore", label: "Explore", icon: Compass },
-  { id: "news", label: "News", icon: Newspaper },
-];
-
-interface MobileHomeTabsProps {
-  liveLeagues: League[];
-  setLiveLeagues: Dispatch<SetStateAction<League[]>>;
-}
-
-const TabButton = ({
-  tab,
-  isActive,
-  onClick,
-}: {
-  tab: (typeof TABS)[0];
-  isActive: boolean;
-  onClick: () => void;
-}) => (
-  <button
-    onClick={onClick}
-    className={`flex h-12 w-1/3 flex-col items-center justify-center gap-0.5 rounded-full transition-all duration-300 ease-in-out
-      ${
-        isActive
-          ? "bg-[var(--brand-accent)] text-white"
-          : "bg-transparent text-text-muted hover:text-white"
-      }
-    `}
-    aria-label={tab.label}
-  >
-    <tab.icon size={20} /> {}
-    <span className="text-xs font-bold">{tab.label}</span>
-  </button>
-);
-
-export default function MobileHomeTabs({
-  liveLeagues,
-  setLiveLeagues,
-}: MobileHomeTabsProps) {
-  const [activeTab, setActiveTab] = useState("matches");
-
-  return (
-
-    <div className="flex flex-col h-full w-full">
-      {}
-      {}
-      <main className="flex-grow p-2 sm:p-4 space-y-8 overflow-y-auto pb-20">
-        {activeTab === "matches" && (
-          <MatchList setLiveLeagues={setLiveLeagues} />
-        )}
-        {activeTab === "explore" && <ExploreTab />}
-        {activeTab === "news" && <NewsSection />}
-      </main>
-
-      {}
-      {}
-      <div className="fixed bottom-0 left-0 right-0 z-[100] px-3 pb-3 pointer-events-none">
-        <div
-          className="pointer-events-auto mx-auto flex max-w-xs items-center justify-around rounded-full
-                     bg-black/50 p-1 shadow-2xl shadow-black/30 backdrop-blur-lg
-                     border border-white/10"
-        >
-          {TABS.map((tab) => (
-            <TabButton
-              key={tab.id}
-              tab={tab}
-              isActive={activeTab === tab.id}
-              onClick={() => setActiveTab(tab.id)}
-            />
-          ))}
         </div>
       </div>
     </div>
@@ -20302,89 +20493,72 @@ export default function NewsListItem({ post }: NewsListItemProps) {
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import NewsItemCard, {
-  NewsArticleType,
-  NewsItemCardSkeleton,
-} from "./NewsItemCard";
 import axios from "axios";
 import { IPost } from "@/models/Post";
 import StyledLink from "./StyledLink";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Newspaper, Info } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
+import SidebarNewsItemWithImage, {
+  SidebarNewsItemWithImageSkeleton,
+} from "./SidebarNewsItemWithImage";
 
-const fetchNews = async (): Promise<NewsArticleType[]> => {
-  const { data } = await axios.get("/api/posts?status=published");
-
-  const transformedNews: NewsArticleType[] = data.map((post: IPost) => ({
-    id: post._id,
-    title: post.title,
-    excerpt: post.content.replace(/<[^>]*>?/gm, "").substring(0, 150) + "...",
-    imageUrl:
-      post.featuredImage ||
-      "https://images.unsplash.com/photo-1599508704512-2f19efd1e35f?q=80&w=1935&auto=format&fit=crop",
-    articleUrl: `/football/news/${post.slug}`,
-  }));
-
-  return transformedNews;
+const fetchNews = async (limit: number = 5): Promise<IPost[]> => {
+  const { data } = await axios.get(
+    `/api/posts?status=published&limit=${limit}`
+  );
+  return data;
 };
 
 export default function NewsSection() {
   const {
     data: news,
     isLoading,
-    error,
-  } = useQuery<NewsArticleType[]>({
-    queryKey: ["newsArticles"],
-    queryFn: fetchNews,
+    isError,
+  } = useQuery<IPost[]>({
+    queryKey: ["newsArticlesSidebarWidget"],
+    queryFn: () => fetchNews(5),
     staleTime: 1000 * 60 * 10,
   });
 
   const { t } = useTranslation();
 
   return (
-    <section>
-      {}
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-xl font-bold text-white">{t("latest_news")}</h3>
-        {}
-        {news && news.length > 2 && (
-          <StyledLink
-            href="/football/news"
-            className="flex items-center gap-1 text-sm font-semibold text-text-muted transition-colors hover:text-white"
-          >
-            See all
-            <ArrowRight size={16} />
-          </StyledLink>
-        )}
+    <section className="bg-brand-secondary rounded-lg shadow-lg">
+      <div className="flex justify-between items-center p-4 border-b border-gray-700/50">
+        <h3 className="text-xl font-bold text-white flex items-center gap-2">
+          <Newspaper size={20} className="text-brand-purple" />
+          {t("latest_news")}
+        </h3>
+        <StyledLink
+          href="/football/news"
+          className="flex items-center gap-1 text-xs font-semibold text-text-muted transition-colors hover:text-white"
+        >
+          See all
+          <ArrowRight size={14} />
+        </StyledLink>
       </div>
 
-      <div className="space-y-4">
+      <div className="p-2 space-y-1">
         {isLoading ? (
-
           <>
-            <NewsItemCardSkeleton />
-            <NewsItemCardSkeleton />
+            <SidebarNewsItemWithImageSkeleton />
+            <SidebarNewsItemWithImageSkeleton />
+            <SidebarNewsItemWithImageSkeleton />
+            <SidebarNewsItemWithImageSkeleton />
+            <SidebarNewsItemWithImageSkeleton />
           </>
-        ) : error ? (
-          <div
-            className="rounded-xl p-6 text-center text-text-muted"
-            style={{ backgroundColor: "var(--color-primary)" }}
-          >
+        ) : isError ? (
+          <div className="rounded-lg p-6 text-center text-red-400">
             <p>Could not load news articles.</p>
           </div>
         ) : news && news.length > 0 ? (
-
-          news
-            .slice(0, 2)
-            .map((article) => (
-              <NewsItemCard key={article.id} article={article} />
-            ))
+          news.map((post) => (
+            <SidebarNewsItemWithImage key={post._id} post={post} />
+          ))
         ) : (
-          <div
-            className="rounded-xl p-6 text-center text-text-muted"
-            style={{ backgroundColor: "var(--color-primary)" }}
-          >
-            <p>No news articles available yet.</p>
+          <div className="rounded-lg p-6 text-center text-text-muted">
+            <Info size={28} className="mx-auto mb-2" />
+            <p className="text-sm">No news articles available yet.</p>
           </div>
         )}
       </div>
@@ -20524,6 +20698,170 @@ export default function NewsSidebar() {
       {}
       <section></section>
     </aside>
+  );
+}
+
+// ===== src/components/NotificationDropdown.tsx =====
+
+"use client";
+
+import NotificationList from "./NotificationList";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+
+interface NotificationDropdownProps {
+  onClose: () => void;
+}
+
+export default function NotificationDropdown({
+  onClose,
+}: NotificationDropdownProps) {
+  return (
+    <div
+      className="fixed top-28 left-1/2 -translate-x-1/2 w-[90vw] max-w-sm
+                 md:absolute md:top-full md:left-auto md:right-0 md:translate-x-0 md:w-96
+                 bg-brand-secondary rounded-xl shadow-2xl border border-gray-700/50 z-[100] animate-fade-in"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="p-4 border-b border-gray-700/50">
+        <h3 className="font-bold text-lg text-white">Notifications</h3>
+      </div>
+      <div className="max-h-[60vh] overflow-y-auto custom-scrollbar">
+        <NotificationList onItemClick={onClose} />
+      </div>
+      <div className="p-2 border-t border-gray-700/50 text-center">
+        <Link
+          href="/football/news"
+          onClick={onClose}
+          className="text-sm font-semibold text-brand-purple hover:underline flex items-center justify-center gap-1"
+        >
+          View all news <ArrowRight size={14} />
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+// ===== src/components/NotificationItem.tsx =====
+
+"use client";
+
+import { IPost } from "@/models/Post";
+import Link from "next/link";
+import Image from "next/image";
+import { formatDistanceToNow } from "date-fns";
+import { proxyImageUrl } from "@/lib/image-proxy";
+
+interface NotificationItemProps {
+  post: IPost;
+  onItemClick?: () => void;
+}
+
+export default function NotificationItem({
+  post,
+  onItemClick,
+}: NotificationItemProps) {
+  const postUrl = `/football/news/${post.slug}`;
+  const placeholderImage = "/images/placeholder-logo.svg";
+
+  return (
+    <Link
+      href={postUrl}
+      onClick={onItemClick}
+      className="flex items-start gap-3 p-2 rounded-lg hover:bg-brand-purple/20 transition-colors"
+    >
+      <div className="flex-shrink-0 w-10 h-10 relative">
+        <Image
+          src={proxyImageUrl(post.featuredImage || placeholderImage)}
+          alt={post.title}
+          layout="fill"
+          objectFit="cover"
+          className="rounded-md"
+        />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-white line-clamp-2">
+          {post.title}
+        </p>
+        <p className="text-xs text-brand-muted mt-0.5">
+          {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
+        </p>
+      </div>
+    </Link>
+  );
+}
+
+// ===== src/components/NotificationList.tsx =====
+
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import { IPost } from "@/models/Post";
+import NotificationItem from "./NotificationItem";
+import { BellOff } from "lucide-react";
+
+const Skeleton = () => (
+  <div className="flex items-start gap-4 p-3 animate-pulse">
+    <div className="w-12 h-12 bg-gray-700 rounded-md"></div>
+    <div className="flex-1 space-y-2">
+      <div className="h-4 w-full bg-gray-700 rounded"></div>
+      <div className="h-3 w-1/3 bg-gray-600 rounded"></div>
+    </div>
+  </div>
+);
+
+interface NotificationListProps {
+  onItemClick?: () => void;
+}
+
+const fetchLatestPosts = async (): Promise<IPost[]> => {
+  const { data } = await axios.get("/api/posts?status=published&limit=5");
+  return data;
+};
+
+export default function NotificationList({
+  onItemClick,
+}: NotificationListProps) {
+  const {
+    data: posts,
+    isLoading,
+    isError,
+  } = useQuery<IPost[]>({
+    queryKey: ["latestPostsForNotifications"],
+    queryFn: fetchLatestPosts,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-1">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} />
+        ))}
+      </div>
+    );
+  }
+
+  if (isError || !posts || posts.length === 0) {
+    return (
+      <div className="text-center py-10 text-brand-muted">
+        <BellOff size={32} className="mx-auto mb-3" />
+        <p className="text-sm">No new notifications.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      {posts.map((post) => (
+        <NotificationItem
+          key={post._id}
+          post={post}
+          onItemClick={onItemClick}
+        />
+      ))}
+    </div>
   );
 }
 
@@ -21287,6 +21625,65 @@ export default function SidebarNewsItem({ post }: SidebarNewsItemProps) {
           </p>
         </div>
         <ChevronRight className="w-5 h-5 text-text-muted flex-shrink-0 mt-0.5 group-hover:text-[var(--brand-accent)] transition-colors" />
+      </div>
+    </Link>
+  );
+}
+
+// ===== src/components/SidebarNewsItemWithImage.tsx =====
+
+"use client";
+
+import Link from "next/link";
+import Image from "next/image";
+import { formatDistanceToNow } from "date-fns";
+import { IPost } from "@/models/Post";
+import { proxyImageUrl } from "@/lib/image-proxy";
+
+interface SidebarNewsItemWithImageProps {
+  post: IPost;
+}
+
+export const SidebarNewsItemWithImageSkeleton = () => (
+  <div className="flex items-center gap-3 p-2 animate-pulse">
+    <div className="w-16 h-12 bg-gray-700 rounded-md flex-shrink-0"></div>
+    <div className="flex-1 space-y-2">
+      <div className="h-4 w-full bg-gray-700 rounded"></div>
+      <div className="h-4 w-2/3 bg-gray-700 rounded"></div>
+      <div className="h-3 w-1/3 bg-gray-600 rounded"></div>
+    </div>
+  </div>
+);
+
+export default function SidebarNewsItemWithImage({
+  post,
+}: SidebarNewsItemWithImageProps) {
+  const postUrl = `/football/news/${post.slug}`;
+  const placeholderImage = "/images/placeholder-logo.svg";
+
+  return (
+    <Link
+      href={postUrl}
+      className="block p-2 rounded-lg group hover:bg-brand-dark transition-colors"
+    >
+      <div className="flex items-center gap-3">
+        <div className="flex-shrink-0 w-16 h-12 relative">
+          <Image
+            src={proxyImageUrl(post.featuredImage || placeholderImage)}
+            alt={post.title}
+            layout="fill"
+            objectFit="cover"
+            className="rounded-md"
+          />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h4 className="font-semibold text-sm text-white leading-snug group-hover:text-brand-purple transition-colors line-clamp-2">
+            {post.title}
+          </h4>
+          <p className="text-xs text-brand-muted mt-1">
+            {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
+          </p>
+        </div>
       </div>
     </Link>
   );
@@ -23035,6 +23432,7 @@ import TitleTemplate from "@/models/TitleTemplate";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import slugify from "slugify";
 import { proxyAndUploadImage } from "./image-processing-server";
+import axios from "axios";
 
 const genAI = new GoogleGenerativeAI(
   process.env.NEXT_PUBLIC_GEMINI_API_KEY as string
@@ -23050,7 +23448,6 @@ async function generateHumanizedTitle(
   let prompt: string;
 
   if (template) {
-
     prompt = `
       You are a title generation assistant. Your ONLY task is to use the provided template and context to generate a final, clean news title in TURKISH.
 
@@ -23072,7 +23469,6 @@ async function generateHumanizedTitle(
       FINAL TITLE:
     `;
   } else {
-
     prompt = `
       You are an expert Turkish sports journalist named "${
         journalistName || "Fanskor AI"
@@ -23102,8 +23498,15 @@ async function generateExpandedContent(
   newTitle: string,
   originalContent: string,
   journalistName?: string,
-  journalistTonePrompt?: string
+  journalistTonePrompt?: string,
+  highlightEmbedHtml?: string
 ): Promise<string> {
+  const highlightInstruction = highlightEmbedHtml
+    ? `
+    **HIGHLIGHT EMBED:** A video highlight is provided in the "{highlight_embed_html}" placeholder. You MUST include this placeholder in your response. Place it in a logical position, such as after the introductory paragraph, to visually complement the text. Wrap it in a div like this for proper spacing: <div class="my-6">${highlightEmbedHtml}</div>
+    `
+    : "";
+
   const prompt = `
     You are an expert Turkish sports journalist named "${
       journalistName || "Fanskor AI"
@@ -23120,10 +23523,12 @@ async function generateExpandedContent(
     3.  **LANGUAGE:** The entire article must be in Turkish.
     4.  **EXPAND & ANALYZE:** The "Original Content" is a starting point. Your main job is to expand it into a full article. Add background details, analyze the impact, discuss what might happen next, and provide expert commentary. Create a complete narrative.
     5.  **SEO HIERARCHY:** Use the provided "New Turkish Title" as the conceptual H1. Structure the article with multiple <h2> and <h3> tags that use relevant keywords. Make the content rich and valuable for the reader.
+    ${highlightInstruction}
 
     ARTICLE CONTEXT:
     - New Turkish Title: "${newTitle}"
     - Original Content: "${originalContent}"
+    - Highlight Embed Code: "${highlightEmbedHtml || "Not available."}"
 
     YOUR GENERATED HTML ARTICLE:
   `;
@@ -23142,6 +23547,7 @@ interface ProcessArticleOptions {
   sportsCategory: SportsCategory[];
   newsType: NewsType;
   status: "draft" | "published";
+  linkedFixtureId?: number;
   onProgress?: (log: string) => void;
 }
 
@@ -23158,7 +23564,6 @@ export async function processSingleArticle(
     if (["processed", "processing"].includes(externalArticle.status)) {
       const message = `Article already processed (Status: ${externalArticle.status}). Skipping.`;
       onProgress(message);
-
       return {
         success: true,
         postId: externalArticle.processedPostId?.toString(),
@@ -23193,6 +23598,26 @@ export async function processSingleArticle(
       onProgress("No title template selected. Using dynamic generation.");
     }
 
+    let highlightEmbedHtml: string | undefined;
+    if (options.newsType === "reviews" && options.linkedFixtureId) {
+      onProgress(
+        `Fetching highlights for fixture ID: ${options.linkedFixtureId}...`
+      );
+      try {
+        const highlightsApiUrl = `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/api/highlights?fixtureId=${options.linkedFixtureId}`;
+        const { data } = await axios.get(highlightsApiUrl);
+        const mainHighlight = data?.highlights?.[0];
+        if (mainHighlight?.embedUrl) {
+          highlightEmbedHtml = `<div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; height: auto; border-radius: 8px; margin: 1.5rem 0;"><iframe src="${mainHighlight.embedUrl}" frameborder="0" allowfullscreen style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></iframe></div>`;
+          onProgress("-> Highlight video found and embed code generated.");
+        } else {
+          onProgress("-> No highlights found for this fixture.");
+        }
+      } catch (e) {
+        onProgress("-> Could not fetch highlights for this fixture.");
+      }
+    }
+
     onProgress("Generating new article title with AI...");
     const newTitle = await generateHumanizedTitle(
       externalArticle.title,
@@ -23210,7 +23635,8 @@ export async function processSingleArticle(
         externalArticle.description ||
         "No content provided.",
       journalist?.name,
-      journalist?.tonePrompt
+      journalist?.tonePrompt,
+      highlightEmbedHtml
     );
     if (!newContent || !newContent.includes("<p>"))
       throw new Error("AI failed to generate valid HTML content.");
@@ -23263,6 +23689,7 @@ export async function processSingleArticle(
       status: options.status,
       sportsCategory: options.sportsCategory,
       newsType: options.newsType,
+      linkedFixtureId: options.linkedFixtureId,
     });
     await newPost.save();
     onProgress("-> New post saved successfully.");
@@ -23289,6 +23716,104 @@ export async function processSingleArticle(
     await externalArticle.save();
     return { success: false };
   }
+}
+
+// ===== src/lib/data/highlightly.ts =====
+
+import axios from "axios";
+import { format, subDays } from "date-fns";
+
+const API_BASE_URL = "https://sports.highlightly.net/";
+const API_KEY = process.env.NEXT_PUBLIC_HIGHLIGHTLY_API_KEY;
+
+async function request(endpoint: string, params?: object) {
+  if (!API_KEY) {
+    throw new Error("Highlightly API Key is not configured.");
+  }
+
+  try {
+    const response = await axios.get(`${API_BASE_URL}/${endpoint}`, {
+      params,
+      headers: {
+        "x-rapidapi-key": API_KEY,
+        "x-rapidapi-host": "sports.highlightly.net",
+      },
+      timeout: 20000,
+    });
+    return response.data;
+  } catch (error: any) {
+    if (error.response && error.response.status === 404) {
+      return null;
+    }
+    console.error(
+      `[Highlightly Service] Error fetching from '${endpoint}':`,
+      error.message
+    );
+    throw new Error(`Failed to fetch data from the highlights provider.`);
+  }
+}
+
+export async function getMatchHighlights(params: object) {
+  const data = await request("football/highlights", params);
+  return data;
+}
+
+export async function getHighlightlyEntities(type: "leagues" | "teams") {
+  const data = await request(type);
+  return data[type] || data || [];
+}
+
+export async function getLatestPopularHighlights() {
+  const POPULAR_LEAGUE_IDS = [
+    2486,
+    3337,
+    33973,
+    52695,
+    61205,
+    67162,
+    75672,
+    80778,
+    34824,
+    68013,
+    8443,
+    13549,
+    11847,
+    14400,
+    15251,
+    10996,
+    39079,
+    41632,
+    56950,
+    69715,
+  ];
+  const allHighlights = [];
+
+  for (const leagueId of POPULAR_LEAGUE_IDS) {
+    const params = {
+      leagueId,
+      season: new Date().getFullYear(),
+      limit: 10,
+    };
+
+    const result = await request("football/highlights", params);
+
+    if (result && result.data && Array.isArray(result.data)) {
+      allHighlights.push(...result.data);
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+
+  const uniqueHighlights = Array.from(
+    new Map(allHighlights.map((item: any) => [item.id, item])).values()
+  );
+
+  uniqueHighlights.sort(
+    (a: any, b: any) =>
+      new Date(b.match.date).getTime() - new Date(a.match.date).getTime()
+  );
+
+  return uniqueHighlights.filter((i) => i.type !== "UNVERIFIED").slice(0, 8);
 }
 
 // ===== src/lib/data/team.ts =====

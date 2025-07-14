@@ -5,8 +5,6 @@ import TeamDetailView from "@/components/TeamDetailView";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { fetchTeamDetails } from "@/lib/data/team";
-// --- NEW WIDGET IMPORTS FOR THE SIDEBAR ---
-import CasinoPartnerWidget from "@/components/CasinoPartnerWidget";
 import RecentNewsWidget from "@/components/RecentNewsWidget";
 import AdSlotWidget from "@/components/AdSlotWidget";
 import TeamInfoWidget from "@/components/team/TeamInfoWidget";
@@ -30,7 +28,7 @@ export async function generateMetadata({
   const teamData = await fetchTeamDetails(teamId);
   if (!teamData) return { title: "Team Not Found" };
   const { team } = teamData.teamInfo;
-  const pageTitle = `${team.name} - Squad, Fixtures & Standings`;
+  const pageTitle = `Fanskor | ${team.name} Oyuncular, Fikstürler ve Sıralamalar`;
   const pageDescription = `View the full squad, recent fixtures, and current standings for ${team.name}.`;
   return {
     title: pageTitle,

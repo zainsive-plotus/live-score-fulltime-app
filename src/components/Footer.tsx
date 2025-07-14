@@ -1,5 +1,3 @@
-// ===== src/components/Footer.tsx =====
-
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
@@ -69,22 +67,19 @@ export default function Footer() {
   return (
     <footer className="bg-brand-secondary text-white py-12">
       <div className="container mx-auto px-4">
-        {/* Main Footer Links */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
-          {/* Column 1 */}
           <div className="space-y-8">
             <div>
               <h4 className="font-bold text-white uppercase tracking-wider mb-4">
-                About
+                {t("footer_about_title")}
               </h4>
               <p className="text-sm text-brand-muted leading-relaxed">
-                Fanskor ile her golün ve düdüğün bir adım önünde olun - canlı
-                skor ve maç güncellemeleri için en iyi adresiniz.
+                {t("footer_about_text")}
               </p>
             </div>
             <div>
               <h4 className="font-bold text-white uppercase tracking-wider mb-4">
-                News
+                {t("news")}
               </h4>
               <div className="text-sm text-brand-muted space-y-2">
                 {recentPosts?.map((post) => (
@@ -100,9 +95,8 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Column 2 */}
-          <div className="space-y-8">
-            <FooterColumn title="Football">
+          <div>
+            <FooterColumn title={t("football")}>
               <FooterLink href="https://fanskor.com/football/league/premier-league-39">
                 Premier League
               </FooterLink>
@@ -124,9 +118,8 @@ export default function Footer() {
             </FooterColumn>
           </div>
 
-          {/* Column 3 */}
           <div>
-            <FooterColumn title="Football Scores">
+            <FooterColumn title={t("footer_football_scores_title")}>
               {footballScores?.map((score) => (
                 <FooterLink key={score.id} href={score.href}>
                   {score.home} - {score.away}
@@ -135,22 +128,24 @@ export default function Footer() {
             </FooterColumn>
           </div>
 
-          {/* Column 4 */}
           <div>
-            <FooterColumn title="Information">
+            <FooterColumn title={t("footer_information_title")}>
               <FooterLink href="/contact-us">{t("contact_us")}</FooterLink>
-              <FooterLink href="/faq">Frequently Ask Question</FooterLink>
-              <FooterLink href="/author">Author</FooterLink>
-              <FooterLink href="/report-abuse">Report Abuse</FooterLink>
-              <FooterLink href="/privacy-policy">Privacy Policy</FooterLink>
+              <FooterLink href="/faq">{t("faq_title")}</FooterLink>
+              <FooterLink href="/author">{t("author_title")}</FooterLink>
+              <FooterLink href="/report-abuse">
+                {t("report_abuse_title")}
+              </FooterLink>
+              <FooterLink href="/privacy-policy">
+                {t("privacy_policy_title")}
+              </FooterLink>
               <FooterLink href="/terms-and-conditions">
-                Terms & Conditions
+                {t("terms_and_conditions_title")}
               </FooterLink>
             </FooterColumn>
           </div>
         </div>
 
-        {/* Responsibility Logos */}
         <div className="flex flex-col md:flex-row justify-between items-center border-t border-gray-700/50 pt-8 mb-8">
           <div className="mb-6 md:mb-0">
             <Image
@@ -196,17 +191,18 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* Copyright */}
         <div className="flex flex-col md:flex-row justify-between items-center text-sm text-brand-muted">
           <p className="mb-4 md:mb-0">
-            © {new Date().getFullYear()} Fanskor - All rights reserved.
+            © {new Date().getFullYear()} Fanskor - {t("footer_rights_reserved")}
           </p>
           <div className="flex flex-wrap justify-center gap-x-4 gap-y-2">
-            <FooterLink href="/privacy-policy">Privacy Policy</FooterLink>
-            <FooterLink href="/terms-and-conditions">
-              Terms & Conditions
+            <FooterLink href="/privacy-policy">
+              {t("privacy_policy_title")}
             </FooterLink>
-            <FooterLink href="/gdpr">GDPR & Journalism</FooterLink>
+            <FooterLink href="/terms-and-conditions">
+              {t("terms_and_conditions_title")}
+            </FooterLink>
+            <FooterLink href="/gdpr">{t("gdpr_title")}</FooterLink>
           </div>
         </div>
       </div>

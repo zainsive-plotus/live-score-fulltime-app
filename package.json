@@ -1,5 +1,5 @@
 {
-  "name": "my-fulltime-app",
+  "name": "Fan Skor",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start -p 3002",
     "lint": "next lint",
-    "test-db": "node scripts/test-database.js"
+    "test-db": "node scripts/test-database.js",
+    "db:seed-lang": "node scripts/seedLanguages.js"
   },
   "dependencies": {
     "@auth/mongodb-adapter": "^3.9.1",
@@ -38,6 +39,7 @@
     "lucide-react": "^0.515.0",
     "mongodb": "^6.17.0",
     "mongoose": "^8.16.0",
+    "negotiator": "^1.0.0",
     "next": "15.3.3",
     "next-auth": "^4.24.11",
     "nprogress": "^0.2.0",
@@ -59,6 +61,7 @@
     "@tailwindcss/postcss": "^4",
     "@tailwindcss/typography": "^0.5.16",
     "@types/bcrypt": "^5.0.2",
+    "@types/negotiator": "^0.6.4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
@@ -67,6 +70,7 @@
     "eslint-config-next": "15.3.3",
     "tailwind-scrollbar": "^4.0.2",
     "tailwindcss": "^4",
+    "ts-node": "^10.9.2",
     "typescript": "^5"
   }
 }

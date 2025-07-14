@@ -4,12 +4,16 @@ import Providers from "./providers";
 import { LeagueProvider } from "@/context/LeagueContext";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
-import { LanguageProvider } from "@/context/LanguageContext";
 import NextAuthProvider from "./NextAuthProvider";
 import { Suspense } from "react";
 import StickyFooterAd from "@/components/StickyFooterAd";
 import Loading from "./loading";
 import Footer from "@/components/Footer";
+
+// New imports for our dynamic i18n system
+import { getLocale } from "@/lib/i18n/server";
+import { i18nCache } from "@/lib/i18n/i18n.cache";
+import { I18nProviderClient } from "@/lib/i18n/client";
 
 const METADATA_BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
@@ -34,42 +38,43 @@ export const metadata: Metadata = {
       follow: true,
     },
   },
-  // --- ADDED DEFAULT OPEN GRAPH TAGS ---
   openGraph: {
     title: "Fan Skor | Canlı Skorlar, Tahminler ve En İyi Futbol Ligleri",
     description:
       "Fan Skor, canlı skorlar, haberler, tahminler, en iyi ligler, takım istatistikleri, uzman makaleleri ve güvenilir ortaklıkları tek bir platformda sunar.",
-    url: METADATA_BASE_URL, // Canonical URL for the site root
+    url: METADATA_BASE_URL,
     siteName: "Fan Skor",
     images: [
       {
-        url: `${METADATA_BASE_URL}/og-image.jpg`, // You should create this image in your public folder
+        url: `${METADATA_BASE_URL}/og-image.jpg`,
         width: 1200,
         height: 630,
         alt: "Fan Skor - Türkiye Canlı Skor Sitesi",
       },
     ],
-    locale: "en_US", // Default locale, can be changed dynamically by pages if i18n is used
+    locale: "en_US", // This can be made dynamic later if needed
     type: "website",
   },
-  // --- ADDED DEFAULT TWITTER CARD TAGS ---
   twitter: {
     card: "summary_large_image",
     title: "Fan Skor | Canlı Skorlar, Tahminler ve En İyi Futbol Ligleri",
     description:
       "Fan Skor, canlı skorlar, haberler, tahminler, en iyi ligler, takım istatistikleri, uzman makaleleri ve güvenilir ortaklıkları tek bir platformda sunar.",
-    creator: "@fanskor_official", // Your Twitter handle
-    images: [`${METADATA_BASE_URL}/twitter-image.jpg`], // You should create this image in your public folder
+    creator: "@fanskor_official",
+    images: [`${METADATA_BASE_URL}/twitter-image.jpg`],
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const locale = await getLocale();
+  const translations = (await i18nCache.getTranslations(locale)) || {};
+
   return (
-    <html lang="tr">
+    <html lang={locale}>
       <body
         className={`bg-background text-text-primary`}
         suppressHydrationWarning={true}
@@ -77,13 +82,14 @@ export default function RootLayout({
         <Suspense fallback={<Loading />}>
           <NextAuthProvider>
             <Providers>
-              <LanguageProvider>
+              {/* The new I18nProviderClient wraps everything */}
+              <I18nProviderClient locale={locale} translations={translations}>
                 <LeagueProvider>
                   <main>{children}</main>
                   <StickyFooterAd />
                   <Footer />
                 </LeagueProvider>
-              </LanguageProvider>
+              </I18nProviderClient>
             </Providers>
           </NextAuthProvider>
         </Suspense>
