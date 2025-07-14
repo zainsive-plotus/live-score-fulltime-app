@@ -18,10 +18,10 @@ const getTeamIdFromSlug = (slug: string): string | null => {
 export async function generateMetadata({
   params,
 }: {
-  params: { slug: string[] };
+  params: Promise<{ slug: string[] }>;
 }): Promise<Metadata> {
   const t = await getI18n();
-  const slug = params.slug.join("/");
+  const slug = (await params).slug.join("/");
   const teamId = getTeamIdFromSlug(slug);
 
   if (!teamId) return { title: t("not_found_title") };
@@ -43,9 +43,9 @@ export async function generateMetadata({
 export default async function TeamPage({
   params,
 }: {
-  params: { slug: string[] };
+  params: Promise<{ slug: string[] }>;
 }) {
-  const slug = params.slug.join("/");
+  const slug = (await params).slug.join("/");
   const teamId = getTeamIdFromSlug(slug);
   if (!teamId) {
     notFound();

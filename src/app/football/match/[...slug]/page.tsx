@@ -50,10 +50,10 @@ const fetchMatchDetailsServer = async (fixtureId: string) => {
 export async function generateMetadata({
   params,
 }: {
-  params: { slug: string[] };
+  params: Promise<{ slug: string[] }>;
 }): Promise<Metadata> {
   const t = await getI18n();
-  const slug = params.slug.join("/");
+  const slug = (await params).slug.join("/");
   const fixtureId = getFixtureIdFromSlug(slug);
   if (!fixtureId) {
     return { title: t("not_found_title") };
@@ -94,9 +94,9 @@ export async function generateMetadata({
 export default async function MatchDetailPage({
   params,
 }: {
-  params: { slug: string[] };
+  params: Promise<{ slug: string[] }>;
 }) {
-  const slug = params.slug.join("/");
+  const slug = (await params).slug.join("/");
   const fixtureId = getFixtureIdFromSlug(slug);
   if (!fixtureId) {
     notFound();

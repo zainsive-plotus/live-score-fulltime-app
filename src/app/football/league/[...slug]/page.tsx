@@ -57,10 +57,10 @@ async function getLeagueData(leagueId: string): Promise<any | null> {
 export async function generateMetadata({
   params,
 }: {
-  params: { slug: string[] };
+  params: Promise<{ slug: string[] }>;
 }): Promise<Metadata> {
   const t = await getI18n();
-  const slug = params.slug.join("/");
+  const slug = (await params).slug.join("/");
   const leagueId = getLeagueIdFromSlug(slug);
 
   if (!leagueId) {
@@ -96,9 +96,9 @@ export async function generateMetadata({
 export default async function LeaguePage({
   params,
 }: {
-  params: { slug: string[] };
+  params: Promise<{ slug: string[] }>;
 }) {
-  const slug = params.slug.join("/");
+  const slug = (await params).slug.join("/");
   const leagueId = getLeagueIdFromSlug(slug);
 
   if (!leagueId) {
