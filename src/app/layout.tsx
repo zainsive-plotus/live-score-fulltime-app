@@ -77,11 +77,6 @@ export default async function RootLayout({
 
   return (
     <html lang={locale}>
-      <head>
-        {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
-          <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
-        )}
-      </head>
       <body
         className={`bg-background text-text-primary`}
         suppressHydrationWarning={true}
@@ -101,6 +96,10 @@ export default async function RootLayout({
             </Providers>
           </NextAuthProvider>
         </Suspense>
+
+        {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
+          <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
+        )}
       </body>
     </html>
   );

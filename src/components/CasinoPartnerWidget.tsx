@@ -89,7 +89,11 @@ const CasinoPartnerWidget: React.FC = () => {
               flex items-center gap-3 relative overflow-hidden group
             `}
             title={partner.description || partner.name}
-            event={`Clicked from partner widget: ${partner.name}`}
+            gaEventName="casino_partner_click"
+            gaEventParams={{
+              partner_name: partner.name,
+              is_featured: partner.isFeatured,
+            }}
           >
             {partner.isFeatured && (
               <div className="absolute inset-0 bg-[#ea5a1e32] opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>

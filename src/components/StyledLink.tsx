@@ -1,43 +1,39 @@
 "use client";
 
-import { trackEvent } from "@/lib/ga";
 import { default as NextLink, LinkProps } from "next/link";
 import NProgress from "nprogress";
-import React from "react"; // Import React to use React.CSSProperties
+import React from "react";
+import { sendGAEvent } from "@/lib/analytics"; // <-- Import our new helper
 
-// This is a client-side component that wraps the standard Next.js Link.
-// It starts the NProgress bar on click.
 export default function StyledLink({
   href,
   children,
   className,
-  style, // Add style prop here
-  event,
+  style,
+  // Add new props for GA event tracking
+  gaEventName,
+  gaEventParams,
   ...props
 }: LinkProps & {
   children: React.ReactNode;
   className?: string;
-  style?: React.CSSProperties; // Define type for style prop
-  event?: string;
+  style?: React.CSSProperties;
+  gaEventName?: string;
+  gaEventParams?: { [key: string]: any };
 } & any) {
   const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    if (event) {
-      trackEvent({
-        action: "button_click",
-        category: "engagement",
-        label: event,
-        value: 1,
-      });
+    // Fire the GA event if the name is provided
+    if (gaEventName) {
+      sendGAEvent(gaEventName, gaEventParams || {});
     }
 
-    // Check if it's a link to a different page before starting the progress bar.
-    // This prevents the bar from showing for on-page anchor links.
+    // Handle NProgress
     const currentPath = window.location.pathname;
     if (href.toString() !== currentPath) {
       NProgress.start();
     }
 
-    // If there's an existing onClick handler, make sure to call it.
+    // Call any original onClick handler
     if (props.onClick) {
       props.onClick(e);
     }
@@ -47,7 +43,7 @@ export default function StyledLink({
     <NextLink
       href={href}
       className={className}
-      style={style} // Apply style prop here
+      style={style}
       {...props}
       onClick={handleLinkClick}
     >
