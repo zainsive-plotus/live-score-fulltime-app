@@ -5,7 +5,7 @@ const I18N_COOKIE_NAME = "NEXT_LOCALE";
 
 // This is a simplified, hardcoded list for the middleware.
 // The definitive list of *active* languages is still in the database.
-const SUPPORTED_LOCALES = ["tr", "en", "de", "fr", "es", "ar"];
+const SUPPORTED_LOCALES = ["tr", "en", "de", "fr", "es", "ar", "zu"];
 const DEFAULT_LOCALE = "tr";
 
 function getLocaleFromRequest(request: NextRequest): string {

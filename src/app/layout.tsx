@@ -10,6 +10,8 @@ import StickyFooterAd from "@/components/StickyFooterAd";
 import Loading from "./loading";
 import Footer from "@/components/Footer";
 
+import { GoogleAnalytics } from "@next/third-parties/google";
+
 // New imports for our dynamic i18n system
 import { getLocale } from "@/lib/i18n/server";
 import { i18nCache } from "@/lib/i18n/i18n.cache";
@@ -86,6 +88,12 @@ export default async function RootLayout({
               <I18nProviderClient locale={locale} translations={translations}>
                 <LeagueProvider>
                   <main>{children}</main>
+
+                  {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
+                    <GoogleAnalytics
+                      gaId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}
+                    />
+                  )}
                   <StickyFooterAd />
                   <Footer />
                 </LeagueProvider>

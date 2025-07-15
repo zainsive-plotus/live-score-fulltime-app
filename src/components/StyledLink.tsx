@@ -1,5 +1,6 @@
 "use client";
 
+import { trackEvent } from "@/lib/ga";
 import { default as NextLink, LinkProps } from "next/link";
 import NProgress from "nprogress";
 import React from "react"; // Import React to use React.CSSProperties
@@ -11,13 +12,24 @@ export default function StyledLink({
   children,
   className,
   style, // Add style prop here
+  event,
   ...props
 }: LinkProps & {
   children: React.ReactNode;
   className?: string;
   style?: React.CSSProperties; // Define type for style prop
+  event?: string;
 } & any) {
   const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (event) {
+      trackEvent({
+        action: "button_click",
+        category: "engagement",
+        label: event,
+        value: 1,
+      });
+    }
+
     // Check if it's a link to a different page before starting the progress bar.
     // This prevents the bar from showing for on-page anchor links.
     const currentPath = window.location.pathname;
