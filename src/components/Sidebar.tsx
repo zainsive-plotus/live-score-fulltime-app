@@ -8,26 +8,25 @@ import { usePathname } from "next/navigation";
 import { useLeagueContext } from "@/context/LeagueContext";
 import { League } from "@/types/api-football";
 import { useTranslation } from "@/hooks/useTranslation";
-import slugify from "slugify";
 import PopularTeamsList from "./PopularTeamsList";
 import AdSlotWidget from "./AdSlotWidget";
 import CasinoPartnerWidget from "./CasinoPartnerWidget";
 import { proxyImageUrl } from "@/lib/image-proxy";
 
-const generateLeagueSlug = (name: string, id: number) => {
-  const slug = slugify(name, { lower: true, strict: true });
-  return `/football/league/${slug}-${id}`;
-};
-
-const fetchLeagues = async (countryName: string | null): Promise<League[]> => {
+// 1. fetchLeagues now accepts a locale
+const fetchLeagues = async (
+  countryName: string | null,
+  locale: string
+): Promise<League[]> => {
+  // 2. The locale is appended as a query parameter to the API call
   const endpoint = countryName
-    ? `/api/leagues?type=league&country=${encodeURIComponent(countryName)}`
-    : `/api/leagues?type=league`;
+    ? `/api/leagues?type=league&country=${encodeURIComponent(
+        countryName
+      )}&locale=${locale}`
+    : `/api/leagues?type=league&locale=${locale}`;
+
   const { data } = await axios.get(endpoint);
-  return data.map((item: any) => ({
-    ...item,
-    href: generateLeagueSlug(item.name, item.id),
-  }));
+  return data;
 };
 
 const LeagueList = ({ leagues }: { leagues: League[] }) => {
@@ -44,7 +43,7 @@ const LeagueList = ({ leagues }: { leagues: League[] }) => {
   return (
     <ul className="space-y-1">
       {leagues.map((league) => {
-        const isActive = pathname.startsWith(league.href);
+        const isActive = pathname === league.href; // Exact match for active state
         return (
           <li key={league.id}>
             <Link
@@ -89,7 +88,7 @@ const LeagueItemSkeleton = () => (
 );
 
 export default function Sidebar() {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation(); // 3. Get the current locale from the hook
   const { selectedCountry } = useLeagueContext();
 
   const {
@@ -97,8 +96,10 @@ export default function Sidebar() {
     isLoading: isLoadingLeagues,
     isError,
   } = useQuery<League[]>({
-    queryKey: ["leagues", selectedCountry?.name || "global"],
-    queryFn: () => fetchLeagues(selectedCountry?.name || null),
+    // 4. The locale is added to the queryKey to ensure unique caching per language
+    queryKey: ["leagues", selectedCountry?.name || "global", locale],
+    // 5. The locale is passed to the fetch function
+    queryFn: () => fetchLeagues(selectedCountry?.name || null, locale),
   });
 
   const getSidebarTitle = () => {

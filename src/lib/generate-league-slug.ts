@@ -1,18 +1,24 @@
-import slugify from 'slugify';
+import slugify from "slugify";
 
 /**
- * Generates a URL-friendly slug for a league.
- * e.g., "Premier League", 39 -> "/league/premier-league-39"
+ * Generates a locale-prefixed, SEO-friendly slug for a league.
  * @param name - The name of the league.
- * @param id - The unique ID of the league.
- * @returns A string representing the path.
+ * @param id - The ID of the league.
+ * @param locale - The locale to prefix the URL with (e.g., 'en', 'tr').
+ * @returns The complete, prefixed URL path (e.g., '/en/football/league/premier-league-39').
  */
-export function generateLeagueSlug(name: string, id: number): string {
+export function generateLeagueSlug(
+  name: string,
+  id: number,
+  locale?: string
+): any {
   const nameSlug = slugify(name, {
-    lower: true,    // convert to lower case
-    strict: true,   // remove special characters
-    trim: true,     // trim leading/trailing spaces
+    lower: true,
+    strict: true,
+    trim: true,
+    remove: /[*+~.()'"!:@]/g,
   });
-  
-  return `/football/league/${nameSlug}-${id}`;
+
+  if (locale) return `/${locale}/football/league/${nameSlug}-${id}`;
+  else return `/football/league/${nameSlug}-${id}`;
 }

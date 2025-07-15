@@ -3,14 +3,17 @@
 import { default as NextLink, LinkProps } from "next/link";
 import NProgress from "nprogress";
 import React from "react";
-import { sendGAEvent } from "@/lib/analytics"; // <-- Import our new helper
+import { sendGAEvent } from "@/lib/analytics";
+import { useTranslation } from "@/hooks/useTranslation";
+import { usePathname } from "next/navigation";
+
+const DEFAULT_LOCALE = "tr";
 
 export default function StyledLink({
   href,
   children,
   className,
   style,
-  // Add new props for GA event tracking
   gaEventName,
   gaEventParams,
   ...props
@@ -20,28 +23,62 @@ export default function StyledLink({
   style?: React.CSSProperties;
   gaEventName?: string;
   gaEventParams?: { [key: string]: any };
-} & any) {
+} & Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, "href">) {
+  const { locale } = useTranslation();
+  const currentPathname = usePathname();
+
+  const isExternal =
+    typeof href === "string" &&
+    (href.startsWith("http") || href.startsWith("mailto:"));
+  const isAnchor = typeof href === "string" && href.startsWith("#");
+  const isAdminLink = typeof href === "string" && href.startsWith("/admin");
+
+  let localizedHref = href;
+
+  // ** NEW, CORRECTED LOGIC **
+  if (!isExternal && !isAnchor && !isAdminLink) {
+    if (locale === DEFAULT_LOCALE) {
+      // For the default locale, do not add any prefix.
+      localizedHref = href;
+    } else {
+      // For all other locales, add the prefix.
+      localizedHref = `/${locale}${href}`;
+    }
+  }
+
   const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    // Fire the GA event if the name is provided
     if (gaEventName) {
       sendGAEvent(gaEventName, gaEventParams || {});
     }
 
-    // Handle NProgress
-    const currentPath = window.location.pathname;
-    if (href.toString() !== currentPath) {
+    if (localizedHref.toString() !== currentPathname) {
       NProgress.start();
     }
 
-    // Call any original onClick handler
     if (props.onClick) {
       props.onClick(e);
     }
   };
 
+  if (isExternal) {
+    return (
+      <a
+        href={href as string}
+        className={className}
+        style={style}
+        {...props}
+        onClick={handleLinkClick}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {children}
+      </a>
+    );
+  }
+
   return (
     <NextLink
-      href={href}
+      href={localizedHref}
       className={className}
       style={style}
       {...props}

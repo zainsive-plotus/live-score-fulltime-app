@@ -3,20 +3,18 @@
 import { useState, useMemo } from "react";
 import Image from "next/image";
 import Link from "@/components/StyledLink";
-import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import {
-  Star,
-  TrendingUp,
-  Loader2,
   History,
   CheckCircle,
   XCircle,
+  TrendingUp,
+  Loader2,
 } from "lucide-react";
 import { generateMatchSlug } from "@/lib/generate-match-slug";
 import { proxyImageUrl } from "@/lib/image-proxy";
-import { useTranslation } from "@/hooks/useTranslation"; // <-- Import hook
+import { useTranslation } from "@/hooks/useTranslation";
 import ZonedDate from "./ZonedDate";
 
 type Odds = { home: string; draw: string; away: string } | undefined | null;
@@ -45,7 +43,9 @@ export default function DesktopMatchListItem({
   isLive,
 }: DesktopMatchListItemProps) {
   const { fixture, teams, goals } = match;
-  const { t } = useTranslation(); // <-- Use hook
+  const { t } = useTranslation();
+
+  // Reverted: Slug does NOT contain the locale. StyledLink will handle it.
   const slug = generateMatchSlug(teams.home, teams.away, fixture.id);
   const isFinished = ["FT", "AET", "PEN"].includes(fixture.status.short);
 
@@ -119,10 +119,7 @@ export default function DesktopMatchListItem({
       className="group flex items-center p-2 rounded-lg transition-all duration-300 ease-in-out border border-transparent hover:border-[var(--brand-accent)]/20 hover:bg-[var(--color-primary)]"
       style={{ backgroundColor: "var(--color-secondary)" }}
     >
-      <Link
-        href={`/football/match/${slug}`}
-        className="flex flex-1 items-center min-w-0"
-      >
+      <Link href={slug} className="flex flex-1 items-center min-w-0">
         <div className="w-16 flex-shrink-0 text-center text-sm font-semibold">
           {isLive ? (
             <div className="flex items-center justify-center gap-1.5 text-green-400">
@@ -252,7 +249,6 @@ export default function DesktopMatchListItem({
     </div>
   );
 }
-
 // Skeleton component is unchanged.
 export const MatchListItemSkeleton = () => (
   <div

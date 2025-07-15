@@ -1,18 +1,35 @@
-// src/lib/generate-match-slug.ts
-import slugify from 'slugify';
+import slugify from "slugify";
 
 interface Team {
   name: string;
 }
 
-// The function now requires the fixture ID
-export function generateMatchSlug(homeTeam: Team, awayTeam: Team, fixtureId: number): string {
-  const homeName = homeTeam?.name || 'team';
-  const awayName = awayTeam?.name || 'team';
-  
-  const homeSlug = slugify(homeName, { lower: true, strict: true });
-  const awaySlug = slugify(awayName, { lower: true, strict: true });
+/**
+ * Generates a non-prefixed, SEO-friendly slug for a match.
+ * The StyledLink component will handle adding the locale prefix.
+ * @param homeTeam - The home team object.
+ * @param awayTeam - The away team object.
+ * @param fixtureId - The ID of the fixture.
+ * @returns The partial URL path without locale (e.g., '/football/match/manchester-united-vs-liverpool-12345').
+ */
+export function generateMatchSlug(
+  homeTeam: Team,
+  awayTeam: Team,
+  fixtureId: number
+): string {
+  const homeName = homeTeam?.name || "team";
+  const awayName = awayTeam?.name || "team";
 
-  // Append the unique ID to the end of the slug
-  return `${homeSlug}-vs-${awaySlug}-${fixtureId}`;
+  const homeSlug = slugify(homeName, {
+    lower: true,
+    strict: true,
+    remove: /[*+~.()'"!:@]/g,
+  });
+  const awaySlug = slugify(awayName, {
+    lower: true,
+    strict: true,
+    remove: /[*+~.()'"!:@]/g,
+  });
+
+  return `/football/match/${homeSlug}-vs-${awaySlug}-${fixtureId}`;
 }

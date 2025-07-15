@@ -1,36 +1,49 @@
-import { headers } from "next/headers";
 import "server-only";
-import { i18nCache } from "./i18n.cache";
+import path from "path";
+import { promises as fs } from "fs";
 
-type Translations = Record<string, any>;
+// This list must be kept in sync with the list in middleware.ts
+const SUPPORTED_LOCALES = ["tr", "en", "de", "fr", "es", "ar", "zu"];
+const DEFAULT_LOCALE = "tr";
+const LOCALES_DIR = path.join(process.cwd(), "src/locales");
 
-/**
- * Gets the current locale by reading the 'x-user-locale' header set by the middleware.
- * This function must be awaited in an async Server Component.
- * @returns {Promise<string>} The determined locale code (e.g., 'en', 'tr').
- */
-export async function getLocale(): Promise<string> {
-  const headersList = await headers();
-  const localeFromHeader = headersList.get("x-user-locale");
+// A lightweight, in-memory cache for the translation files themselves.
+const translationsCache = new Map<string, Record<string, any>>();
 
-  await i18nCache.initialize(); // Ensure cache is ready
-  const activeLocales = await i18nCache.getLocales();
-
-  if (localeFromHeader && activeLocales.includes(localeFromHeader)) {
-    return localeFromHeader;
+async function getTranslationsFromFile(
+  locale: string
+): Promise<Record<string, any>> {
+  // Check memory cache first
+  if (translationsCache.has(locale)) {
+    return translationsCache.get(locale)!;
   }
 
-  return await i18nCache.getDefaultLocale();
+  const filePath = path.join(LOCALES_DIR, `${locale}.json`);
+
+  try {
+    const fileContent = await fs.readFile(filePath, "utf-8");
+    const translations = JSON.parse(fileContent);
+    translationsCache.set(locale, translations); // Cache the result
+    return translations;
+  } catch (error) {
+    console.error(`Could not load translations for locale: ${locale}`, error);
+    // Return an empty object on error to prevent crashes
+    return {};
+  }
 }
 
 /**
- * A server-side helper to get the translation function 't'.
- * This must be awaited in Server Components.
- * @returns {Promise<Function>} A promise that resolves to the translation function.
+ * Gets the translation function `t` for a given locale on the server.
+ * This is now fully Edge-compatible as it only reads from the filesystem.
+ * @param {string} localeFromParams - The locale string from the page's params.
+ * @returns {Promise<Function>} A function `t(key, params)` for translations.
  */
-export async function getI18n() {
-  const locale = await getLocale();
-  const translations = (await i18nCache.getTranslations(locale)) || {};
+export async function getI18n(localeFromParams: string) {
+  const validatedLocale = SUPPORTED_LOCALES.includes(localeFromParams)
+    ? localeFromParams
+    : DEFAULT_LOCALE;
+
+  const translations = await getTranslationsFromFile(validatedLocale);
 
   return function t(
     key: string,
