@@ -16,6 +16,7 @@ import { GoogleAnalytics } from "@next/third-parties/google";
 import { getLocale } from "@/lib/i18n/server";
 import { i18nCache } from "@/lib/i18n/i18n.cache";
 import { I18nProviderClient } from "@/lib/i18n/client";
+import { TimeZoneProvider } from "@/context/TimeZoneContext";
 
 const METADATA_BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
@@ -86,12 +87,14 @@ export default async function RootLayout({
             <Providers>
               {/* The new I18nProviderClient wraps everything */}
               <I18nProviderClient locale={locale} translations={translations}>
-                <LeagueProvider>
-                  <main>{children}</main>
+                <TimeZoneProvider>
+                  <LeagueProvider>
+                    <main>{children}</main>
 
-                  <StickyFooterAd />
-                  <Footer />
-                </LeagueProvider>
+                    <StickyFooterAd />
+                    <Footer />
+                  </LeagueProvider>
+                </TimeZoneProvider>
               </I18nProviderClient>
             </Providers>
           </NextAuthProvider>

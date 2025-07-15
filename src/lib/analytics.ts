@@ -20,8 +20,5 @@ declare global {
 export const sendGAEvent = (action: string, params: { [key: string]: any }) => {
   if (typeof window.gtag === "function") {
     window.gtag("event", action, params);
-    console.log(`GA Event Sent: ${action}`, params); // For debugging
-  } else {
-    console.warn(`GA not ready, event "${action}" was not sent.`); // For debugging
   }
 };

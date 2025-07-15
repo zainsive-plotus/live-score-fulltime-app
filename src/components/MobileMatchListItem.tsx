@@ -17,6 +17,7 @@ import {
 import { generateMatchSlug } from "@/lib/generate-match-slug";
 import { proxyImageUrl } from "@/lib/image-proxy";
 import { useTranslation } from "@/hooks/useTranslation"; // <-- Import hook
+import ZonedDate from "./ZonedDate";
 
 type Odds = { home: string; draw: string; away: string } | undefined | null;
 const fetchFanskorOdds = async (fixtureId: number): Promise<Odds | null> => {
@@ -163,7 +164,7 @@ export default function MobileMatchListItem({ match }: { match: any }) {
             ) : isFinished ? (
               <div className="text-text-muted">{t("ft_short")}</div>
             ) : (
-              <div>{format(new Date(fixture.date), "HH:mm")}</div>
+              <ZonedDate date={fixture.date} format="HH:mm" />
             )}
           </div>
           <div className="flex-1 flex flex-col gap-2">

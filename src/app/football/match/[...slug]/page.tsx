@@ -126,11 +126,6 @@ export default async function MatchDetailPage({
     awayTeam: awayTeam.name,
   });
 
-  console.log("analytics.homeTeamStats");
-  console.log(analytics.homeTeamStats);
-  console.log("analytics.awayTeamStats");
-  console.log(analytics.awayTeamStats);
-
   return (
     <div className="bg-brand-dark min-h-screen">
       <Header />
@@ -139,7 +134,7 @@ export default async function MatchDetailPage({
           <MatchHeader fixture={fixture} analytics={analytics} />
           <MatchStatusBanner fixture={fixture} />
 
-          <MatchHighlightsWidget fixtureId={fixtureId} />
+          {/* <MatchHighlightsWidget fixtureId={fixtureId} /> */}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <TeamFormWidget
@@ -176,6 +171,7 @@ export default async function MatchDetailPage({
 
           <LinkedNewsWidget fixtureId={fixture.fixture.id} />
 
+          <MatchHighlightsWidget fixtureId={fixtureId} />
           <CasinoPartnerWidget />
           <TeamStandingsWidget
             leagueId={fixture.league.id}

@@ -1,19 +1,21 @@
-// ===== src/components/match/MatchHighlightsWidget.tsx =====
-
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import { useState } from "react";
-import { PlayCircle, Film, Info, X } from "lucide-react";
+import Slider from "react-slick";
+import { Film, ChevronLeft, ChevronRight } from "lucide-react";
+import { useTranslation } from "@/hooks/useTranslation";
+import HighlightSlide from "../HighlightSlide"; // <-- Import the simple slide component
 
-// Types based on expected Highlightly API response (adjust if needed)
+// Import slick CSS directly for stability
+import "slick-carousel/slick/slick.css";
+import "slick-carousel/slick/slick-theme.css";
+
+// Interface must match the properties needed by HighlightSlide
 interface Highlight {
   id: string;
+  embedUrl: string;
   title: string;
-  thumbnailUrl: string;
-  embedUrl: string; // URL for the iframe player
-  source: string;
 }
 
 interface MatchHighlightsWidgetProps {
@@ -25,74 +27,43 @@ const fetchHighlights = async (
 ): Promise<Highlight[] | null> => {
   try {
     const { data } = await axios.get(`/api/highlights?fixtureId=${fixtureId}`);
-    // Assuming the API returns an object with a 'highlights' array
     return data?.highlights || data || null;
   } catch (error) {
-    console.error(
-      `[Highlights Widget] Failed to fetch highlights for fixture ${fixtureId}`,
-      error
-    );
     return null;
   }
 };
 
-const HighlightSkeleton = () => (
-  <div className="bg-brand-secondary rounded-lg p-4 animate-pulse">
-    <div className="h-6 w-3/4 rounded bg-gray-700 mb-4"></div>
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-      <div className="h-24 bg-gray-700/50 rounded-lg"></div>
-      <div className="h-24 bg-gray-700/50 rounded-lg"></div>
-      <div className="h-24 bg-gray-700/50 rounded-lg"></div>
-    </div>
-  </div>
+// --- Custom Arrow Components (copied from reference) ---
+const NextArrow = ({ onClick }: { onClick?: () => void }) => (
+  <button
+    onClick={onClick}
+    className="absolute top-1/2 -right-4 z-10 p-2 bg-black/40 text-white rounded-full hover:bg-black/70 transition-colors transform -translate-y-1/2"
+    aria-label="Next slide"
+  >
+    <ChevronRight size={24} />
+  </button>
+);
+const PrevArrow = ({ onClick }: { onClick?: () => void }) => (
+  <button
+    onClick={onClick}
+    className="absolute top-1/2 -left-4 z-10 p-2 bg-black/40 text-white rounded-full hover:bg-black/70 transition-colors transform -translate-y-1/2"
+    aria-label="Previous slide"
+  >
+    <ChevronLeft size={24} />
+  </button>
 );
 
-const VideoPlayerModal = ({
-  embedUrl,
-  title,
-  onClose,
-}: {
-  embedUrl: string;
-  title: string;
-  onClose: () => void;
-}) => (
-  <div
-    className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 animate-fade-in"
-    onClick={onClose}
-  >
-    <div
-      className="bg-brand-dark rounded-lg w-full max-w-4xl shadow-2xl"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <div className="flex justify-between items-center p-4 border-b border-gray-700">
-        <h3 className="font-bold text-white truncate">{title}</h3>
-        <button
-          onClick={onClose}
-          className="p-2 text-brand-muted hover:text-white"
-        >
-          <X size={24} />
-        </button>
-      </div>
-      <div className="aspect-video">
-        <iframe
-          src={embedUrl}
-          title={title}
-          frameBorder="0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-          className="w-full h-full"
-        ></iframe>
-      </div>
-    </div>
+const SliderSkeleton = () => (
+  <div className="animate-pulse">
+    <div className="h-8 w-1/3 bg-gray-700 rounded mb-4"></div>
+    <div className="aspect-video w-full rounded-lg bg-gray-700/50"></div>
   </div>
 );
 
 export default function MatchHighlightsWidget({
   fixtureId,
 }: MatchHighlightsWidgetProps) {
-  const [selectedHighlight, setSelectedHighlight] = useState<Highlight | null>(
-    null
-  );
+  const { t } = useTranslation();
 
   const {
     data: highlights,
@@ -101,60 +72,50 @@ export default function MatchHighlightsWidget({
   } = useQuery<Highlight[] | null>({
     queryKey: ["matchHighlights", fixtureId],
     queryFn: () => fetchHighlights(fixtureId),
-    staleTime: 1000 * 60 * 2, // 2 minutes
-    refetchOnWindowFocus: false,
+    staleTime: 1000 * 60 * 5,
     enabled: !!fixtureId,
   });
 
-  if (isLoading) {
-    return <HighlightSkeleton />;
-  }
+  // Use the exact same slider settings as the reference component
+  const sliderSettings = {
+    dots: false,
+    infinite: highlights ? highlights.length > 1 : false, // Be infinite only if there's more than one slide
+    speed: 500,
+    slidesToShow: 1,
+    slidesToScroll: 1,
+    arrows: true,
+    nextArrow: <NextArrow />,
+    prevArrow: <PrevArrow />,
+    autoplay: true,
+    autoplaySpeed: 8000,
+    pauseOnHover: true,
+  };
 
-  if (isError || !highlights || highlights.length === 0) {
-    // Return null to not render the widget if there are no highlights
+  if (isError || (!isLoading && (!highlights || highlights.length === 0))) {
     return null;
   }
 
+  if (isLoading) {
+    return <SliderSkeleton />;
+  }
+
   return (
-    <>
-      <div className="bg-brand-secondary rounded-lg shadow-lg">
-        <div className="p-4 md:p-6 border-b border-gray-700/50">
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Film size={22} className="text-brand-purple" /> Match Highlights
-          </h2>
-        </div>
-        <div className="p-4 md:p-6 grid grid-cols-2 md:grid-cols-3 gap-4">
-          {highlights.map((highlight) => (
-            <button
-              key={highlight.id}
-              onClick={() => setSelectedHighlight(highlight)}
-              className="block group relative rounded-lg overflow-hidden cursor-pointer"
-            >
-              <img
-                src={highlight.thumbnailUrl}
-                alt={highlight.title}
-                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex flex-col justify-end p-3">
-                <PlayCircle
-                  size={40}
-                  className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white/80 group-hover:text-white group-hover:scale-110 transition-all duration-300"
-                />
-                <p className="font-semibold text-white text-sm text-left line-clamp-2">
-                  {highlight.title}
-                </p>
-              </div>
-            </button>
-          ))}
-        </div>
+    <div className="w-full">
+      <div className="mb-4">
+        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+          <Film size={22} className="text-brand-purple" />
+          {t("match_highlights_title")}
+        </h2>
       </div>
-      {selectedHighlight && (
-        <VideoPlayerModal
-          embedUrl={selectedHighlight.embedUrl}
-          title={selectedHighlight.title}
-          onClose={() => setSelectedHighlight(null)}
-        />
-      )}
-    </>
+      <div className="relative w-full">
+        {" "}
+        {/* Wrapper for arrow positioning */}
+        <Slider {...sliderSettings}>
+          {highlights?.map((highlight) => (
+            <HighlightSlide key={highlight.id} highlight={highlight} />
+          ))}
+        </Slider>
+      </div>
+    </div>
   );
 }
