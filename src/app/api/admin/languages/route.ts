@@ -22,25 +22,30 @@ const ensureLocalesDirExists = async () => {
 };
 
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (session?.user?.role !== "admin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
+  // The session check is now inside the try block and is used for logic, not just rejection.
   await dbConnect();
 
   try {
-    const languages = await Language.find({}).sort({ name: 1 });
+    const session = await getServerSession(authOptions);
+    const isAdmin = session?.user?.role === "admin";
+
+    // If the user is an admin, the query is empty (gets all).
+    // If not, it only gets active languages for public use.
+    const query = isAdmin ? {} : { isActive: true };
+
+    const languages = await Language.find(query).sort({ name: 1 });
     return NextResponse.json(languages, { status: 200 });
   } catch (error: any) {
-    console.error("Error fetching languages:", error);
+    console.error(
+      "[API/admin/languages] Error fetching languages:",
+      error.message
+    );
     return NextResponse.json(
       { error: "Server error fetching languages." },
       { status: 500 }
     );
   }
 }
-
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") {
