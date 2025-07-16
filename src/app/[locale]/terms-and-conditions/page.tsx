@@ -32,16 +32,10 @@ export async function generateMetadata({
   const { locale } = await params;
 
   const t = await getI18n(locale);
-  const pageContent = await getPageContent();
   const hreflangAlternates = await generateHreflangTags(PAGE_PATH, locale);
 
-  const title = pageContent?.title
-    ? t("dynamic_page_title", { title: pageContent.title })
-    : t("terms_and_conditions_default_title");
-
-  const description = pageContent?.content
-    ? pageContent.content.replace(/<[^>]*>?/gm, "").substring(0, 160)
-    : t("terms_and_conditions_default_desc");
+  const title = t("terms_and_conditions_default_title");
+  const description = t("terms_and_conditions_default_desc");
 
   return {
     title,
@@ -51,9 +45,9 @@ export async function generateMetadata({
 }
 
 export default async function TermsAndConditionsPage({
-  params: { locale },
+  params,
 }: {
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }) {
   const pageContent = await getPageContent();
 

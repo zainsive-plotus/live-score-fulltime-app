@@ -86,7 +86,7 @@ const LeagueGroupHeader = ({
       )}
     </div>
     <div>
-      <h3 className="font-bold text-base text-white">{league.country}</h3>
+      <p className="font-bold text-base text-white">{league.country}</p>
       <p className="text-sm text-text-muted">{league.name}</p>
     </div>
   </div>
@@ -269,6 +269,7 @@ export default function MatchList({
         className="flex flex-col gap-3 p-2 rounded-xl"
         style={{ backgroundColor: "var(--color-primary)" }}
       >
+        <h1 className="py-2 italic">{t("homepage_seo_text_title")}</h1>
         <div className="relative">
           <Search
             className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"

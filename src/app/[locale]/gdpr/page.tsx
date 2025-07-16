@@ -34,13 +34,9 @@ export async function generateMetadata({
   const pageContent = await getPageContent();
   const hreflangAlternates = await generateHreflangTags(PAGE_PATH, locale);
 
-  const title = pageContent?.title
-    ? t("dynamic_page_title", { title: pageContent.title })
-    : t("gdpr_default_page_title");
+  const title = t("gdpr_default_page_title");
 
-  const description = pageContent?.content
-    ? pageContent.content.replace(/<[^>]*>?/gm, "").substring(0, 160)
-    : t("gdpr_default_page_description");
+  const description = t("gdpr_default_page_description");
 
   return {
     title: title,

@@ -1,8 +1,11 @@
+"use client";
+
 import Image from "next/image";
-import Link from "next/link";
+import StyledLink from "./StyledLink"; // Use our locale-aware StyledLink
 import { generateTeamSlug } from "@/lib/generate-team-slug";
 import { proxyImageUrl } from "@/lib/image-proxy";
 import { MapPin, Calendar } from "lucide-react";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface TeamDirectoryCardProps {
   team: {
@@ -13,7 +16,6 @@ interface TeamDirectoryCardProps {
     founded?: number;
   };
   venue: { name: string; city: string };
-  // No translations needed here as all text is dynamic data
 }
 
 export const TeamDirectoryCardSkeleton = () => (
@@ -36,10 +38,13 @@ export default function TeamDirectoryCard({
   team,
   venue,
 }: TeamDirectoryCardProps) {
+  const { t } = useTranslation();
+
   const href = generateTeamSlug(team.name, team.id);
 
+  // The StyledLink component will then correctly add the /en prefix if needed.
   return (
-    <Link href={href} className="block group h-full">
+    <StyledLink href={href} className="block group h-full">
       <div className="bg-brand-secondary rounded-lg flex flex-col h-full transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl hover:shadow-[var(--brand-accent)]/20">
         <div className="p-4 flex items-center gap-4">
           <Image
@@ -61,8 +66,9 @@ export default function TeamDirectoryCard({
           {team.founded && (
             <div className="flex items-center gap-2.5 text-sm text-text-secondary">
               <Calendar size={14} className="text-text-muted flex-shrink-0" />
-              {/* Note: "Founded" will need to be translated if we add it here */}
-              <span className="font-semibold">Founded: {team.founded}</span>
+              <span className="font-semibold">
+                {t("founded_in", { year: team.founded })}
+              </span>
             </div>
           )}
           {venue?.name && (
@@ -75,6 +81,6 @@ export default function TeamDirectoryCard({
           )}
         </div>
       </div>
-    </Link>
+    </StyledLink>
   );
 }

@@ -6,7 +6,10 @@ import TeamListClient from "@/components/TeamListClient";
 import RecentNewsWidget from "@/components/RecentNewsWidget";
 import AdSlotWidget from "@/components/AdSlotWidget";
 import { Users } from "lucide-react";
-import { getI18n } from "@/lib/i18n/server"; // <-- Import server helper
+import { getI18n } from "@/lib/i18n/server";
+import { generateHreflangTags } from "@/lib/hreflang";
+
+const PAGE_PATH = "/football/teams";
 
 const fetchPopularTeams = async () => {
   const publicAppUrl = process.env.NEXT_PUBLIC_PUBLIC_APP_URL;
@@ -19,6 +22,7 @@ const fetchPopularTeams = async () => {
   const apiUrl = `${publicAppUrl}/api/directory/teams`;
   try {
     const { data } = await axios.get(apiUrl, { timeout: 15000 });
+
     return data;
   } catch (error: any) {
     console.error(
@@ -29,21 +33,35 @@ const fetchPopularTeams = async () => {
   }
 };
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getI18n();
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+
+  const t = await getI18n(locale);
+  const hreflangAlternates = await generateHreflangTags(PAGE_PATH, locale);
+
+  const pageTitle = t("teams_page_meta_title");
+  const pageDescription = t("teams_page_meta_description");
+
   return {
-    title: `Futbol Takımı Rehberi | Favori Kulübünüzü Bulun`,
-    // description: t("all_teams_page_description"),
-    description: `Dünya genelindeki popüler liglerden futbol takımlarının kapsamlı bir rehberine göz atın. Detaylı bilgi, kadrolar, fikstürler ve daha fazlasını bulun.`,
-    alternates: {
-      canonical: `/football/teams`,
-    },
+    title: pageTitle,
+    description: pageDescription,
+    alternates: hreflangAlternates,
   };
 }
 
-export default async function TeamsPage() {
+export default async function TeamsPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+
   const initialTeams = await fetchPopularTeams();
-  const t = await getI18n();
+  const t = await getI18n(locale);
 
   const seoDescription = t("teams_page_seo_text");
 

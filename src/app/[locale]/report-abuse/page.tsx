@@ -24,21 +24,18 @@ async function getPageContent() {
 }
 
 export async function generateMetadata({
-  params: { locale },
+  params,
 }: {
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
+  const { locale } = await params;
+
   const t = await getI18n(locale);
-  const pageContent = await getPageContent();
   const hreflangAlternates = await generateHreflangTags(PAGE_PATH, locale);
 
-  const title = pageContent?.title
-    ? t("dynamic_page_title", { title: pageContent.title })
-    : t("report_abuse_default_page_title");
+  const title = t("report_abuse_default_page_title");
 
-  const description = pageContent?.content
-    ? pageContent.content.replace(/<[^>]*>?/gm, "").substring(0, 160)
-    : t("report_abuse_default_page_description");
+  const description = t("report_abuse_default_page_description");
 
   return {
     title: title,
@@ -48,9 +45,9 @@ export async function generateMetadata({
 }
 
 export default async function ReportAbusePage({
-  params: { locale },
+  params,
 }: {
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }) {
   const pageContent = await getPageContent();
 

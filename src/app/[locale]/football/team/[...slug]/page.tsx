@@ -4,9 +4,8 @@ import TeamDetailView from "@/components/TeamDetailView";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { fetchTeamDetails } from "@/lib/data/team";
-// import RecentNewsWidget from "@/components/RecentNewsWidget";
-// import AdSlotWidget from "@/components/AdSlotWidget";
-import { getI18n } from "@/lib/i18n/server"; // <-- Import server helper
+import { getI18n } from "@/lib/i18n/server";
+import { generateHreflangTags } from "@/lib/hreflang";
 
 const getTeamIdFromSlug = (slug: string): string | null => {
   if (!slug) return null;
@@ -18,35 +17,45 @@ const getTeamIdFromSlug = (slug: string): string | null => {
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ slug: string[] }>;
+  params: Promise<{ slug: string[]; locale: string }>;
 }): Promise<Metadata> {
-  const t = await getI18n();
-  const slug = (await params).slug.join("/");
-  const teamId = getTeamIdFromSlug(slug);
+  const { slug, locale } = await params;
+  const t = await getI18n(locale);
+  const teamId = getTeamIdFromSlug(slug[0]);
 
-  if (!teamId) return { title: t("not_found_title") };
+  if (!teamId) {
+    return { title: t("not_found_title") };
+  }
 
   const teamData = await fetchTeamDetails(teamId);
-  if (!teamData) return { title: t("not_found_title") };
+  if (!teamData) {
+    return { title: t("not_found_title") };
+  }
 
   const { team } = teamData.teamInfo;
-  const pageTitle = `Fanskor | ${team.name} Oyuncular, Fikstürler ve Sıralamala`;
-  const pageDescription = `${team.name} için ayrıntılı istatistiklere, maç geçmişine, oyuncu bilgilerine ve lig sıralamalarına tek bir yerden, doğru ve hazır bir şekilde ulaşın.`;
+  const pagePath = `/football/team/${slug.join("/")}`;
+  const hreflangAlternates = await generateHreflangTags(pagePath, locale);
+
+  const pageTitle = t("team_page_meta_title", { teamName: team.name });
+  const pageDescription = t("team_page_meta_description", {
+    teamName: team.name,
+  });
 
   return {
     title: pageTitle,
     description: pageDescription,
-    alternates: { canonical: `/football/team/${slug}` },
+    alternates: hreflangAlternates,
   };
 }
 
 export default async function TeamPage({
   params,
 }: {
-  params: Promise<{ slug: string[] }>;
+  params: Promise<{ slug: string[]; locale: string }>;
 }) {
-  const slug = (await params).slug.join("/");
-  const teamId = getTeamIdFromSlug(slug);
+  const { locale, slug } = await params;
+
+  const teamId = getTeamIdFromSlug(slug[0]);
   if (!teamId) {
     notFound();
   }
@@ -56,7 +65,8 @@ export default async function TeamPage({
     notFound();
   }
 
-  // TeamDetailView is already an async server component, so we can await it.
+  // The TeamDetailView component and its children will get the locale
+  // from the context provided by the root LocaleLayout.
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -65,10 +75,6 @@ export default async function TeamPage({
         <main className="min-w-0">
           <TeamDetailView teamData={teamData} />
         </main>
-        {/* We will refactor TeamInfoWidget and TeamTrophiesWidget to be client components
-            so they can use the useTranslation hook. For now, they will render without it inside TeamDetailView.
-            The alternative is to pass many translated props down, which we did for TeamHeader.
-        */}
       </div>
     </div>
   );

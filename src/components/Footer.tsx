@@ -70,21 +70,21 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
           <div className="space-y-8">
             <div>
-              <h4 className="font-bold text-white uppercase tracking-wider mb-4">
+              <p className="font-bold text-white uppercase tracking-wider mb-4">
                 {t("footer_about_title")}
-              </h4>
+              </p>
               <p className="text-sm text-brand-muted leading-relaxed">
                 {t("footer_about_text")}
               </p>
             </div>
             <div>
-              <h4 className="font-bold text-white uppercase tracking-wider mb-4">
+              <p className="font-bold text-white uppercase tracking-wider mb-4">
                 {t("news")}
-              </h4>
+              </p>
               <div className="text-sm text-brand-muted space-y-2">
                 {recentPosts?.map((post) => (
                   <Link
-                    key={post._id}
+                    key={post._id as string}
                     href={`/football/news/${post.slug}`}
                     className="block truncate hover:text-white transition-colors"
                   >

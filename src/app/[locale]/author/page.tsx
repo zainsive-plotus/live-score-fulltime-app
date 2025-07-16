@@ -31,15 +31,10 @@ export async function generateMetadata({
   const { locale } = await params;
 
   const t = await getI18n(locale);
-  const pageContent = await getPageContent();
 
-  const title = pageContent?.title
-    ? t("dynamic_page_title", { title: pageContent.title })
-    : t("author_default_page_title");
+  const title = t("author_default_page_title");
 
-  const description = pageContent?.content
-    ? pageContent.content.replace(/<[^>]*>?/gm, "").substring(0, 160)
-    : t("author_default_page_description");
+  const description = t("author_default_page_description");
 
   const hreflangAlternates = await generateHreflangTags(PAGE_PATH, locale);
 

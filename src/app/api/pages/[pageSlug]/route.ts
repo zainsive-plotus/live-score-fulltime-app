@@ -4,13 +4,13 @@ import dbConnect from "@/lib/dbConnect";
 import PageContent from "@/models/PageContent";
 
 interface Params {
-  params: { pageSlug: string };
+  params: Promise<{ pageSlug: string }>;
 }
 
 // GET handler for fetching content for a single public page
 export async function GET(request: Request, { params }: Params) {
   try {
-    const { pageSlug } = params;
+    const { pageSlug } = await params;
     if (!pageSlug) {
       return NextResponse.json(
         { error: "Page slug is required." },
@@ -32,7 +32,9 @@ export async function GET(request: Request, { params }: Params) {
     return NextResponse.json(pageContent);
   } catch (error) {
     console.error(
-      `[API/pages] Error fetching page content for slug "${params.pageSlug}":`,
+      `[API/pages] Error fetching page content for slug "${
+        (await params).pageSlug
+      }":`,
       error
     );
     return NextResponse.json(

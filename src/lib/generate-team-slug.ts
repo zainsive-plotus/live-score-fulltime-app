@@ -10,12 +10,13 @@ import slugify from "slugify";
 export const generateTeamSlug = (
   teamName: string,
   teamId: number,
-  locale: string
-): string => {
+  locale?: string
+) => {
   const slug = slugify(teamName, {
     lower: true,
     strict: true,
     remove: /[*+~.()'"!:@]/g,
   });
-  return `/${locale}/football/team/${slug}-${teamId}`;
+  if (locale) return `/${locale}/football/team/${slug}-${teamId}`;
+  else return `/football/team/${slug}-${teamId}`;
 };

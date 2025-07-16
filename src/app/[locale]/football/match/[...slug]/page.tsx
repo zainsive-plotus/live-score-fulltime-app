@@ -73,10 +73,12 @@ export async function generateMetadata({
   const pageTitle = t("match_page_title", {
     homeTeam: homeTeam.name,
     awayTeam: awayTeam.name,
+    leagueName: matchData.fixture.league.name,
   });
   const pageDescription = t("match_page_description", {
     homeTeam: homeTeam.name,
     awayTeam: awayTeam.name,
+    leagueName: matchData.fixture.league.name,
   });
 
   return {

@@ -11,68 +11,84 @@ import Loading from "./loading";
 import Footer from "@/components/Footer";
 
 import { GoogleAnalytics } from "@next/third-parties/google";
-import { i18nCache } from "@/lib/i18n/i18n.cache";
+import { getI18n } from "@/lib/i18n/server";
 import { I18nProviderClient } from "@/lib/i18n/client";
 import { TimeZoneProvider } from "@/context/TimeZoneContext";
+import { i18nCache } from "@/lib/i18n/i18n.cache";
+import { generateHreflangTags } from "@/lib/hreflang";
 
 const METADATA_BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
-export const metadata: Metadata = {
-  metadataBase: new URL(METADATA_BASE_URL),
-  alternates: {
-    canonical: "/",
-  },
-  title: "Fan Skor | Canlı Skorlar, Tahminler ve En İyi Futbol Ligleri",
-  description:
-    "Fan Skor, canlı skorlar, haberler, tahminler, en iyi ligler, takım istatistikleri, uzman makaleleri ve güvenilir ortaklıkları tek bir platformda sunar.",
-  icons: {
-    icon: [{ url: "/favicon.ico", type: "image/png" }],
-    apple: [{ url: "/favicon.ico" }],
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
+// 1. This is now a DYNAMIC metadata function
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+
+  const t = await getI18n(locale);
+
+  // 2. Generate hreflang tags for the root path
+  const hreflangAlternates = await generateHreflangTags("/", locale);
+
+  const title = t("homepage_meta_title");
+  const description = t("homepage_meta_description");
+
+  return {
+    metadataBase: new URL(METADATA_BASE_URL),
+    // 3. Use the dynamically generated hreflang tags
+    alternates: hreflangAlternates,
+    title: title,
+    description: description,
+    icons: {
+      icon: [{ url: "/favicon.ico", type: "image/png" }],
+      apple: [{ url: "/favicon.ico" }],
+    },
+    robots: {
       index: true,
       follow: true,
-    },
-  },
-  openGraph: {
-    title: "Fan Skor | Canlı Skorlar, Tahminler ve En İyi Futbol Ligleri",
-    description:
-      "Fan Skor, canlı skorlar, haberler, tahminler, en iyi ligler, takım istatistikleri, uzman makaleleri ve güvenilir ortaklıkları tek bir platformda sunar.",
-    url: METADATA_BASE_URL,
-    siteName: "Fan Skor",
-    images: [
-      {
-        url: `${METADATA_BASE_URL}/og-image.jpg`,
-        width: 1200,
-        height: 630,
-        alt: "Fan Skor - Türkiye Canlı Skor Sitesi",
+      googleBot: {
+        index: true,
+        follow: true,
       },
-    ],
-    locale: "en_US", // This can be made dynamic later if needed
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Fan Skor | Canlı Skorlar, Tahminler ve En İyi Futbol Ligleri",
-    description:
-      "Fan Skor, canlı skorlar, haberler, tahminler, en iyi ligler, takım istatistikleri, uzman makaleleri ve güvenilir ortaklıkları tek bir platformda sunar.",
-    creator: "@fanskor_official",
-    images: [`${METADATA_BASE_URL}/twitter-image.jpg`],
-  },
-};
+    },
+    openGraph: {
+      title: title,
+      description: description,
+      url: `${METADATA_BASE_URL}/${locale === "tr" ? "" : locale}`,
+      siteName: "Fan Skor",
+      images: [
+        {
+          url: `${METADATA_BASE_URL}/og-image.jpg`,
+          width: 1200,
+          height: 630,
+          alt: t("og_image_alt_text"),
+        },
+      ],
+      locale: locale,
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: title,
+      description: description,
+      creator: "@fanskor_official",
+      images: [`${METADATA_BASE_URL}/twitter-image.jpg`],
+    },
+  };
+}
 
 export default async function LocaleLayout({
   children,
-  params, // <-- Accept locale from params
+  params,
 }: {
   children: React.ReactNode;
-  params: Promise<{ locale: string }>; // <-- Type the params
+  params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
+
   const translations = (await i18nCache.getTranslations(locale)) || {};
 
   return (
