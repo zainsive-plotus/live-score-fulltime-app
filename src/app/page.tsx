@@ -1,28 +1,12 @@
-import { getI18n } from "@/lib/i18n/server";
-import HomePage from "./[locale]/page";
+// ===== src/app/page.tsx =====
 
-// This is the default Turkish locale.
+import { redirect } from "next/navigation";
+
 const DEFAULT_LOCALE = "tr";
 
-/**
- * This root page component handles requests to the base URL (e.g., fanskor.com/).
- * It fetches the content for the default locale ('tr') and renders the
- * standard HomePage component with those props.
- */
-export default async function RootPage() {
-  const t = await getI18n(DEFAULT_LOCALE);
-
-  // You can fetch any other data needed for the homepage here if necessary
-  const homepageAboutSeoText = t("homepage_about_seo_text");
-  const sidebarAboutSeoText = t("sidebar_about_seo_text");
-
-  // We are reusing the existing HomePage component from the [locale] directory.
-  // We pass the default locale and its specific props to it.
-  return (
-    <HomePage
-      params={{ locale: DEFAULT_LOCALE }}
-      homepageAboutSeoText={homepageAboutSeoText}
-      sidebarAboutSeoText={sidebarAboutSeoText}
-    />
-  );
+export default function RootPage() {
+  // This page only redirects to the default locale.
+  // The actual homepage content is handled by `src/app/[locale]/page.tsx`.
+  // The middleware will handle locale detection for other languages.
+  redirect(`/${DEFAULT_LOCALE}`);
 }
