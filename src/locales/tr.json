@@ -464,5 +464,8 @@
   "teams_page_meta_title": "Futbol Takımları Dizini | Favori Kulübünüzü Bulun",
   "teams_page_meta_description": "Dünya genelindeki popüler liglerden futbol takımlarının kapsamlı dizinine göz atın. Detaylı bilgi, kadrolar, fikstürler ve daha fazlasını bulun.",
   "team_page_meta_title": "Fanskor | {teamName} Oyuncuları, Fikstürleri & Puan Durumu",
-  "team_page_meta_description": "{teamName} için detaylı istatistikler, maç geçmişi, oyuncu bilgileri ve lig sıralamalarını tek bir yerden, doğru ve hazır bir şekilde alın."
+  "team_page_meta_description": "{teamName} için detaylı istatistikler, maç geçmişi, oyuncu bilgileri ve lig sıralamalarını tek bir yerden, doğru ve hazır bir şekilde alın.",
+
+  "news_page_meta_title": "Son Futbol Haberleri ve Analizleri | Fan Skor",
+  "news_page_meta_description": "Dünyanın dört bir yanından en son futbol haberleri, maç raporları, transfer söylentileri ve derinlemesine analizlerle güncel kalın. Futbolda olan biten her şey için günlük kaynağınız."
 }

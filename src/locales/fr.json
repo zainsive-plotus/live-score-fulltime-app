@@ -464,5 +464,8 @@
   "teams_page_meta_title": "Annuaire des équipes de football | Trouvez votre club préféré",
   "teams_page_meta_description": "Parcourez un annuaire complet des équipes de football des ligues populaires du monde entier. Trouvez des informations détaillées, des effectifs, des calendriers et plus encore.",
   "team_page_meta_title": "Fanskor | {teamName} Joueurs, Calendrier & Classement",
-  "team_page_meta_description": "Obtenez des statistiques détaillées, l'historique des matchs, les informations sur les joueurs et les classements de ligue pour {teamName} — le tout en un seul endroit, précis et prêt."
+  "team_page_meta_description": "Obtenez des statistiques détaillées, l'historique des matchs, les informations sur les joueurs et les classements de ligue pour {teamName} — le tout en un seul endroit, précis et prêt.",
+
+  "news_page_meta_title": "Dernières Actualités & Analyses Football | Fan Skor",
+  "news_page_meta_description": "Restez informé des dernières actualités footballistiques, des rapports de matchs, des rumeurs de transfert et des analyses approfondies du monde entier. Votre source quotidienne pour tout ce qui se passe dans le football."
 }
