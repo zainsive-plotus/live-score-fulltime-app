@@ -475,5 +475,13 @@
   "faq_meta_title": "Preguntas Frecuentes | Todo sobre Fan Skor",
   "faq_meta_description": "Conoce mejor Fan Skor con nuestras Preguntas Frecuentes. Todas las características e información de soporte explicadas en una página.",
   "terms_and_conditions_default_title": "Términos y condiciones de Fan Skor | Centro de datos deportivos",
-  "terms_and_conditions_default_desc": "Lee los Términos y Condiciones de Fan Skor para comprender tus derechos, las reglas de la comunidad y las políticas de uso de nuestra plataforma de datos de fútbol."
+  "terms_and_conditions_default_desc": "Lee los Términos y Condiciones de Fan Skor para comprender tus derechos, las reglas de la comunidad y las políticas de uso de nuestra plataforma de datos de fútbol.",
+
+  "latest_football_news": "Últimas Noticias de Fútbol",
+  "latest_football_news_subtitle": "Todas las últimas noticias, predicciones e informes del mundo del fútbol.",
+  "no_football_news_found_subtitle": "Actualmente no hay artículos de noticias específicamente sobre fútbol.",
+  "general_news_meta_title": "Últimas Noticias y Predicciones Deportivas | FanSkor",
+  "general_news_meta_description": "Obtén las últimas noticias y predicciones de baloncesto, tenis y más. Mantente actualizado con todos los eventos deportivos importantes.",
+  "football_news": "Noticias de Fútbol",
+  "football_news_description": "Las últimas noticias del mundo del fútbol."
 }

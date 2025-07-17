@@ -467,5 +467,13 @@
   "team_page_meta_description": "Thola izibalo ezinemininingwane, umlando womdlalo, ulwazi lomdlali, nokuma kweligi ye-{teamName} — konke endaweni eyodwa, kunembile futhi kulungele.",
 
   "news_page_meta_title": "Izindaba Zakamuva Zebhola & Ukuhlaziya | Fan Skor",
-  "news_page_meta_description": "Hlala usesikhathini ngezindaba zakamuva zebhola, imibiko yemidlalo, amahlebezi okudlulisa abadlali, nokuhlaziya okujulile okuvela emhlabeni wonke. Umthombo wakho wansuku zonke walokho okwenzeka ebholeni."
+  "news_page_meta_description": "Hlala usesikhathini ngezindaba zakamuva zebhola, imibiko yemidlalo, amahlebezi okudlulisa abadlali, nokuhlaziya okujulile okuvela emhlabeni wonke. Umthombo wakho wansuku zonke walokho okwenzeka ebholeni.",
+
+  "latest_football_news": "Izindaba Zakamuva Zebhola",
+  "latest_football_news_subtitle": "Zonke izindaba ezishisayo, izibikezelo, nemibiko evela emhlabeni webhola.",
+  "no_football_news_found_subtitle": "Okwamanje azikho izindaba eziqondene nebhola lezinyawo.",
+  "general_news_meta_title": "Izindaba Zakamuva Zezemidlalo Nezibikezelo | FanSkor",
+  "general_news_meta_description": "Thola izindaba zakamuva nezibikezelo zebasketball, ithenisi, nokuningi. Hlala unolwazi lwazo zonke izehlakalo ezinkulu zezemidlalo.",
+  "football_news": "Izindaba Zebhola",
+  "football_news_description": "Izindaba zakamuva ezivela emhlabeni webhola."
 }

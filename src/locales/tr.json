@@ -467,5 +467,13 @@
   "team_page_meta_description": "{teamName} için detaylı istatistikler, maç geçmişi, oyuncu bilgileri ve lig sıralamalarını tek bir yerden, doğru ve hazır bir şekilde alın.",
 
   "news_page_meta_title": "Son Futbol Haberleri ve Analizleri | Fan Skor",
-  "news_page_meta_description": "Dünyanın dört bir yanından en son futbol haberleri, maç raporları, transfer söylentileri ve derinlemesine analizlerle güncel kalın. Futbolda olan biten her şey için günlük kaynağınız."
+  "news_page_meta_description": "Dünyanın dört bir yanından en son futbol haberleri, maç raporları, transfer söylentileri ve derinlemesine analizlerle güncel kalın. Futbolda olan biten her şey için günlük kaynağınız.",
+
+  "latest_football_news": "En Son Futbol Haberleri",
+  "latest_football_news_subtitle": "Futbol dünyasından tüm son dakika haberleri, tahminler ve raporlar.",
+  "no_football_news_found_subtitle": "Şu anda futbola özel bir haber makalesi bulunmamaktadır.",
+  "general_news_meta_title": "En Son Spor Haberleri & Tahminler | FanSkor",
+  "general_news_meta_description": "Basketbol, tenis ve daha fazlası için en son haberleri ve tahminleri alın. Tüm önemli spor etkinliklerinden haberdar olun.",
+  "football_news": "Futbol Haberleri",
+  "football_news_description": "Futbol dünyasından en son haberler."
 }

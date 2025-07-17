@@ -482,5 +482,14 @@
   "faq_meta_description": "Get to know Fan Score better with our Frequently Asked Questions. All features and support information are explained on one page.",
 
   "terms_and_conditions_default_title": "Fan Skor Terms and Condition | Sports Data Hub",
-  "terms_and_conditions_default_desc": "Read Fan Skor’s Terms and Condition to understand your rights, community rules, and policies for using our football data platform."
+  "terms_and_conditions_default_desc": "Read Fan Skor’s Terms and Condition to understand your rights, community rules, and policies for using our football data platform.",
+
+  "latest_football_news": "Latest Football News",
+  "latest_football_news_subtitle": "All the breaking news, predictions, and reports from the world of football.",
+  "no_football_news_found_subtitle": "There are currently no news articles specifically about football.",
+  "general_news_meta_title": "Latest Sports News & Predictions | FanSkor",
+  "general_news_meta_description": "Get the latest news and predictions for basketball, tennis, and more. Stay updated with all major sports events.",
+
+  "football_news": "Football News",
+  "football_news_description": "The latest news from the world of football."
 }

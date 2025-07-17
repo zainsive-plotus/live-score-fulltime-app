@@ -1,29 +1,27 @@
+// ===== src/app/[locale]/news/page.tsx =====
+
 import type { Metadata } from "next";
 import axios from "axios";
 import { IPost } from "@/models/Post";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
-import { Newspaper, Info } from "lucide-react";
+import { Newspaper } from "lucide-react";
 import Script from "next/script";
 import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
-import NewsListItem from "@/components/NewsListItem";
-import Pagination from "@/components/Pagination";
-import { Suspense } from "react";
-import { NewsListItemSkeleton } from "@/components/NewsListItem";
+import NewsPageClient from "./NewsPageClient";
 
-const PAGE_PATH = "/football/news";
-const ITEMS_PER_PAGE = 8; // Define how many items per page for pagination
+const PAGE_PATH = "/news";
+const ITEMS_PER_PAGE = 8;
 
-// Fetch only football news
 const fetchNews = async (): Promise<IPost[]> => {
   try {
     const { data } = await axios.get(
-      `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/api/posts?status=published&sportsCategory=football`
+      `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/api/posts?status=published&excludeSportsCategory=football`
     );
     return data;
   } catch (error) {
-    console.error("[Football News Page] Failed to fetch news:", error);
+    console.error("[General News Page] Failed to fetch news:", error);
     return [];
   }
 };
@@ -34,10 +32,12 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
+
   const t = await getI18n(locale);
   const hreflangAlternates = await generateHreflangTags(PAGE_PATH, locale);
-  const pageTitle = t("news_page_meta_title"); // You may want to make this more specific, e.g., "Football News & Predictions"
-  const pageDescription = t("news_page_meta_description");
+
+  const pageTitle = t("general_news_meta_title");
+  const pageDescription = t("general_news_meta_description");
 
   return {
     title: pageTitle,
@@ -51,7 +51,8 @@ const generateInitialJsonLd = (posts: IPost[], t: Function) => {
   if (paginatedPosts.length === 0) return null;
 
   const itemListElement = paginatedPosts.map((post, index) => {
-    const postUrl = `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/football/news/${post.slug}`;
+    // This now correctly points to the new /news path
+    const postUrl = `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/news/${post.slug}`;
     return {
       "@type": "ListItem",
       position: index + 1,
@@ -81,30 +82,22 @@ const generateInitialJsonLd = (posts: IPost[], t: Function) => {
   return {
     "@context": "https://schema.org",
     "@type": "ItemList",
-    name: t("latest_football_news"),
-    description: t("latest_football_news_subtitle"),
+    name: t("latest_news"),
+    description: t("latest_news_subtitle"),
     itemListElement,
   };
 };
 
-// Main Page Component
-export default async function FootballNewsPage({
+export default async function GeneralNewsPage({
   params,
 }: {
-  params: Promise<{ locale: string; page?: string }>;
+  params: Promise<{ locale: string }>;
 }) {
-  const { locale, page } = await params;
-  const currentPage = Number(page) || 1;
+  const { locale } = await params;
 
   const t = await getI18n(locale);
   const allNews = await fetchNews();
   const jsonLdData = generateInitialJsonLd(allNews, t);
-
-  const totalPages = Math.ceil(allNews.length / ITEMS_PER_PAGE);
-  const paginatedNews = allNews.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
 
   return (
     <>
@@ -126,50 +119,13 @@ export default async function FootballNewsPage({
               </div>
               <div>
                 <h1 className="text-4xl font-extrabold text-white">
-                  {t("latest_football_news")}
+                  {t("latest_news")}
                 </h1>
-                <p className="text-brand-muted">
-                  {t("latest_football_news_subtitle")}
-                </p>
+                <p className="text-brand-muted">{t("latest_news_subtitle")}</p>
               </div>
             </div>
 
-            {/* Content Display Logic */}
-            <Suspense
-              fallback={
-                <div className="space-y-4">
-                  <NewsListItemSkeleton />
-                  <NewsListItemSkeleton />
-                </div>
-              }
-            >
-              {paginatedNews.length > 0 ? (
-                <div className="space-y-4">
-                  {paginatedNews.map((post) => (
-                    <NewsListItem key={post._id as string} post={post} />
-                  ))}
-                  {totalPages > 1 && (
-                    <Pagination
-                      currentPage={currentPage}
-                      totalPages={totalPages}
-                      onPageChange={() => {
-                        // This will be handled by client component if we refactor, for now it's static
-                      }}
-                    />
-                  )}
-                </div>
-              ) : (
-                <div className="text-center py-20 bg-brand-secondary rounded-lg">
-                  <Info size={32} className="mx-auto text-brand-muted mb-3" />
-                  <p className="text-xl font-bold text-white">
-                    {t("no_news_found_title")}
-                  </p>
-                  <p className="text-brand-muted mt-2">
-                    {t("no_football_news_found_subtitle")}
-                  </p>
-                </div>
-              )}
-            </Suspense>
+            <NewsPageClient initialNews={allNews} />
           </main>
         </div>
       </div>

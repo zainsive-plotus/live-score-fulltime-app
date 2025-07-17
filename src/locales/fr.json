@@ -467,5 +467,13 @@
   "team_page_meta_description": "Obtenez des statistiques détaillées, l'historique des matchs, les informations sur les joueurs et les classements de ligue pour {teamName} — le tout en un seul endroit, précis et prêt.",
 
   "news_page_meta_title": "Dernières Actualités & Analyses Football | Fan Skor",
-  "news_page_meta_description": "Restez informé des dernières actualités footballistiques, des rapports de matchs, des rumeurs de transfert et des analyses approfondies du monde entier. Votre source quotidienne pour tout ce qui se passe dans le football."
+  "news_page_meta_description": "Restez informé des dernières actualités footballistiques, des rapports de matchs, des rumeurs de transfert et des analyses approfondies du monde entier. Votre source quotidienne pour tout ce qui se passe dans le football.",
+
+  "latest_football_news": "Dernières Nouvelles du Football",
+  "latest_football_news_subtitle": "Toutes les dernières nouvelles, prédictions et rapports du monde du football.",
+  "no_football_news_found_subtitle": "Il n'y a actuellement aucun article d'actualité spécifiquement sur le football.",
+  "general_news_meta_title": "Dernières Nouvelles et Prédictions Sportives | FanSkor",
+  "general_news_meta_description": "Recevez les dernières nouvelles et prédictions pour le basketball, le tennis et plus encore. Restez informé de tous les événements sportifs majeurs.",
+  "football_news": "Nouvelles du Football",
+  "football_news_description": "Les dernières nouvelles du monde du football."
 }

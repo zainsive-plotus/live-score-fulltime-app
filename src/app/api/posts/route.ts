@@ -1,5 +1,3 @@
-// ===== src/app/api/posts/route.ts =====
-
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
@@ -8,7 +6,6 @@ import Post, { IPost } from "@/models/Post";
 import slugify from "slugify";
 import ExternalNewsArticle from "@/models/ExternalNewsArticle";
 
-// --- ENHANCED: GET All Posts, now with filtering capabilities ---
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const status = searchParams.get("status");
@@ -16,12 +13,22 @@ export async function GET(request: Request) {
   const linkedFixtureId = searchParams.get("linkedFixtureId");
   const linkedLeagueId = searchParams.get("linkedLeagueId");
   const linkedTeamId = searchParams.get("linkedTeamId");
+  const sportsCategory = searchParams.get("sportsCategory");
+  const excludeSportsCategory = searchParams.get("excludeSportsCategory");
 
   const query: any = {};
   if (status) query.status = status;
   if (linkedFixtureId) query.linkedFixtureId = Number(linkedFixtureId);
   if (linkedLeagueId) query.linkedLeagueId = Number(linkedLeagueId);
   if (linkedTeamId) query.linkedTeamId = Number(linkedTeamId);
+
+  if (sportsCategory) {
+    // Finds posts that INCLUDE this category
+    query.sportsCategory = { $in: [sportsCategory] };
+  } else if (excludeSportsCategory) {
+    // Finds posts that DO NOT INCLUDE this category
+    query.sportsCategory = { $nin: [excludeSportsCategory] };
+  }
 
   try {
     await dbConnect();
@@ -31,7 +38,6 @@ export async function GET(request: Request) {
       postsQuery = postsQuery.limit(parseInt(limit));
     }
 
-    // This population is mainly for the admin panel to show the source article
     postsQuery = postsQuery.populate({
       path: "originalExternalArticleId",
       model: ExternalNewsArticle,
@@ -41,7 +47,7 @@ export async function GET(request: Request) {
     const posts = await postsQuery;
     return NextResponse.json(posts);
   } catch (error) {
-    console.error("Failed to fetch posts:", error);
+    console.error("Error fetching posts:", error);
     return NextResponse.json(
       { error: "Server error fetching posts" },
       { status: 500 }
@@ -49,7 +55,6 @@ export async function GET(request: Request) {
   }
 }
 
-// --- UPDATED: POST a New Post ---
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") {
@@ -67,11 +72,11 @@ export async function POST(request: Request) {
       metaDescription,
       featuredImageTitle,
       featuredImageAltText,
-      sportsCategory, // Renamed field
-      newsType, // New field
-      linkedFixtureId, // New field
-      linkedLeagueId, // New field
-      linkedTeamId, // New field
+      sportsCategory,
+      newsType,
+      linkedFixtureId,
+      linkedLeagueId,
+      linkedTeamId,
     } = body;
 
     if (!title || !content) {
@@ -125,7 +130,7 @@ export async function POST(request: Request) {
     if (error.name === "ValidationError") {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
-    console.error("Failed to create post:", error);
+    console.error("Error creating post:", error);
     return NextResponse.json(
       { error: "Server error creating post" },
       { status: 500 }

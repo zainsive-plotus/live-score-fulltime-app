@@ -87,7 +87,7 @@ export default function Header() {
   const handleNotificationToggle = () => {
     setIsNotificationOpen((prev) => !prev);
     if (hasUnread && latestPost) {
-      localStorage.setItem("lastReadPostId", latestPost._id);
+      localStorage.setItem("lastReadPostId", latestPost._id as string);
       setHasUnread(false);
     }
   };
@@ -121,6 +121,11 @@ export default function Header() {
     },
     { title: t("basketball"), href: "#", icon: FaBasketballBall },
     { title: t("tennis"), href: "#", icon: IoTennisball },
+    {
+      title: t("news"), // The new top-level news link
+      href: "/news", // Points to the new general news page
+      icon: FaNewspaper,
+    },
   ];
 
   const handleMobileLinkClick = () => {

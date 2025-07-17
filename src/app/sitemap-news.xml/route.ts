@@ -1,4 +1,5 @@
 import axios from "axios";
+import { IPost } from "@/models/Post"; // Assuming IPost is available here or define it
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
@@ -41,18 +42,24 @@ const generateXml = (entries: SitemapEntry[]) =>
 
 export async function GET() {
   try {
-    const { data: posts } = await axios.get(
+    const { data: posts }: { data: IPost[] } = await axios.get(
       `${BASE_URL}/api/posts?status=published`
     );
 
-    const sitemapEntries: SitemapEntry[] = posts.flatMap((post: any) =>
-      SUPPORTED_LOCALES.map((locale) => ({
-        url: `${BASE_URL}${getPath(`/football/news/${post.slug}`, locale)}`,
+    const sitemapEntries: SitemapEntry[] = posts.flatMap((post) => {
+      // Determine the correct path based on the sports category
+      const isFootballNews = post.sportsCategory.includes("football");
+      const basePath = isFootballNews
+        ? `/football/news/${post.slug}`
+        : `/news/${post.slug}`;
+
+      return SUPPORTED_LOCALES.map((locale) => ({
+        url: `${BASE_URL}${getPath(basePath, locale)}`,
         lastModified: new Date(post.updatedAt || post.createdAt),
         changeFrequency: "weekly",
         priority: 0.8,
-      }))
-    );
+      }));
+    });
 
     const xml = generateXml(sitemapEntries);
 
@@ -62,7 +69,7 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error("[Sitemap] Failed to fetch news URLs:", error);
+    console.error("Error generating news sitemap:", error);
     return new Response("Error generating sitemap.", { status: 500 });
   }
 }

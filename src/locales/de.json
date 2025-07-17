@@ -476,5 +476,13 @@
   "faq_meta_title": "Häufig gestellte Fragen | Alles über Fan Skor",
   "faq_meta_description": "Lernen Sie Fan Skor besser kennen mit unseren häufig gestellten Fragen. Alle Funktionen und Supportinformationen werden auf einer Seite erklärt.",
   "terms_and_conditions_default_title": "Fan Skor Allgemeine Geschäftsbedingungen | Sportdaten-Hub",
-  "terms_and_conditions_default_desc": "Lesen Sie die Allgemeinen Geschäftsbedingungen von Fan Skor, um Ihre Rechte, Community-Regeln und Richtlinien für die Nutzung unserer Fußballdatenplattform zu verstehen."
+  "terms_and_conditions_default_desc": "Lesen Sie die Allgemeinen Geschäftsbedingungen von Fan Skor, um Ihre Rechte, Community-Regeln und Richtlinien für die Nutzung unserer Fußballdatenplattform zu verstehen.",
+
+  "latest_football_news": "Neueste Fußballnachrichten",
+  "latest_football_news_subtitle": "Alle aktuellen Nachrichten, Vorhersagen und Berichte aus der Welt des Fußballs.",
+  "no_football_news_found_subtitle": "Es gibt derzeit keine Nachrichtenartikel speziell über Fußball.",
+  "general_news_meta_title": "Neueste Sportnachrichten & Vorhersagen | FanSkor",
+  "general_news_meta_description": "Erhalten Sie die neuesten Nachrichten und Vorhersagen für Basketball, Tennis und mehr. Bleiben Sie über alle wichtigen Sportereignisse auf dem Laufenden.",
+  "football_news": "Fußball Nachrichten",
+  "football_news_description": "Die neuesten Nachrichten aus der Welt des Fußballs."
 }
