@@ -14,7 +14,6 @@ import { generateHreflangTags } from "@/lib/hreflang";
 
 async function getPost(slug: string) {
   await dbConnect();
-  // Using .lean() for better performance as we don't need a Mongoose document instance
   const post: any = await Post.findOne({
     slug: slug,
     status: "published",
@@ -34,7 +33,6 @@ export async function generateMetadata({
   const post = await getPost(slug);
 
   if (!post) {
-    // In a real app, you might want a default "Not Found" title from i18n
     return { title: "Not Found" };
   }
 
@@ -130,11 +128,12 @@ export default async function NewsArticlePage({
       />
       <div className="bg-brand-dark min-h-screen">
         <Header />
-        <main className="container mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-3 gap-12">
+        {/* Main content area now has no padding on small screens to allow full-width image */}
+        <main className="container mx-auto md:p-8 grid grid-cols-1 lg:grid-cols-3 lg:gap-12 z-0">
           <div className="lg:col-span-2">
             <article className="bg-brand-secondary rounded-lg overflow-hidden">
               {post.featuredImage && (
-                <div className="relative w-full h-64 md:h-96">
+                <div className="relative w-full aspect-video md:h-[500px]">
                   <Image
                     src={post.featuredImage}
                     alt={post.featuredImageAltText || post.title}
@@ -146,21 +145,21 @@ export default async function NewsArticlePage({
                 </div>
               )}
 
-              <div className="p-8">
-                <div className="mb-8 text-center border-b border-gray-700/50 pb-8">
-                  <h1 className="text-4xl md:text-5xl font-extrabold text-white leading-tight mb-4">
-                    {post.title}
-                  </h1>
-                  <p className="text-brand-muted">
-                    {t("published_by_on", {
-                      author: post.author,
-                      date: format(new Date(post.createdAt), "MMMM dd, yyyy"),
-                    })}
-                  </p>
-                </div>
+              {/* Padding is now inside this div, not on the main tag */}
+              <div className="p-4 sm:p-6 md:p-8">
+                <h1 className="text-3xl md:text-5xl font-extrabold text-white leading-tight mb-4">
+                  {post.title}
+                </h1>
+                <p className="text-brand-muted mb-6 pb-6 border-b border-gray-700/50">
+                  {t("published_by_on", {
+                    author: post.author,
+                    date: format(new Date(post.createdAt), "MMMM dd, yyyy"),
+                  })}
+                </p>
 
+                {/* Adjusted prose classes for better mobile readability */}
                 <div
-                  className="prose prose-invert lg:prose-xl max-w-none"
+                  className="prose prose-invert prose-lg lg:prose-xl max-w-none"
                   dangerouslySetInnerHTML={{ __html: post.content }}
                 />
 
@@ -174,7 +173,8 @@ export default async function NewsArticlePage({
             </article>
           </div>
 
-          <div className="lg:col-span-1">
+          {/* Sidebar now has padding on mobile to separate it from the article */}
+          <div className="lg:col-span-1 p-4 lg:p-0">
             <NewsSidebar />
           </div>
         </main>

@@ -112,9 +112,9 @@ export default function Header() {
           icon: FaUsers,
         },
         {
-          name: t("news"),
+          name: t("football_news"),
           href: "/football/news",
-          description: t("news_description"),
+          description: t("football_news_description"),
           icon: FaNewspaper,
         },
       ],
@@ -122,8 +122,8 @@ export default function Header() {
     { title: t("basketball"), href: "#", icon: FaBasketballBall },
     { title: t("tennis"), href: "#", icon: IoTennisball },
     {
-      title: t("news"), // The new top-level news link
-      href: "/news", // Points to the new general news page
+      title: t("news"),
+      href: "/news",
       icon: FaNewspaper,
     },
   ];
@@ -134,7 +134,8 @@ export default function Header() {
 
   return (
     <>
-      <header className="relative w-full border-b border-gray-700/50 shadow-xl shadow-black/20 z-50 lg:static">
+      {/* ----- THE FIX IS HERE: `lg:static` has been removed ----- */}
+      <header className="relative w-full border-b border-gray-700/50 shadow-xl shadow-black/20 z-50">
         <div className="container mx-auto flex h-24 items-center justify-between px-4 lg:px-6">
           <StyledLink href="/" className="flex items-center flex-shrink-0">
             <Image
