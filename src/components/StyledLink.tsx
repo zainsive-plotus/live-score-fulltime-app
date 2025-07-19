@@ -24,24 +24,31 @@ export default function StyledLink({
   gaEventName?: string;
   gaEventParams?: { [key: string]: any };
 } & Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, "href">) {
-  const { locale } = useTranslation();
   const currentPathname = usePathname();
+
+  // --- START OF FIX ---
+  // Conditionally call the hook based on the route
+  const isAdminRoute = currentPathname.startsWith("/admin");
+  const i18n = !isAdminRoute ? useTranslation() : { locale: DEFAULT_LOCALE };
+  const { locale } = i18n;
+  // --- END OF FIX ---
 
   const isExternal =
     typeof href === "string" &&
     (href.startsWith("http") || href.startsWith("mailto:"));
   const isAnchor = typeof href === "string" && href.startsWith("#");
+
+  // --- MODIFIED LOGIC ---
+  // Do not add locale prefix for admin links
   const isAdminLink = typeof href === "string" && href.startsWith("/admin");
+  // --- END MODIFIED LOGIC ---
 
   let localizedHref = href;
 
-  // ** NEW, CORRECTED LOGIC **
   if (!isExternal && !isAnchor && !isAdminLink) {
     if (locale === DEFAULT_LOCALE) {
-      // For the default locale, do not add any prefix.
       localizedHref = href;
     } else {
-      // For all other locales, add the prefix.
       localizedHref = `/${locale}${href}`;
     }
   }

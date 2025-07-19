@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Negotiator from "negotiator";
 
 const I18N_COOKIE_NAME = "NEXT_LOCALE";
-const SUPPORTED_LOCALES = ["tr", "en", "de", "fr", "es", "ar", "zu"];
+const SUPPORTED_LOCALES = ["tr", "en", "fr", "es", "zu", "it"];
 const DEFAULT_LOCALE = "tr";
 
 function getLocale(request: NextRequest): string {
@@ -28,6 +28,18 @@ function getLocale(request: NextRequest): string {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // --- START OF NEW LOGIC ---
+  // 1. Check if the path is for an admin route, the login page, or an API call.
+  // If it is, do not perform any i18n routing.
+  if (
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/api")
+  ) {
+    return NextResponse.next();
+  }
+  // --- END OF NEW LOGIC ---
 
   const pathnameHasLocale = SUPPORTED_LOCALES.some(
     (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
@@ -58,19 +70,17 @@ export async function middleware(request: NextRequest) {
   return response;
 }
 
-// THIS IS THE PART THAT NEEDS FIXING
 export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
-     * - api (API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - assets (static assets)
      * - favicon.ico (favicon file)
      * - sw.js (service worker)
-     * And all paths ending with a file extension (e.g., .svg, .png, .xml)
+     * - and any file with an extension (e.g., .svg, .png)
      */
-    "/((?!api|_next/static|_next/image|assets|favicon.ico|sw.js|.*\\..*).*)",
+    "/((?!_next/static|_next/image|assets|favicon.ico|sw.js|.*\\..*).*)",
   ],
 };

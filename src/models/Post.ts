@@ -1,11 +1,6 @@
-// ===== src/models/Post.ts =====
-
 import mongoose, { Schema, Document } from "mongoose";
 
-// --- REFINED: This type now only defines the sport itself. ---
 export type SportsCategory = "football" | "basketball" | "tennis" | "general";
-
-// The type of the news article (what it's about, not the sport).
 export type NewsType = "news" | "highlights" | "reviews" | "prediction";
 
 export interface IPost extends Document {
@@ -22,9 +17,12 @@ export interface IPost extends Document {
   metaTitle?: string;
   metaDescription?: string;
 
-  // --- RENAMED & REFINED: The field is now `sportsCategory`. ---
-  sportsCategory: SportsCategory[];
+  // --- New Fields ---
+  language: string; // e.g., 'en', 'tr'
+  translationGroupId: mongoose.Types.ObjectId; // Shared ID for all related translations
+  // --- End New Fields ---
 
+  sportsCategory: SportsCategory[];
   isAIGenerated?: boolean;
   originalExternalArticleId?: mongoose.Types.ObjectId;
   originalFixtureId?: number;
@@ -41,7 +39,6 @@ const PostSchema: Schema = new Schema(
     slug: {
       type: String,
       required: true,
-      unique: true,
       lowercase: true,
       trim: true,
     },
@@ -53,7 +50,19 @@ const PostSchema: Schema = new Schema(
     metaTitle: { type: String, trim: true },
     metaDescription: { type: String, trim: true },
 
-    // --- RENAMED & REFINED: Schema definition for the `sportsCategory` field. ---
+    // --- New Fields Definition ---
+    language: {
+      type: String,
+      required: true,
+      index: true,
+    },
+    translationGroupId: {
+      type: Schema.Types.ObjectId,
+      required: true,
+      index: true,
+    },
+    // --- End New Fields Definition ---
+
     sportsCategory: {
       type: [
         {
@@ -61,7 +70,7 @@ const PostSchema: Schema = new Schema(
           enum: ["football", "basketball", "tennis", "general"],
         },
       ],
-      default: ["general"], // Default to an array with 'general'
+      default: ["general"],
       required: true,
     },
     isAIGenerated: { type: Boolean, default: false },
@@ -102,6 +111,11 @@ const PostSchema: Schema = new Schema(
     timestamps: true,
   }
 );
+
+// Create a compound unique index for slug and language.
+// This ensures that a slug like "hello-world" can exist for both 'en' and 'tr',
+// but not twice for 'en'.
+PostSchema.index({ slug: 1, language: 1 }, { unique: true });
 
 export default (mongoose.models.Post as mongoose.Model<IPost>) ||
   mongoose.model<IPost>("Post", PostSchema);

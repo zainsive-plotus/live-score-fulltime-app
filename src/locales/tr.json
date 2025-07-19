@@ -475,5 +475,9 @@
   "general_news_meta_title": "En Son Spor Haberleri & Tahminler | FanSkor",
   "general_news_meta_description": "Basketbol, tenis ve daha fazlası için en son haberleri ve tahminleri alın. Tüm önemli spor etkinliklerinden haberdar olun.",
   "football_news": "Futbol Haberleri",
-  "football_news_description": "Futbol dünyasından en son haberler."
+  "football_news_description": "Futbol dünyasından en son haberler.",
+
+  "featured_article": "Öne Çıkan Makale",
+  "read_more": "Devamını Oku",
+  "no_general_news_found_subtitle": "Şu anda herhangi bir haber makalesi bulunamadı. Lütfen daha sonra tekrar kontrol edin!"
 }

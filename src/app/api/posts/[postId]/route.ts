@@ -1,18 +1,15 @@
-// ===== src/app/api/posts/[postId]/route.ts =====
-
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import dbConnect from "@/lib/dbConnect";
-import Post, { IPost } from "@/models/Post"; // Import IPost from the updated model
+import Post, { IPost } from "@/models/Post";
 
 interface Params {
-  params: { postId: string };
+  params: Promise<{ postId: string }>;
 }
 
-// --- GET a Single Post (by ID) (No change needed) ---
 export async function GET(request: Request, { params }: Params) {
-  const { postId } = params;
+  const { postId } = await params;
   try {
     await dbConnect();
     const post = await Post.findById(postId);
@@ -21,18 +18,19 @@ export async function GET(request: Request, { params }: Params) {
     }
     return NextResponse.json(post);
   } catch (error) {
+    console.error("Error fetching post by ID:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
 
-// --- UPDATED: PUT (Update) a Post ---
+// ----- REPLACE THE ENTIRE PUT FUNCTION WITH THIS NEW VERSION -----
 export async function PUT(request: Request, { params }: Params) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { postId } = params;
+  const { postId } = await params;
   try {
     const body: Partial<IPost> = await request.json();
     const {
@@ -44,12 +42,21 @@ export async function PUT(request: Request, { params }: Params) {
       metaDescription,
       featuredImageTitle,
       featuredImageAltText,
-      sportsCategory, // Renamed field
-      newsType, // New field
-      linkedFixtureId, // New field
-      linkedLeagueId, // New field
-      linkedTeamId, // New field
+      sportsCategory,
+      newsType,
+      linkedFixtureId,
+      linkedLeagueId,
+      linkedTeamId,
+      // Note: 'language' and 'translationGroupId' are intentionally omitted
+      // We do not allow changing these fields on an existing post.
     } = body;
+
+    if (!title || !content) {
+      return NextResponse.json(
+        { error: "Title and content are required." },
+        { status: 400 }
+      );
+    }
 
     if (!Array.isArray(sportsCategory) || sportsCategory.length === 0) {
       return NextResponse.json(
@@ -60,7 +67,12 @@ export async function PUT(request: Request, { params }: Params) {
 
     await dbConnect();
 
-    // Use $set to update fields and $unset to remove them if they are empty/undefined
+    // Check if the post to be updated exists
+    const existingPost = await Post.findById(postId);
+    if (!existingPost) {
+      return NextResponse.json({ error: "Post not found" }, { status: 404 });
+    }
+
     const updatePayload: any = {
       $set: {
         title,
@@ -77,7 +89,6 @@ export async function PUT(request: Request, { params }: Params) {
       $unset: {},
     };
 
-    // Conditionally add linked IDs to the payload or unset them
     if (linkedFixtureId) {
       updatePayload.$set.linkedFixtureId = linkedFixtureId;
     } else {
@@ -94,7 +105,6 @@ export async function PUT(request: Request, { params }: Params) {
       updatePayload.$unset.linkedTeamId = "";
     }
 
-    // If there's nothing to unset, remove the empty $unset operator
     if (Object.keys(updatePayload.$unset).length === 0) {
       delete updatePayload.$unset;
     }
@@ -104,16 +114,12 @@ export async function PUT(request: Request, { params }: Params) {
       runValidators: true,
     });
 
-    if (!updatedPost) {
-      return NextResponse.json({ error: "Post not found" }, { status: 404 });
-    }
-
     return NextResponse.json(updatedPost);
   } catch (error: any) {
     if (error.name === "ValidationError") {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
-    console.error("Error updating post:", error);
+    console.error(`Error updating post ${postId}:`, error);
     return NextResponse.json(
       { error: "Server error updating post" },
       { status: 500 }
@@ -121,14 +127,13 @@ export async function PUT(request: Request, { params }: Params) {
   }
 }
 
-// --- DELETE a Post (No change needed) ---
 export async function DELETE(request: Request, { params }: Params) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { postId } = params;
+  const { postId } = await params;
   try {
     await dbConnect();
     const deletedPost = await Post.findByIdAndDelete(postId);
@@ -137,6 +142,7 @@ export async function DELETE(request: Request, { params }: Params) {
     }
     return NextResponse.json({ message: "Post deleted successfully" });
   } catch (error) {
+    console.error(`Error deleting post ${postId}:`, error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

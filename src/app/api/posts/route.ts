@@ -5,8 +5,10 @@ import dbConnect from "@/lib/dbConnect";
 import Post, { IPost } from "@/models/Post";
 import slugify from "slugify";
 import ExternalNewsArticle from "@/models/ExternalNewsArticle";
+import mongoose from "mongoose"; // Import mongoose to generate ObjectId
 
 export async function GET(request: Request) {
+  // GET function remains the same as our last modification
   const { searchParams } = new URL(request.url);
   const status = searchParams.get("status");
   const limit = searchParams.get("limit");
@@ -15,18 +17,18 @@ export async function GET(request: Request) {
   const linkedTeamId = searchParams.get("linkedTeamId");
   const sportsCategory = searchParams.get("sportsCategory");
   const excludeSportsCategory = searchParams.get("excludeSportsCategory");
+  const language = searchParams.get("language");
 
   const query: any = {};
   if (status) query.status = status;
   if (linkedFixtureId) query.linkedFixtureId = Number(linkedFixtureId);
   if (linkedLeagueId) query.linkedLeagueId = Number(linkedLeagueId);
   if (linkedTeamId) query.linkedTeamId = Number(linkedTeamId);
+  if (language) query.language = language;
 
   if (sportsCategory) {
-    // Finds posts that INCLUDE this category
     query.sportsCategory = { $in: [sportsCategory] };
   } else if (excludeSportsCategory) {
-    // Finds posts that DO NOT INCLUDE this category
     query.sportsCategory = { $nin: [excludeSportsCategory] };
   }
 
@@ -55,6 +57,7 @@ export async function GET(request: Request) {
   }
 }
 
+// ----- REPLACE THE ENTIRE POST FUNCTION WITH THIS NEW VERSION -----
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") {
@@ -62,7 +65,10 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body: Partial<IPost> = await request.json();
+    const body: Partial<IPost> & {
+      language: string;
+      translationGroupId?: string;
+    } = await request.json();
     const {
       title,
       content,
@@ -77,11 +83,13 @@ export async function POST(request: Request) {
       linkedFixtureId,
       linkedLeagueId,
       linkedTeamId,
+      language, // Expect language from the client
+      translationGroupId, // Expect this when creating a translation of an existing post
     } = body;
 
-    if (!title || !content) {
+    if (!title || !content || !language) {
       return NextResponse.json(
-        { error: "Title and content are required" },
+        { error: "Title, content, and language are required" },
         { status: 400 }
       );
     }
@@ -96,15 +104,23 @@ export async function POST(request: Request) {
     await dbConnect();
 
     const slug = slugify(title, { lower: true, strict: true });
-    const slugExists = await Post.findOne({ slug });
+
+    // Check for slug uniqueness WITHIN the same language
+    const slugExists = await Post.findOne({ slug, language });
     if (slugExists) {
       return NextResponse.json(
         {
-          error: `A post with the slug '${slug}' already exists. Please use a different title.`,
+          error: `A post with the slug '${slug}' already exists for the selected language. Please use a different title.`,
         },
         { status: 409 }
       );
     }
+
+    // If a translationGroupId is provided, use it. Otherwise, create a new one.
+    // This is key for linking translations together.
+    const finalTranslationGroupId = translationGroupId
+      ? new mongoose.Types.ObjectId(translationGroupId)
+      : new mongoose.Types.ObjectId();
 
     const newPost = new Post({
       title,
@@ -122,6 +138,8 @@ export async function POST(request: Request) {
       linkedFixtureId,
       linkedLeagueId,
       linkedTeamId,
+      language, // Save the language
+      translationGroupId: finalTranslationGroupId, // Save the group ID
     });
 
     await newPost.save();

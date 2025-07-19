@@ -5,34 +5,42 @@ import axios from "axios";
 import { IPost } from "@/models/Post";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
-import { Newspaper } from "lucide-react";
+import { Newspaper, Info } from "lucide-react";
 import Script from "next/script";
 import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
-import NewsPageClient from "./NewsPageClient";
+import Pagination from "@/components/Pagination";
+import { Suspense } from "react";
+import FeaturedNewsRow, {
+  FeaturedNewsRowSkeleton,
+} from "@/components/FeaturedNewsRow";
+import CompactNewsItem, {
+  CompactNewsItemSkeleton,
+} from "@/components/CompactNewsItem";
 
 const PAGE_PATH = "/news";
-const ITEMS_PER_PAGE = 8;
+const ITEMS_PER_PAGE = 7; // 1 featured + 6 compact items
 
-const fetchNews = async (): Promise<IPost[]> => {
+const fetchNews = async (locale: string): Promise<IPost[]> => {
   try {
     const { data } = await axios.get(
-      `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/api/posts?status=published&excludeSportsCategory=football`
+      `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/api/posts?status=published&language=${locale}`
     );
     return data;
   } catch (error) {
-    console.error("[General News Page] Failed to fetch news:", error);
+    console.error(
+      `[General News Page] Failed to fetch news for locale ${locale}:`,
+      error
+    );
     return [];
   }
 };
 
 export async function generateMetadata({
-  params,
+  params: { locale },
 }: {
-  params: Promise<{ locale: string }>;
+  params: { locale: string };
 }): Promise<Metadata> {
-  const { locale } = await params;
-
   const t = await getI18n(locale);
   const hreflangAlternates = await generateHreflangTags(PAGE_PATH, locale);
 
@@ -51,7 +59,6 @@ const generateInitialJsonLd = (posts: IPost[], t: Function) => {
   if (paginatedPosts.length === 0) return null;
 
   const itemListElement = paginatedPosts.map((post, index) => {
-    // This now correctly points to the new /news path
     const postUrl = `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/news/${post.slug}`;
     return {
       "@type": "ListItem",
@@ -91,13 +98,28 @@ const generateInitialJsonLd = (posts: IPost[], t: Function) => {
 export default async function GeneralNewsPage({
   params,
 }: {
-  params: Promise<{ locale: string }>;
+  params: { locale: string; page?: string };
 }) {
-  const { locale } = await params;
+  const { locale } = params;
+  const currentPage = Number(params.page) || 1;
 
   const t = await getI18n(locale);
-  const allNews = await fetchNews();
+  const allNews = await fetchNews(locale);
   const jsonLdData = generateInitialJsonLd(allNews, t);
+
+  const totalPages = Math.ceil(allNews.length / ITEMS_PER_PAGE);
+  const paginatedNews = allNews.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  const featuredArticle = paginatedNews.length > 0 ? paginatedNews[0] : null;
+  const listArticles = paginatedNews.length > 1 ? paginatedNews.slice(1) : [];
+
+  const translatedText = {
+    featuredArticle: t("featured_article"),
+    readMore: t("read_more"),
+  };
 
   return (
     <>
@@ -125,7 +147,56 @@ export default async function GeneralNewsPage({
               </div>
             </div>
 
-            <NewsPageClient initialNews={allNews} />
+            <Suspense
+              fallback={
+                <div className="space-y-4">
+                  <FeaturedNewsRowSkeleton />
+                  <div className="space-y-2">
+                    <CompactNewsItemSkeleton />
+                    <CompactNewsItemSkeleton />
+                    <CompactNewsItemSkeleton />
+                  </div>
+                </div>
+              }
+            >
+              {paginatedNews.length > 0 && featuredArticle ? (
+                <>
+                  <FeaturedNewsRow
+                    post={featuredArticle}
+                    tFeaturedArticle={translatedText.featuredArticle}
+                    tReadMore={translatedText.readMore}
+                  />
+
+                  {listArticles.length > 0 && (
+                    <div className="space-y-2">
+                      {listArticles.map((post) => (
+                        <CompactNewsItem key={post._id as string} post={post} />
+                      ))}
+                    </div>
+                  )}
+
+                  {totalPages > 1 && (
+                    <Pagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={() => {
+                        // Pagination would need to navigate, which requires a client component.
+                      }}
+                    />
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-20 bg-brand-secondary rounded-lg">
+                  <Info size={32} className="mx-auto text-brand-muted mb-3" />
+                  <p className="text-xl font-bold text-white">
+                    {t("no_news_found_title")}
+                  </p>
+                  <p className="text-brand-muted mt-2">
+                    {t("no_general_news_found_subtitle")}
+                  </p>
+                </div>
+              )}
+            </Suspense>
           </main>
         </div>
       </div>

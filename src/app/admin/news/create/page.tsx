@@ -1,10 +1,8 @@
-// ===== src/app/admin/news/edit/[postId]/page.tsx =====
-
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import toast from "react-hot-toast";
 import Link from "@/components/StyledLink";
@@ -12,18 +10,20 @@ import Image from "next/image";
 import {
   UploadCloud,
   XCircle,
-  Loader2,
-  CheckCircle,
   Link2,
   Type,
   Tag,
+  Languages,
 } from "lucide-react";
-
 import RichTextEditor from "@/components/admin/RichTextEditor";
-// --- UPDATED: Import new types and the existing model from the model file ---
-import { IPost, SportsCategory, NewsType } from "@/models/Post";
+import { SportsCategory, NewsType } from "@/models/Post";
+import { ILanguage } from "@/models/Language";
 
-// --- RENAMED & UPDATED: Define available sports categories ---
+const fetchActiveLanguages = async (): Promise<ILanguage[]> => {
+  const { data } = await axios.get("/api/admin/languages?active=true");
+  return data;
+};
+
 const availableSportsCategories: { id: SportsCategory; label: string }[] = [
   { id: "football", label: "Football" },
   { id: "basketball", label: "Basketball" },
@@ -31,7 +31,6 @@ const availableSportsCategories: { id: SportsCategory; label: string }[] = [
   { id: "general", label: "General" },
 ];
 
-// --- NEW: Define available news types ---
 const availableNewsTypes: { id: NewsType; label: string }[] = [
   { id: "news", label: "General News" },
   { id: "highlights", label: "Highlights" },
@@ -39,17 +38,14 @@ const availableNewsTypes: { id: NewsType; label: string }[] = [
   { id: "prediction", label: "Prediction/Analysis" },
 ];
 
-const fetchPost = async (postId: string): Promise<IPost> => {
-  const { data } = await axios.get(`/api/posts/${postId}`);
-  return data;
-};
-
-export default function EditNewsPostPage() {
+export default function CreateNewsPostPage() {
   const router = useRouter();
-  const params = useParams();
-  const postId = params.postId as string;
+  const searchParams = useSearchParams();
 
-  // --- STATE MANAGEMENT ---
+  const [language, setLanguage] = useState("");
+  const [translationGroupId, setTranslationGroupId] = useState<
+    string | undefined
+  >(undefined);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [status, setStatus] = useState<"draft" | "published">("draft");
@@ -60,56 +56,41 @@ export default function EditNewsPostPage() {
   const [imageTitle, setImageTitle] = useState("");
   const [imageAltText, setImageAltText] = useState("");
 
-  // --- RENAMED & UPDATED: State for multiple sports categories ---
+  // --- REVERTED TO ARRAY STATE ---
   const [selectedSportsCategories, setSelectedSportsCategories] = useState<
     SportsCategory[]
-  >([]);
+  >(["general"]);
 
-  // --- NEW: State for new fields ---
   const [newsType, setNewsType] = useState<NewsType>("news");
   const [linkedFixtureId, setLinkedFixtureId] = useState("");
   const [linkedLeagueId, setLinkedLeagueId] = useState("");
   const [linkedTeamId, setLinkedTeamId] = useState("");
 
-  const {
-    data: postData,
-    isLoading,
-    isError,
-  } = useQuery<IPost>({
-    queryKey: ["post", postId],
-    queryFn: () => fetchPost(postId),
-    enabled: !!postId,
+  const { data: languages, isLoading: isLoadingLanguages } = useQuery<
+    ILanguage[]
+  >({
+    queryKey: ["activeLanguages"],
+    queryFn: fetchActiveLanguages,
   });
 
   useEffect(() => {
-    if (postData) {
-      setTitle(postData.title);
-      setContent(postData.content);
-      setStatus(postData.status);
-      setMetaTitle(postData.metaTitle || "");
-      setMetaDescription(postData.metaDescription || "");
-      setFeaturedImage(postData.featuredImage || null);
-      setImageTitle(postData.featuredImageTitle || "");
-      setImageAltText(postData.featuredImageAltText || "");
-      // --- RENAMED & UPDATED: Set sports categories state ---
-      setSelectedSportsCategories(
-        Array.isArray(postData.sportsCategory) &&
-          postData.sportsCategory.length > 0
-          ? postData.sportsCategory
-          : ["general"]
-      );
-      // --- NEW: Set new fields state ---
-      setNewsType(postData.newsType || "news");
-      setLinkedFixtureId(postData.linkedFixtureId?.toString() || "");
-      setLinkedLeagueId(postData.linkedLeagueId?.toString() || "");
-      setLinkedTeamId(postData.linkedTeamId?.toString() || "");
-    }
-  }, [postData]);
+    const fromGroupId = searchParams.get("from");
+    const langCode = searchParams.get("lang");
+    const fromTitle = searchParams.get("title");
 
-  // --- RENAMED: Handler for sports category checkboxes ---
+    if (fromGroupId && langCode && fromTitle) {
+      setTranslationGroupId(fromGroupId);
+      setLanguage(langCode);
+      setTitle(fromTitle);
+      toast.success(`Creating new translation for "${langCode.toUpperCase()}"`);
+    }
+  }, [searchParams]);
+
+  // --- REVERTED TO CHECKBOX HANDLER ---
   const handleSportsCategoryChange = (category: SportsCategory) => {
     setSelectedSportsCategories((prev) => {
       if (prev.includes(category)) {
+        // Prevent removing the last category
         return prev.length > 1 ? prev.filter((c) => c !== category) : prev;
       }
       return [...prev, category];
@@ -133,27 +114,27 @@ export default function EditNewsPostPage() {
     }
   };
 
-  const updatePostMutation = useMutation({
-    mutationFn: (updatedPost: Partial<IPost>) => {
-      return axios.put(`/api/posts/${postId}`, updatedPost);
+  const createPostMutation = useMutation({
+    mutationFn: (newPost: any) => {
+      return axios.post("/api/posts", newPost);
     },
     onSuccess: () => {
-      toast.success("Post updated successfully!");
+      toast.success("Post created successfully!");
       router.push("/admin/news");
       router.refresh();
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.error || "Failed to update post.");
+      toast.error(error.response?.data?.error || "Failed to create post.");
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !content.trim()) {
-      toast.error("Title and content cannot be empty.");
+    if (!title.trim() || !content.trim() || !language) {
+      toast.error("Title, Content, and Language are required.");
       return;
     }
-    updatePostMutation.mutate({
+    createPostMutation.mutate({
       title,
       content,
       status,
@@ -162,35 +143,56 @@ export default function EditNewsPostPage() {
       metaDescription,
       featuredImageTitle: imageTitle,
       featuredImageAltText: imageAltText,
-      sportsCategory: selectedSportsCategories,
+      sportsCategory: selectedSportsCategories, // Pass the array
       newsType,
       linkedFixtureId: linkedFixtureId ? Number(linkedFixtureId) : undefined,
       linkedLeagueId: linkedLeagueId ? Number(linkedLeagueId) : undefined,
       linkedTeamId: linkedTeamId ? Number(linkedTeamId) : undefined,
+      language,
+      translationGroupId,
     });
   };
-
-  if (isLoading)
-    return <p className="text-brand-muted">Loading post data...</p>;
-  if (isError) return <p className="text-red-400">Failed to load post data.</p>;
 
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-white">Edit Post</h1>
-        <Link
-          href="/admin/news"
-          className="text-sm text-brand-muted hover:text-white"
-        >
-          ← Back to News List
-        </Link>
+        <h1 className="text-3xl font-bold text-white">
+          {translationGroupId ? "Create New Translation" : "Create New Post"}
+        </h1>
       </div>
 
       <form
         onSubmit={handleSubmit}
         className="bg-brand-secondary p-6 rounded-lg space-y-6"
       >
-        {/* Title Field */}
+        {/* Language, Title, Content sections are correct */}
+        <div>
+          <label
+            htmlFor="language"
+            className="block text-sm font-medium text-brand-light mb-2 flex items-center gap-2"
+          >
+            <Languages size={16} /> Language
+          </label>
+          <select
+            id="language"
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+            required
+            disabled={isLoadingLanguages || !!translationGroupId}
+            className="w-full p-3 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-purple disabled:bg-gray-700/50 disabled:cursor-not-allowed"
+          >
+            <option value="" disabled>
+              {isLoadingLanguages
+                ? "Loading languages..."
+                : "Select a language..."}
+            </option>
+            {languages?.map((lang) => (
+              <option key={lang._id} value={lang.code}>
+                {lang.name}
+              </option>
+            ))}
+          </select>
+        </div>
         <div>
           <label
             htmlFor="title"
@@ -207,42 +209,17 @@ export default function EditNewsPostPage() {
             className="w-full p-3 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-purple"
           />
         </div>
-
-        {/* Content Field */}
         <div>
           <label className="block text-sm font-medium text-brand-light mb-2">
             Content
           </label>
-          {postData && <RichTextEditor value={content} onChange={setContent} />}
+          <RichTextEditor value={content} onChange={setContent} />
         </div>
 
-        {/* --- NEW/ENHANCED: Content Details Section --- */}
         <div className="space-y-6 p-4 border border-gray-600 rounded-lg">
           <h3 className="text-lg font-semibold text-white">Content Details</h3>
 
-          {/* News Type Dropdown */}
-          <div>
-            <label
-              htmlFor="newsType"
-              className="block text-sm font-medium text-brand-light mb-2 flex items-center gap-2"
-            >
-              <Type size={16} /> News Type
-            </label>
-            <select
-              id="newsType"
-              value={newsType}
-              onChange={(e) => setNewsType(e.target.value as NewsType)}
-              className="w-full p-3 rounded bg-gray-800 text-white border border-gray-600"
-            >
-              {availableNewsTypes.map((type) => (
-                <option key={type.id} value={type.id}>
-                  {type.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Sports Category Checkboxes */}
+          {/* --- REVERTED TO CHECKBOXES --- */}
           <div>
             <label className="block text-sm font-medium text-brand-light mb-3 flex items-center gap-2">
               <Tag size={16} /> Sports Categories
@@ -266,9 +243,33 @@ export default function EditNewsPostPage() {
                 </div>
               ))}
             </div>
+            <p className="text-xs text-brand-muted mt-3">
+              Note: Articles tagged with 'Football' will only appear in the
+              Football News section.
+            </p>
           </div>
 
-          {/* Linking Fields */}
+          <div>
+            <label
+              htmlFor="newsType"
+              className="block text-sm font-medium text-brand-light mb-2 flex items-center gap-2"
+            >
+              <Type size={16} /> News Type
+            </label>
+            <select
+              id="newsType"
+              value={newsType}
+              onChange={(e) => setNewsType(e.target.value as NewsType)}
+              className="w-full p-3 rounded bg-gray-800 text-white border border-gray-600"
+            >
+              {availableNewsTypes.map((type) => (
+                <option key={type.id} value={type.id}>
+                  {type.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-700/50">
             <div>
               <label
@@ -321,7 +322,6 @@ export default function EditNewsPostPage() {
           </div>
         </div>
 
-        {/* Featured Image and SEO Sections */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="p-4 border border-gray-600 rounded-lg">
             <label className="block text-sm font-medium text-brand-light mb-2">
@@ -357,6 +357,7 @@ export default function EditNewsPostPage() {
                       </span>
                       <input
                         id="file-upload"
+                        name="file-upload"
                         type="file"
                         className="sr-only"
                         onChange={handleImageUpload}
@@ -364,31 +365,50 @@ export default function EditNewsPostPage() {
                         accept="image/*"
                       />
                     </label>
+                    <p className="pl-1">or drag and drop</p>
                   </div>
+                  <p className="text-xs text-gray-500">
+                    PNG, JPG, GIF up to 10MB
+                  </p>
                 </div>
               )}
             </div>
             {featuredImage && (
-              <div className="mt-4 space-y-4">
-                <input
-                  type="text"
-                  value={imageTitle}
-                  onChange={(e) => setImageTitle(e.target.value)}
-                  placeholder="Image Title (Tooltip)"
-                  className="w-full p-3 rounded bg-gray-800 text-white border border-gray-600"
-                />
-                <input
-                  type="text"
-                  value={imageAltText}
-                  onChange={(e) => setImageAltText(e.target.value)}
-                  placeholder="Image Alt Text (SEO)"
-                  className="w-full p-3 rounded bg-gray-800 text-white border border-gray-600"
-                />
+              <div className="space-y-4 mt-4">
+                <div>
+                  <label
+                    htmlFor="imageTitle"
+                    className="block text-sm font-medium text-brand-light mb-1"
+                  >
+                    Image Title
+                  </label>
+                  <input
+                    id="imageTitle"
+                    type="text"
+                    value={imageTitle}
+                    onChange={(e) => setImageTitle(e.target.value)}
+                    className="w-full p-2 rounded bg-gray-800 text-white border border-gray-600"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="imageAltText"
+                    className="block text-sm font-medium text-brand-light mb-1"
+                  >
+                    Image Alt Text
+                  </label>
+                  <input
+                    id="imageAltText"
+                    type="text"
+                    value={imageAltText}
+                    onChange={(e) => setImageAltText(e.target.value)}
+                    className="w-full p-2 rounded bg-gray-800 text-white border border-gray-600"
+                  />
+                </div>
               </div>
             )}
           </div>
-
-          <div className="space-y-4 p-4 border border-gray-600 rounded-lg">
+          <div className="space-y-6 p-4 border border-gray-600 rounded-lg">
             <h3 className="text-lg font-semibold text-white">SEO Settings</h3>
             <div>
               <label
@@ -414,16 +434,15 @@ export default function EditNewsPostPage() {
               </label>
               <textarea
                 id="metaDescription"
-                rows={4}
                 value={metaDescription}
                 onChange={(e) => setMetaDescription(e.target.value)}
+                rows={4}
                 className="w-full p-3 rounded bg-gray-800 text-white border border-gray-600"
-              />
+              ></textarea>
             </div>
           </div>
         </div>
 
-        {/* Status and Action Buttons */}
         <div className="flex justify-between items-center pt-4 border-t border-gray-600">
           <div>
             <label
@@ -453,15 +472,10 @@ export default function EditNewsPostPage() {
             </Link>
             <button
               type="submit"
-              disabled={updatePostMutation.isPending || isUploading}
-              className="bg-brand-purple text-white font-bold py-2 px-4 rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+              disabled={createPostMutation.isPending || isUploading}
+              className="bg-brand-purple text-white font-bold py-2 px-4 rounded-lg hover:opacity-90 disabled:opacity-50"
             >
-              {updatePostMutation.isPending ? (
-                <Loader2 size={18} className="animate-spin" />
-              ) : (
-                <CheckCircle size={18} />
-              )}
-              {updatePostMutation.isPending ? "Saving..." : "Save Changes"}
+              {createPostMutation.isPending ? "Saving..." : "Save Post"}
             </button>
           </div>
         </div>

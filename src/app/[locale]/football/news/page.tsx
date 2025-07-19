@@ -16,10 +16,10 @@ const PAGE_PATH = "/football/news";
 const ITEMS_PER_PAGE = 8; // Define how many items per page for pagination
 
 // Fetch only football news
-const fetchNews = async (): Promise<IPost[]> => {
+const fetchNews = async (locale: string): Promise<IPost[]> => {
   try {
     const { data } = await axios.get(
-      `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/api/posts?status=published&sportsCategory=football`
+      `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/api/posts?status=published&sportsCategory=football&language=${locale}`
     );
     return data;
   } catch (error) {
@@ -97,7 +97,7 @@ export default async function FootballNewsPage({
   const currentPage = Number(page) || 1;
 
   const t = await getI18n(locale);
-  const allNews = await fetchNews();
+  const allNews = await fetchNews(locale);
   const jsonLdData = generateInitialJsonLd(allNews, t);
 
   const totalPages = Math.ceil(allNews.length / ITEMS_PER_PAGE);

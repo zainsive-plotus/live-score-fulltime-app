@@ -1,3 +1,5 @@
+// ===== src/app/[locale]/layout.tsx =====
+
 import type { Metadata } from "next";
 import "../globals.css";
 import Providers from "../providers";
@@ -20,25 +22,19 @@ import { generateHreflangTags } from "@/lib/hreflang";
 const METADATA_BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
-// 1. This is now a DYNAMIC metadata function
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ locale: string }>;
+  params: { locale: string };
 }): Promise<Metadata> {
   const { locale } = await params;
-
   const t = await getI18n(locale);
-
-  // 2. Generate hreflang tags for the root path
   const hreflangAlternates = await generateHreflangTags("/", locale);
-
   const title = t("homepage_meta_title");
   const description = t("homepage_meta_description");
 
   return {
     metadataBase: new URL(METADATA_BASE_URL),
-    // 3. Use the dynamically generated hreflang tags
     alternates: hreflangAlternates,
     title: title,
     description: description,
@@ -85,37 +81,32 @@ export default async function LocaleLayout({
   params,
 }: {
   children: React.ReactNode;
-  params: Promise<{ locale: string }>;
+  params: { locale: string };
 }) {
   const { locale } = await params;
-
   const translations = (await i18nCache.getTranslations(locale)) || {};
 
+  // REMOVED <html> and <body> TAGS. Return a fragment or a div instead.
   return (
-    <html lang={locale}>
-      <body
-        className={`bg-background text-text-primary`}
-        suppressHydrationWarning={true}
-      >
-        <Suspense fallback={<Loading />}>
-          <NextAuthProvider>
-            <Providers>
-              <I18nProviderClient locale={locale} translations={translations}>
-                <TimeZoneProvider>
-                  <LeagueProvider>
-                    <main>{children}</main>
-                    <StickyFooterAd />
-                    <Footer />
-                  </LeagueProvider>
-                </TimeZoneProvider>
-              </I18nProviderClient>
-            </Providers>
-          </NextAuthProvider>
-        </Suspense>
-        {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
-          <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
-        )}
-      </body>
-    </html>
+    <>
+      <Suspense fallback={<Loading />}>
+        <NextAuthProvider>
+          <Providers>
+            <I18nProviderClient locale={locale} translations={translations}>
+              <TimeZoneProvider>
+                <LeagueProvider>
+                  <main>{children}</main>
+                  <StickyFooterAd />
+                  <Footer />
+                </LeagueProvider>
+              </TimeZoneProvider>
+            </I18nProviderClient>
+          </Providers>
+        </NextAuthProvider>
+      </Suspense>
+      {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
+        <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
+      )}
+    </>
   );
 }

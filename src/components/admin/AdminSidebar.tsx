@@ -20,10 +20,9 @@ import {
   DatabaseZap,
   Type,
   Bot,
-  Languages, // Added
+  Languages,
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
-import { useTranslation } from "@/hooks/useTranslation";
 
 const SubNavItem = ({
   href,
@@ -54,7 +53,6 @@ const SubNavItem = ({
 export default function AdminSidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const { t } = useTranslation();
 
   const isAiSectionActive =
     pathname.startsWith("/admin/auto-news") ||
@@ -76,54 +74,46 @@ export default function AdminSidebar() {
   }, [isPagesSectionActive]);
 
   const navItems = [
-    { name: t("dashboard"), href: "/admin/dashboard", icon: LayoutDashboard },
-    { name: t("manage_news"), href: "/admin/news", icon: Newspaper },
-    { name: t("manage_languages"), href: "/admin/languages", icon: Languages }, // Added
-    {
-      name: t("manage_casino_partners"),
-      href: "/admin/casino-partners",
-      icon: Crown,
-    },
-    { name: t("file_manager"), href: "/admin/file-manager", icon: FileText },
-    { name: t("manage_banners"), href: "/admin/banners", icon: ImageIcon },
+    { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
+    { name: "News", href: "/admin/news", icon: Newspaper },
+    { name: "Languages", href: "/admin/languages", icon: Languages },
+    { name: "Casino Partners", href: "/admin/casino-partners", icon: Crown },
+    { name: "File Manager", href: "/admin/file-manager", icon: FileText },
+    { name: "Banners", href: "/admin/banners", icon: ImageIcon },
   ];
 
   const aiSubNav = [
-    { name: t("ai_news_engine"), href: "/admin/auto-news", icon: Sparkles },
-    { name: t("ai_journalists"), href: "/admin/ai-journalists", icon: User },
-    {
-      name: t("ai_title_templates"),
-      href: "/admin/title-templates",
-      icon: Type,
-    },
+    { name: "News Engine", href: "/admin/auto-news", icon: Sparkles },
+    { name: "AI Journalists", href: "/admin/ai-journalists", icon: User },
+    { name: "Title Templates", href: "/admin/title-templates", icon: Type },
   ];
 
   const pagesSubNav = [
-    { name: t("manage_faqs"), href: "/admin/faqs", icon: HelpCircle },
+    { name: "FAQs", href: "/admin/faqs", icon: HelpCircle },
     {
-      name: t("page_report_abuse"),
+      name: "Report Abuse",
       href: "/admin/pages/report-abuse",
       icon: AlertTriangle,
     },
     {
-      name: t("page_privacy_policy"),
+      name: "Privacy Policy",
       href: "/admin/pages/privacy-policy",
       icon: Shield,
     },
     {
-      name: t("page_terms_conditions"),
+      name: "Terms & Conditions",
       href: "/admin/pages/terms-and-conditions",
       icon: FileText,
     },
-    { name: t("page_author"), href: "/admin/pages/author", icon: UserCircle },
-    { name: t("page_gdpr"), href: "/admin/pages/gdpr", icon: DatabaseZap },
+    { name: "Author Page", href: "/admin/pages/author", icon: UserCircle },
+    { name: "GDPR Page", href: "/admin/pages/gdpr", icon: DatabaseZap },
   ];
 
   return (
     <aside className="w-72 bg-brand-secondary h-screen sticky top-0 p-4 flex flex-col justify-between">
       <div>
         <div className="text-2xl font-bold text-white mb-8 px-2">
-          {t("admin_panel")}
+          Admin Panel
         </div>
         <nav className="space-y-1">
           {navItems.map((item) => {
@@ -156,7 +146,7 @@ export default function AdminSidebar() {
             >
               <div className="flex items-center gap-3">
                 <Bot size={20} />
-                <span>{t("ai_content_engine")}</span>
+                <span>AI Content Engine</span>
               </div>
               <ChevronRight
                 size={18}
@@ -197,7 +187,7 @@ export default function AdminSidebar() {
             >
               <div className="flex items-center gap-3">
                 <FileStack size={20} />
-                <span>{t("pages_and_faqs")}</span>
+                <span>Pages & FAQs</span>
               </div>
               <ChevronRight
                 size={18}
@@ -232,7 +222,7 @@ export default function AdminSidebar() {
       <div className="border-t border-gray-700 pt-4">
         {session?.user && (
           <div className="mb-4 text-brand-muted text-sm px-3">
-            {t("logged_in_as")}{" "}
+            Logged in as{" "}
             <span className="font-semibold text-white">
               {session.user.name || session.user.email}
             </span>
@@ -258,7 +248,7 @@ export default function AdminSidebar() {
             <polyline points="17 16 22 12 17 8" />
             <line x1="22" x2="10" y1="12" y2="12" />
           </svg>
-          <span>{t("sign_out")}</span>
+          <span>Sign Out</span>
         </button>
       </div>
     </aside>

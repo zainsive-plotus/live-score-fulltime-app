@@ -1,3 +1,5 @@
+// ===== src/app/layout.tsx =====
+
 import "./globals.css";
 
 export default function RootLayout({
@@ -7,7 +9,17 @@ export default function RootLayout({
 }) {
   return (
     <html suppressHydrationWarning={true}>
-      <body>{children}</body>
+      {/* 
+        Add suppressHydrationWarning here as well.
+        This tells React to ignore attribute mismatches on the body tag,
+        which are often caused by browser extensions and are safe to ignore.
+      */}
+      <body
+        className="bg-background text-text-primary"
+        suppressHydrationWarning={true}
+      >
+        {children}
+      </body>
     </html>
   );
 }

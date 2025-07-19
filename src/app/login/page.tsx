@@ -3,18 +3,23 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useTranslation } from "@/hooks/useTranslation";
 
 export const dynamic = "force-dynamic";
 
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { t } = useTranslation();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState(searchParams.get("error") || "");
+  // Get error from URL, provide a default message for common cases
+  const [error, setError] = useState(() => {
+    const err = searchParams.get("error");
+    if (err === "Forbidden") {
+      return "Access Denied. You must be an administrator.";
+    }
+    return err || "";
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,9 +32,11 @@ export default function LoginPage() {
     });
 
     if (result?.error) {
-      setError(t("invalid_credentials"));
+      setError("Invalid credentials. Please try again.");
     } else if (result?.ok) {
-      router.push("/admin/dashboard");
+      // Redirect to the intended page or default to the admin dashboard
+      const callbackUrl = searchParams.get("callbackUrl") || "/admin/dashboard";
+      router.push(callbackUrl);
     }
   };
 
@@ -40,7 +47,7 @@ export default function LoginPage() {
         className="p-8 rounded-lg shadow-lg bg-brand-secondary w-full max-w-sm"
       >
         <h1 className="text-2xl font-bold mb-6 text-center text-white">
-          {t("admin_login")}
+          Admin Login
         </h1>
         {error && (
           <p className="bg-red-500/20 text-red-400 p-3 rounded mb-4 text-sm">
@@ -52,7 +59,7 @@ export default function LoginPage() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder={t("email")}
+            placeholder="Email"
             required
             className="w-full p-3 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-purple"
           />
@@ -60,7 +67,7 @@ export default function LoginPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder={t("password")}
+            placeholder="Password"
             required
             className="w-full p-3 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-purple"
           />
@@ -69,7 +76,7 @@ export default function LoginPage() {
           type="submit"
           className="w-full mt-6 bg-brand-purple text-white font-bold py-3 rounded-lg hover:opacity-90 transition-opacity"
         >
-          {t("sign_in")}
+          Sign In
         </button>
       </form>
     </div>
