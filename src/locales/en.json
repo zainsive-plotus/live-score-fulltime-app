@@ -495,5 +495,6 @@
 
   "featured_article": "Featured Article",
   "read_more": "Read More",
-  "no_general_news_found_subtitle": "It seems there are no news articles available at the moment. Please check back later!"
+  "no_general_news_found_subtitle": "It seems there are no news articles available at the moment. Please check back later!",
+  "table_of_contents": "Table of Contents"
 }

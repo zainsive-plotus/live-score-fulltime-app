@@ -479,5 +479,7 @@
 
   "featured_article": "Öne Çıkan Makale",
   "read_more": "Devamını Oku",
-  "no_general_news_found_subtitle": "Şu anda herhangi bir haber makalesi bulunamadı. Lütfen daha sonra tekrar kontrol edin!"
+  "no_general_news_found_subtitle": "Şu anda herhangi bir haber makalesi bulunamadı. Lütfen daha sonra tekrar kontrol edin!",
+
+  "table_of_contents": "İçindekiler"
 }

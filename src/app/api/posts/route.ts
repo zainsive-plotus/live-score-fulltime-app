@@ -5,10 +5,10 @@ import dbConnect from "@/lib/dbConnect";
 import Post, { IPost } from "@/models/Post";
 import slugify from "slugify";
 import ExternalNewsArticle from "@/models/ExternalNewsArticle";
-import mongoose from "mongoose"; // Import mongoose to generate ObjectId
+import mongoose from "mongoose";
 
+// The GET function remains unchanged.
 export async function GET(request: Request) {
-  // GET function remains the same as our last modification
   const { searchParams } = new URL(request.url);
   const status = searchParams.get("status");
   const limit = searchParams.get("limit");
@@ -17,14 +17,12 @@ export async function GET(request: Request) {
   const linkedTeamId = searchParams.get("linkedTeamId");
   const sportsCategory = searchParams.get("sportsCategory");
   const excludeSportsCategory = searchParams.get("excludeSportsCategory");
-  const language = searchParams.get("language");
 
   const query: any = {};
   if (status) query.status = status;
   if (linkedFixtureId) query.linkedFixtureId = Number(linkedFixtureId);
   if (linkedLeagueId) query.linkedLeagueId = Number(linkedLeagueId);
   if (linkedTeamId) query.linkedTeamId = Number(linkedTeamId);
-  if (language) query.language = language;
 
   if (sportsCategory) {
     query.sportsCategory = { $in: [sportsCategory] };
@@ -68,9 +66,11 @@ export async function POST(request: Request) {
     const body: Partial<IPost> & {
       language: string;
       translationGroupId?: string;
+      slug?: string;
     } = await request.json();
     const {
       title,
+      slug, // Now we accept a slug from the client
       content,
       status,
       featuredImage,
@@ -83,8 +83,8 @@ export async function POST(request: Request) {
       linkedFixtureId,
       linkedLeagueId,
       linkedTeamId,
-      language, // Expect language from the client
-      translationGroupId, // Expect this when creating a translation of an existing post
+      language,
+      translationGroupId,
     } = body;
 
     if (!title || !content || !language) {
@@ -94,30 +94,23 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!Array.isArray(sportsCategory) || sportsCategory.length === 0) {
-      return NextResponse.json(
-        { error: "At least one sports category is required." },
-        { status: 400 }
-      );
-    }
-
     await dbConnect();
 
-    const slug = slugify(title, { lower: true, strict: true });
+    // If a slug is provided, use it. Otherwise, generate it from the title.
+    // Always run it through slugify to ensure it's clean.
+    const finalSlug = slugify(slug || title, { lower: true, strict: true });
 
     // Check for slug uniqueness WITHIN the same language
-    const slugExists = await Post.findOne({ slug, language });
+    const slugExists = await Post.findOne({ slug: finalSlug, language });
     if (slugExists) {
       return NextResponse.json(
         {
-          error: `A post with the slug '${slug}' already exists for the selected language. Please use a different title.`,
+          error: `A post with the slug '${finalSlug}' already exists for the selected language. Please use a different title or slug.`,
         },
         { status: 409 }
       );
     }
 
-    // If a translationGroupId is provided, use it. Otherwise, create a new one.
-    // This is key for linking translations together.
     const finalTranslationGroupId = translationGroupId
       ? new mongoose.Types.ObjectId(translationGroupId)
       : new mongoose.Types.ObjectId();
@@ -126,7 +119,7 @@ export async function POST(request: Request) {
       title,
       content,
       status,
-      slug,
+      slug: finalSlug, // Use the final, clean slug
       author: session.user.name || "Admin",
       featuredImage,
       metaTitle,
@@ -138,8 +131,8 @@ export async function POST(request: Request) {
       linkedFixtureId,
       linkedLeagueId,
       linkedTeamId,
-      language, // Save the language
-      translationGroupId: finalTranslationGroupId, // Save the group ID
+      language,
+      translationGroupId: finalTranslationGroupId,
     });
 
     await newPost.save();

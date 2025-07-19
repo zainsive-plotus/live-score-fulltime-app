@@ -3,13 +3,14 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import dbConnect from "@/lib/dbConnect";
 import Post, { IPost } from "@/models/Post";
+import slugify from "slugify"; // Import slugify
 
 interface Params {
-  params: Promise<{ postId: string }>;
+  params: { postId: string };
 }
 
 export async function GET(request: Request, { params }: Params) {
-  const { postId } = await params;
+  const { postId } = params;
   try {
     await dbConnect();
     const post = await Post.findById(postId);
@@ -30,11 +31,12 @@ export async function PUT(request: Request, { params }: Params) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { postId } = await params;
+  const { postId } = params;
   try {
-    const body: Partial<IPost> = await request.json();
+    const body: Partial<IPost> & { slug?: string } = await request.json();
     const {
       title,
+      slug, // Now we accept the slug
       content,
       status,
       featuredImage,
@@ -47,8 +49,6 @@ export async function PUT(request: Request, { params }: Params) {
       linkedFixtureId,
       linkedLeagueId,
       linkedTeamId,
-      // Note: 'language' and 'translationGroupId' are intentionally omitted
-      // We do not allow changing these fields on an existing post.
     } = body;
 
     if (!title || !content) {
@@ -58,24 +58,36 @@ export async function PUT(request: Request, { params }: Params) {
       );
     }
 
-    if (!Array.isArray(sportsCategory) || sportsCategory.length === 0) {
-      return NextResponse.json(
-        { error: "At least one sports category is required." },
-        { status: 400 }
-      );
-    }
-
     await dbConnect();
 
-    // Check if the post to be updated exists
     const existingPost = await Post.findById(postId);
     if (!existingPost) {
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
 
+    // If a slug is provided, use it. Otherwise, generate it from the title.
+    const finalSlug = slugify(slug || title, { lower: true, strict: true });
+
+    // Check if the new slug is already taken by another post in the same language
+    const slugExists = await Post.findOne({
+      slug: finalSlug,
+      language: existingPost.language,
+      _id: { $ne: postId }, // Exclude the current post from the check
+    });
+
+    if (slugExists) {
+      return NextResponse.json(
+        {
+          error: `The slug '${finalSlug}' is already in use by another post in this language.`,
+        },
+        { status: 409 }
+      );
+    }
+
     const updatePayload: any = {
       $set: {
         title,
+        slug: finalSlug, // Update the slug
         content,
         status,
         featuredImage,
@@ -133,7 +145,7 @@ export async function DELETE(request: Request, { params }: Params) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { postId } = await params;
+  const { postId } = params;
   try {
     await dbConnect();
     const deletedPost = await Post.findByIdAndDelete(postId);

@@ -11,6 +11,8 @@ import { getI18n } from "@/lib/i18n/server";
 import { proxyImageUrl } from "@/lib/image-proxy";
 import Script from "next/script";
 import { generateHreflangTags } from "@/lib/hreflang";
+import { generateTableOfContents } from "@/lib/toc"; // Import our new utility
+import TableOfContents from "@/components/TableOfContents"; // Import our new component
 
 const DEFAULT_LOCALE = "tr";
 
@@ -74,7 +76,6 @@ export async function generateMetadata({
   const { postToRender, allTranslations } = data;
 
   const pagePath = `/news/${postToRender.slug}`;
-  // We need to update hreflang generation to accept the list of available locales for this specific page
   const availableLocales = allTranslations.map((p) => p.language);
   const hreflangAlternates = generateHreflangTags(
     pagePath,
@@ -136,6 +137,11 @@ export default async function GeneralNewsArticlePage({
   const post = postToRender;
   const t = await getI18n(locale);
 
+  // --- START OF NEW LOGIC ---
+  // Generate the ToC and the processed HTML on the server
+  const { processedHtml, toc } = generateTableOfContents(post.content);
+  // --- END OF NEW LOGIC ---
+
   const pagePath = `/news/${post.slug}`;
   const postUrl = `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/${locale}${pagePath}`;
   const description =
@@ -180,7 +186,7 @@ export default async function GeneralNewsArticlePage({
       />
       <div className="bg-brand-dark min-h-screen">
         <Header />
-        <main className="container mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-3 gap-12">
+        <main className="container mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12 items-start">
           <div className="lg:col-span-2">
             <article className="bg-brand-secondary rounded-lg overflow-hidden">
               {post.featuredImage && (
@@ -207,9 +213,10 @@ export default async function GeneralNewsArticlePage({
                   })}
                 </p>
 
+                {/* Render the HTML with IDs that our utility function added */}
                 <div
                   className="prose prose-invert prose-lg lg:prose-xl max-w-none"
-                  dangerouslySetInnerHTML={{ __html: post.content }}
+                  dangerouslySetInnerHTML={{ __html: processedHtml }}
                 />
 
                 <div className="mt-12 pt-8 border-t border-gray-700/50">
@@ -222,8 +229,11 @@ export default async function GeneralNewsArticlePage({
             </article>
           </div>
 
-          <div className="lg:col-span-1 p-4 lg:p-0">
-            <NewsSidebar />
+          <div className="lg:col-span-1">
+            {/* Pass the ToC component as a child to the sidebar */}
+            <NewsSidebar>
+              <TableOfContents toc={toc} />
+            </NewsSidebar>
           </div>
         </main>
       </div>

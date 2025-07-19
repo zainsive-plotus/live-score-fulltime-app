@@ -486,5 +486,7 @@
   "football_news_description": "Le ultime notizie dal mondo del calcio.",
   "featured_article": "Articolo in Evidenza",
   "read_more": "Leggi di Più",
-  "no_general_news_found_subtitle": "Sembra che non ci siano articoli di notizie disponibili al momento. Si prega di ricontrollare più tardi!"
+  "no_general_news_found_subtitle": "Sembra che non ci siano articoli di notizie disponibili al momento. Si prega di ricontrollare più tardi!",
+
+  "table_of_contents": "Indice dei Contenuti"
 }

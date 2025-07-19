@@ -82,57 +82,96 @@
   animation: ring 2s ease-in-out infinite;
 }
 
-.prose h2 {
-  color: #e0e0e0;
-  font-size: 2.25rem;
-  font-weight: 800;
-  margin-top: 2.5em;
-  margin-bottom: 1em;
-  border-bottom: 2px solid #ea591d;
-  padding-bottom: 0.5rem;
-  line-height: 1.2;
+/* Prose Styling */
+
+.prose {
+  /* Set a more comfortable base text color */
+  --tw-prose-body: theme("colors.slate.300");
+  --tw-prose-invert-body: theme("colors.slate.300");
 }
 
-.prose h3 {
-  color: #e0e0e0;
-  font-size: 1.75rem;
+.prose p {
+  /* Improve line height for long-form reading */
+  line-height: 1.75;
+}
+
+.prose h2 {
+  color: #ffffff; /* Brighter heading color */
+  font-size: 1.875rem; /* Slightly smaller for better balance */
   font-weight: 700;
-  margin-top: 2em;
-  margin-bottom: 0.75em;
+  margin-top: 2.5em;
+  margin-bottom: 1.25em;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #4a5568; /* Softer border */
   line-height: 1.3;
 }
 
-.prose-xl h2 {
-  font-size: 2.5rem;
-  margin-top: 3em;
-  margin-bottom: 1.2em;
-}
-.prose-xl h3 {
-  font-size: 2rem;
-  margin-top: 2.5em;
+.prose h3 {
+  color: #e2e8f0; /* Brighter subheading color */
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-top: 2em;
   margin-bottom: 1em;
+  line-height: 1.4;
 }
 
 .prose strong {
   color: #ffffff;
 }
 .prose em {
-  color: #e0e0e0;
+  color: #e2e8f0;
 }
 .prose ul,
 .prose ol {
   list-style-position: outside;
   padding-left: 1.5em;
 }
-.prose ul > li::before {
-  background-color: #ea591d;
+.prose ul > li,
+.prose ol > li {
+  padding-left: 0.5em; /* More space for the marker */
+  margin-top: 0.75em;
+}
+.prose ul > li::marker {
+  color: var(--brand-accent);
 }
 .prose a {
-  color: #ea591d;
+  color: var(--brand-accent);
   text-decoration: none;
+  transition: all 0.2s ease-in-out;
+  font-weight: 500;
 }
 .prose a:hover {
   text-decoration: underline;
+  color: #ffffff;
+  background-color: var(--brand-accent);
+  padding: 0.1em 0.2em;
+  border-radius: 0.25rem;
+}
+
+/* Enhanced Blockquote Styling */
+.prose blockquote {
+  position: relative;
+  font-style: italic;
+  color: #cbd5e1;
+  padding: 1rem 1.5rem 1rem 3rem;
+  border-left: none;
+  background-color: rgba(71, 85, 105, 0.1);
+  border-radius: 0.5rem;
+  margin-top: 2em;
+  margin-bottom: 2em;
+}
+.prose blockquote::before {
+  content: "“";
+  position: absolute;
+  left: 0.75rem;
+  top: 0.5rem;
+  font-size: 3rem;
+  line-height: 1;
+  color: var(--brand-accent);
+  font-family: Georgia, serif;
+}
+.prose blockquote p {
+  margin: 0;
 }
 
 :root {

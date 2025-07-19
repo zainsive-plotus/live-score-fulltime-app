@@ -483,5 +483,7 @@
   "general_news_meta_title": "Últimas Noticias y Predicciones Deportivas | FanSkor",
   "general_news_meta_description": "Obtén las últimas noticias y predicciones de baloncesto, tenis y más. Mantente actualizado con todos los eventos deportivos importantes.",
   "football_news": "Noticias de Fútbol",
-  "football_news_description": "Las últimas noticias del mundo del fútbol."
+  "football_news_description": "Las últimas noticias del mundo del fútbol.",
+
+  "table_of_contents": "Tabla de Contenidos"
 }
