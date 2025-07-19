@@ -1,4 +1,3 @@
-// src/components/SidebarNewsItem.tsx
 "use client";
 
 import Link from "next/link";
@@ -10,7 +9,6 @@ interface SidebarNewsItemProps {
   post: IPost;
 }
 
-// Skeleton for the new, compact list item
 export const SidebarNewsItemSkeleton = () => (
   <div className="flex flex-col gap-1.5 p-2 animate-pulse">
     <div className="h-4 w-full rounded bg-gray-700"></div>
@@ -19,7 +17,10 @@ export const SidebarNewsItemSkeleton = () => (
 );
 
 export default function SidebarNewsItem({ post }: SidebarNewsItemProps) {
-  const postUrl = `/football/news/${post.slug}`;
+  // --- START OF MODIFICATION ---
+  // The URL is now always /news/[slug]
+  const postUrl = `/news/${post.slug}`;
+  // --- END OF MODIFICATION ---
 
   return (
     <Link

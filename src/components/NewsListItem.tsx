@@ -1,4 +1,3 @@
-// src/components/NewsListItem.tsx
 "use client";
 
 import Image from "next/image";
@@ -25,14 +24,13 @@ interface NewsListItemProps {
 }
 
 export default function NewsListItem({ post }: NewsListItemProps) {
-  const postUrl = `/football/news/${post.slug}`;
+  // --- START OF MODIFICATION ---
+  // The URL is now always /news/[slug]
+  const postUrl = `/news/${post.slug}`;
+  // --- END OF MODIFICATION ---
 
   return (
-    // --- FIX 1: The flex parent ---
-    // The main container is a flexbox. We set items-center to vertically align content.
     <div className="bg-brand-secondary rounded-lg group flex flex-col sm:flex-row items-center transition-colors hover:bg-gray-800/50">
-      {/* --- Image Container --- */}
-      {/* It has a fixed width and shrinks to 0 height on small screens, letting aspect-video take over. */}
       <StyledLink
         href={postUrl}
         className="block w-full sm:w-48 md:w-56 flex-shrink-0 h-40 sm:h-auto sm:self-stretch"
@@ -55,9 +53,6 @@ export default function NewsListItem({ post }: NewsListItemProps) {
         </div>
       </StyledLink>
 
-      {/* --- FIX 2: The Text Content Container --- */}
-      {/* `min-w-0` is the key fix. It allows this flex item to shrink and its text content to wrap properly. */}
-      {/* `flex-1` ensures it takes up the remaining available space. */}
       <div className="p-6 flex flex-col flex-1 min-w-0">
         <p className="text-sm text-brand-muted mb-2">
           {format(new Date(post.createdAt), "MMMM dd, yyyy")}

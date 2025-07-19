@@ -1,4 +1,3 @@
-// ===== src/components/NotificationItem.tsx =====
 "use client";
 
 import { IPost } from "@/models/Post";
@@ -16,7 +15,10 @@ export default function NotificationItem({
   post,
   onItemClick,
 }: NotificationItemProps) {
-  const postUrl = `/football/news/${post.slug}`;
+  // --- START OF MODIFICATION ---
+  // The URL is now always /news/[slug]
+  const postUrl = `/news/${post.slug}`;
+  // --- END OF MODIFICATION ---
   const placeholderImage = "/images/placeholder-logo.svg";
 
   return (

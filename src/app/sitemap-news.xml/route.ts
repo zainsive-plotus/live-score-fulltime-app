@@ -1,10 +1,10 @@
 import axios from "axios";
-import { IPost } from "@/models/Post"; // Assuming IPost is available here or define it
+import { IPost } from "@/models/Post";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
-const SUPPORTED_LOCALES = ["tr", "en", "de", "fr", "es", "ar", "zu"];
+// We no longer need the full list of locales here, only the default.
 const DEFAULT_LOCALE = "tr";
 
 type SitemapEntry = {
@@ -15,6 +15,7 @@ type SitemapEntry = {
 };
 
 const getPath = (path: string, locale: string) => {
+  // This helper function remains correct. It adds a prefix if the locale is not the default.
   if (locale === DEFAULT_LOCALE) {
     return path;
   }
@@ -46,20 +47,24 @@ export async function GET() {
       `${BASE_URL}/api/posts?status=published`
     );
 
-    const sitemapEntries: SitemapEntry[] = posts.flatMap((post) => {
-      // Determine the correct path based on the sports category
-      const isFootballNews = post.sportsCategory.includes("football");
-      const basePath = isFootballNews
-        ? `/football/news/${post.slug}`
-        : `/news/${post.slug}`;
+    // --- START OF FIX ---
+    // Instead of flatMap, we use a simple map.
+    // For each post, we generate only ONE sitemap entry.
+    const sitemapEntries: SitemapEntry[] = posts.map((post) => {
+      // The canonical path is always /news/[slug]
+      const basePath = `/news/${post.slug}`;
 
-      return SUPPORTED_LOCALES.map((locale) => ({
-        url: `${BASE_URL}${getPath(basePath, locale)}`,
+      // We use the post's OWN language to generate the correct path.
+      const finalPath = getPath(basePath, post.language);
+
+      return {
+        url: `${BASE_URL}${finalPath}`,
         lastModified: new Date(post.updatedAt || post.createdAt),
         changeFrequency: "weekly",
         priority: 0.8,
-      }));
+      };
     });
+    // --- END OF FIX ---
 
     const xml = generateXml(sitemapEntries);
 

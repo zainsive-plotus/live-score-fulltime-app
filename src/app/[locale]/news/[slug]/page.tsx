@@ -1,8 +1,6 @@
-// ===== src/app/[locale]/news/[slug]/page.tsx =====
-
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import dbConnect from "@/lib/dbConnect";
-import Post from "@/models/Post";
+import Post, { IPost } from "@/models/Post";
 import { format } from "date-fns";
 import Header from "@/components/Header";
 import Image from "next/image";
@@ -14,17 +12,51 @@ import { proxyImageUrl } from "@/lib/image-proxy";
 import Script from "next/script";
 import { generateHreflangTags } from "@/lib/hreflang";
 
-// This function can be reused
-async function getPost(slug: string) {
+const DEFAULT_LOCALE = "tr";
+
+async function getPostAndTranslations(
+  slug: string,
+  locale: string
+): Promise<{ postToRender: IPost; allTranslations: IPost[] } | null> {
   await dbConnect();
-  const post: any = await Post.findOne({
-    slug: slug,
+
+  let initialPost = await Post.findOne({
+    slug,
+    language: locale,
     status: "published",
   }).lean();
-  if (!post) {
+
+  if (!initialPost) {
+    initialPost = await Post.findOne({ slug, status: "published" }).lean();
+  }
+
+  if (!initialPost) {
     return null;
   }
-  return post;
+
+  const translationGroupId = initialPost.translationGroupId;
+
+  const allTranslations = await Post.find({
+    translationGroupId,
+    status: "published",
+  }).lean();
+
+  if (allTranslations.length === 0) {
+    return null;
+  }
+
+  let postToRender = allTranslations.find((p) => p.language === locale);
+  if (!postToRender) {
+    postToRender = allTranslations.find((p) => p.language === DEFAULT_LOCALE);
+  }
+  if (!postToRender) {
+    postToRender = allTranslations[0];
+  }
+
+  return {
+    postToRender: postToRender as IPost,
+    allTranslations: allTranslations as IPost[],
+  };
 }
 
 export async function generateMetadata({
@@ -33,42 +65,49 @@ export async function generateMetadata({
   params: { slug: string; locale: string };
 }): Promise<Metadata> {
   const { slug, locale } = params;
-  const post = await getPost(slug);
+  const data = await getPostAndTranslations(slug, locale);
 
-  if (!post) {
+  if (!data) {
     return { title: "Not Found" };
   }
 
-  // Use the new /news path
-  const pagePath = `/news/${post.slug}`;
-  const hreflangAlternates = await generateHreflangTags(pagePath, locale);
+  const { postToRender, allTranslations } = data;
+
+  const pagePath = `/news/${postToRender.slug}`;
+  // We need to update hreflang generation to accept the list of available locales for this specific page
+  const availableLocales = allTranslations.map((p) => p.language);
+  const hreflangAlternates = generateHreflangTags(
+    pagePath,
+    locale,
+    availableLocales
+  );
 
   const description =
-    post.metaDescription ||
-    post.content.replace(/<[^>]*>?/gm, "").substring(0, 160);
+    postToRender.metaDescription ||
+    postToRender.content.replace(/<[^>]*>?/gm, "").substring(0, 160);
 
-  const imageUrl = post.featuredImage
-    ? proxyImageUrl(post.featuredImage)
+  const imageUrl = postToRender.featuredImage
+    ? proxyImageUrl(postToRender.featuredImage)
     : `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/og-image.jpg`;
 
   return {
-    title: post.metaTitle || `${post.title} | Fan Skor`,
+    title: postToRender.metaTitle || `${postToRender.title} | Fan Skor`,
     description: description,
     alternates: hreflangAlternates,
     openGraph: {
-      title: post.metaTitle || post.title,
+      title: postToRender.metaTitle || postToRender.title,
       description: description,
       url: `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/${locale}${pagePath}`,
       type: "article",
-      publishedTime: new Date(post.createdAt).toISOString(),
-      modifiedTime: new Date(post.updatedAt).toISOString(),
-      authors: [post.author || "Fan Skor"],
+      publishedTime: new Date(postToRender.createdAt).toISOString(),
+      modifiedTime: new Date(postToRender.updatedAt).toISOString(),
+      authors: [postToRender.author || "Fan Skor"],
       images: [
         {
           url: imageUrl,
           width: 1200,
           height: 630,
-          alt: post.title,
+          alt: postToRender.title,
         },
       ],
     },
@@ -81,14 +120,22 @@ export default async function GeneralNewsArticlePage({
   params: { slug: string; locale: string };
 }) {
   const { slug, locale } = params;
-  const post = await getPost(slug);
-  const t = await getI18n(locale);
+  const data = await getPostAndTranslations(slug, locale);
 
-  if (!post) {
+  if (!data) {
     notFound();
   }
 
-  // Use the new /news path
+  const { postToRender } = data;
+
+  if (postToRender.language !== locale) {
+    const correctPath = `/${postToRender.language}/news/${postToRender.slug}`;
+    redirect(correctPath);
+  }
+
+  const post = postToRender;
+  const t = await getI18n(locale);
+
   const pagePath = `/news/${post.slug}`;
   const postUrl = `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/${locale}${pagePath}`;
   const description =
@@ -137,7 +184,7 @@ export default async function GeneralNewsArticlePage({
           <div className="lg:col-span-2">
             <article className="bg-brand-secondary rounded-lg overflow-hidden">
               {post.featuredImage && (
-                <div className="relative w-full h-64 md:h-96">
+                <div className="relative w-full aspect-video md:h-[500px]">
                   <Image
                     src={post.featuredImage}
                     alt={post.featuredImageAltText || post.title}
@@ -149,21 +196,19 @@ export default async function GeneralNewsArticlePage({
                 </div>
               )}
 
-              <div className="p-8">
-                <div className="mb-8 text-center border-b border-gray-700/50 pb-8">
-                  <h1 className="text-4xl md:text-5xl font-extrabold text-white leading-tight mb-4">
-                    {post.title}
-                  </h1>
-                  <p className="text-brand-muted">
-                    {t("published_by_on", {
-                      author: post.author,
-                      date: format(new Date(post.createdAt), "MMMM dd, yyyy"),
-                    })}
-                  </p>
-                </div>
+              <div className="p-4 sm:p-6 md:p-8">
+                <h1 className="text-3xl md:text-5xl font-extrabold text-white leading-tight mb-4">
+                  {post.title}
+                </h1>
+                <p className="text-brand-muted mb-6 pb-6 border-b border-gray-700/50">
+                  {t("published_by_on", {
+                    author: post.author,
+                    date: format(new Date(post.createdAt), "MMMM dd, yyyy"),
+                  })}
+                </p>
 
                 <div
-                  className="prose prose-invert lg:prose-xl max-w-none"
+                  className="prose prose-invert prose-lg lg:prose-xl max-w-none"
                   dangerouslySetInnerHTML={{ __html: post.content }}
                 />
 
@@ -177,7 +222,7 @@ export default async function GeneralNewsArticlePage({
             </article>
           </div>
 
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 p-4 lg:p-0">
             <NewsSidebar />
           </div>
         </main>
@@ -186,17 +231,14 @@ export default async function GeneralNewsArticlePage({
   );
 }
 
-// You can reuse the existing generateStaticParams logic if you want to pre-build these pages
 export async function generateStaticParams() {
   await dbConnect();
-  const posts = await Post.find({
-    status: "published",
-    sportsCategory: { $nin: ["football"] }, // Only generate params for non-football posts
-  })
-    .select("slug")
+  const posts = await Post.find({ status: "published" })
+    .select("slug language")
     .lean();
 
   return posts.map((post) => ({
     slug: post.slug,
+    locale: post.language,
   }));
 }

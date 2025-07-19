@@ -1,5 +1,3 @@
-// ===== src/components/SidebarNewsItemWithImage.tsx =====
-
 "use client";
 
 import Link from "next/link";
@@ -26,7 +24,10 @@ export const SidebarNewsItemWithImageSkeleton = () => (
 export default function SidebarNewsItemWithImage({
   post,
 }: SidebarNewsItemWithImageProps) {
-  const postUrl = `/football/news/${post.slug}`;
+  // --- START OF MODIFICATION ---
+  // The URL is now always /news/[slug]
+  const postUrl = `/news/${post.slug}`;
+  // --- END OF MODIFICATION ---
   const placeholderImage = "/images/placeholder-logo.svg";
 
   return (
