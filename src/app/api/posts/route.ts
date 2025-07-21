@@ -1,43 +1,37 @@
-// ===== src/app/api/posts/route.ts (Upgraded) =====
+// ===== src/app/api/posts/route.ts (Enhanced Error Handling) =====
 
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import dbConnect from "@/lib/dbConnect";
-import Post, { IPost, SportsCategory } from "@/models/Post";
+import Post, { IPost } from "@/models/Post";
 import slugify from "slugify";
 import mongoose from "mongoose";
-import { getNews } from "@/lib/data/news"; // <-- 1. IMPORT OUR SMART FUNCTION
+import { getNews } from "@/lib/data/news";
 
 const DEFAULT_LOCALE = "tr";
 
 export async function GET(request: Request) {
+  // ... (GET handler remains the same)
   const { searchParams } = new URL(request.url);
-
-  // 2. GET ALL PARAMETERS FROM THE REQUEST
   const locale = searchParams.get("language") || DEFAULT_LOCALE;
   const limit = searchParams.get("limit");
-  const sportsCategory = searchParams.get(
-    "sportsCategory"
-  ) as SportsCategory | null;
-  const excludeSportsCategory = searchParams.get(
-    "excludeSportsCategory"
-  ) as SportsCategory | null;
-  // Note: We ignore other params like 'status' because getNews handles it.
+  const sportsCategory = searchParams.get("sportsCategory") as
+    | IPost["sportsCategory"][number]
+    | null;
+  const excludeSportsCategory = searchParams.get("excludeSportsCategory") as
+    | IPost["sportsCategory"][number]
+    | null;
 
   try {
-    // 3. CALL OUR CURATED NEWS FUNCTION
     const curatedNews = await getNews({
       locale,
       sportsCategory: sportsCategory || undefined,
       excludeSportsCategory: excludeSportsCategory || undefined,
     });
-
-    // 4. APPLY THE LIMIT AFTER CURATION
     const limitedNews = limit
       ? curatedNews.slice(0, parseInt(limit, 10))
       : curatedNews;
-
     return NextResponse.json(limitedNews);
   } catch (error) {
     console.error("[API/posts GET] Server error fetching posts:", error);
@@ -48,7 +42,6 @@ export async function GET(request: Request) {
   }
 }
 
-// The POST, PUT, DELETE functions remain unchanged, so we keep them.
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") {
@@ -61,24 +54,7 @@ export async function POST(request: Request) {
       translationGroupId?: string;
       slug?: string;
     } = await request.json();
-    const {
-      title,
-      slug,
-      content,
-      status,
-      featuredImage,
-      metaTitle,
-      metaDescription,
-      featuredImageTitle,
-      featuredImageAltText,
-      sportsCategory,
-      newsType,
-      linkedFixtureId,
-      linkedLeagueId,
-      linkedTeamId,
-      language,
-      translationGroupId,
-    } = body;
+    const { title, slug, content, language } = body;
 
     if (!title || !content || !language) {
       return NextResponse.json(
@@ -91,49 +67,46 @@ export async function POST(request: Request) {
 
     const finalSlug = slugify(slug || title, { lower: true, strict: true });
 
+    // This check is good for an immediate response, but the catch block is the ultimate safety net.
     const slugExists = await Post.findOne({ slug: finalSlug, language });
     if (slugExists) {
       return NextResponse.json(
         {
-          error: `A post with the slug '${finalSlug}' already exists for the selected language. Please use a different title or slug.`,
+          error: `A post with the slug '${finalSlug}' already exists in this language.`,
         },
         { status: 409 }
       );
     }
 
-    const finalTranslationGroupId = translationGroupId
-      ? new mongoose.Types.ObjectId(translationGroupId)
-      : new mongoose.Types.ObjectId();
-
     const newPost = new Post({
-      title,
-      content,
-      status,
+      ...body,
       slug: finalSlug,
       author: session.user.name || "Admin",
-      featuredImage,
-      metaTitle,
-      metaDescription,
-      featuredImageTitle,
-      featuredImageAltText,
-      sportsCategory,
-      newsType,
-      linkedFixtureId,
-      linkedLeagueId,
-      linkedTeamId,
-      language,
-      translationGroupId: finalTranslationGroupId,
+      translationGroupId: body.translationGroupId
+        ? new mongoose.Types.ObjectId(body.translationGroupId)
+        : new mongoose.Types.ObjectId(),
     });
 
     await newPost.save();
     return NextResponse.json(newPost, { status: 201 });
   } catch (error: any) {
+    // --- THIS IS THE KEY CHANGE ---
+    // Check for MongoDB's duplicate key error
+    if (error.code === 11000) {
+      return NextResponse.json(
+        {
+          error:
+            "This slug is already in use for this language. Please choose a unique slug.",
+        },
+        { status: 409 } // 409 Conflict is the correct status code
+      );
+    }
     if (error.name === "ValidationError") {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
     console.error("[API/posts POST] Server error creating post:", error);
     return NextResponse.json(
-      { error: "Server error creating post" },
+      { error: "An unexpected server error occurred while creating the post." },
       { status: 500 }
     );
   }

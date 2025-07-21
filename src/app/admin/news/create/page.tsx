@@ -1,3 +1,5 @@
+// ===== src/app/admin/news/create/page.tsx (Corrected with Meta Fields) =====
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -7,16 +9,7 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import Link from "@/components/StyledLink";
 import Image from "next/image";
-import {
-  UploadCloud,
-  XCircle,
-  Link2,
-  Type,
-  Tag,
-  Languages,
-  Save,
-  Loader2,
-} from "lucide-react";
+import { UploadCloud, XCircle, Save, Loader2 } from "lucide-react";
 import RichTextEditor from "@/components/admin/RichTextEditor";
 import { SportsCategory, NewsType } from "@/models/Post";
 import { ILanguage } from "@/models/Language";
@@ -45,7 +38,6 @@ export default function CreateNewsPostPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // States
   const [language, setLanguage] = useState("");
   const [translationGroupId, setTranslationGroupId] = useState<
     string | undefined
@@ -76,18 +68,18 @@ export default function CreateNewsPostPage() {
     queryFn: fetchActiveLanguages,
   });
 
-  // Handlers and Effects
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTitle = e.target.value;
     setTitle(newTitle);
     if (!isSlugManuallyEdited) {
-      setSlug(
-        slugify(newTitle, {
-          lower: true,
-          strict: true,
-          remove: /[*+~.()'"!:@]/g,
-        })
-      );
+      const newSlug = slugify(newTitle, {
+        lower: true,
+        strict: true,
+        remove: /[*+~.()'"!:@]/g,
+      });
+      setSlug(newSlug);
+      // Also pre-fill meta title
+      setMetaTitle(newTitle);
     }
   };
 
@@ -100,17 +92,27 @@ export default function CreateNewsPostPage() {
     const fromGroupId = searchParams.get("from");
     const langCode = searchParams.get("lang");
     const fromTitle = searchParams.get("title");
+    const fromImage = searchParams.get("image");
+    const fromCategories = searchParams.get("categories");
+
     if (fromGroupId && langCode && fromTitle) {
       setTranslationGroupId(fromGroupId);
       setLanguage(langCode);
       setTitle(fromTitle);
-      setSlug(
-        slugify(fromTitle, {
-          lower: true,
-          strict: true,
-          remove: /[*+~.()'"!:@]/g,
-        })
-      );
+      const newSlug = slugify(fromTitle, {
+        lower: true,
+        strict: true,
+        remove: /[*+~.()'"!:@]/g,
+      });
+      setSlug(newSlug);
+      setMetaTitle(fromTitle); // Pre-fill meta title
+
+      if (fromImage) setFeaturedImage(fromImage);
+      if (fromCategories)
+        setSelectedSportsCategories(
+          fromCategories.split(",") as SportsCategory[]
+        );
+
       toast.success(`Creating new translation for "${langCode.toUpperCase()}"`);
     }
   }, [searchParams]);
@@ -207,7 +209,6 @@ export default function CreateNewsPostPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        {/* Main Content Column */}
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-brand-secondary p-6 rounded-lg space-y-6">
             <div>
@@ -255,7 +256,6 @@ export default function CreateNewsPostPage() {
           </div>
         </div>
 
-        {/* Sticky Settings Sidebar */}
         <aside className="lg:col-span-1 space-y-6 lg:sticky top-8">
           <div className="bg-brand-secondary p-4 rounded-lg space-y-4">
             <h3 className="text-lg font-semibold text-white">Publishing</h3>
@@ -353,7 +353,6 @@ export default function CreateNewsPostPage() {
             </div>
           </div>
 
-          {/* --- START OF FILLED-IN CODE --- */}
           <div className="bg-brand-secondary p-4 rounded-lg space-y-4">
             <h3 className="text-lg font-semibold text-white">Featured Image</h3>
             <div className="mt-2 flex justify-center rounded-lg border border-dashed border-gray-600 px-4 py-6">
@@ -392,7 +391,6 @@ export default function CreateNewsPostPage() {
                         accept="image/*"
                       />
                     </label>
-                    <p className="pl-1">or drag & drop</p>
                   </div>
                 </div>
               )}
@@ -433,6 +431,7 @@ export default function CreateNewsPostPage() {
             )}
           </div>
 
+          {/* --- SEO & Linking Section --- */}
           <div className="bg-brand-secondary p-4 rounded-lg space-y-4">
             <h3 className="text-lg font-semibold text-white">SEO & Linking</h3>
             <div>
@@ -513,7 +512,6 @@ export default function CreateNewsPostPage() {
               </div>
             </div>
           </div>
-          {/* --- END OF FILLED-IN CODE --- */}
         </aside>
       </div>
     </form>

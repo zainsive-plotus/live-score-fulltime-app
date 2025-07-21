@@ -1,4 +1,4 @@
-// ===== src/components/admin/TranslationGroupRow.tsx (Corrected) =====
+// ===== src/components/admin/TranslationGroupRow.tsx (Updated) =====
 
 "use client";
 
@@ -7,7 +7,7 @@ import Image from "next/image";
 import { format } from "date-fns";
 import { IPost } from "@/models/Post";
 import { ILanguage } from "@/models/Language";
-import { Edit, Plus, Trash2, Globe } from "lucide-react";
+import { Edit, Plus, Trash2 } from "lucide-react";
 
 interface TranslationGroupRowProps {
   group: IPost[];
@@ -20,7 +20,6 @@ export default function TranslationGroupRow({
   languageMap,
   onDelete,
 }: TranslationGroupRowProps) {
-  // Sort by creation date to ensure the "master" is always the first one created
   const sortedGroup = [...group].sort(
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
@@ -29,7 +28,6 @@ export default function TranslationGroupRow({
     sortedGroup.map((p) => [p.language, p])
   );
 
-  // Get all active languages to determine what translations can be added
   const allActiveLanguages = Array.from(languageMap.values())
     .filter((lang) => lang.isActive)
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -52,7 +50,6 @@ export default function TranslationGroupRow({
 
   return (
     <tr className="border-t-2 border-gray-800 bg-brand-secondary hover:bg-gray-800/50 transition-colors">
-      {/* Preview Image Column */}
       <td className="p-4 w-[140px] align-top">
         {masterPost.featuredImage ? (
           <Image
@@ -69,8 +66,6 @@ export default function TranslationGroupRow({
           </div>
         )}
       </td>
-
-      {/* Title & Language Column */}
       <td className="p-4 align-top" colSpan={2}>
         <div className="flex flex-col gap-3">
           <Link href={`/admin/news/edit/${masterPost._id}`}>
@@ -87,10 +82,14 @@ export default function TranslationGroupRow({
                 ? `/admin/news/edit/${translation._id}`
                 : {
                     pathname: "/admin/news/create",
+                    // --- THIS IS THE KEY CHANGE ---
                     query: {
                       from: masterPost.translationGroupId.toString(),
                       lang: lang.code,
                       title: `[${lang.code.toUpperCase()}] ${masterPost.title}`,
+                      // Add the image and categories from the master post
+                      image: masterPost.featuredImage || "",
+                      categories: masterPost.sportsCategory.join(","),
                     },
                   };
 
@@ -122,7 +121,6 @@ export default function TranslationGroupRow({
                     <span className="sm:hidden">{lang.code.toUpperCase()}</span>
                     {isAvailable ? <Edit size={12} /> : <Plus size={12} />}
                   </Link>
-                  {/* INDIVIDUAL DELETE BUTTON */}
                   {isAvailable && (
                     <button
                       onClick={() =>
@@ -140,8 +138,6 @@ export default function TranslationGroupRow({
           </div>
         </div>
       </td>
-
-      {/* Status & Date Column */}
       <td className="p-4 align-middle text-sm text-center">
         <div>
           <span
@@ -158,8 +154,6 @@ export default function TranslationGroupRow({
           </p>
         </div>
       </td>
-
-      {/* Group Actions Column */}
       <td className="p-4 align-middle text-center">
         <button
           onClick={handleDeleteAll}

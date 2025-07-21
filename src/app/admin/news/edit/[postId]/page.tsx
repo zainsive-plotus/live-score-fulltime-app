@@ -1,28 +1,27 @@
+// ===== src/app/admin/news/edit/[postId]/page.tsx (Corrected with Meta Fields) =====
+
 "use client";
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import toast from "react-hot-toast";
-import Link from "@/components/StyledLink";
 import Image from "next/image";
-import {
-  UploadCloud,
-  XCircle,
-  Loader2,
-  CheckCircle,
-  Link2,
-  Type,
-  Tag,
-  Languages,
-  Save,
-} from "lucide-react";
-import RichTextEditor from "@/components/admin/RichTextEditor";
-import { IPost, SportsCategory, NewsType } from "@/models/Post";
-import TranslationsWidget from "@/components/admin/TranslationsWidget";
 import slugify from "slugify";
 
+// Component Imports
+import StyledLink from "@/components/StyledLink";
+import RichTextEditor from "@/components/admin/RichTextEditor";
+import TranslationsWidget from "@/components/admin/TranslationsWidget";
+
+// Icon Imports
+import { UploadCloud, XCircle, Save, Loader2 } from "lucide-react";
+
+// Type Imports
+import { IPost, SportsCategory, NewsType } from "@/models/Post";
+
+// Static Data for Form Fields
 const availableSportsCategories: { id: SportsCategory; label: string }[] = [
   { id: "football", label: "Football" },
   { id: "basketball", label: "Basketball" },
@@ -37,6 +36,7 @@ const availableNewsTypes: { id: NewsType; label: string }[] = [
   { id: "prediction", label: "Prediction/Analysis" },
 ];
 
+// Data Fetching Function
 const fetchPost = async (postId: string): Promise<IPost> => {
   const { data } = await axios.get(`/api/posts/${postId}`);
   return data;
@@ -45,12 +45,13 @@ const fetchPost = async (postId: string): Promise<IPost> => {
 export default function EditNewsPostPage() {
   const router = useRouter();
   const params = useParams();
+  const queryClient = useQueryClient();
   const postId = params.postId as string;
 
-  // States
+  // --- Form State ---
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
-  const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(true); // Default to true on edit page
+  const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(true);
   const [content, setContent] = useState("");
   const [status, setStatus] = useState<"draft" | "published">("draft");
   const [metaTitle, setMetaTitle] = useState("");
@@ -69,6 +70,7 @@ export default function EditNewsPostPage() {
   const [language, setLanguage] = useState("");
   const [translationGroupId, setTranslationGroupId] = useState("");
 
+  // --- Data Fetching for the Post ---
   const {
     data: postData,
     isLoading,
@@ -79,12 +81,13 @@ export default function EditNewsPostPage() {
     enabled: !!postId,
   });
 
+  // --- Effect to Populate Form from Fetched Data (Robustly) ---
   useEffect(() => {
     if (postData) {
-      setTitle(postData.title);
-      setSlug(postData.slug);
-      setContent(postData.content);
-      setStatus(postData.status);
+      setTitle(postData.title || "");
+      setSlug(postData.slug || "");
+      setContent(postData.content || "");
+      setStatus(postData.status || "draft");
       setMetaTitle(postData.metaTitle || "");
       setMetaDescription(postData.metaDescription || "");
       setFeaturedImage(postData.featuredImage || null);
@@ -100,12 +103,13 @@ export default function EditNewsPostPage() {
       setLinkedFixtureId(postData.linkedFixtureId?.toString() || "");
       setLinkedLeagueId(postData.linkedLeagueId?.toString() || "");
       setLinkedTeamId(postData.linkedTeamId?.toString() || "");
-      setLanguage(postData.language);
-      setTranslationGroupId(postData.translationGroupId.toString());
-      setIsSlugManuallyEdited(true); // Always allow manual edits on the edit page
+      setLanguage(postData.language || "");
+      setTranslationGroupId(postData.translationGroupId?.toString() || "");
+      setIsSlugManuallyEdited(true);
     }
   }, [postData]);
 
+  // --- Handlers for Form Interactions ---
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTitle = e.target.value;
     setTitle(newTitle);
@@ -151,16 +155,23 @@ export default function EditNewsPostPage() {
     }
   };
 
+  // --- Mutation to Update the Post (with Enhanced Error Handling) ---
   const updatePostMutation = useMutation({
     mutationFn: (updatedPost: Partial<IPost> & { slug?: string }) =>
       axios.put(`/api/posts/${postId}`, updatedPost),
     onSuccess: () => {
       toast.success("Post updated successfully!");
+      queryClient.invalidateQueries({ queryKey: ["adminPosts"] });
+      queryClient.invalidateQueries({ queryKey: ["post", postId] });
       router.push("/admin/news");
-      router.refresh();
     },
-    onError: (error: any) =>
-      toast.error(error.response?.data?.error || "Failed to update post."),
+    onError: (error: any) => {
+      if (error.response && error.response.data && error.response.data.error) {
+        toast.error(`Error: ${error.response.data.error}`);
+      } else {
+        toast.error("An unexpected error occurred while saving the post.");
+      }
+    },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -196,12 +207,12 @@ export default function EditNewsPostPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-white">Edit Post</h1>
         <div className="flex gap-4">
-          <Link
+          <StyledLink
             href="/admin/news"
             className="bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:opacity-90"
           >
             Cancel
-          </Link>
+          </StyledLink>
           <button
             type="submit"
             disabled={updatePostMutation.isPending || isUploading}
@@ -218,7 +229,6 @@ export default function EditNewsPostPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        {/* Main Content Column */}
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-brand-secondary p-6 rounded-lg space-y-6">
             <div>
@@ -268,7 +278,6 @@ export default function EditNewsPostPage() {
           </div>
         </div>
 
-        {/* Sticky Settings Sidebar */}
         <aside className="lg:col-span-1 space-y-6 lg:sticky top-8">
           <div className="bg-brand-secondary p-4 rounded-lg space-y-4">
             <h3 className="text-lg font-semibold text-white">Publishing</h3>
@@ -391,7 +400,6 @@ export default function EditNewsPostPage() {
                         accept="image/*"
                       />
                     </label>
-                    <p className="pl-1">or drag & drop</p>
                   </div>
                 </div>
               )}
@@ -432,6 +440,7 @@ export default function EditNewsPostPage() {
             )}
           </div>
 
+          {/* --- SEO & Linking Section --- */}
           <div className="bg-brand-secondary p-4 rounded-lg space-y-4">
             <h3 className="text-lg font-semibold text-white">SEO & Linking</h3>
             <div>
