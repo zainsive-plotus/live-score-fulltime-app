@@ -1,3 +1,5 @@
+// ===== src/components/admin/TranslationGroupRow.tsx (Corrected) =====
+
 "use client";
 
 import Link from "next/link";
@@ -5,12 +7,12 @@ import Image from "next/image";
 import { format } from "date-fns";
 import { IPost } from "@/models/Post";
 import { ILanguage } from "@/models/Language";
-import { Edit, Plus, Trash2 } from "lucide-react";
+import { Edit, Plus, Trash2, Globe } from "lucide-react";
 
 interface TranslationGroupRowProps {
   group: IPost[];
   languageMap: Map<string, ILanguage>;
-  onDelete: (postId: string) => void;
+  onDelete: (postId: string, title: string) => void;
 }
 
 export default function TranslationGroupRow({
@@ -18,22 +20,40 @@ export default function TranslationGroupRow({
   languageMap,
   onDelete,
 }: TranslationGroupRowProps) {
+  // Sort by creation date to ensure the "master" is always the first one created
   const sortedGroup = [...group].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
   const masterPost = sortedGroup[0];
   const existingTranslationsMap = new Map(
     sortedGroup.map((p) => [p.language, p])
   );
+
+  // Get all active languages to determine what translations can be added
   const allActiveLanguages = Array.from(languageMap.values())
     .filter((lang) => lang.isActive)
     .sort((a, b) => a.name.localeCompare(b.name));
 
+  const handleDeleteAll = () => {
+    if (
+      window.confirm(
+        `Are you sure you want to delete the post "${
+          masterPost.title
+        }" AND all of its ${
+          group.length - 1
+        } translations? This action cannot be undone.`
+      )
+    ) {
+      group.forEach((post) => {
+        onDelete(post._id as string, post.title);
+      });
+    }
+  };
+
   return (
-    // --- START OF FIX: Use a single <tr> for the entire group ---
     <tr className="border-t-2 border-gray-800 bg-brand-secondary hover:bg-gray-800/50 transition-colors">
-      {/* Column 1: Image */}
-      <td className="p-4 w-[140px]">
+      {/* Preview Image Column */}
+      <td className="p-4 w-[140px] align-top">
         {masterPost.featuredImage ? (
           <Image
             src={masterPost.featuredImage}
@@ -50,8 +70,8 @@ export default function TranslationGroupRow({
         )}
       </td>
 
-      {/* Column 2: Main Info (Title + Pills) */}
-      <td className="p-4" colSpan={2}>
+      {/* Title & Language Column */}
+      <td className="p-4 align-top" colSpan={2}>
         <div className="flex flex-col gap-3">
           <Link href={`/admin/news/edit/${masterPost._id}`}>
             <h3 className="font-bold text-white text-base hover:text-brand-purple transition-colors">
@@ -79,14 +99,11 @@ export default function TranslationGroupRow({
                 : `Add ${lang.name} translation`;
 
               return (
-                <Link
-                  key={lang.code}
-                  href={linkHref}
-                  title={linkTitle}
-                  className="flex-shrink-0"
-                >
-                  <span
-                    className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
+                <div key={lang.code} className="relative group/item">
+                  <Link
+                    href={linkHref}
+                    title={linkTitle}
+                    className={`flex-shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
                       isAvailable
                         ? "bg-blue-500/10 text-blue-300 border-blue-500/30 hover:bg-blue-500/20"
                         : "bg-gray-700/50 text-gray-400 border-gray-600/50 hover:bg-gray-700"
@@ -104,15 +121,27 @@ export default function TranslationGroupRow({
                     <span className="hidden sm:inline">{lang.name}</span>
                     <span className="sm:hidden">{lang.code.toUpperCase()}</span>
                     {isAvailable ? <Edit size={12} /> : <Plus size={12} />}
-                  </span>
-                </Link>
+                  </Link>
+                  {/* INDIVIDUAL DELETE BUTTON */}
+                  {isAvailable && (
+                    <button
+                      onClick={() =>
+                        onDelete(translation._id as string, translation.title)
+                      }
+                      className="absolute -top-2 -right-2 z-10 p-0.5 bg-red-600 text-white rounded-full opacity-0 group-hover/item:opacity-100 transition-opacity hover:bg-red-500"
+                      title={`Delete ${lang.name} translation`}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  )}
+                </div>
               );
             })}
           </div>
         </div>
       </td>
 
-      {/* Column 3: Status & Date */}
+      {/* Status & Date Column */}
       <td className="p-4 align-middle text-sm text-center">
         <div>
           <span
@@ -130,29 +159,16 @@ export default function TranslationGroupRow({
         </div>
       </td>
 
-      {/* Column 4: Actions (Delete entire group) */}
-      <td className="p-4 align-middle">
+      {/* Group Actions Column */}
+      <td className="p-4 align-middle text-center">
         <button
-          onClick={() => {
-            if (
-              window.confirm(
-                "Are you sure you want to delete this post AND all its translations? This action cannot be undone."
-              )
-            ) {
-              // This is a placeholder for a future "delete all" function.
-              // For now, we only allow deleting individual posts.
-              toast.error(
-                "Group deletion not yet implemented. Please delete translations individually."
-              );
-            }
-          }}
+          onClick={handleDeleteAll}
           className="text-gray-500 hover:text-red-400 transition-colors"
-          title="Delete entire translation group (coming soon)"
+          title="Delete entire translation group"
         >
           <Trash2 size={18} />
         </button>
       </td>
     </tr>
-    // --- END OF FIX ---
   );
 }

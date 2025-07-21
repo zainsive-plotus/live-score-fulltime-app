@@ -12,7 +12,6 @@ import { useMemo } from "react";
 import { ILanguage } from "@/models/Language";
 import TranslationGroupRow from "@/components/admin/TranslationGroupRow";
 
-// 1. Point the data-fetching function to the new, dedicated admin API endpoint
 const fetchAdminPosts = async (): Promise<IPost[]> => {
   const { data } = await axios.get("/api/admin/posts");
   return data;
@@ -31,8 +30,8 @@ export default function AdminNewsPage() {
     isLoading: isLoadingPosts,
     error: postsError,
   } = useQuery<IPost[]>({
-    queryKey: ["adminPosts"], // The queryKey remains the same
-    queryFn: fetchAdminPosts, // 2. Use the new function here
+    queryKey: ["adminPosts"],
+    queryFn: fetchAdminPosts,
   });
 
   const { data: languages, isLoading: isLoadingLanguages } = useQuery<
@@ -51,7 +50,6 @@ export default function AdminNewsPage() {
     if (!posts) return [];
     const groups: Record<string, IPost[]> = {};
     posts.forEach((post) => {
-      // Use the translationGroupId OR the post's own _id for grouping
       const groupId = (post.translationGroupId || post._id).toString();
       if (!groups[groupId]) {
         groups[groupId] = [];
@@ -59,26 +57,43 @@ export default function AdminNewsPage() {
       groups[groupId].push(post);
     });
 
-    // Sort groups by the most recent post within each group
     return Object.values(groups).sort((a, b) => {
-      const dateA = new Date(a[0].createdAt).getTime();
-      const dateB = new Date(b[0].createdAt).getTime();
+      const dateA = new Date(
+        a.sort(
+          (x, y) =>
+            new Date(y.createdAt).getTime() - new Date(x.createdAt).getTime()
+        )[0].createdAt
+      ).getTime();
+      const dateB = new Date(
+        b.sort(
+          (x, y) =>
+            new Date(y.createdAt).getTime() - new Date(x.createdAt).getTime()
+        )[0].createdAt
+      ).getTime();
       return dateB - dateA;
     });
   }, [posts]);
 
   const deleteMutation = useMutation({
     mutationFn: (postId: string) => axios.delete(`/api/posts/${postId}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["adminPosts"] });
+    onSuccess: (_, postId) => {
+      // Optimistically update the UI before refetching
+      queryClient.setQueryData(["adminPosts"], (oldData: IPost[] | undefined) =>
+        oldData ? oldData.filter((post) => post._id !== postId) : []
+      );
       toast.success("Post deleted successfully!");
     },
     onError: (error: any) => {
       const message = error.response?.data?.message || "Error deleting post.";
       toast.error(message);
     },
+    onSettled: () => {
+      // Refetch to ensure data consistency
+      queryClient.invalidateQueries({ queryKey: ["adminPosts"] });
+    },
   });
 
+  // This handler is now passed to the child component
   const handleDeletePost = (postId: string, title: string) => {
     if (
       window.confirm(
@@ -127,7 +142,7 @@ export default function AdminNewsPage() {
                 }
                 group={group}
                 languageMap={languageMap}
-                onDelete={handleDeletePost}
+                onDelete={handleDeletePost} // Pass the handler here
               />
             ))}
           </tbody>
