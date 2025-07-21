@@ -6,17 +6,17 @@ import { IPost } from "@/models/Post";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Info } from "lucide-react";
 import Pagination from "@/components/Pagination";
-import NewsListItemCompact, {
-  NewsListItemCompactSkeleton,
-} from "@/components/NewsListItemCompact";
+import NewsCard, { NewsCardSkeleton } from "@/components/NewsCard"; // <-- Import our new single card
 
-const ITEMS_PER_PAGE = 10; // We can show more items in this compact layout
+const ITEMS_PER_PAGE = 12; // Increased items per page for a more compact feel
 
-interface NewsPageClientProps {
+interface GeneralNewsClientProps {
   initialNews: IPost[];
 }
 
-export default function NewsPageClient({ initialNews }: NewsPageClientProps) {
+export default function GeneralNewsClient({
+  initialNews,
+}: GeneralNewsClientProps) {
   const { t } = useTranslation();
   const pathname = usePathname();
   const [currentPage, setCurrentPage] = useState(1);
@@ -39,21 +39,23 @@ export default function NewsPageClient({ initialNews }: NewsPageClientProps) {
         <p className="text-xl font-bold text-white">
           {t("no_news_found_title")}
         </p>
-        <p className="text-brand-muted mt-2">
-          {t("no_football_news_found_subtitle")}
-        </p>
+        <p className="text-brand-muted mt-2">{t("no_news_found_subtitle")}</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {paginatedData.map((post) => (
-        <NewsListItemCompact key={post._id as string} post={post} />
-      ))}
+    <div className="space-y-8">
+      {/* A clean, responsive grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {paginatedData.map((post) => (
+          <NewsCard key={post._id as string} post={post} />
+        ))}
+      </div>
 
+      {/* Pagination */}
       {totalPages > 1 && (
-        <div className="pt-4">
+        <div className="pt-8">
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}
