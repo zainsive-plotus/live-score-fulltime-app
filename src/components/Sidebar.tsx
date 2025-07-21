@@ -112,7 +112,7 @@ export default function Sidebar() {
   return (
     <aside className="hidden lg:block">
       <div className="flex flex-col gap-4 h-auto">
-        <CasinoPartnerWidget />
+        {/* <CasinoPartnerWidget /> */}
 
         <section
           className="flex flex-col gap-2 p-3 rounded-xl"

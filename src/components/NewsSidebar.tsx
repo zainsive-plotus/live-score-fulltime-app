@@ -21,7 +21,7 @@ export default function NewsSidebar({
 
       <AdSlotWidget location="news_sidebar" />
       <RecentNewsWidget />
-      <CasinoPartnerWidget />
+      {/* <CasinoPartnerWidget /> */}
       {/* Added a second ad slot for better monetization opportunities */}
       <AdSlotWidget location="news_sidebar_bottom" />
     </aside>

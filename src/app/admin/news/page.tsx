@@ -1,3 +1,5 @@
+// ===== src/app/admin/news/page.tsx (Corrected) =====
+
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -8,10 +10,11 @@ import { IPost } from "@/models/Post";
 import toast from "react-hot-toast";
 import { useMemo } from "react";
 import { ILanguage } from "@/models/Language";
-import TranslationGroupRow from "@/components/admin/TranslationGroupRow"; // Import the new component
+import TranslationGroupRow from "@/components/admin/TranslationGroupRow";
 
-const fetchPosts = async (): Promise<IPost[]> => {
-  const { data } = await axios.get("/api/posts");
+// 1. Point the data-fetching function to the new, dedicated admin API endpoint
+const fetchAdminPosts = async (): Promise<IPost[]> => {
+  const { data } = await axios.get("/api/admin/posts");
   return data;
 };
 
@@ -28,8 +31,8 @@ export default function AdminNewsPage() {
     isLoading: isLoadingPosts,
     error: postsError,
   } = useQuery<IPost[]>({
-    queryKey: ["adminPosts"],
-    queryFn: fetchPosts,
+    queryKey: ["adminPosts"], // The queryKey remains the same
+    queryFn: fetchAdminPosts, // 2. Use the new function here
   });
 
   const { data: languages, isLoading: isLoadingLanguages } = useQuery<
@@ -48,6 +51,7 @@ export default function AdminNewsPage() {
     if (!posts) return [];
     const groups: Record<string, IPost[]> = {};
     posts.forEach((post) => {
+      // Use the translationGroupId OR the post's own _id for grouping
       const groupId = (post.translationGroupId || post._id).toString();
       if (!groups[groupId]) {
         groups[groupId] = [];
@@ -55,20 +59,10 @@ export default function AdminNewsPage() {
       groups[groupId].push(post);
     });
 
+    // Sort groups by the most recent post within each group
     return Object.values(groups).sort((a, b) => {
-      // Sort by the master post's creation date
-      const dateA = new Date(
-        a.sort(
-          (x, y) =>
-            new Date(y.createdAt).getTime() - new Date(x.createdAt).getTime()
-        )[0].createdAt
-      ).getTime();
-      const dateB = new Date(
-        b.sort(
-          (x, y) =>
-            new Date(y.createdAt).getTime() - new Date(x.createdAt).getTime()
-        )[0].createdAt
-      ).getTime();
+      const dateA = new Date(a[0].createdAt).getTime();
+      const dateB = new Date(b[0].createdAt).getTime();
       return dateB - dateA;
     });
   }, [posts]);
@@ -85,8 +79,14 @@ export default function AdminNewsPage() {
     },
   });
 
-  const handleDeletePost = (postId: string) => {
-    deleteMutation.mutate(postId);
+  const handleDeletePost = (postId: string, title: string) => {
+    if (
+      window.confirm(
+        `Are you sure you want to delete the post "${title}"? This cannot be undone.`
+      )
+    ) {
+      deleteMutation.mutate(postId);
+    }
   };
 
   const isLoading = isLoadingPosts || isLoadingLanguages;
@@ -121,7 +121,10 @@ export default function AdminNewsPage() {
           <tbody>
             {groupedPosts.map((group) => (
               <TranslationGroupRow
-                key={group[0].translationGroupId.toString()}
+                key={
+                  group[0].translationGroupId?.toString() ||
+                  group[0]._id.toString()
+                }
                 group={group}
                 languageMap={languageMap}
                 onDelete={handleDeletePost}

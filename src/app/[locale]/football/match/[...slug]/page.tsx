@@ -180,7 +180,7 @@ export default async function MatchDetailPage({
           {isLive && <LiveOddsWidget fixtureId={fixtureId} />}
           <LinkedNewsWidget fixtureId={fixture.fixture.id} />
           <MatchHighlightsWidget fixtureId={fixtureId} />
-          <CasinoPartnerWidget />
+          {/* <CasinoPartnerWidget /> */}
           <TeamStandingsWidget
             leagueId={fixture.league.id}
             season={fixture.league.season}
