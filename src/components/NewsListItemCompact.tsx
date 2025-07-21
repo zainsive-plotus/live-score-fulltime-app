@@ -41,7 +41,12 @@ export default function NewsListItemCompact({
   const { t } = useTranslation();
   if (!post) return null;
 
-  const postUrl = `/${post.language}/news/${post.slug}`;
+  // ===== THIS IS THE FIX =====
+  // Create a root-relative path WITHOUT the locale.
+  // StyledLink will add the correct locale automatically.
+  const postUrl = `/news/${post.slug}`;
+  // ==========================
+
   const placeholderImage = "/images/placeholder-logo.svg";
 
   return (

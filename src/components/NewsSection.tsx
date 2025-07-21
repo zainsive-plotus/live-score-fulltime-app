@@ -5,30 +5,36 @@ import axios from "axios";
 import { IPost } from "@/models/Post";
 import StyledLink from "./StyledLink";
 import { ArrowRight, Newspaper, Info } from "lucide-react";
-import { useTranslation } from "@/hooks/useTranslation";
+import { useTranslation } from "@/hooks/useTranslation"; // <-- 1. Import the hook
 import SidebarNewsItemWithImage, {
   SidebarNewsItemWithImageSkeleton,
 } from "./SidebarNewsItemWithImage";
 
-const fetchNews = async (limit: number = 5): Promise<IPost[]> => {
+const fetchNews = async (
+  limit: number = 5,
+  locale: string
+): Promise<IPost[]> => {
+  // 2. Add locale to the function and the API call
   const { data } = await axios.get(
-    `/api/posts?status=published&limit=${limit}`
+    `/api/posts?status=published&limit=${limit}&language=${locale}`
   );
   return data;
 };
 
 export default function NewsSection() {
+  const { t, locale } = useTranslation(); // <-- 3. Get the current locale
+
   const {
     data: news,
     isLoading,
     isError,
   } = useQuery<IPost[]>({
-    queryKey: ["newsArticlesSidebarWidget"],
-    queryFn: () => fetchNews(5),
+    // 4. Add locale to the queryKey to ensure refetching on language change
+    queryKey: ["newsArticlesSidebarWidget", locale],
+    queryFn: () => fetchNews(5, locale!),
     staleTime: 1000 * 60 * 10,
+    enabled: !!locale, // Ensure the query only runs when locale is available
   });
-
-  const { t } = useTranslation();
 
   return (
     <section className="bg-brand-secondary rounded-lg shadow-lg">
@@ -38,7 +44,7 @@ export default function NewsSection() {
           {t("latest_news")}
         </h3>
         <StyledLink
-          href="/football/news"
+          href="/news" // General news link
           className="flex items-center gap-1 text-xs font-semibold text-text-muted transition-colors hover:text-white"
         >
           {t("see_all")}
