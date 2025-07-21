@@ -1,3 +1,5 @@
+// ===== src/app/[locale]/news/[slug]/page.tsx (AI Crawlability Enhanced) =====
+
 import { notFound, redirect } from "next/navigation";
 import dbConnect from "@/lib/dbConnect";
 import Post, { IPost } from "@/models/Post";
@@ -11,10 +13,13 @@ import { getI18n } from "@/lib/i18n/server";
 import { proxyImageUrl } from "@/lib/image-proxy";
 import Script from "next/script";
 import { generateHreflangTags } from "@/lib/hreflang";
-import { generateTableOfContents } from "@/lib/toc"; // Import our new utility
-import TableOfContents from "@/components/TableOfContents"; // Import our new component
+import { generateTableOfContents } from "@/lib/toc";
+import TableOfContents from "@/components/TableOfContents";
+import { WithContext, NewsArticle, BreadcrumbList } from "schema-dts"; // Import schema types
 
 const DEFAULT_LOCALE = "tr";
+const BASE_URL =
+  process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
 async function getPostAndTranslations(
   slug: string,
@@ -56,8 +61,8 @@ async function getPostAndTranslations(
   }
 
   return {
-    postToRender: postToRender as IPost,
-    allTranslations: allTranslations as IPost[],
+    postToRender: JSON.parse(JSON.stringify(postToRender)),
+    allTranslations: JSON.parse(JSON.stringify(allTranslations)),
   };
 }
 
@@ -89,7 +94,7 @@ export async function generateMetadata({
 
   const imageUrl = postToRender.featuredImage
     ? proxyImageUrl(postToRender.featuredImage)
-    : `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/og-image.jpg`;
+    : `${BASE_URL}/og-image.jpg`;
 
   return {
     title: postToRender.metaTitle || `${postToRender.title} | Fan Skor`,
@@ -98,7 +103,7 @@ export async function generateMetadata({
     openGraph: {
       title: postToRender.metaTitle || postToRender.title,
       description: description,
-      url: `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/${locale}${pagePath}`,
+      url: `${BASE_URL}/${locale}${pagePath}`,
       type: "article",
       publishedTime: new Date(postToRender.createdAt).toISOString(),
       modifiedTime: new Date(postToRender.updatedAt).toISOString(),
@@ -137,45 +142,67 @@ export default async function GeneralNewsArticlePage({
   const post = postToRender;
   const t = await getI18n(locale);
 
-  // --- START OF NEW LOGIC ---
-  // Generate the ToC and the processed HTML on the server
   const { processedHtml, toc } = generateTableOfContents(post.content);
-  // --- END OF NEW LOGIC ---
 
   const pagePath = `/news/${post.slug}`;
-  const postUrl = `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/${locale}${pagePath}`;
+  const postUrl = `${BASE_URL}/${locale}${pagePath}`;
   const description =
     post.metaDescription ||
     post.content.replace(/<[^>]*>?/gm, "").substring(0, 160);
-  const imageUrl =
-    post.featuredImage ||
-    `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/og-image.jpg`;
+  const imageUrl = post.featuredImage || `${BASE_URL}/og-image.jpg`;
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "NewsArticle",
-    mainEntityOfPage: {
-      "@type": "WebPage",
-      "@id": postUrl,
-    },
-    headline: post.title,
-    image: imageUrl,
-    datePublished: new Date(post.createdAt).toISOString(),
-    dateModified: new Date(post.updatedAt).toISOString(),
-    author: {
-      "@type": "Organization",
-      name: post.author || "Fan Skor",
-    },
-    publisher: {
-      "@type": "Organization",
-      name: "Fan Skor",
-      logo: {
-        "@type": "ImageObject",
-        url: `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/fanskor-transparent.webp`,
+  // --- ENHANCED JSON-LD STRUCTURED DATA ---
+  const jsonLd: WithContext<NewsArticle | BreadcrumbList>[] = [
+    {
+      "@context": "https://schema.org",
+      "@type": "NewsArticle",
+      mainEntityOfPage: {
+        "@type": "WebPage",
+        "@id": postUrl,
       },
+      headline: post.title,
+      image: [imageUrl],
+      datePublished: new Date(post.createdAt).toISOString(),
+      dateModified: new Date(post.updatedAt).toISOString(),
+      author: {
+        "@type": "Organization", // Using Organization as author is robust
+        name: "Fan Skor",
+        url: BASE_URL,
+      },
+      publisher: {
+        "@type": "Organization",
+        name: "Fan Skor",
+        logo: {
+          "@type": "ImageObject",
+          url: `${BASE_URL}/fanskor-transparent.webp`,
+        },
+      },
+      description: description,
     },
-    description: description,
-  };
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        {
+          "@type": "ListItem",
+          position: 1,
+          name: t("homepage"),
+          item: `${BASE_URL}/${locale}`,
+        },
+        {
+          "@type": "ListItem",
+          position: 2,
+          name: t("news"),
+          item: `${BASE_URL}/${locale}/news`,
+        },
+        {
+          "@type": "ListItem",
+          position: 3,
+          name: post.title,
+        },
+      ],
+    },
+  ];
 
   return (
     <>
@@ -213,9 +240,10 @@ export default async function GeneralNewsArticlePage({
                   })}
                 </p>
 
-                {/* Render the HTML with IDs that our utility function added */}
+                {toc.length > 0 && <TableOfContents toc={toc} />}
+
                 <div
-                  className="prose prose-invert prose-lg lg:prose-xl max-w-none"
+                  className="prose prose-invert prose-lg lg:prose-xl max-w-none mt-8"
                   dangerouslySetInnerHTML={{ __html: processedHtml }}
                 />
 
@@ -230,10 +258,7 @@ export default async function GeneralNewsArticlePage({
           </div>
 
           <div className="lg:col-span-1">
-            {/* Pass the ToC component as a child to the sidebar */}
-            <NewsSidebar>
-              <TableOfContents toc={toc} />
-            </NewsSidebar>
+            <NewsSidebar />
           </div>
         </main>
       </div>
