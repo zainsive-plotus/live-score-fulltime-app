@@ -24,10 +24,11 @@ export const SidebarNewsItemWithImageSkeleton = () => (
 export default function SidebarNewsItemWithImage({
   post,
 }: SidebarNewsItemWithImageProps) {
-  // --- START OF MODIFICATION ---
-  // The URL is now always /news/[slug]
-  const postUrl = `/news/${post.slug}`;
-  // --- END OF MODIFICATION ---
+  // ===== THIS IS THE FIX =====
+  // Create a locale-prefixed path manually, because this component does not use StyledLink.
+  const postUrl = `/${post.language}/news/${post.slug}`;
+  // ==========================
+
   const placeholderImage = "/images/placeholder-logo.svg";
 
   return (

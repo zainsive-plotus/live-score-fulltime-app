@@ -1,53 +1,46 @@
+// ===== src/app/api/posts/route.ts (Upgraded) =====
+
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import dbConnect from "@/lib/dbConnect";
-import Post, { IPost } from "@/models/Post";
+import Post, { IPost, SportsCategory } from "@/models/Post";
 import slugify from "slugify";
-import ExternalNewsArticle from "@/models/ExternalNewsArticle";
 import mongoose from "mongoose";
+import { getNews } from "@/lib/data/news"; // <-- 1. IMPORT OUR SMART FUNCTION
 
-// The GET function remains unchanged.
+const DEFAULT_LOCALE = "tr";
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const status = searchParams.get("status");
+
+  // 2. GET ALL PARAMETERS FROM THE REQUEST
+  const locale = searchParams.get("language") || DEFAULT_LOCALE;
   const limit = searchParams.get("limit");
-  const linkedFixtureId = searchParams.get("linkedFixtureId");
-  const linkedLeagueId = searchParams.get("linkedLeagueId");
-  const linkedTeamId = searchParams.get("linkedTeamId");
-  const sportsCategory = searchParams.get("sportsCategory");
-  const excludeSportsCategory = searchParams.get("excludeSportsCategory");
-
-  const query: any = {};
-  if (status) query.status = status;
-  if (linkedFixtureId) query.linkedFixtureId = Number(linkedFixtureId);
-  if (linkedLeagueId) query.linkedLeagueId = Number(linkedLeagueId);
-  if (linkedTeamId) query.linkedTeamId = Number(linkedTeamId);
-
-  if (sportsCategory) {
-    query.sportsCategory = { $in: [sportsCategory] };
-  } else if (excludeSportsCategory) {
-    query.sportsCategory = { $nin: [excludeSportsCategory] };
-  }
+  const sportsCategory = searchParams.get(
+    "sportsCategory"
+  ) as SportsCategory | null;
+  const excludeSportsCategory = searchParams.get(
+    "excludeSportsCategory"
+  ) as SportsCategory | null;
+  // Note: We ignore other params like 'status' because getNews handles it.
 
   try {
-    await dbConnect();
-    let postsQuery = Post.find(query).sort({ createdAt: -1 });
-
-    if (limit) {
-      postsQuery = postsQuery.limit(parseInt(limit));
-    }
-
-    postsQuery = postsQuery.populate({
-      path: "originalExternalArticleId",
-      model: ExternalNewsArticle,
-      select: "title link",
+    // 3. CALL OUR CURATED NEWS FUNCTION
+    const curatedNews = await getNews({
+      locale,
+      sportsCategory: sportsCategory || undefined,
+      excludeSportsCategory: excludeSportsCategory || undefined,
     });
 
-    const posts = await postsQuery;
-    return NextResponse.json(posts);
+    // 4. APPLY THE LIMIT AFTER CURATION
+    const limitedNews = limit
+      ? curatedNews.slice(0, parseInt(limit, 10))
+      : curatedNews;
+
+    return NextResponse.json(limitedNews);
   } catch (error) {
-    console.error("Error fetching posts:", error);
+    console.error("[API/posts GET] Server error fetching posts:", error);
     return NextResponse.json(
       { error: "Server error fetching posts" },
       { status: 500 }
@@ -55,7 +48,7 @@ export async function GET(request: Request) {
   }
 }
 
-// ----- REPLACE THE ENTIRE POST FUNCTION WITH THIS NEW VERSION -----
+// The POST, PUT, DELETE functions remain unchanged, so we keep them.
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") {
@@ -70,7 +63,7 @@ export async function POST(request: Request) {
     } = await request.json();
     const {
       title,
-      slug, // Now we accept a slug from the client
+      slug,
       content,
       status,
       featuredImage,
@@ -96,11 +89,8 @@ export async function POST(request: Request) {
 
     await dbConnect();
 
-    // If a slug is provided, use it. Otherwise, generate it from the title.
-    // Always run it through slugify to ensure it's clean.
     const finalSlug = slugify(slug || title, { lower: true, strict: true });
 
-    // Check for slug uniqueness WITHIN the same language
     const slugExists = await Post.findOne({ slug: finalSlug, language });
     if (slugExists) {
       return NextResponse.json(
@@ -119,7 +109,7 @@ export async function POST(request: Request) {
       title,
       content,
       status,
-      slug: finalSlug, // Use the final, clean slug
+      slug: finalSlug,
       author: session.user.name || "Admin",
       featuredImage,
       metaTitle,
@@ -141,7 +131,7 @@ export async function POST(request: Request) {
     if (error.name === "ValidationError") {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
-    console.error("Error creating post:", error);
+    console.error("[API/posts POST] Server error creating post:", error);
     return NextResponse.json(
       { error: "Server error creating post" },
       { status: 500 }

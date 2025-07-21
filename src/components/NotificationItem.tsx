@@ -1,7 +1,7 @@
 "use client";
 
 import { IPost } from "@/models/Post";
-import Link from "next/link";
+import Link from "next/link"; // <-- Using NextLink directly is fine here
 import Image from "next/image";
 import { formatDistanceToNow } from "date-fns";
 import { proxyImageUrl } from "@/lib/image-proxy";
@@ -15,10 +15,12 @@ export default function NotificationItem({
   post,
   onItemClick,
 }: NotificationItemProps) {
-  // --- START OF MODIFICATION ---
-  // The URL is now always /news/[slug]
-  const postUrl = `/news/${post.slug}`;
-  // --- END OF MODIFICATION ---
+  // ===== THIS IS THE FIX =====
+  // Create a locale-prefixed path manually because StyledLink is not used.
+  // We use the language property from the post object itself.
+  const postUrl = `/${post.language}/news/${post.slug}`;
+  // ==========================
+
   const placeholderImage = "/images/placeholder-logo.svg";
 
   return (

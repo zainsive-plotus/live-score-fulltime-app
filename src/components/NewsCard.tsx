@@ -13,18 +13,21 @@ interface NewsCardProps {
 }
 
 const categoryColors: Record<string, string> = {
-  prediction: "bg-blue-500/20 text-blue-300",
-  reviews: "bg-indigo-500/20 text-indigo-300",
-  highlights: "bg-amber-500/20 text-amber-300",
-  news: "bg-gray-500/20 text-gray-300",
+  prediction: "bg-blue-500/10 text-blue-300",
+  reviews: "bg-indigo-500/10 text-indigo-300",
+  highlights: "bg-amber-500/10 text-amber-300",
+  news: "bg-gray-500/10 text-gray-400",
 };
 
 export default function NewsCard({ post, variant = "grid" }: NewsCardProps) {
   const { t } = useTranslation();
   if (!post) return null;
 
-  // Each post's link must be constructed with its own language
-  const postUrl = `/${post.language}/news/${post.slug}`;
+  // ===== THIS IS THE FIX =====
+  // Create a root-relative path WITHOUT the locale.
+  const postUrl = `/news/${post.slug}`;
+  // ==========================
+
   const placeholderImage = "/images/placeholder-logo.svg";
 
   if (variant === "featured") {
@@ -85,30 +88,27 @@ export default function NewsCard({ post, variant = "grid" }: NewsCardProps) {
           className="transition-transform duration-300 group-hover:scale-105"
         />
       </div>
-      <div className="p-5 flex flex-col flex-grow">
-        <span
-          className={`text-xs font-bold px-2 py-1 rounded-full mb-3 self-start ${
-            categoryColors[post.newsType] || categoryColors.news
-          }`}
-        >
-          {t(post.newsType)}
-        </span>
-        <h3 className="font-bold text-white leading-tight text-lg line-clamp-3 mb-3 flex-grow group-hover:text-brand-purple transition-colors">
-          {post.title}
-        </h3>
-        <div className="flex items-center justify-between text-xs text-brand-muted mt-auto">
-          <div className="flex items-center gap-1.5">
+      <div className="p-4 flex flex-col flex-grow">
+        <div className="flex items-center gap-2 mb-3">
+          <span
+            className={`text-xs font-bold px-2 py-1 rounded-full ${
+              categoryColors[post.newsType] || categoryColors.news
+            }`}
+          >
+            {t(post.newsType)}
+          </span>
+          <span className="text-xs text-brand-muted flex items-center gap-1.5 ml-auto">
             <Calendar size={12} />
             <time dateTime={new Date(post.createdAt).toISOString()}>
               {formatDistanceToNow(new Date(post.createdAt), {
                 addSuffix: true,
               })}
             </time>
-          </div>
-          <div className="flex items-center gap-1 text-brand-purple opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            {t("read_more")} <ArrowRight size={12} />
-          </div>
+          </span>
         </div>
+        <h3 className="font-bold text-white leading-tight text-base line-clamp-3 flex-grow group-hover:text-brand-purple transition-colors">
+          {post.title}
+        </h3>
       </div>
     </StyledLink>
   );
@@ -126,8 +126,8 @@ export const NewsCardSkeleton = ({
   }
   return (
     <div className="bg-brand-secondary rounded-xl animate-pulse">
-      <div className="aspect-video w-full bg-gray-700/50"></div>
-      <div className="p-5 space-y-3">
+      <div className="aspect-video w-full bg-gray-700/50 rounded-t-xl"></div>
+      <div className="p-4 space-y-3">
         <div className="h-4 w-1/3 bg-gray-700 rounded"></div>
         <div className="h-5 w-full bg-gray-700 rounded"></div>
         <div className="h-5 w-4/5 bg-gray-700 rounded"></div>

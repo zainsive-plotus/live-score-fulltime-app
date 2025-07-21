@@ -1,3 +1,5 @@
+// ===== src/lib/data/news.ts (Corrected with a working Aggregation) =====
+
 import "server-only";
 import dbConnect from "@/lib/dbConnect";
 import Post, { IPost, SportsCategory } from "@/models/Post";
@@ -11,9 +13,9 @@ interface GetNewsParams {
 }
 
 /**
- * Fetches published news and curates the list based on the user's locale.
- * For each translation group, it prioritizes the requested locale, then falls back to the default locale.
- * This ensures a complete list is always shown.
+ * Fetches and curates published news using a robust MongoDB aggregation pipeline.
+ * This is highly efficient as it performs the language fallback logic directly in the database.
+ * It correctly handles both groups of translated articles and single, untranslated articles.
  * @param params - The parameters for fetching news, including locale and category filters.
  * @returns A promise that resolves to an array of IPost objects, curated for the locale.
  */
@@ -23,59 +25,77 @@ export async function getNews(params: GetNewsParams): Promise<IPost[]> {
   try {
     await dbConnect();
 
-    // Build the query based on parameters
-    const query: any = { status: "published" };
+    // 1. Initial Filtering Stage: Get all relevant posts.
+    const matchStage: any = { status: "published" };
     if (sportsCategory) {
-      query.sportsCategory = { $in: [sportsCategory] };
+      matchStage.sportsCategory = { $in: [sportsCategory] };
     }
     if (excludeSportsCategory) {
-      query.sportsCategory = { $nin: [excludeSportsCategory] };
+      matchStage.sportsCategory = { $nin: [excludeSportsCategory] };
     }
 
-    const allPosts = await Post.find(query).sort({ createdAt: -1 }).lean();
+    const pipeline = [
+      { $match: matchStage },
+      // 2. Create an 'effectiveGroupId' to handle both translated and single posts.
+      // This is the key fix: Use translationGroupId if it exists, otherwise fallback to the post's own _id.
+      {
+        $addFields: {
+          effectiveGroupId: { $ifNull: ["$translationGroupId", "$_id"] },
+        },
+      },
+      // 3. Add a priority field for sorting based on language preference.
+      {
+        $addFields: {
+          langPriority: {
+            $cond: {
+              if: { $eq: ["$language", locale] },
+              then: 1,
+              else: {
+                $cond: {
+                  if: { $eq: ["$language", DEFAULT_LOCALE] },
+                  then: 2,
+                  else: 3,
+                },
+              },
+            },
+          },
+        },
+      },
+      // 4. Sort by our new effective group ID, then by our language priority.
+      // This brings the "best" language version to the top of each group.
+      {
+        $sort: {
+          effectiveGroupId: 1,
+          langPriority: 1,
+        },
+      },
+      // 5. Group by the effectiveGroupId and pick the FIRST document (which is now the best one).
+      {
+        $group: {
+          _id: "$effectiveGroupId",
+          document: { $first: "$$ROOT" },
+        },
+      },
+      // 6. Reshape the output to be a flat list of documents.
+      {
+        $replaceRoot: {
+          newRoot: "$document",
+        },
+      },
+      // 7. Final sort by creation date for the entire curated list.
+      {
+        $sort: {
+          createdAt: -1,
+        },
+      },
+    ];
 
-    if (!allPosts || allPosts.length === 0) {
-      return [];
-    }
+    const curatedNews = await Post.aggregate(pipeline);
 
-    const groupedByTranslationId = new Map<string, IPost[]>();
-
-    // Group all posts by their translationGroupId
-    for (const post of allPosts) {
-      const groupId = post.translationGroupId.toString();
-      if (!groupedByTranslationId.has(groupId)) {
-        groupedByTranslationId.set(groupId, []);
-      }
-      groupedByTranslationId.get(groupId)!.push(post);
-    }
-
-    const curatedNews: IPost[] = [];
-
-    // For each group, select the best version for the current locale
-    for (const group of groupedByTranslationId.values()) {
-      const postInLocale = group.find((p) => p.language === locale);
-      const postInDefaultLocale = group.find(
-        (p) => p.language === DEFAULT_LOCALE
-      );
-
-      // Priority: Current Locale > Default Locale > First available
-      const postToShow = postInLocale || postInDefaultLocale || group[0];
-
-      if (postToShow) {
-        curatedNews.push(postToShow);
-      }
-    }
-
-    // Ensure the final list is sorted by the creation date of the selected post
-    curatedNews.sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-
-    // Serialize the result to ensure it's a plain object for the client
+    // The result from aggregate needs to be serialized for the client.
     return JSON.parse(JSON.stringify(curatedNews));
   } catch (error) {
-    console.error("[getNews] Failed to fetch news:", error);
-    return []; // Guarantee an empty array is returned on any error
+    console.error("[getNews with Aggregation] Failed to fetch news:", error);
+    return []; // Guarantee an empty array on any error.
   }
 }

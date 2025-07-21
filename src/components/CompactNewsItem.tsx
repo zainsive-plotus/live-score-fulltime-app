@@ -1,6 +1,4 @@
-// ===== src/components/CompactNewsItem.tsx =====
-
-"use client"; // Add this directive at the top
+"use client";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -28,7 +26,12 @@ export function CompactNewsItemSkeleton() {
 export default function CompactNewsItem({ post }: CompactNewsItemProps) {
   if (!post) return null;
 
-  const postUrl = `/news/${post.slug}`;
+  // ===== THIS IS THE FIX =====
+  // Create a locale-prefixed path manually, because this component does not use StyledLink.
+  // We use the language property from the post object itself to ensure correctness.
+  const postUrl = `/${post.language}/news/${post.slug}`;
+  // ==========================
+
   const placeholderImage = "/images/placeholder-logo.svg";
 
   return (
