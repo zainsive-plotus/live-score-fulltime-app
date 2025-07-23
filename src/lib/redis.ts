@@ -4,7 +4,7 @@ import Redis from "ioredis";
 import "server-only";
 
 // Ensure the REDIS_URL is defined in your environment variables
-if (!process.env.REDIS_URL) {
+if (!process.env.NEXT_PUBLIC_REDIS_URL) {
   throw new Error("REDIS_URL is not defined in environment variables.");
 }
 
@@ -16,7 +16,7 @@ declare global {
   var redis: Redis | undefined;
 }
 
-const redis = global.redis || new Redis(process.env.REDIS_URL);
+const redis = global.redis || new Redis(process.env.NEXT_PUBLIC_REDIS_URL ?? "");
 
 if (process.env.NODE_ENV !== "production") {
   global.redis = redis;
