@@ -51,6 +51,7 @@ const TeamRow = ({
         alt={team.name}
         width={24}
         height={24}
+        unoptimized={true}
       />
       <span
         className={`font-semibold text-sm truncate ${
