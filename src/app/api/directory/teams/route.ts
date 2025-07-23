@@ -1,50 +1,58 @@
+// ===== src/app/api/directory/teams/route.ts (Redis Enhanced) =====
+
 import { NextResponse } from 'next/server';
 import axios from 'axios';
+import redis from '@/lib/redis'; // <-- 1. Import our Redis client
 
-// A curated list of popular league IDs to source teams from.
 const POPULAR_LEAGUE_IDS = [
-  39,  // England - Premier League
-  140, // Spain - La Liga
-  135, // Italy - Serie A
-  78,  // Germany - Bundesliga
-  61,  // France - Ligue 1
-  88,  // Netherlands - Eredivisie
-  94,  // Portugal - Primeira Liga
-  253, // USA - MLS
-  2,   // UEFA Champions League
+  39, 140, 135, 78, 61, 88, 94, 253, 2,
 ];
-
 const season = new Date().getFullYear();
+const CACHE_KEY = `teams:popular:${season}`;
+const CACHE_TTL_SECONDS = 60 * 60 * 24; // Cache for 24 hours
 
-// This function handles GET requests to /api/directory/teams
 export async function GET() {
-  const options = (leagueId: number) => ({
-    method: 'GET',
-    url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/teams`,
-    params: { league: leagueId, season: season },
-    headers: { 'x-apisports-key': process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
-  });
-
   try {
-    // 1. Fetch all teams from all popular leagues in parallel
+    // 2. Check Redis for cached data first
+    const cachedData = await redis.get(CACHE_KEY);
+    if (cachedData) {
+      console.log(`[Cache HIT] Returning cached data for key: ${CACHE_KEY}`);
+      return NextResponse.json(JSON.parse(cachedData));
+    }
+
+    // 3. Cache Miss: Fetch fresh data from the external API
+    console.log(`[Cache MISS] Fetching fresh data for key: ${CACHE_KEY}`);
+    
+    const options = (leagueId: number) => ({
+      method: 'GET',
+      url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/teams`,
+      params: { league: leagueId, season: season },
+      headers: { 'x-apisports-key': process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
+    });
+
     const teamPromises = POPULAR_LEAGUE_IDS.map(id => axios.request(options(id)));
     const responses = await Promise.allSettled(teamPromises);
 
-    // 2. Aggregate all teams and filter out any failed requests
     const allTeamsResponses = responses
-      .filter(result => result.status === 'fulfilled')
+      .filter(result => result.status === 'fulfilled' && result.value.data.response)
       .flatMap(result => (result as PromiseFulfilledResult<any>).value.data.response);
 
-    // 3. De-duplicate the teams using a Map (a team can be in a league and a cup)
+    // Using a Map ensures we only have unique teams, even if they play in multiple popular leagues
     const uniqueTeams = Array.from(new Map(allTeamsResponses.map(item => [item.team.id, item])).values());
 
-    // 4. Sort the final list alphabetically for a better user experience
     uniqueTeams.sort((a, b) => a.team.name.localeCompare(b.team.name));
-    
+
+    // 4. Store the newly fetched data in Redis with an expiration
+    if (uniqueTeams.length > 0) {
+      await redis.set(CACHE_KEY, JSON.stringify(uniqueTeams), "EX", CACHE_TTL_SECONDS);
+      console.log(`[Cache SET] Stored fresh data for key: ${CACHE_KEY}`);
+    }
+
+    // 5. Return the fresh data
     return NextResponse.json(uniqueTeams);
 
   } catch (error) {
-    console.error("Error fetching teams for directory:", error);
+    console.error('[API/directory/teams] Error fetching teams data:', error);
     return NextResponse.json(
       { error: 'Failed to fetch teams data.' },
       { status: 500 }
