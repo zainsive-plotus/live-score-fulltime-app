@@ -61,6 +61,7 @@ const LeagueList = ({ leagues }: { leagues: League[] }) => {
                   width={24}
                   height={24}
                   className="flex-shrink-0"
+                  unoptimized={true}
                 />
                 <span
                   className={`font-bold text-sm truncate ${
