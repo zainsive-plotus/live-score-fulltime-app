@@ -10,6 +10,9 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const imageUrl = searchParams.get("url");
 
+  console.log("proxy called");
+  
+
   if (!imageUrl) {
     return NextResponse.json(
       { error: "Image URL is required" },
