@@ -1,11 +1,14 @@
-// src/app/api/match-details/route.ts
+// ===== src/app/api/match-details/route.ts (Redis Enhanced) =====
 
 import { NextResponse } from "next/server";
 import axios from "axios";
+import redis from "@/lib/redis"; // <-- Import Redis client
 
-// ====================================================================
-// --- FANSKOR PREDICTION ENGINE V3.0 (Weather Removed) ---
-// ====================================================================
+// --- Cache Durations (in seconds) ---
+const CACHE_TTL_LIVE = 30;          // 30 seconds for live matches
+const CACHE_TTL_UPCOMING = 30;    // 1 hour for upcoming matches
+const CACHE_TTL_FINISHED = 604800;  // 7 days for finished matches
+
 const calculateCustomPrediction = (
   h2h: any[],
   homeTeamStats: any,
@@ -13,8 +16,7 @@ const calculateCustomPrediction = (
   homeTeamId: number,
   homeTeamRank: number | undefined,
   awayTeamRank: number | undefined,
-  // weatherData parameter removed
-  matchEvents: any[],
+  matchEvents: any[] | null,
   matchStatus: string
 ) => {
   const config = {
@@ -25,21 +27,15 @@ const calculateCustomPrediction = (
       rankDifference: 0.8,
       goalDifference: 6,
       xGInfluence: 3,
-      // weatherInfluence config removed
       matchActivity: 0.5,
       liveMatchBonus: 5,
     },
     h2hMaxGames: 5,
     drawWeight: 0.85,
   };
-
   let homeScore = 0;
   let awayScore = 0;
-
-  // 1. Home Advantage
   homeScore += config.weights.homeAdvantage;
-
-  // 2. Momentum (Recent Form)
   const calculateForm = (formString: string): number => {
     return (
       (formString.match(/W/g) || []).length * 3 +
@@ -50,30 +46,22 @@ const calculateCustomPrediction = (
   const awayFormString = awayTeamStats?.form || "";
   homeScore += calculateForm(homeFormString) * config.weights.form;
   awayScore += calculateForm(awayFormString) * config.weights.form;
-
-  // 3. Goal Form (Average Goal Difference)
   const homeGoalsForAvg = homeTeamStats?.goals?.for?.average?.total ?? 0;
   const homeGoalsAgainstAvg =
     homeTeamStats?.goals?.against?.average?.total ?? 0;
   const awayGoalsForAvg = awayTeamStats?.goals?.for?.average?.total ?? 0;
   const awayGoalsAgainstAvg =
     awayTeamStats?.goals?.against?.average?.total ?? 0;
-
   const homeGoalDiff = homeGoalsForAvg - homeGoalsAgainstAvg;
   const awayGoalDiff = awayGoalsForAvg - awayGoalsAgainstAvg;
   homeScore += homeGoalDiff * config.weights.goalDifference;
   awayScore += awayGoalDiff * config.weights.goalDifference;
-
-  // 4. Simulated Expected Goals (xG)
   const simulateXG = (avgGoals: number) => Math.min(avgGoals * 1.1, 3.0);
   const homeXG = simulateXG(homeGoalsForAvg);
   const awayXG = simulateXG(awayGoalsForAvg);
-
   const xgDiff = homeXG - awayXG;
   homeScore += xgDiff * config.weights.xGInfluence;
   awayScore -= xgDiff * config.weights.xGInfluence;
-
-  // 5. Head-to-Head (H2H) Records
   if (h2h && h2h.length > 0) {
     h2h.slice(0, config.h2hMaxGames).forEach((match) => {
       if (match.teams.home.winner) {
@@ -85,14 +73,11 @@ const calculateCustomPrediction = (
           ? (homeScore += config.weights.h2h)
           : (awayScore += config.weights.h2h);
       } else {
-        // It was a draw
         homeScore += config.weights.h2h / 2;
         awayScore += config.weights.h2h / 2;
       }
     });
   }
-
-  // 6. League Rank Difference
   if (homeTeamRank != null && awayTeamRank != null) {
     const rankDiff = Math.abs(homeTeamRank - awayTeamRank);
     if (homeTeamRank < awayTeamRank) {
@@ -101,27 +86,20 @@ const calculateCustomPrediction = (
       awayScore += rankDiff * config.weights.rankDifference;
     }
   }
-
-  // 7. Weather Conditions (Logic removed)
-  // The weather influence logic is entirely removed.
-
-  // 8. Match Activity Analysis
   const isLiveMatch = ["1H", "HT", "2H", "ET", "BT", "P", "LIVE"].includes(
     matchStatus
   );
   if (isLiveMatch) {
     homeScore += config.weights.liveMatchBonus;
     awayScore += config.weights.liveMatchBonus;
-    const recentEventsCount = matchEvents.filter(
+    const recentEventsCount = matchEvents?.filter(
       (event: any) =>
         (event.type === "Goal" || event.type === "Card") &&
         event.time.elapsed > (matchStatus === "1H" ? 1 : 45)
-    ).length;
+    ).length || 0;
     homeScore += recentEventsCount * config.weights.matchActivity;
     awayScore += recentEventsCount * config.weights.matchActivity;
   }
-
-  // --- Final Calculation & Normalization ---
   homeScore = Math.max(1, homeScore);
   awayScore = Math.max(1, awayScore);
   const drawScore =
@@ -129,15 +107,12 @@ const calculateCustomPrediction = (
     (1 - Math.abs(homeScore - awayScore) / (homeScore + awayScore)) *
     config.drawWeight;
   const totalPoints = homeScore + awayScore + drawScore;
-
   if (totalPoints <= 1) {
     return { home: 33, draw: 34, away: 33 };
   }
-
   let homePercent = Math.round((homeScore / totalPoints) * 100);
   let awayPercent = Math.round((awayScore / totalPoints) * 100);
   let drawPercent = 100 - homePercent - awayPercent;
-
   if (homePercent + awayPercent + drawPercent !== 100) {
     const diff = 100 - (homePercent + awayPercent + drawPercent);
     if (homePercent >= awayPercent && homePercent >= drawPercent) {
@@ -148,7 +123,6 @@ const calculateCustomPrediction = (
       drawPercent += diff;
     }
   }
-
   return {
     home: homePercent,
     draw: drawPercent,
@@ -156,13 +130,12 @@ const calculateCustomPrediction = (
   };
 };
 
-// --- Helper to convert percentages to decimal odds (Unchanged) ---
 const convertPercentageToOdds = (percent: number): string => {
   if (percent <= 0) return "INF";
   return (100 / percent).toFixed(2);
 };
 
-// --- The main data fetching function ---
+// This function now only contains the logic to fetch from the external API
 const fetchAllDataForFixture = async (fixtureId: string | number) => {
   const options = (endpoint: string, params: object) => ({
     method: "GET",
@@ -182,7 +155,6 @@ const fetchAllDataForFixture = async (fixtureId: string | number) => {
 
   const { league, teams } = fixtureData;
   const { home: homeTeam, away: awayTeam } = teams;
-  // venueLat and venueLon extraction removed
 
   const [
     eventsResponse,
@@ -218,7 +190,6 @@ const fetchAllDataForFixture = async (fixtureId: string | number) => {
     axios.request(
       options("standings", { league: league.id, season: league.season })
     ),
-    // Weather API request removed
   ]);
 
   const standings =
@@ -237,7 +208,6 @@ const fetchAllDataForFixture = async (fixtureId: string | number) => {
     homeTeam.id,
     homeTeamRank,
     awayTeamRank,
-    // null, // weatherData parameter removed
     eventsResponse.data.response,
     fixtureData.fixture.status.short
   );
@@ -266,7 +236,6 @@ const fetchAllDataForFixture = async (fixtureId: string | number) => {
   };
 };
 
-// --- The GET handler that the frontend calls ---
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const fixtureId = searchParams.get("fixture");
@@ -277,10 +246,36 @@ export async function GET(request: Request) {
       { status: 400 }
     );
   }
+  
+  const cacheKey = `match-details:${fixtureId}`;
 
   try {
+    // Check Redis first
+    const cachedData = await redis.get(cacheKey);
+    if (cachedData) {
+      console.log(`[Cache HIT] Returning cached data for key: ${cacheKey}`);
+      return NextResponse.json(JSON.parse(cachedData));
+    }
+
+    // Cache Miss: Fetch fresh data
+    console.log(`[Cache MISS] Fetching fresh data for key: ${cacheKey}`);
     const matchDetails = await fetchAllDataForFixture(fixtureId);
+    
+    // Determine the correct cache duration based on match status
+    const status = matchDetails.fixture.fixture.status.short;
+    let ttl = CACHE_TTL_UPCOMING;
+    if (["1H", "HT", "2H", "ET", "P", "LIVE"].includes(status)) {
+      ttl = CACHE_TTL_LIVE;
+    } else if (["FT", "AET", "PEN"].includes(status)) {
+      ttl = CACHE_TTL_FINISHED;
+    }
+    
+    // Store the fresh data in Redis
+    await redis.set(cacheKey, JSON.stringify(matchDetails), "EX", ttl);
+    console.log(`[Cache SET] Stored fresh data for key: ${cacheKey} with TTL: ${ttl}s`);
+
     return NextResponse.json(matchDetails);
+
   } catch (error: any) {
     console.error(
       `[API /match-details] Error for fixture ${fixtureId}:`,

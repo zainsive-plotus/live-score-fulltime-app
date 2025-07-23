@@ -1,20 +1,34 @@
-// src/lib/data/team.ts
-import axios from 'axios';
+// ===== src/lib/data/team.ts (Redis Enhanced) =====
 
-// This function contains the core logic that was previously inside your API route.
-// It can be called from ANY server-side code (Server Components, API Routes, etc.).
+import axios from 'axios';
+import redis from '@/lib/redis'; // <-- 1. Import Redis client
+
+const CACHE_TTL_SECONDS = 60 * 60 * 12; // Cache team data for 12 hours
+
 export async function fetchTeamDetails(teamId: string) {
     const season = new Date().getFullYear().toString();
-
-    const options = (endpoint: string, params: object) => ({
-        method: 'GET',
-        url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/${endpoint}`,
-        params,
-        headers: { 'x-apisports-key': process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
-    });
+    
+    // 2. Create a unique cache key for this team and season
+    const cacheKey = `team-details:${teamId}:${season}`;
 
     try {
-        // Fetch all data in parallel for maximum efficiency
+        // 3. Check Redis first
+        const cachedData = await redis.get(cacheKey);
+        if (cachedData) {
+            console.log(`[Cache HIT] Returning cached data for key: ${cacheKey}`);
+            return JSON.parse(cachedData);
+        }
+
+        // 4. Cache Miss: Fetch fresh data from the external API
+        console.log(`[Cache MISS] Fetching fresh data for key: ${cacheKey}`);
+        
+        const options = (endpoint: string, params: object) => ({
+            method: 'GET',
+            url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/${endpoint}`,
+            params,
+            headers: { 'x-apisports-key': process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
+        });
+
         const [
             teamInfoResponse,
             squadResponse,
@@ -27,11 +41,9 @@ export async function fetchTeamDetails(teamId: string) {
             axios.request(options('standings', { team: teamId, season: season })),
         ]);
 
-        // Check if the primary team info fetch failed
         if (!teamInfoResponse.data.response || teamInfoResponse.data.response.length === 0) {
-            // Returning null is better than throwing an error here,
-            // as the calling page can handle it gracefully with notFound().
-            return null; 
+            console.warn(`[API/team] No team info found for ID: ${teamId}`);
+            return null;
         }
 
         const responseData = {
@@ -41,11 +53,14 @@ export async function fetchTeamDetails(teamId: string) {
             standings: standingsResponse.data.response,
         };
 
+        // 5. Store the combined fresh data in Redis
+        await redis.set(cacheKey, JSON.stringify(responseData), "EX", CACHE_TTL_SECONDS);
+        console.log(`[Cache SET] Stored fresh data for key: ${cacheKey}`);
+        
         return responseData;
 
     } catch (error) {
-        console.error(`[ServerLib] Error fetching details for team ${teamId}:`, error);
-        // It's crucial to return null so the page can handle the error.
-        return null; 
+        console.error(`[fetchTeamDetails] Error fetching details for team ${teamId}:`, error);
+        return null;
     }
 }
