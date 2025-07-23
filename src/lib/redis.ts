@@ -1,30 +1,33 @@
-// ===== src/lib/redis.ts =====
-
+// ===== src/lib/redis.ts (Failsafe Method) =====
+import 'dotenv/config';
 import Redis from "ioredis";
 import "server-only";
 
-// Ensure the REDIS_URL is defined in your environment variables
-if (!process.env.NEXT_PUBLIC_REDIS_URL) {
-  throw new Error("REDIS_URL is not defined in environment variables.");
+// Check for the separate variables
+if (!process.env.NEXT_PUBLIC_REDIS_HOST || !process.env.NEXT_PUBLIC_REDIS_PORT || !process.env.NEXT_PUBLIC_REDIS_PASSWORD) {
+  throw new Error("Redis connection details are not defined in environment variables.");
 }
 
-// This is a singleton pattern. It prevents creating a new Redis connection on every server-side render or API call.
-// In a serverless environment, this helps reuse connections across invocations.
 declare global {
-  // allow global `var` declarations
-  // eslint-disable-next-line no-var
   var redis: Redis | undefined;
 }
 
-const redis = global.redis || new Redis(process.env.NEXT_PUBLIC_REDIS_URL ?? "");
+// Build the connection from an object instead of a URL string
+const redis = global.redis || new Redis({
+  host: process.env.NEXT_PUBLIC_REDIS_HOST,
+  port: parseInt(process.env.NEXT_PUBLIC_REDIS_PORT, 10),
+  password: process.env.NEXT_PUBLIC_REDIS_PASSWORD,
+  // Add this option to prevent long-running connections during build
+  // that can sometimes cause issues in serverless environments.
+  enableOfflineQueue: false, 
+});
 
 if (process.env.NODE_ENV !== "production") {
   global.redis = redis;
 }
 
-// Add a connection listener for debugging
 redis.on('connect', () => {
-  console.log('[Redis] Successfully connected to the Redis server.');
+  console.log('[Redis] A client has successfully connected to the Redis server.');
 });
 
 redis.on('error', (err) => {
