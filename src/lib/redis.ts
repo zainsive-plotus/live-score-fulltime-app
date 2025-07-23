@@ -1,33 +1,39 @@
-// ===== src/lib/redis.ts (Corrected) =====
+// ===== src/lib/redis.ts (Modified Failsafe Method) =====
 
+import 'dotenv/config';
 import Redis from "ioredis";
 import "server-only";
-import mockRedisClient from "./redis.mock";
+import mockRedisClient from "./redis.mock"; // We still use the mock for development
 
 // This declaration must be at the top level of the module.
 declare global {
-  // We declare the global variable to hold the Redis client instance.
-  // This is part of the singleton pattern to ensure a single connection.
   var redis: Redis | undefined;
 }
 
 let redisClient: Redis | typeof mockRedisClient;
 
-// Check if we are in a production environment AND a REDIS_URL is provided
-if (process.env.NEXT_PUBLIC_NODE_ENV === 'production' && process.env.NEXT_PUBLIC_REDIS_URL) {
+// Check if we are in a production environment
+if (process.env.NODE_ENV === 'production') {
   
-  // In production, we initialize the real Redis client.
-  // We check if the instance already exists on the global object.
-  // If not, we create it.
+  // In production, we MUST have the Redis variables.
+  // We now use the secure, non-public variable names.
+  if (!process.env.REDIS_HOST || !process.env.REDIS_PORT || !process.env.REDIS_PASSWORD) {
+    throw new Error("Production Redis connection details (REDIS_HOST, REDIS_PORT, REDIS_PASSWORD) are not defined.");
+  }
+
+  // Use the singleton pattern to create and cache the connection globally.
   if (!global.redis) {
-    global.redis = new Redis(process.env.NEXT_PUBLIC_REDIS_URL, {
-      enableOfflineQueue: false,
+    global.redis = new Redis({
+      host: process.env.REDIS_HOST,
+      port: parseInt(process.env.REDIS_PORT, 10),
+      password: process.env.REDIS_PASSWORD,
+      enableOfflineQueue: false, 
     });
 
     global.redis.on('connect', () => {
-      console.log('[Redis] Successfully connected to the production Redis server.');
+      console.log('[Redis] A client has successfully connected to the production Redis server.');
     });
-    
+
     global.redis.on('error', (err) => {
       console.error('[Redis] Production Redis client error:', err);
     });
@@ -36,7 +42,7 @@ if (process.env.NEXT_PUBLIC_NODE_ENV === 'production' && process.env.NEXT_PUBLIC
   redisClient = global.redis;
 
 } else {
-  // In development, or if REDIS_URL is not set, we use the mock client.
+  // In any environment other than production (e.g., development), use the mock client.
   // This disables caching and removes the need for a local Redis instance.
   redisClient = mockRedisClient;
 }
