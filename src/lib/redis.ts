@@ -17,16 +17,16 @@ if (process.env.NODE_ENV === 'production') {
   
   // In production, we MUST have the Redis variables.
   // We now use the secure, non-public variable names.
-  if (!process.env.REDIS_HOST || !process.env.REDIS_PORT || !process.env.REDIS_PASSWORD) {
+  if (!process.env.NEXT_PUBLIC_REDIS_HOST || !process.env.NEXT_PUBLIC_REDIS_PORT || !process.env.NEXT_PUBLIC_REDIS_PASSWORD) {
     throw new Error("Production Redis connection details (REDIS_HOST, REDIS_PORT, REDIS_PASSWORD) are not defined.");
   }
 
   // Use the singleton pattern to create and cache the connection globally.
   if (!global.redis) {
     global.redis = new Redis({
-      host: process.env.REDIS_HOST,
-      port: parseInt(process.env.REDIS_PORT, 10),
-      password: process.env.REDIS_PASSWORD,
+      host: process.env.NEXT_PUBLIC_REDIS_HOST,
+      port: parseInt(process.env.NEXT_PUBLIC_REDIS_PORT, 10),
+      password: process.env.NEXT_PUBLIC_REDIS_PASSWORD,
       enableOfflineQueue: false, 
     });
 
