@@ -1,98 +1,85 @@
-import { NextRequest, NextResponse } from "next/server";
+// ===== src/app/api/image-proxy/route.ts (Redis Enhanced) =====
 
-const ALLOWED_DOMAINS = [
-  "media.api-sports.io",
-  "media-1.api-sports.io",
-  "media-2.api-sports.io",
-  "media-3.api-sports.io",
-  "cdn.fanskor.com",
-  "images.unsplash.com",
-];
+import { NextRequest, NextResponse } from "next/server";
+import redis from "@/lib/redis"; // <-- 1. Import our Redis client
+
+// Cache images for 7 days
+const CACHE_TTL_SECONDS = 60 * 60 * 24 * 7;
 
 export async function GET(request: NextRequest) {
-  // --- LOGGING STEP 1: Log the incoming request ---
-  console.log(`[Image Proxy] Received request: ${request.url}`);
-
   const { searchParams } = new URL(request.url);
   const imageUrl = searchParams.get("url");
 
   if (!imageUrl) {
-    console.error(
-      "[Image Proxy] Error: Image URL is missing from query parameters."
-    );
     return NextResponse.json(
       { error: "Image URL is required" },
       { status: 400 }
     );
   }
-
-  // --- LOGGING STEP 2: Log the target URL ---
-  console.log(`[Image Proxy] Attempting to proxy URL: ${imageUrl}`);
-
-  // try {
-  //   const urlObject = new URL(imageUrl);
-  //   if (!ALLOWED_DOMAINS.includes(urlObject.hostname)) {
-  //     // --- LOGGING STEP 3: Log security blocks ---
-  //     console.warn(
-  //       `[Image Proxy] BLOCKED request to disallowed domain: ${urlObject.hostname}`
-  //     );
-  //     return NextResponse.json(
-  //       { error: `Domain not allowed: ${urlObject.hostname}` },
-  //       { status: 403 }
-  //     );
-  //   }
-  // } catch (error) {
-  //   console.error(`[Image Proxy] Error: Invalid URL format for "${imageUrl}"`);
-  //   return NextResponse.json({ error: "Invalid URL format" }, { status: 400 });
-  // }
+  
+  // 2. Create a unique cache key for the image
+  const cacheKey = `image:${imageUrl}`;
 
   try {
-    // --- LOGGING STEP 4: Log before the actual fetch ---
-    console.log(`[Image Proxy] Fetching from upstream: ${imageUrl}`);
+    // 3. Check Redis for the cached image data
+    // We use hgetall to get both the buffer and the content type from the hash
+    const cachedData = await redis.hgetall(cacheKey);
+
+    if (cachedData && cachedData.buffer && cachedData.contentType) {
+      console.log(`[Image Cache HIT] Serving from Redis: ${imageUrl}`);
+      // Redis stores buffers as strings, so we need to convert it back
+      const imageBuffer = Buffer.from(cachedData.buffer, 'binary');
+      
+      return new NextResponse(imageBuffer, {
+        status: 200,
+        headers: {
+          "Content-Type": cachedData.contentType,
+          "Cache-Control": "public, max-age=604800, immutable", // Tell browser to cache
+          "X-Cache-Status": "HIT",
+        },
+      });
+    }
+
+    // 4. Cache Miss: Fetch the image from the original source
+    console.log(`[Image Cache MISS] Fetching fresh image: ${imageUrl}`);
     const response = await fetch(imageUrl, {
-      next: { revalidate: 60 * 60 * 24 }, // Cache the response for 1 day
       headers: {
-        // Some services require a user-agent
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
       },
     });
 
-    // --- LOGGING STEP 5: Log the response status from the external server ---
-    console.log(
-      `[Image Proxy] Upstream response status: ${response.status} for ${imageUrl}`
-    );
-
     if (!response.ok) {
-      throw new Error(
-        `Upstream fetch failed with status ${response.status} ${response.statusText}`
-      );
+      throw new Error(`Upstream fetch failed with status ${response.status}`);
     }
 
     const imageBuffer = Buffer.from(await response.arrayBuffer());
     const contentType = response.headers.get("content-type") || "image/png";
 
-    // --- LOGGING STEP 6: Log success before returning the image ---
-    console.log(
-      `[Image Proxy] SUCCESS: Successfully fetched and returning image for ${imageUrl}`
-    );
+    // 5. Store the fresh data in Redis
+    // We use a pipeline for efficiency to set multiple fields and the expiration
+    const pipeline = redis.pipeline();
+    pipeline.hset(cacheKey, {
+        buffer: imageBuffer.toString('binary'), // Store buffer as a binary-safe string
+        contentType: contentType,
+    });
+    pipeline.expire(cacheKey, CACHE_TTL_SECONDS);
+    await pipeline.exec();
+
+    console.log(`[Image Cache SET] Stored in Redis: ${imageUrl}`);
 
     return new NextResponse(imageBuffer, {
       status: 200,
       headers: {
         "Content-Type": contentType,
-        "Cache-Control": "public, max-age=604800, s-maxage=604800, immutable",
+        "Cache-Control": "public, max-age=604800, immutable",
+        "X-Cache-Status": "MISS",
       },
     });
-  } catch (error: any) {
-    // --- LOGGING STEP 7: Log the ENTIRE error object for maximum detail ---
-    console.error(`[Image Proxy] CRITICAL FAILURE for URL: ${imageUrl}`, error);
 
-    return NextResponse.json(
-      {
-        error: `Failed to process image proxy request. Reason: ${error.message}`,
-      },
-      { status: 502 } // 502 Bad Gateway is appropriate for a failed proxy request
-    );
+  } catch (error: any) {
+    console.error(`[Image Proxy] Failed to process image request for ${imageUrl}: ${error.message}`);
+    // Redirect to a placeholder on error to prevent broken images
+    return NextResponse.redirect(new URL("/images/placeholder-logo.svg", request.url));
   }
 }
