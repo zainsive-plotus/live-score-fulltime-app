@@ -114,7 +114,7 @@ export default function Sidebar() {
     <aside className="hidden lg:block">
       <div className="flex flex-col gap-4 h-auto">
         {/* <CasinoPartnerWidget /> */}
-
+          <AdSlotWidget location="homepage_left_sidebar" />
         <section
           className="flex flex-col gap-2 p-3 rounded-xl"
           style={{ backgroundColor: "var(--color-primary)" }}
@@ -137,7 +137,7 @@ export default function Sidebar() {
           )}
         </section>
 
-        <AdSlotWidget location="homepage_left_sidebar" />
+
 
         <section
           className="flex flex-col gap-2 p-3 rounded-xl sticky top-8"
