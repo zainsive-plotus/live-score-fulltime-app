@@ -1,3 +1,5 @@
+// ===== src/app/[locale]/football/match/[...slug]/page.tsx =====
+
 import { notFound } from "next/navigation";
 import axios from "axios";
 import type { Metadata } from "next";
@@ -13,7 +15,6 @@ import TeamFormWidget from "@/components/match/TeamFormWidget";
 import LiveOddsWidget from "@/components/match/LiveOddsWidget";
 import MatchActivityWidget from "@/components/match/MatchActivityWidget";
 import TeamStandingsWidget from "@/components/match/TeamStandingsWidget";
-import CasinoPartnerWidget from "@/components/CasinoPartnerWidget";
 import Header from "@/components/Header";
 import MatchHighlightsWidget from "@/components/match/MatchHighlightsWidget";
 import LinkedNewsWidget from "@/components/match/LinkedNewsWidget";
@@ -140,6 +141,9 @@ export default async function MatchDetailPage({
     awayTeam: awayTeam.name,
   });
 
+  console.log(fixture);
+  
+
   return (
     <div className="bg-brand-dark min-h-screen">
       <Header />
@@ -152,11 +156,13 @@ export default async function MatchDetailPage({
               teamStats={analytics.homeTeamStats}
               team={homeTeam}
               location="Home"
+              h2hData={h2h}
             />
             <TeamFormWidget
               teamStats={analytics.awayTeamStats}
               team={awayTeam}
               location="Away"
+              h2hData={h2h}
             />
           </div>
           <MatchLineupsWidget lineups={fixture.lineups} />
@@ -180,7 +186,6 @@ export default async function MatchDetailPage({
           {isLive && <LiveOddsWidget fixtureId={fixtureId} />}
           <LinkedNewsWidget fixtureId={fixture.fixture.id} />
           <MatchHighlightsWidget fixtureId={fixtureId} />
-          {/* <CasinoPartnerWidget /> */}
           <TeamStandingsWidget
             leagueId={fixture.league.id}
             season={fixture.league.season}
