@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 import {
@@ -21,6 +21,7 @@ import StyledLink from "./StyledLink";
 import NavDropdown from "./NavDropdown";
 import NotificationDropdown from "./NotificationDropdown";
 import { ArrowRight, Bell, Menu, X } from "lucide-react";
+import Ticker from "./Ticker";
 
 type NavIcon = React.ElementType;
 
@@ -133,6 +134,7 @@ export default function Header() {
   };
 
   return (
+    <>
     <>
       {/* ----- THE FIX IS HERE: `lg:static` has been removed ----- */}
       <header className="relative w-full border-b border-gray-700/50 shadow-xl shadow-black/20 z-50">
@@ -308,6 +310,11 @@ export default function Header() {
           </nav>
         </div>
       )}
+
+    </>
+      <Suspense fallback={null}>
+       <Ticker />
+      </Suspense>
     </>
   );
 }

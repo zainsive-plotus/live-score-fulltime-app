@@ -1,3 +1,5 @@
+// ===== src/components/admin/AdminSidebar.tsx =====
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -21,6 +23,7 @@ import {
   Type,
   Bot,
   Languages,
+  Megaphone, // <-- Import new icon
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 
@@ -77,6 +80,7 @@ export default function AdminSidebar() {
     { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
     { name: "News", href: "/admin/news", icon: Newspaper },
     { name: "Languages", href: "/admin/languages", icon: Languages },
+    { name: "Ticker Messages", href: "/admin/ticker-messages", icon: Megaphone }, // <-- Add Ticker link
     { name: "Casino Partners", href: "/admin/casino-partners", icon: Crown },
     { name: "File Manager", href: "/admin/file-manager", icon: FileText },
     { name: "Banners", href: "/admin/banners", icon: ImageIcon },

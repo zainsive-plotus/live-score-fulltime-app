@@ -11,6 +11,8 @@ import { Suspense } from "react";
 import StickyFooterAd from "@/components/StickyFooterAd";
 import Loading from "./loading";
 import Footer from "@/components/Footer";
+import Ticker from "@/components/Ticker"; // <-- Import the new Ticker component
+import Header from "@/components/Header"; // <-- Import Header
 
 import { GoogleAnalytics } from "@next/third-parties/google";
 import { getI18n } from "@/lib/i18n/server";
@@ -86,7 +88,6 @@ export default async function LocaleLayout({
   const { locale } = await params;
   const translations = (await i18nCache.getTranslations(locale)) || {};
 
-  // REMOVED <html> and <body> TAGS. Return a fragment or a div instead.
   return (
     <>
       <Suspense fallback={<Loading />}>

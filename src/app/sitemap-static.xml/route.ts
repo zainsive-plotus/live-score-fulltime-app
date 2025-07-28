@@ -33,6 +33,7 @@ export async function GET() {
   const staticPaths = [
     { path: "/", priority: 1.0, changeFrequency: "daily" },
     { path: "/football/news", priority: 0.9, changeFrequency: "daily" },
+    { path: "/news", priority: 0.9, changeFrequency: "daily" },
     { path: "/football/leagues", priority: 0.9, changeFrequency: "daily" },
     { path: "/football/teams", priority: 0.9, changeFrequency: "daily" },
     { path: "/contact-us", priority: 0.5, changeFrequency: "monthly" },
