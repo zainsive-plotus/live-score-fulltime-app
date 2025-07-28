@@ -9,7 +9,8 @@ import { IoMdFootball } from "react-icons/io";
 import { FaBasketballBall } from "react-icons/fa";
 import { IoTennisballOutline } from "react-icons/io5";
 import { ITickerMessage } from "@/models/TickerMessage";
-import { useTranslation } from "@/hooks/useTranslation"; // <-- Import useTranslation
+import { useTranslation } from "@/hooks/useTranslation";
+import StyledLink from "./StyledLink";
 
 const fetchTickerMessages = async (
   locale: string
@@ -29,14 +30,14 @@ const SportSeparator = ({ index }: { index: number }) => {
 };
 
 export default function Ticker() {
-  const { locale } = useTranslation(); // <-- Get current locale
+  const { locale } = useTranslation();
 
   const { data: messages, isLoading } = useQuery<ITickerMessage[]>({
-    queryKey: ["tickerMessages", locale], // <-- Add locale to queryKey
+    queryKey: ["tickerMessages", locale],
     queryFn: () => fetchTickerMessages(locale!),
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: true,
-    enabled: !!locale, // <-- Ensure query only runs when locale is available
+    enabled: !!locale,
   });
 
   if (isLoading || !messages || messages.length === 0) {
@@ -49,9 +50,21 @@ export default function Ticker() {
         <div className="flex items-center">
           {messages.map((item, index) => (
             <div key={item._id as string} className="flex items-center">
-              <span className="font-semibold text-sm px-6 whitespace-nowrap">
-                {item.message}
-              </span>
+              {/* --- Start of Change --- */}
+              {/* Conditionally wrap the message in a link if href exists */}
+              {item.href ? (
+                <StyledLink
+                  href={item.href}
+                  className="font-semibold text-sm px-6 whitespace-nowrap hover:underline"
+                >
+                  {item.message}
+                </StyledLink>
+              ) : (
+                <span className="font-semibold text-sm px-6 whitespace-nowrap">
+                  {item.message}
+                </span>
+              )}
+              {/* --- End of Change --- */}
               <SportSeparator index={index} />
             </div>
           ))}

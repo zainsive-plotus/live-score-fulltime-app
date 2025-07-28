@@ -1,3 +1,5 @@
+// ===== src/components/Header.tsx =====
+
 "use client";
 
 import { useState, useEffect, useRef, Suspense } from "react";
@@ -22,6 +24,7 @@ import NavDropdown from "./NavDropdown";
 import NotificationDropdown from "./NotificationDropdown";
 import { ArrowRight, Bell, Menu, X } from "lucide-react";
 import Ticker from "./Ticker";
+import { useScrollDirection } from "@/hooks/useScrollDirection"; // Import the new hook
 
 type NavIcon = React.ElementType;
 
@@ -56,6 +59,11 @@ export default function Header() {
   const [hasUnread, setHasUnread] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+
+  // --- Start of Change ---
+  // All scroll logic is now replaced by this single, clean hook call.
+  const { isSticky, isVisible } = useScrollDirection({ threshold: 200 });
+  // --- End of Change ---
 
   const { data: latestPost } = useQuery<IPost | null>({
     queryKey: ["latestPostForIndicator"],
@@ -134,10 +142,16 @@ export default function Header() {
   };
 
   return (
-    <>
-    <>
-      {/* ----- THE FIX IS HERE: `lg:static` has been removed ----- */}
-      <header className="relative w-full border-b border-gray-700/50 shadow-xl shadow-black/20 z-50">
+    <div
+      className={`
+        ${isSticky ? 'sticky' : 'relative'} 
+        top-0 z-50 w-full bg-brand-secondary shadow-xl shadow-black/20 
+        border-b border-gray-700/50
+        transition-transform duration-300 ease-in-out
+        ${isVisible ? 'translate-y-0' : '-translate-y-full'}
+      `}
+    >
+      <header className="relative w-full">
         <div className="container mx-auto flex h-24 items-center justify-between px-4 lg:px-6">
           <StyledLink href="/" className="flex items-center flex-shrink-0">
             <Image
@@ -310,11 +324,10 @@ export default function Header() {
           </nav>
         </div>
       )}
-
-    </>
+      
       <Suspense fallback={null}>
        <Ticker />
       </Suspense>
-    </>
+    </div>
   );
 }

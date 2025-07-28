@@ -4,21 +4,21 @@
 
 import { Popover, Transition } from "@headlessui/react";
 import { Fragment } from "react";
-import Link from "next/link";
 import Image from "next/image";
 import { ILanguage } from "@/models/Language";
 import { ITickerMessage } from "@/models/TickerMessage";
-import { Languages, Edit, Plus } from "lucide-react";
-import toast from "react-hot-toast";
+import { Languages, Edit, Plus, CheckCircle, XCircle } from "lucide-react";
 
 interface TranslationStatusPopoverProps {
   group: ITickerMessage[];
   allActiveLanguages: ILanguage[];
+  onEdit: (message: ITickerMessage) => void;
 }
 
 export default function TranslationStatusPopover({
   group,
   allActiveLanguages,
+  onEdit,
 }: TranslationStatusPopoverProps) {
   const existingTranslationsMap = new Map(group.map((p) => [p.language, p]));
   const translatedCount = existingTranslationsMap.size;
@@ -43,10 +43,11 @@ export default function TranslationStatusPopover({
       >
         <Popover.Panel className="absolute right-0 z-10 mt-2 w-72 origin-top-right rounded-md bg-brand-dark shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none border border-gray-700">
           <div className="p-2">
-            <div className="p-2 font-bold text-white">Translations</div>
+            <div className="p-2 font-bold text-white">Translations Status</div>
             <div className="max-h-60 overflow-y-auto custom-scrollbar space-y-1">
               {allActiveLanguages.map((lang) => {
                 const translation = existingTranslationsMap.get(lang.code);
+                const isAvailable = !!translation;
                 return (
                   <div
                     key={lang.code}
@@ -66,29 +67,18 @@ export default function TranslationStatusPopover({
                         {lang.name}
                       </span>
                     </div>
-                    {translation ? (
-                      <button
-                        onClick={() =>
-                          toast.success(
-                            `Editing "${translation.message}" in a modal would happen here.`
-                          )
-                        }
-                        className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300"
+                    {isAvailable ? (
+                       <button
+                        onClick={() => onEdit(translation)}
+                        className="flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300"
+                        title={`Edit ${lang.name} translation`}
                       >
                         <Edit size={12} /> Edit
                       </button>
                     ) : (
-                      <Link
-                        href="#"
-                        onClick={() =>
-                          toast.success(
-                            `Creating a new translation for ${lang.name} would happen here.`
-                          )
-                        }
-                        className="flex items-center gap-1 text-xs text-green-400 hover:text-green-300"
-                      >
-                        <Plus size={12} /> Add
-                      </Link>
+                      <span className="flex items-center gap-1.5 text-xs text-brand-muted">
+                        <XCircle size={12} /> Missing
+                      </span>
                     )}
                   </div>
                 );

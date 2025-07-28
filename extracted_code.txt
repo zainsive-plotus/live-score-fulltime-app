@@ -683,7 +683,6 @@ import TeamFormWidget from "@/components/match/TeamFormWidget";
 import LiveOddsWidget from "@/components/match/LiveOddsWidget";
 import MatchActivityWidget from "@/components/match/MatchActivityWidget";
 import TeamStandingsWidget from "@/components/match/TeamStandingsWidget";
-import CasinoPartnerWidget from "@/components/CasinoPartnerWidget";
 import Header from "@/components/Header";
 import MatchHighlightsWidget from "@/components/match/MatchHighlightsWidget";
 import LinkedNewsWidget from "@/components/match/LinkedNewsWidget";
@@ -822,11 +821,13 @@ export default async function MatchDetailPage({
               teamStats={analytics.homeTeamStats}
               team={homeTeam}
               location="Home"
+              h2hData={h2h}
             />
             <TeamFormWidget
               teamStats={analytics.awayTeamStats}
               team={awayTeam}
               location="Away"
+              h2hData={h2h}
             />
           </div>
           <MatchLineupsWidget lineups={fixture.lineups} />
@@ -850,7 +851,6 @@ export default async function MatchDetailPage({
           {isLive && <LiveOddsWidget fixtureId={fixtureId} />}
           <LinkedNewsWidget fixtureId={fixture.fixture.id} />
           <MatchHighlightsWidget fixtureId={fixtureId} />
-          {}
           <TeamStandingsWidget
             leagueId={fixture.league.id}
             season={fixture.league.season}
@@ -1463,6 +1463,8 @@ import { Suspense } from "react";
 import StickyFooterAd from "@/components/StickyFooterAd";
 import Loading from "./loading";
 import Footer from "@/components/Footer";
+import Ticker from "@/components/Ticker";
+import Header from "@/components/Header";
 
 import { GoogleAnalytics } from "@next/third-parties/google";
 import { getI18n } from "@/lib/i18n/server";
@@ -7772,6 +7774,291 @@ export default function EditTermsAndConditionsPage() {
   );
 }
 
+// ===== src/app/admin/ticker-messages/page.tsx =====
+
+"use client";
+
+import { useState, useEffect, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
+import toast from "react-hot-toast";
+import {
+  PlusCircle,
+  Edit,
+  Trash2,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  Megaphone,
+} from "lucide-react";
+import { ITickerMessage } from "@/models/TickerMessage";
+import { ILanguage } from "@/models/Language";
+import TickerTranslationGroupRow from "@/components/admin/TickerTranslationGroupRow";
+
+const fetchActiveLanguages = async (): Promise<ILanguage[]> => {
+  const { data } = await axios.get("/api/admin/languages?active=true");
+  return data;
+};
+
+interface TickerFormModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  message?: ITickerMessage | null;
+}
+
+const TickerFormModal: React.FC<TickerFormModalProps> = ({
+  isOpen,
+  onClose,
+  message,
+}) => {
+  const queryClient = useQueryClient();
+  const [content, setContent] = useState("");
+  const [order, setOrder] = useState(0);
+  const [isActive, setIsActive] = useState(true);
+  const [language, setLanguage] = useState("");
+
+  const { data: languages, isLoading: isLoadingLanguages } = useQuery<ILanguage[]>({
+    queryKey: ["activeLanguages"],
+    queryFn: fetchActiveLanguages,
+  });
+
+  useEffect(() => {
+    if (isOpen) {
+      if (message) {
+        setContent(message.message);
+        setOrder(message.order);
+        setIsActive(message.isActive);
+        setLanguage(message.language);
+      } else {
+
+        setContent("");
+        setOrder(0);
+        setIsActive(true);
+        if (languages && languages.length > 0) {
+          const defaultLang = languages.find((l) => l.isDefault)?.code || languages[0].code;
+          setLanguage(defaultLang);
+        } else {
+          setLanguage("");
+        }
+
+      }
+    }
+  }, [message, languages, isOpen]);
+
+  const mutation = useMutation({
+    mutationFn: (payload: Partial<ITickerMessage>) => {
+      if (message?._id) {
+        return axios.put("/api/admin/ticker-messages", { _id: message._id, ...payload });
+      }
+      return axios.post("/api/admin/ticker-messages", payload);
+    },
+    onSuccess: () => {
+      toast.success(`Message ${message ? "updated" : "created"} successfully!`);
+      queryClient.invalidateQueries({ queryKey: ["tickerMessagesAdmin"] });
+      onClose();
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || "An error occurred.");
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!content.trim() || !language) {
+      toast.error("Message content and language are required.");
+      return;
+    }
+
+    mutation.mutate({ message: content, order: Number(order), isActive, language });
+
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+      <div className="bg-brand-secondary rounded-lg shadow-xl w-full max-w-lg">
+        <div className="flex justify-between items-center p-6 border-b border-gray-700">
+          <h2 className="text-2xl font-bold text-white">
+            {message ? "Edit Ticker Message" : "Create New Ticker Message"}
+          </h2>
+          <button onClick={onClose} className="text-brand-muted hover:text-white">
+            <XCircle size={24} />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          <div>
+            <label className="block text-sm font-medium text-brand-light mb-1">Language</label>
+            <select
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              disabled={!!message || isLoadingLanguages}
+              className="w-full p-3 rounded bg-gray-700 text-white border border-gray-600 disabled:opacity-50"
+              required
+            >
+              <option value="" disabled>
+                {isLoadingLanguages ? "Loading..." : "Select Language"}
+              </option>
+              {languages?.map((lang) => (
+                <option key={lang.code} value={lang.code}>{lang.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-brand-light mb-1">Message Content</label>
+            <input
+              type="text"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              className="w-full p-3 rounded bg-gray-700 text-white border border-gray-600"
+              required
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-brand-light mb-1">Order</label>
+              <input
+                type="number"
+                value={order}
+                onChange={(e) => setOrder(Number(e.target.value))}
+                className="w-full p-3 rounded bg-gray-700 text-white border border-gray-600"
+              />
+              <p className="text-xs text-brand-muted mt-1">Lower number displays first.</p>
+            </div>
+            <div className="flex items-center pt-6">
+              <input
+                type="checkbox"
+                checked={isActive}
+                onChange={(e) => setIsActive(e.target.checked)}
+                className="w-4 h-4 text-brand-purple bg-gray-700 border-gray-600 rounded"
+              />
+              <label className="ml-2 text-sm font-medium text-brand-light">Active</label>
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-700">
+            <button
+              type="button"
+              onClick={onClose}
+              className="bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:opacity-90"
+              disabled={mutation.isPending}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="bg-brand-purple text-white font-bold py-2 px-4 rounded-lg disabled:opacity-50 flex items-center gap-2"
+              disabled={mutation.isPending}
+            >
+              {mutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle size={18} />}
+              {mutation.isPending ? "Saving..." : "Save Message"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default function AdminTickerMessagesPage() {
+  const queryClient = useQueryClient();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingMessage, setEditingMessage] = useState<ITickerMessage | null>(null);
+
+  const { data: messages, isLoading: isLoadingMessages } = useQuery<ITickerMessage[]>({
+    queryKey: ["tickerMessagesAdmin"],
+    queryFn: () => axios.get("/api/admin/ticker-messages").then((res) => res.data),
+  });
+
+  const { data: languages, isLoading: isLoadingLanguages } = useQuery<ILanguage[]>({
+    queryKey: ["activeLanguages"],
+    queryFn: fetchActiveLanguages,
+  });
+
+  const groupedMessages = useMemo(() => {
+    if (!messages) return [];
+    const groups: Record<string, ITickerMessage[]> = {};
+    messages.forEach((msg) => {
+      const groupId = (msg.translationGroupId ?? msg._id).toString();
+      if (!groups[groupId]) {
+        groups[groupId] = [];
+      }
+      groups[groupId].push(msg);
+    });
+    return Object.values(groups).sort((a, b) => new Date(b[0].createdAt).getTime() - new Date(a[0].createdAt).getTime());
+  }, [messages]);
+
+  const deleteMutation = useMutation({
+    mutationFn: (messageId: string) => axios.delete("/api/admin/ticker-messages", { data: { id: messageId } }),
+    onSuccess: () => {
+      toast.success("Message deleted!");
+      queryClient.invalidateQueries({ queryKey: ["tickerMessagesAdmin"] });
+    },
+    onError: (err: any) => toast.error(err.response?.data?.error || "Failed to delete message."),
+  });
+
+  const handleOpenCreateModal = () => {
+    setEditingMessage(null);
+    setIsModalOpen(true);
+  };
+
+  const isLoading = isLoadingMessages || isLoadingLanguages;
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-white flex items-center gap-2">
+          <Megaphone size={28} /> Manage Ticker Messages
+        </h1>
+        <button
+          onClick={handleOpenCreateModal}
+          className="flex items-center gap-2 bg-brand-purple text-white font-bold py-2 px-4 rounded-lg hover:opacity-90"
+        >
+          <PlusCircle size={20} /> New Message
+        </button>
+      </div>
+      <div className="bg-brand-secondary rounded-lg overflow-hidden">
+        <table className="w-full text-left text-brand-light">
+          <thead className="bg-gray-800/50 text-sm text-brand-muted uppercase">
+            <tr>
+              <th className="p-4">Order</th>
+              <th className="p-4" colSpan={2}>
+                Message & Translations
+              </th>
+              <th className="p-4">Status</th>
+              <th className="p-4">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading ? (
+              <tr><td colSpan={5} className="p-8 text-center text-brand-muted">Loading...</td></tr>
+            ) : groupedMessages.length > 0 && languages ? (
+              groupedMessages.map((group) => (
+                <TickerTranslationGroupRow
+                  key={group[0].translationGroupId?.toString() || group[0]._id.toString()}
+                  group={group}
+                  allActiveLanguages={languages}
+                  onDelete={(id) => deleteMutation.mutate(id)}
+                />
+              ))
+            ) : (
+                <tr>
+                    <td colSpan={5} className="text-center p-8 text-brand-muted">
+                        No messages found. Click "New Message" to create one.
+                    </td>
+                </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      <TickerFormModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        message={editingMessage}
+      />
+    </div>
+  );
+}
+
 // ===== src/app/admin/title-templates/page.tsx =====
 
 "use client";
@@ -10044,6 +10331,195 @@ export async function POST(request: Request) {
   }
 }
 
+// ===== src/app/api/admin/ticker-messages/route.ts =====
+
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import dbConnect from "@/lib/dbConnect";
+import TickerMessage from "@/models/TickerMessage";
+import redis from "@/lib/redis";
+import mongoose from "mongoose";
+
+const CACHE_KEY_PREFIX = "ticker-messages:active:";
+
+const invalidateCache = async (locale: string) => {
+  await redis.del(`${CACHE_KEY_PREFIX}${locale}`);
+};
+
+export async function GET(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (session?.user?.role !== "admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  await dbConnect();
+  const messages = await TickerMessage.find({}).sort({ order: 1, createdAt: -1 });
+  return NextResponse.json(messages);
+}
+
+export async function POST(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (session?.user?.role !== "admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  try {
+    const body = await request.json();
+    await dbConnect();
+
+    const newMessage = new TickerMessage(body);
+
+    if (!body.translationGroupId) {
+      newMessage.translationGroupId = new mongoose.Types.ObjectId();
+    }
+
+    await newMessage.save();
+    await invalidateCache(newMessage.language);
+    return NextResponse.json(newMessage, { status: 201 });
+  } catch (error: any) {
+
+    if (error instanceof mongoose.Error.ValidationError) {
+        return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    return NextResponse.json({ error: "Failed to create message." }, { status: 500 });
+  }
+}
+
+export async function PUT(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (session?.user?.role !== "admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  try {
+    const body = await request.json();
+    const { _id, ...updateData } = body;
+    await dbConnect();
+    const updatedMessage = await TickerMessage.findByIdAndUpdate(_id, updateData, { new: true, runValidators: true });
+    if (!updatedMessage) {
+      return NextResponse.json({ error: "Message not found" }, { status: 404 });
+    }
+    await invalidateCache(updatedMessage.language);
+    return NextResponse.json(updatedMessage);
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (session?.user?.role !== "admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  try {
+    const { id } = await request.json();
+    await dbConnect();
+    const deletedMessage = await TickerMessage.findByIdAndDelete(id);
+    if (!deletedMessage) {
+      return NextResponse.json({ error: "Message not found" }, { status: 404 });
+    }
+    await invalidateCache(deletedMessage.language);
+    return NextResponse.json({ message: "Message deleted successfully" });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// ===== src/app/api/admin/ticker-messages/translate/route.ts =====
+
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import dbConnect from "@/lib/dbConnect";
+import TickerMessage from "@/models/TickerMessage";
+import Language from "@/models/Language";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import redis from "@/lib/redis";
+
+const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY as string);
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+const CACHE_KEY_PREFIX = "ticker-messages:active:";
+
+async function translateText(text: string, sourceLang: string, targetLang: string): Promise<string> {
+  const prompt = `Translate the following text from ${sourceLang} to ${targetLang}. Return ONLY the translated text, without any quotes, labels, or extra formatting.
+
+Text to translate: "${text}"`;
+
+  const result = await model.generateContent(prompt);
+  return (await result.response).text().trim().replace(/["']/g, "");
+}
+
+export async function POST(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (session?.user?.role !== "admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  try {
+    const { sourceMessageId } = await request.json();
+    if (!sourceMessageId) {
+      return NextResponse.json({ error: "Source Message ID is required" }, { status: 400 });
+    }
+
+    await dbConnect();
+
+    const sourceMessage = await TickerMessage.findById(sourceMessageId);
+
+    if (!sourceMessage) {
+      return NextResponse.json({ error: "Source message not found" }, { status: 404 });
+    }
+
+    const [allLanguages, existingTranslations] = await Promise.all([
+
+      Language.find({}).lean(),
+
+      TickerMessage.find({ translationGroupId: sourceMessage.translationGroupId }).lean(),
+    ]);
+
+    const sourceLangDetails = allLanguages.find(lang => lang.code === (sourceMessage.language ?? 'en') );
+    if (!sourceLangDetails) {
+
+        return NextResponse.json({ error: `Source language code '${sourceMessage.language}' could not be found in the database.` }, { status: 400 });
+    }
+
+    const existingLangCodes = new Set(existingTranslations.map(t => t.language));
+
+    const targetLanguages = allLanguages.filter(lang => lang.isActive && !existingLangCodes.has(lang.code));
+
+    if (targetLanguages.length === 0) {
+      return NextResponse.json({ message: "All active languages are already translated." });
+    }
+
+    let translatedCount = 0;
+    const translationPromises = targetLanguages.map(async (targetLang) => {
+      const translatedText = await translateText(sourceMessage.message, sourceLangDetails.name, targetLang.name);
+
+      const newMessage = new TickerMessage({
+        message: translatedText,
+        language: targetLang.code,
+        translationGroupId: sourceMessage.translationGroupId,
+        isActive: sourceMessage.isActive,
+        order: sourceMessage.order,
+      });
+
+      await newMessage.save();
+      await redis.del(`${CACHE_KEY_PREFIX}${targetLang.code}`);
+      translatedCount++;
+    });
+
+    await Promise.allSettled(translationPromises);
+
+    return NextResponse.json({ message: `Successfully created ${translatedCount} new translation(s).` });
+
+  } catch (error: any) {
+
+    return NextResponse.json({ error: "Failed to generate translations." }, { status: 500 });
+  }
+}
+
 // ===== src/app/api/admin/title-templates/[templateId]/route.ts =====
 
 import { NextResponse } from "next/server";
@@ -11417,11 +11893,43 @@ export async function GET() {
 
 import { NextResponse } from "next/server";
 import { getLatestPopularHighlights } from "@/lib/data/highlightly";
+import axios from "axios";
+
+async function isValidEmbed(url: string): Promise<boolean> {
+  try {
+    const response = await axios.head(url, {
+      timeout: 3000,
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+      },
+    });
+
+    return response.status >= 200 && response.status < 300;
+  } catch (error) {
+
+    return false;
+  }
+}
 
 export async function GET(request: Request) {
   try {
-
     const latestHighlights = await getLatestPopularHighlights();
+
+    if (!latestHighlights || latestHighlights.length === 0) {
+      return NextResponse.json({ highlights: [] }, { status: 200 });
+    }
+
+    const validationPromises = latestHighlights.map((highlight: any) =>
+      isValidEmbed(highlight.embedUrl)
+    );
+
+    const validationResults = await Promise.allSettled(validationPromises);
+
+    const validHighlights = latestHighlights.filter((_, index) => {
+      const result = validationResults[index];
+      return result.status === "fulfilled" && result.value === true;
+    });
 
     const headers = new Headers();
     headers.set(
@@ -11430,12 +11938,12 @@ export async function GET(request: Request) {
     );
 
     return NextResponse.json(
-      { highlights: latestHighlights },
+      { highlights: validHighlights },
       { status: 200, headers }
     );
   } catch (error: any) {
     console.error(
-      `[API/highlights/latest] Error fetching popular highlights:`,
+      `[API/highlights/latest] Error fetching or validating popular highlights:`,
       error.message
     );
     return NextResponse.json(
@@ -12900,6 +13408,54 @@ export async function GET(request: Request) {
   }
 }
 
+// ===== src/app/api/ticker-messages/route.ts =====
+
+import { NextResponse } from "next/server";
+import dbConnect from "@/lib/dbConnect";
+import TickerMessage from "@/models/TickerMessage";
+import redis from "@/lib/redis";
+
+const CACHE_TTL_SECONDS = 60 * 5;
+const DEFAULT_LOCALE = "tr";
+
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const locale = searchParams.get("locale") || DEFAULT_LOCALE;
+
+    const cacheKey = `ticker-messages:active:${locale}`;
+
+    const cachedData = await redis.get(cacheKey);
+    if (cachedData) {
+      return NextResponse.json(JSON.parse(cachedData));
+    }
+
+    await dbConnect();
+    const messages = await TickerMessage.find({
+      isActive: true,
+      language: locale,
+    }).sort({
+      order: 1,
+      createdAt: -1,
+    });
+
+    await redis.set(
+      cacheKey,
+      JSON.stringify(messages),
+      "EX",
+      CACHE_TTL_SECONDS
+    );
+
+    return NextResponse.json(messages);
+  } catch (error) {
+
+    return NextResponse.json(
+      { error: "Server error fetching ticker messages" },
+      { status: 500 }
+    );
+  }
+}
+
 // ===== src/app/api/top-scorers/route.ts =====
 
 import { NextResponse } from 'next/server';
@@ -13799,7 +14355,7 @@ import slugify from "slugify";
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
-const SUPPORTED_LOCALES = ["tr", "en", "de", "fr", "es", "ar", "zu"];
+const SUPPORTED_LOCALES = ["tr", "en", "fr", "es", "zu"];
 const DEFAULT_LOCALE = "tr";
 
 type SitemapEntry = {
@@ -13882,7 +14438,7 @@ import { format, subDays, addDays } from "date-fns";
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
-const SUPPORTED_LOCALES = ["tr", "en", "de", "fr", "es", "ar", "zu"];
+const SUPPORTED_LOCALES = ["tr", "en", "fr", "es", "zu"];
 const DEFAULT_LOCALE = "tr";
 
 type SitemapEntry = {
@@ -14049,7 +14605,7 @@ export async function GET() {
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
-const SUPPORTED_LOCALES = ["tr", "en", "de", "fr", "es", "ar", "zu"];
+const SUPPORTED_LOCALES = ["tr", "en", "fr", "es", "zu"];
 const DEFAULT_LOCALE = "tr";
 
 type SitemapEntry = {
@@ -14077,6 +14633,7 @@ export async function GET() {
   const staticPaths = [
     { path: "/", priority: 1.0, changeFrequency: "daily" },
     { path: "/football/news", priority: 0.9, changeFrequency: "daily" },
+    { path: "/news", priority: 0.9, changeFrequency: "daily" },
     { path: "/football/leagues", priority: 0.9, changeFrequency: "daily" },
     { path: "/football/teams", priority: 0.9, changeFrequency: "daily" },
     { path: "/contact-us", priority: 0.5, changeFrequency: "monthly" },
@@ -14133,7 +14690,7 @@ import slugify from "slugify";
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
-const SUPPORTED_LOCALES = ["tr", "en", "de", "fr", "es", "ar", "zu"];
+const SUPPORTED_LOCALES = ["tr", "en", "fr", "es", "zu"];
 const DEFAULT_LOCALE = "tr";
 
 type SitemapEntry = {
@@ -15865,7 +16422,7 @@ export default function Footer() {
 
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 import {
@@ -15886,6 +16443,7 @@ import StyledLink from "./StyledLink";
 import NavDropdown from "./NavDropdown";
 import NotificationDropdown from "./NotificationDropdown";
 import { ArrowRight, Bell, Menu, X } from "lucide-react";
+import Ticker from "./Ticker";
 
 type NavIcon = React.ElementType;
 
@@ -15998,6 +16556,7 @@ export default function Header() {
   };
 
   return (
+    <>
     <>
       {}
       <header className="relative w-full border-b border-gray-700/50 shadow-xl shadow-black/20 z-50">
@@ -16173,6 +16732,11 @@ export default function Header() {
           </nav>
         </div>
       )}
+
+    </>
+      <Suspense fallback={null}>
+       <Ticker />
+      </Suspense>
     </>
   );
 }
@@ -17093,14 +17657,14 @@ import {
 } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
 
-import { enUS, tr, de, fr, es, ar } from "date-fns/locale";
+import { enUS, tr, fr, es } from "date-fns/locale";
 
 interface DateNavigatorProps {
   selectedDate: Date;
   onDateChange: (date: Date) => void;
 }
 
-const dateLocales: Record<string, Locale> = { en: enUS, tr, de, fr, es, ar };
+const dateLocales: Record<string, Locale> = { en: enUS, tr,  fr, es, };
 
 export default function MatchDateNavigator({
   selectedDate,
@@ -19575,7 +20139,7 @@ export default function Sidebar() {
     <aside className="hidden lg:block">
       <div className="flex flex-col gap-4 h-auto">
         {}
-
+          <AdSlotWidget location="homepage_left_sidebar" />
         <section
           className="flex flex-col gap-2 p-3 rounded-xl"
           style={{ backgroundColor: "var(--color-primary)" }}
@@ -19597,8 +20161,6 @@ export default function Sidebar() {
             <LeagueList leagues={leagues!} />
           )}
         </section>
-
-        <AdSlotWidget location="homepage_left_sidebar" />
 
         <section
           className="flex flex-col gap-2 p-3 rounded-xl sticky top-8"
@@ -20827,6 +21389,69 @@ export default function TeamsByCountryClient({
   );
 }
 
+// ===== src/components/Ticker.tsx =====
+
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import Marquee from "react-fast-marquee";
+import { IoMdFootball } from "react-icons/io";
+import { FaBasketballBall } from "react-icons/fa";
+import { IoTennisballOutline } from "react-icons/io5";
+import { ITickerMessage } from "@/models/TickerMessage";
+import { useTranslation } from "@/hooks/useTranslation";
+
+const fetchTickerMessages = async (
+  locale: string
+): Promise<ITickerMessage[]> => {
+  const { data } = await axios.get(`/api/ticker-messages?locale=${locale}`);
+  return data;
+};
+
+const SportSeparator = ({ index }: { index: number }) => {
+  const icons = [IoMdFootball, FaBasketballBall, IoTennisballOutline];
+  const Icon = icons[index % icons.length];
+  return (
+    <div className="flex items-center justify-center w-12 h-full">
+      <Icon className="text-white/80" size={16} />
+    </div>
+  );
+};
+
+export default function Ticker() {
+  const { locale } = useTranslation();
+
+  const { data: messages, isLoading } = useQuery<ITickerMessage[]>({
+    queryKey: ["tickerMessages", locale],
+    queryFn: () => fetchTickerMessages(locale!),
+    staleTime: 1000 * 60 * 5,
+    refetchOnWindowFocus: true,
+    enabled: !!locale,
+  });
+
+  if (isLoading || !messages || messages.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="bg-[var(--brand-accent)] text-white py-2 shadow-md">
+      <Marquee gradient={false} speed={50}>
+        <div className="flex items-center">
+          {messages.map((item, index) => (
+            <div key={item._id as string} className="flex items-center">
+              <span className="font-semibold text-sm px-6 whitespace-nowrap">
+                {item.message}
+              </span>
+              <SportSeparator index={index} />
+            </div>
+          ))}
+        </div>
+      </Marquee>
+    </div>
+  );
+}
+
 // ===== src/components/UpcomingMatchesSlider.tsx =====
 
 "use client";
@@ -21306,6 +21931,7 @@ import {
   Type,
   Bot,
   Languages,
+  Megaphone,
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 
@@ -21362,6 +21988,7 @@ export default function AdminSidebar() {
     { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
     { name: "News", href: "/admin/news", icon: Newspaper },
     { name: "Languages", href: "/admin/languages", icon: Languages },
+    { name: "Ticker Messages", href: "/admin/ticker-messages", icon: Megaphone },
     { name: "Casino Partners", href: "/admin/casino-partners", icon: Crown },
     { name: "File Manager", href: "/admin/file-manager", icon: FileText },
     { name: "Banners", href: "/admin/banners", icon: ImageIcon },
@@ -22210,6 +22837,112 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange }) => {
 
 export default RichTextEditor;
 
+// ===== src/components/admin/TickerTranslationGroupRow.tsx =====
+
+"use client";
+
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
+import toast from "react-hot-toast";
+import { ITickerMessage } from "@/models/TickerMessage";
+import { ILanguage } from "@/models/Language";
+import { Trash2, Languages, Loader2 } from "lucide-react";
+import TranslationStatusPopover from "./TranslationStatusPopover";
+
+interface TickerTranslationGroupRowProps {
+  group: ITickerMessage[];
+  allActiveLanguages: ILanguage[];
+  onDelete: (messageId: string) => void;
+}
+
+export default function TickerTranslationGroupRow({
+  group,
+  allActiveLanguages,
+  onDelete,
+}: TickerTranslationGroupRowProps) {
+  const queryClient = useQueryClient();
+  const masterMessage = group[0];
+
+  const translateMutation = useMutation({
+    mutationFn: (sourceMessageId: string) =>
+      axios.post("/api/admin/ticker-messages/translate", { sourceMessageId }),
+    onSuccess: (data) => {
+      toast.success(data.data.message || "Translations generated!");
+      queryClient.invalidateQueries({ queryKey: ["tickerMessagesAdmin"] });
+    },
+    onError: (err: any) => {
+      toast.error(
+        err.response?.data?.error || "Failed to generate translations."
+      );
+    },
+  });
+
+  const handleTranslateAll = () => {
+    translateMutation.mutate(masterMessage._id);
+  };
+
+  const handleDeleteAll = () => {
+    if (
+      window.confirm(
+        `Are you sure you want to delete this message and all of its translations? This action cannot be undone.`
+      )
+    ) {
+      group.forEach((msg) => onDelete(msg._id));
+    }
+  };
+
+  return (
+    <tr className="border-t-2 border-gray-800 bg-brand-secondary hover:bg-gray-800/50 transition-colors">
+      <td className="p-4 w-20 text-center font-bold align-top">
+        {masterMessage.order}
+      </td>
+      <td className="p-4 align-top">
+        <p className="font-bold text-white text-base">{masterMessage.message}</p>
+      </td>
+      <td className="p-4 align-top">
+        {}
+        <TranslationStatusPopover
+          group={group}
+          allActiveLanguages={allActiveLanguages}
+        />
+        {}
+      </td>
+      <td className="p-4 align-middle text-sm text-center">
+        <span
+          className={`px-2 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${
+            masterMessage.isActive
+              ? "bg-green-500/20 text-green-400"
+              : "bg-yellow-500/20 text-yellow-400"
+          }`}
+        >
+          {masterMessage.isActive ? "Active" : "Inactive"}
+        </span>
+      </td>
+      <td className="p-4 align-middle text-center space-y-2">
+        <button
+          onClick={handleTranslateAll}
+          disabled={translateMutation.isPending}
+          className="w-full flex items-center justify-center gap-2 text-sm bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 font-semibold px-3 py-1.5 rounded-md transition-colors disabled:opacity-50 disabled:cursor-wait"
+        >
+          {translateMutation.isPending ? (
+            <Loader2 size={16} className="animate-spin" />
+          ) : (
+            <Languages size={16} />
+          )}
+          <span>Translate</span>
+        </button>
+        <button
+          onClick={handleDeleteAll}
+          className="text-gray-500 hover:text-red-400 transition-colors p-1"
+          title="Delete entire translation group"
+        >
+          <Trash2 size={18} />
+        </button>
+      </td>
+    </tr>
+  );
+}
+
 // ===== src/components/admin/TranslationGroupRow.tsx =====
 
 "use client";
@@ -22376,6 +23109,109 @@ export default function TranslationGroupRow({
         </button>
       </td>
     </tr>
+  );
+}
+
+// ===== src/components/admin/TranslationStatusPopover.tsx =====
+
+"use client";
+
+import { Popover, Transition } from "@headlessui/react";
+import { Fragment } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { ILanguage } from "@/models/Language";
+import { ITickerMessage } from "@/models/TickerMessage";
+import { Languages, Edit, Plus } from "lucide-react";
+import toast from "react-hot-toast";
+
+interface TranslationStatusPopoverProps {
+  group: ITickerMessage[];
+  allActiveLanguages: ILanguage[];
+}
+
+export default function TranslationStatusPopover({
+  group,
+  allActiveLanguages,
+}: TranslationStatusPopoverProps) {
+  const existingTranslationsMap = new Map(group.map((p) => [p.language, p]));
+  const translatedCount = existingTranslationsMap.size;
+  const totalCount = allActiveLanguages.length;
+
+  return (
+    <Popover className="relative">
+      <Popover.Button className="flex items-center gap-2 rounded-md bg-gray-700/80 px-3 py-1.5 text-xs font-semibold text-brand-light hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-purple">
+        <Languages size={14} />
+        <span>
+          {translatedCount} / {totalCount} Languages
+        </span>
+      </Popover.Button>
+      <Transition
+        as={Fragment}
+        enter="transition ease-out duration-200"
+        enterFrom="opacity-0 translate-y-1"
+        enterTo="opacity-100 translate-y-0"
+        leave="transition ease-in duration-150"
+        leaveFrom="opacity-100 translate-y-0"
+        leaveTo="opacity-0 translate-y-1"
+      >
+        <Popover.Panel className="absolute right-0 z-10 mt-2 w-72 origin-top-right rounded-md bg-brand-dark shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none border border-gray-700">
+          <div className="p-2">
+            <div className="p-2 font-bold text-white">Translations</div>
+            <div className="max-h-60 overflow-y-auto custom-scrollbar space-y-1">
+              {allActiveLanguages.map((lang) => {
+                const translation = existingTranslationsMap.get(lang.code);
+                return (
+                  <div
+                    key={lang.code}
+                    className="flex items-center justify-between p-2 rounded-md hover:bg-brand-secondary"
+                  >
+                    <div className="flex items-center gap-2">
+                      {lang.flagUrl && (
+                        <Image
+                          src={lang.flagUrl}
+                          alt={lang.name}
+                          width={20}
+                          height={15}
+                          className="rounded-sm"
+                        />
+                      )}
+                      <span className="text-sm font-medium text-brand-light">
+                        {lang.name}
+                      </span>
+                    </div>
+                    {translation ? (
+                      <button
+                        onClick={() =>
+                          toast.success(
+                            `Editing "${translation.message}" in a modal would happen here.`
+                          )
+                        }
+                        className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300"
+                      >
+                        <Edit size={12} /> Edit
+                      </button>
+                    ) : (
+                      <Link
+                        href="#"
+                        onClick={() =>
+                          toast.success(
+                            `Creating a new translation for ${lang.name} would happen here.`
+                          )
+                        }
+                        className="flex items-center gap-1 text-xs text-green-400 hover:text-green-300"
+                      >
+                        <Plus size={12} /> Add
+                      </Link>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </Popover.Panel>
+      </Transition>
+    </Popover>
   );
 }
 
@@ -22646,14 +23482,14 @@ import axios from "axios";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import { format, Locale } from "date-fns";
-import { enUS, tr, de, fr, es, ar } from "date-fns/locale";
+import { enUS, tr, fr, es } from "date-fns/locale";
 import { Calendar, Info } from "lucide-react";
 import MatchListItem, { MatchListItemSkeleton } from "../MatchListItem";
 import { useTranslation } from "@/hooks/useTranslation";
 
 type FixtureView = "upcoming" | "today" | "date";
 
-const dateLocales: Record<string, Locale> = { en: enUS, tr, de, fr, es, ar };
+const dateLocales: Record<string, Locale> = { en: enUS, tr, fr, es };
 
 const fetchFixtures = async (params: {
   leagueId: number;
@@ -25327,7 +26163,8 @@ export default MatchStatusBanner;
 
 "use client";
 
-import { TrendingUp, Shield, BarChart2 } from "lucide-react";
+import { useMemo } from "react";
+import { TrendingUp, Shield, BarChart2, Info } from "lucide-react";
 import Image from "next/image";
 import { proxyImageUrl } from "@/lib/image-proxy";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -25336,6 +26173,7 @@ interface TeamFormWidgetProps {
   teamStats: any;
   team: any;
   location: "Home" | "Away";
+  h2hData: any[];
 }
 
 const StatRow = ({
@@ -25375,10 +26213,45 @@ export default function TeamFormWidget({
   teamStats,
   team,
   location,
+  h2hData,
 }: TeamFormWidgetProps) {
   const { t } = useTranslation();
 
-  if (!teamStats || !teamStats.form) {
+  const { formString, detailedStats } = useMemo(() => {
+    let form = "";
+    let stats = null;
+
+    if (teamStats?.form) {
+      form = teamStats.form;
+      stats = {
+        fixtures: teamStats.fixtures,
+        goals: teamStats.goals,
+      };
+    }
+
+    else if (h2hData) {
+      const teamFixtures = h2hData
+        .filter(
+          (m: any) => m.teams.home.id === team.id || m.teams.away.id === team.id
+        )
+        .sort(
+          (a: any, b: any) =>
+            new Date(b.fixture.date).getTime() - new Date(a.fixture.date).getTime()
+        )
+        .slice(0, 10);
+
+      form = teamFixtures.map((match: any) => {
+        const isHome = match.teams.home.id === team.id;
+        if (match.teams.home.winner) return isHome ? 'W' : 'L';
+        if (match.teams.away.winner) return isHome ? 'L' : 'W';
+        return 'D';
+      }).reverse().join('');
+    }
+
+    return { formString: form, detailedStats: stats };
+  }, [teamStats, h2hData, team.id]);
+
+  if (!formString && !detailedStats) {
     return (
       <div className="bg-brand-secondary p-4 rounded-lg">
         <h3 className="text-lg font-bold text-white mb-2">
@@ -25391,12 +26264,11 @@ export default function TeamFormWidget({
     );
   }
 
-  const formArray = teamStats.form.slice(-10).split("");
-  const goalsFor = teamStats.goals.for.total.total;
-  const goalsAgainst = teamStats.goals.against.total.total;
+  const formArray = formString.slice(-10).split("");
 
   return (
     <div className="bg-brand-secondary p-4 rounded-lg space-y-4">
+      {}
       <div className="flex items-center gap-3">
         <Image
           src={proxyImageUrl(team.logo)}
@@ -25412,67 +26284,78 @@ export default function TeamFormWidget({
         </div>
       </div>
 
-      <div>
-        <h4 className="font-semibold text-brand-light mb-2 flex items-center gap-2">
-          <TrendingUp size={16} />{" "}
-          {t("recent_form_count", { count: formArray.length })}
-        </h4>
-        <div className="flex items-center gap-1.5">
-          {formArray.map((result: "W" | "D" | "L", index: number) => (
-            <FormPill key={index} result={result} />
-          ))}
+      {}
+      {formArray.length > 0 && (
+        <div>
+          <h4 className="font-semibold text-brand-light mb-2 flex items-center gap-2">
+            <TrendingUp size={16} />{" "}
+            {t("recent_form_count", { count: formArray.length })}
+          </h4>
+          <div className="flex items-center gap-1.5">
+            {formArray.map((result: "W" | "D" | "L", index: number) => (
+              <FormPill key={index} result={result} />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      <div>
-        <h4 className="font-semibold text-brand-light mb-1 flex items-center gap-2">
-          <BarChart2 size={16} /> {t("performance_title")}
-        </h4>
-        <div className="bg-gray-800/50 p-2 rounded-md">
-          <StatRow
-            label={t("matches_played")}
-            value={`${teamStats.fixtures.played.home} (${t("home_short")}) / ${
-              teamStats.fixtures.played.away
-            } (${t("away_short")})`}
-          />
-          <StatRow
-            label={t("wins")}
-            value={`${teamStats.fixtures.wins.home} (${t("home_short")}) / ${
-              teamStats.fixtures.wins.away
-            } (${t("away_short")})`}
-          />
-          <StatRow
-            label={t("draws")}
-            value={`${teamStats.fixtures.draws.home} (${t("home_short")}) / ${
-              teamStats.fixtures.draws.away
-            } (${t("away_short")})`}
-          />
-          <StatRow
-            label={t("losses")}
-            value={`${teamStats.fixtures.loses.home} (${t("home_short")}) / ${
-              teamStats.fixtures.loses.away
-            } (${t("away_short")})`}
-          />
+      {}
+      {detailedStats ? (
+        <>
+          <div>
+            <h4 className="font-semibold text-brand-light mb-1 flex items-center gap-2">
+              <BarChart2 size={16} /> {t("performance_title")}
+            </h4>
+            <div className="bg-gray-800/50 p-2 rounded-md">
+              <StatRow
+                label={t("matches_played")}
+                value={`${detailedStats.fixtures.played.home} (${t("home_short")}) / ${detailedStats.fixtures.played.away} (${t("away_short")})`}
+              />
+              <StatRow
+                label={t("wins")}
+                value={`${detailedStats.fixtures.wins.home} (${t("home_short")}) / ${detailedStats.fixtures.wins.away} (${t("away_short")})`}
+              />
+              <StatRow
+                label={t("draws")}
+                value={`${detailedStats.fixtures.draws.home} (${t("home_short")}) / ${detailedStats.fixtures.draws.away} (${t("away_short")})`}
+              />
+              <StatRow
+                label={t("losses")}
+                value={`${detailedStats.fixtures.loses.home} (${t("home_short")}) / ${detailedStats.fixtures.loses.away} (${t("away_short")})`}
+              />
+            </div>
+          </div>
+          <div>
+            <h4 className="font-semibold text-brand-light mb-1 flex items-center gap-2">
+              <Shield size={16} /> {t("goal_analysis_title")}
+            </h4>
+            <div className="bg-gray-800/50 p-2 rounded-md">
+              <StatRow
+                label={t("goals_for")}
+                value={detailedStats.goals.for.total.total}
+                highlight
+              />
+              <StatRow
+                label={t("goals_against")}
+                value={detailedStats.goals.against.total.total}
+              />
+              <StatRow
+                label={t("avg_scored")}
+                value={detailedStats.goals.for.average.total}
+              />
+              <StatRow
+                label={t("avg_conceded")}
+                value={detailedStats.goals.against.average.total}
+              />
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="text-center p-3 bg-gray-800/50 rounded-md">
+           <Info size={18} className="mx-auto text-brand-muted mb-2" />
+           <p className="text-sm text-brand-muted">{t("detailed_stats_unavailable")}</p>
         </div>
-      </div>
-
-      <div>
-        <h4 className="font-semibold text-brand-light mb-1 flex items-center gap-2">
-          <Shield size={16} /> {t("goal_analysis_title")}
-        </h4>
-        <div className="bg-gray-800/50 p-2 rounded-md">
-          <StatRow label={t("goals_for")} value={goalsFor} highlight />
-          <StatRow label={t("goals_against")} value={goalsAgainst} />
-          <StatRow
-            label={t("avg_scored")}
-            value={teamStats.goals.for.average.total}
-          />
-          <StatRow
-            label={t("avg_conceded")}
-            value={teamStats.goals.against.average.total}
-          />
-        </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -27248,7 +28131,7 @@ export const generateTeamSlug = (
 
 // ===== src/lib/hreflang.ts =====
 
-const SUPPORTED_LOCALES = ["tr", "en", "de", "fr", "es", "ar", "zu"];
+const SUPPORTED_LOCALES = ["tr", "en", "fr", "es", "zu"];
 const DEFAULT_LOCALE = "tr";
 
 const BASE_URL =
@@ -27466,7 +28349,7 @@ import "server-only";
 import path from "path";
 import { promises as fs } from "fs";
 
-const SUPPORTED_LOCALES = ["tr", "en", "de", "fr", "es", "ar", "zu"];
+const SUPPORTED_LOCALES = ["tr", "en", "fr", "es", "zu"];
 const DEFAULT_LOCALE = "tr";
 const LOCALES_DIR = path.join(process.cwd(), "src/locales");
 
@@ -27806,20 +28689,39 @@ export function generatePrediction(
 
 const mockRedisClient = {
   get: async (key: string): Promise<string | null> => {
+
     return null;
   },
-  set: async (key: string, value: string, ...args: any[]): Promise<"OK" | null> => {
+  set: async (
+    key: string,
+    value: string,
+    ...args: any[]
+  ): Promise<"OK" | null> => {
+
     return "OK";
   },
+
+  del: async (key: string): Promise<number> => {
+
+    return 1;
+  },
+
   hgetall: async (key: string): Promise<Record<string, string>> => {
+
     return {};
   },
   pipeline: () => ({
-    hset: () => {},
-    expire: () => {},
-    exec: async () => [],
-  }),
+    hset: () => {
 
+    },
+    expire: () => {
+
+    },
+    exec: async () => {
+
+      return [];
+    },
+  }),
 };
 
 export default mockRedisClient;
@@ -28499,6 +29401,58 @@ PostSchema.index({ slug: 1, language: 1 }, { unique: true });
 
 export default (mongoose.models.Post as mongoose.Model<IPost>) ||
   mongoose.model<IPost>("Post", PostSchema);
+
+// ===== src/models/TickerMessage.ts =====
+
+import mongoose, { Schema, Document, Model } from "mongoose";
+
+export interface ITickerMessage extends Document {
+  message: string;
+  language: string;
+  translationGroupId: mongoose.Types.ObjectId;
+  isActive: boolean;
+  order: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const TickerMessageSchema: Schema<ITickerMessage> = new Schema(
+  {
+    message: {
+      type: String,
+      required: [true, "Message content is required."],
+      trim: true,
+    },
+    language: {
+      type: String,
+      required: [true, "Language is required."],
+      index: true,
+    },
+    translationGroupId: {
+      type: Schema.Types.ObjectId,
+      required: true,
+      index: true,
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+      index: true,
+    },
+    order: {
+      type: Number,
+      default: 0,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+const TickerMessage: Model<ITickerMessage> =
+  mongoose.models.TickerMessage ||
+  mongoose.model<ITickerMessage>("TickerMessage", TickerMessageSchema);
+
+export default TickerMessage;
 
 // ===== src/models/TitleTemplate.ts =====
 

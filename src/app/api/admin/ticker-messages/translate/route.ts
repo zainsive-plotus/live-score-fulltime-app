@@ -37,36 +37,35 @@ export async function POST(request: Request) {
 
     await dbConnect();
 
-    console.log(sourceMessageId);
-    
-
     const sourceMessage = await TickerMessage.findById(sourceMessageId);
-
-    console.log(sourceMessage);
-    
 
     if (!sourceMessage) {
       return NextResponse.json({ error: "Source message not found" }, { status: 404 });
     }
 
+    // --- Start of Fix ---
+    // Self-healing: Ensure the source message has a translationGroupId.
+    // If it's missing (e.g., legacy data), assign its own _id as the group ID.
+    if (!sourceMessage.translationGroupId) {
+      console.warn(`Ticker message ${sourceMessage._id} was missing a translationGroupId. Self-healing.`);
+      sourceMessage.translationGroupId = sourceMessage._id;
+      await sourceMessage.save();
+    }
+    const groupId = sourceMessage.translationGroupId;
+    // --- End of Fix ---
+
     const [allLanguages, existingTranslations] = await Promise.all([
-      // --- Start of Fix ---
-      // Fetch ALL languages first to ensure we can identify the source, even if it's inactive.
-      Language.find({}).lean(),
-      // --- End of Fix ---
-      TickerMessage.find({ translationGroupId: sourceMessage.translationGroupId }).lean(),
+      Language.find({ isActive: true }).lean(),
+      TickerMessage.find({ translationGroupId: groupId }).lean(),
     ]);
 
     const sourceLangDetails = allLanguages.find(lang => lang.code === (sourceMessage.language ?? 'en') );
     if (!sourceLangDetails) {
-        // This error is now more specific and less likely to happen.
         return NextResponse.json({ error: `Source language code '${sourceMessage.language}' could not be found in the database.` }, { status: 400 });
     }
 
     const existingLangCodes = new Set(existingTranslations.map(t => t.language));
-    
-    // Now, filter the full list to get only ACTIVE languages to translate INTO.
-    const targetLanguages = allLanguages.filter(lang => lang.isActive && !existingLangCodes.has(lang.code));
+    const targetLanguages = allLanguages.filter(lang => !existingLangCodes.has(lang.code));
 
     if (targetLanguages.length === 0) {
       return NextResponse.json({ message: "All active languages are already translated." });
@@ -75,11 +74,11 @@ export async function POST(request: Request) {
     let translatedCount = 0;
     const translationPromises = targetLanguages.map(async (targetLang) => {
       const translatedText = await translateText(sourceMessage.message, sourceLangDetails.name, targetLang.name);
-      
+
       const newMessage = new TickerMessage({
         message: translatedText,
         language: targetLang.code,
-        translationGroupId: sourceMessage.translationGroupId,
+        translationGroupId: groupId, // Use the now-guaranteed group ID
         isActive: sourceMessage.isActive,
         order: sourceMessage.order,
       });
@@ -94,7 +93,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: `Successfully created ${translatedCount} new translation(s).` });
 
   } catch (error: any) {
-    console.error("[API/ticker/translate] Error:", error);
+    console.error("[API/ticker-messages/translate] Error:", error.message);
     return NextResponse.json({ error: "Failed to generate translations." }, { status: 500 });
   }
 }
