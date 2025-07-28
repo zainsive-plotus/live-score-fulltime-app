@@ -6,14 +6,14 @@ import axios from "axios";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import { format, Locale } from "date-fns";
-import { enUS, tr, de, fr, es, ar } from "date-fns/locale"; // <-- Import locales
+import { enUS, tr, fr, es } from "date-fns/locale"; // <-- Import locales
 import { Calendar, Info } from "lucide-react";
 import MatchListItem, { MatchListItemSkeleton } from "../MatchListItem";
 import { useTranslation } from "@/hooks/useTranslation";
 
 type FixtureView = "upcoming" | "today" | "date";
 
-const dateLocales: Record<string, Locale> = { en: enUS, tr, de, fr, es, ar };
+const dateLocales: Record<string, Locale> = { en: enUS, tr, fr, es };
 
 const fetchFixtures = async (params: {
   leagueId: number;

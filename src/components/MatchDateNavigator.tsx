@@ -11,14 +11,14 @@ import {
 } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
 // Import date-fns locales for different languages
-import { enUS, tr, de, fr, es, ar } from "date-fns/locale";
+import { enUS, tr, fr, es } from "date-fns/locale";
 
 interface DateNavigatorProps {
   selectedDate: Date;
   onDateChange: (date: Date) => void;
 }
 
-const dateLocales: Record<string, Locale> = { en: enUS, tr, de, fr, es, ar };
+const dateLocales: Record<string, Locale> = { en: enUS, tr,  fr, es, };
 
 export default function MatchDateNavigator({
   selectedDate,

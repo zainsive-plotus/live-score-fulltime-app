@@ -3,7 +3,7 @@ import path from "path";
 import { promises as fs } from "fs";
 
 // This list must be kept in sync with the list in middleware.ts
-const SUPPORTED_LOCALES = ["tr", "en", "de", "fr", "es", "ar", "zu"];
+const SUPPORTED_LOCALES = ["tr", "en", "fr", "es", "zu"];
 const DEFAULT_LOCALE = "tr";
 const LOCALES_DIR = path.join(process.cwd(), "src/locales");
 

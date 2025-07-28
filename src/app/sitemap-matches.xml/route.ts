@@ -5,7 +5,7 @@ import { format, subDays, addDays } from "date-fns";
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
-const SUPPORTED_LOCALES = ["tr", "en", "de", "fr", "es", "ar", "zu"];
+const SUPPORTED_LOCALES = ["tr", "en", "fr", "es", "zu"];
 const DEFAULT_LOCALE = "tr";
 
 type SitemapEntry = {
