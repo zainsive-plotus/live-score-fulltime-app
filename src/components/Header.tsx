@@ -24,7 +24,7 @@ import NavDropdown from "./NavDropdown";
 import NotificationDropdown from "./NotificationDropdown";
 import { ArrowRight, Bell, Menu, X } from "lucide-react";
 import Ticker from "./Ticker";
-import { useScrollDirection } from "@/hooks/useScrollDirection"; // Import the new hook
+import { useScrollDirection } from "@/hooks/useScrollDirection";
 
 type NavIcon = React.ElementType;
 
@@ -60,10 +60,7 @@ export default function Header() {
   const notificationRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
 
-  // --- Start of Change ---
-  // All scroll logic is now replaced by this single, clean hook call.
   const { isSticky, isVisible } = useScrollDirection({ threshold: 200 });
-  // --- End of Change ---
 
   const { data: latestPost } = useQuery<IPost | null>({
     queryKey: ["latestPostForIndicator"],
@@ -151,7 +148,10 @@ export default function Header() {
         ${isVisible ? 'translate-y-0' : '-translate-y-full'}
       `}
     >
-      <header className="relative w-full">
+      {/* --- Start of Fix --- */}
+      {/* Added `relative z-10` to ensure this header and its dropdowns appear above the ticker */}
+      <header className="relative w-full z-10">
+      {/* --- End of Fix --- */}
         <div className="container mx-auto flex h-24 items-center justify-between px-4 lg:px-6">
           <StyledLink href="/" className="flex items-center flex-shrink-0">
             <Image
