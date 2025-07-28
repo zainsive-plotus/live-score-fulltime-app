@@ -1,6 +1,6 @@
 // ===== src/lib/hreflang.ts =====
 
-const SUPPORTED_LOCALES = ["tr", "en", "de", "fr", "es", "ar", "zu"];
+const SUPPORTED_LOCALES = ["tr", "en", "fr", "es", "zu"];
 const DEFAULT_LOCALE = "tr";
 
 const BASE_URL =
