@@ -1,7 +1,12 @@
+// ===== src/models/Post.ts =====
+
 import mongoose, { Schema, Document } from "mongoose";
 
 export type SportsCategory = "football" | "basketball" | "tennis" | "general";
-export type NewsType = "news" | "highlights" | "reviews" | "prediction";
+// --- Start of Change ---
+// Added 'recent' for AI-generated curated news. 'curated' is removed to avoid confusion.
+export type NewsType = "news" | "highlights" | "reviews" | "prediction" | "transfer" | "recent";
+// --- End of Change ---
 
 export interface IPost extends Document {
   title: string;
@@ -17,10 +22,8 @@ export interface IPost extends Document {
   metaTitle?: string;
   metaDescription?: string;
 
-  // --- New Fields ---
-  language: string; // e.g., 'en', 'tr'
-  translationGroupId: mongoose.Types.ObjectId; // Shared ID for all related translations
-  // --- End New Fields ---
+  language: string;
+  translationGroupId: mongoose.Types.ObjectId;
 
   sportsCategory: SportsCategory[];
   isAIGenerated?: boolean;
@@ -30,6 +33,7 @@ export interface IPost extends Document {
   linkedFixtureId?: number;
   linkedLeagueId?: number;
   linkedTeamId?: number;
+  originalSourceUrl?: string; 
 }
 
 const PostSchema: Schema = new Schema(
@@ -50,7 +54,6 @@ const PostSchema: Schema = new Schema(
     metaTitle: { type: String, trim: true },
     metaDescription: { type: String, trim: true },
 
-    // --- New Fields Definition ---
     language: {
       type: String,
       required: true,
@@ -61,7 +64,6 @@ const PostSchema: Schema = new Schema(
       required: true,
       index: true,
     },
-    // --- End New Fields Definition ---
 
     sportsCategory: {
       type: [
@@ -85,11 +87,18 @@ const PostSchema: Schema = new Schema(
       unique: true,
       sparse: true,
     },
+    // --- Start of Change ---
+    // Updated the enum to include the new 'recent' type.
     newsType: {
       type: String,
-      enum: ["news", "highlights", "reviews", "prediction"],
+      enum: ["news", "highlights", "reviews", "prediction", "transfer", "recent"],
       default: "news",
       required: true,
+    },
+    // --- End of Change ---
+    originalSourceUrl: {
+      type: String,
+      trim: true,
     },
     linkedFixtureId: {
       type: Number,
@@ -112,9 +121,6 @@ const PostSchema: Schema = new Schema(
   }
 );
 
-// Create a compound unique index for slug and language.
-// This ensures that a slug like "hello-world" can exist for both 'en' and 'tr',
-// but not twice for 'en'.
 PostSchema.index({ slug: 1, language: 1 }, { unique: true });
 
 export default (mongoose.models.Post as mongoose.Model<IPost>) ||

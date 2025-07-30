@@ -1,3 +1,5 @@
+// ===== src/components/RecentNewsWidget.tsx =====
+
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
@@ -6,15 +8,14 @@ import { IPost } from "@/models/Post";
 import SidebarNewsItem, { SidebarNewsItemSkeleton } from "./SidebarNewsItem";
 import { ArrowRight, Newspaper, Info } from "lucide-react";
 import Link from "next/link";
-import { useTranslation } from "@/hooks/useTranslation"; // <-- 1. Import the hook
+import { useTranslation } from "@/hooks/useTranslation";
 
 const fetchRecentNews = async (
   limit: number = 4,
   locale: string
 ): Promise<IPost[]> => {
-  // 2. Add locale to the function and the API call
   const { data } = await axios.get(
-    `/api/posts?status=published&limit=${limit}&language=${locale}`
+    `/api/posts?status=published&limit=${limit}&language=${locale}&newsType=recent`
   );
   return data;
 };
@@ -24,18 +25,17 @@ interface RecentNewsWidgetProps {
 }
 
 export default function RecentNewsWidget({ limit = 4 }: RecentNewsWidgetProps) {
-  const { t, locale } = useTranslation(); // <-- 3. Get the current locale
+  const { t, locale } = useTranslation();
 
   const {
     data: recentPosts,
     isLoading,
     isError,
   } = useQuery<IPost[]>({
-    // 4. Add locale to the queryKey to ensure refetching on language change
     queryKey: ["recentNewsWidget", limit, locale],
     queryFn: () => fetchRecentNews(limit, locale!),
     staleTime: 1000 * 60 * 5,
-    enabled: !!locale, // Ensure the query only runs when locale is available
+    enabled: !!locale,
   });
 
   return (
@@ -43,13 +43,14 @@ export default function RecentNewsWidget({ limit = 4 }: RecentNewsWidgetProps) {
       <div className="flex justify-between items-center p-4 border-b border-gray-700/50">
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
           <Newspaper size={20} className="text-[var(--brand-accent)]" />
-          {t("latest_news")}
+          {t("recent_news")}
         </h2>
         <Link
-          href="/news" // General news link
-          className="text-xs font-semibold text-text-muted hover:text-white flex items-center gap-1"
+          href="/news"
+          className="flex items-center gap-1 text-xs font-semibold text-text-muted transition-colors hover:text-white"
         >
-          {t("see_all")} <ArrowRight size={14} />
+          {t("see_all")}
+          <ArrowRight size={14} />
         </Link>
       </div>
 
@@ -62,15 +63,27 @@ export default function RecentNewsWidget({ limit = 4 }: RecentNewsWidgetProps) {
             <SidebarNewsItemSkeleton />
           </>
         ) : isError ? (
-          <div className="text-center py-6 text-red-400">
+          <div className="rounded-lg p-6 text-center text-red-400">
             <p>{t("error_loading_news")}</p>
           </div>
         ) : recentPosts && recentPosts.length > 0 ? (
+          // --- Start of Change ---
+          // The component now links to the internal slug page for all items.
+          // The `isExternal` prop is no longer needed for this widget.
           recentPosts.map((post) => (
-            <SidebarNewsItem key={post._id as string} post={post} />
+             <SidebarNewsItem
+              key={post._id as string}
+              post={{
+                ...post,
+                slug: `/news/${post.slug}`, // Always use the internal slug path
+                createdAt: new Date(post.createdAt),
+                updatedAt: new Date(post.updatedAt),
+              }}
+            />
           ))
+          // --- End of Change ---
         ) : (
-          <div className="text-center py-6 text-brand-muted">
+          <div className="rounded-lg p-6 text-center text-text-muted">
             <Info size={28} className="mx-auto mb-2" />
             <p className="text-sm">{t("no_news_yet")}</p>
           </div>

@@ -6,7 +6,6 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import dbConnect from "@/lib/dbConnect";
 import ExternalNewsArticle from "@/models/ExternalNewsArticle";
 import { processSingleArticle } from "@/lib/ai-processing";
-import { NewsType, SportsCategory } from "@/models/Post";
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -14,89 +13,54 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const body = await request.json();
+  // --- Start of Fix ---
+  // The 'articleId' from the client is the unique string from the news provider, not the MongoDB _id.
+  const { articleId } = body; 
+  
+  if (!articleId) {
+    return NextResponse.json(
+      { error: "External Article ID is required." },
+      { status: 400 }
+    );
+  }
+  // --- End of Fix ---
+
   try {
-    // --- FIX START: Added titleTemplateId to the destructuring ---
-    const {
-      articleId,
-      journalistId,
-      titleTemplateId, // <-- ADDED THIS LINE
-      sportsCategory,
-      newsType,
-      status,
-    }: {
-      articleId: string;
-      journalistId?: string;
-      titleTemplateId?: string; // <-- ADDED THIS LINE
-      sportsCategory: SportsCategory[];
-      newsType: NewsType;
-      status: "draft" | "published";
-    } = await request.json();
-    // --- FIX END ---
-
-    if (
-      !articleId ||
-      !sportsCategory ||
-      sportsCategory.length === 0 ||
-      !newsType
-    ) {
-      return NextResponse.json(
-        { error: "Missing required parameters." },
-        { status: 400 }
-      );
-    }
-
     const stream = new ReadableStream({
       async start(controller) {
         const encoder = new TextEncoder();
-        const sendEvent = (log: string) => {
+        const sendEvent = (log: string, eventType: string = "LOG") => {
           controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify({ log })}\n\n`)
+            encoder.encode(`data: ${JSON.stringify({ event: eventType, data: log, log })}\n\n`)
           );
         };
 
         try {
           await dbConnect();
-          const externalArticle = await ExternalNewsArticle.findOne({
-            articleId,
-          });
+          // --- Start of Fix ---
+          // Use `findOne({ articleId: ... })` to search by the provider's string ID,
+          // instead of `findById()`, which expects a MongoDB ObjectId.
+          const articleToProcess = await ExternalNewsArticle.findOne({ articleId: articleId });
+          // --- End of Fix ---
 
-          if (!externalArticle) {
-            throw new Error("External news article not found.");
+          if (!articleToProcess) {
+            throw new Error(`External news article with ID '${articleId}' not found in the database.`);
           }
 
-          // --- FIX START: Pass titleTemplateId to the processing function ---
-          const result = await processSingleArticle(externalArticle, {
-            journalistId,
-            titleTemplateId, // <-- ADDED THIS LINE
-            sportsCategory,
-            newsType,
-            status,
-            onProgress: sendEvent,
+          const result = await processSingleArticle(articleToProcess, {
+            onProgress: (log: string) => sendEvent(log),
           });
-          // --- FIX END ---
 
           if (result.success) {
-            controller.enqueue(
-              encoder.encode(
-                `data: ${JSON.stringify({
-                  event: "SUCCESS",
-                  data: result,
-                })}\n\n`
-              )
-            );
+            sendEvent("Article and translations created successfully.", "SUCCESS");
           } else {
-            throw new Error("Article processing failed in the final step.");
+            throw new Error("Article processing failed. Check server logs for details.");
           }
+
         } catch (error: any) {
-          console.error("[Process News API Stream] Error:", error.message);
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({
-                event: "ERROR",
-                data: { message: error.message },
-              })}\n\n`
-            )
-          );
+          console.error("[API/process-external-news] Stream error:", error);
+          sendEvent(`A critical error occurred: ${error.message}`, "ERROR");
         } finally {
           controller.close();
         }
@@ -111,10 +75,7 @@ export async function POST(request: Request) {
       },
     });
   } catch (error: any) {
-    console.error(
-      "[Process News API] Initial Body Parse Error:",
-      error.message
-    );
+    console.error("[API/process-external-news] Initial request error:", error.message);
     return NextResponse.json(
       { error: "An unexpected server error occurred." },
       { status: 500 }

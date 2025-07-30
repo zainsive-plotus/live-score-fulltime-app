@@ -1,26 +1,27 @@
+// ===== src/components/SidebarNewsItem.tsx =====
+
 "use client";
 
-import Link from "next/link";
-import { format, formatDistanceToNow } from "date-fns";
+import Link from "next/link"; // Use the standard Next.js Link
+import { formatDistanceToNow } from "date-fns";
 import { IPost } from "@/models/Post";
 import { ChevronRight } from "lucide-react";
 
 interface SidebarNewsItemProps {
   post: IPost;
+  // The isExternal prop is no longer needed
 }
 
 export const SidebarNewsItemSkeleton = () => (
-  <div className="flex flex-col gap-1.5 p-2 animate-pulse">
+  <div className="flex flex-col gap-1.5 p-3 animate-pulse">
     <div className="h-4 w-full rounded bg-gray-700"></div>
     <div className="h-3 w-1/3 rounded bg-gray-700"></div>
   </div>
 );
 
 export default function SidebarNewsItem({ post }: SidebarNewsItemProps) {
-  // --- START OF MODIFICATION ---
-  // The URL is now always /news/[slug]
-  const postUrl = `/news/${post.slug}`;
-  // --- END OF MODIFICATION ---
+  // The href is now always an internal path, set by the parent widget.
+  const postUrl = post.slug;
 
   return (
     <Link

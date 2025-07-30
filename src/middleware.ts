@@ -1,9 +1,16 @@
+// ===== src/middleware.ts =====
+
 import { NextRequest, NextResponse } from "next/server";
 import Negotiator from "negotiator";
+// DO NOT import from i18nCache here, as it connects to the database.
 
 const I18N_COOKIE_NAME = "NEXT_LOCALE";
+// --- Start of Fix ---
+// This list MUST be kept in sync with the active languages in your database.
+// This is a necessary trade-off to keep the middleware database-free and Edge-compatible.
 const SUPPORTED_LOCALES = ["tr", "en", "fr", "es", "zu", "it"];
 const DEFAULT_LOCALE = "tr";
+// --- End of Fix ---
 
 function getLocale(request: NextRequest): string {
   const cookieLocale = request.cookies.get(I18N_COOKIE_NAME)?.value;
@@ -29,34 +36,44 @@ function getLocale(request: NextRequest): string {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // --- START OF NEW LOGIC ---
-  // 1. Check if the path is for an admin route, the login page, or an API call.
-  // If it is, do not perform any i18n routing.
+  // Skip middleware for API, admin, static files, etc.
   if (
     pathname.startsWith("/admin") ||
     pathname.startsWith("/login") ||
-    pathname.startsWith("/api")
+    pathname.startsWith("/api") ||
+    pathname.startsWith("/_next") ||
+    pathname.includes(".") // Exclude files with extensions
   ) {
     return NextResponse.next();
   }
-  // --- END OF NEW LOGIC ---
 
   const pathnameHasLocale = SUPPORTED_LOCALES.some(
     (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
   );
 
   if (pathnameHasLocale) {
+    // If a user tries to access the default locale with a prefix (e.g., /tr/news),
+    // redirect them to the clean, non-prefixed URL to avoid duplicate content.
+    if (pathname.startsWith(`/${DEFAULT_LOCALE}`)) {
+        const newPath = pathname.replace(`/${DEFAULT_LOCALE}`, "");
+        const url = new URL(newPath === "" ? "/" : newPath, request.url);
+        return NextResponse.redirect(url);
+    }
     return NextResponse.next();
   }
 
+  // Logic to handle requests without a locale prefix.
   const detectedLocale = getLocale(request);
   let response: NextResponse;
 
   if (detectedLocale === DEFAULT_LOCALE) {
+    // For the default locale, REWRITE the URL to include the locale for Next.js's router,
+    // but keep the URL in the browser's address bar clean.
     response = NextResponse.rewrite(
       new URL(`/${DEFAULT_LOCALE}${pathname}`, request.url)
     );
   } else {
+    // For all other locales, REDIRECT the user to the URL with the correct prefix.
     response = NextResponse.redirect(
       new URL(`/${detectedLocale}${pathname}`, request.url)
     );
@@ -72,15 +89,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - assets (static assets)
-     * - favicon.ico (favicon file)
-     * - sw.js (service worker)
-     * - and any file with an extension (e.g., .svg, .png)
-     */
-    "/((?!_next/static|_next/image|assets|favicon.ico|sw.js|.*\\..*).*)",
+    '/((?!api|_next/static|_next/image|assets|favicon.ico|sw.js|.*\\..*).*)'
   ],
 };

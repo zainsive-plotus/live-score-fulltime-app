@@ -1,35 +1,37 @@
-// src/app/api/cron/process-news-batch/route.ts
+// ===== src/app/api/cron/process-news-batch/route.ts =====
+
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import dbConnect from "@/lib/dbConnect";
 import ExternalNewsArticle from "@/models/ExternalNewsArticle";
-// Import our single, powerful processing function
 import { processSingleArticle } from "@/lib/ai-processing";
 
-const BATCH_SIZE = 5;
+// --- Start of Change ---
+// We'll process one article group at a time to stay within serverless function time limits.
+// The automation will trigger this CRON job frequently (e.g., every 5-10 minutes).
+const BATCH_SIZE = 1;
+// --- End of Change ---
 
 export async function GET(request: Request) {
-  // --- Security Check ---
   const headersList = headers();
   const authHeader = headersList.get("authorization");
 
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    console.warn("[CRON] Unauthorized attempt to process news batch.");
     return new Response("Unauthorized", { status: 401 });
   }
 
   console.log(
-    "[CRON] Authorized request received. Starting news processing batch."
+    "[CRON] Authorized request received. Starting automated news processing."
   );
 
   try {
     await dbConnect();
 
-    // Find a batch of articles ready for processing.
+    // Find the next available article to process.
     const articlesToProcess = await ExternalNewsArticle.find({
       status: "fetched",
     })
-      .sort({ pubDate: -1 }) // Prioritize the newest articles
+      .sort({ pubDate: -1 }) // Prioritize the most recent news
       .limit(BATCH_SIZE);
 
     if (articlesToProcess.length === 0) {
@@ -38,22 +40,25 @@ export async function GET(request: Request) {
     }
 
     console.log(
-      `[CRON] Found ${articlesToProcess.length} articles to process.`
+      `[CRON] Found ${articlesToProcess.length} article(s) to process.`
     );
     let successCount = 0;
     let failureCount = 0;
-
-    // Process each article sequentially to avoid overwhelming the AI API.
+    
+    // --- Start of Change ---
+    // The loop now calls our enhanced, fully-automated processing function.
     for (const article of articlesToProcess) {
-      // The entire complex logic is now in a single, clean function call.
+      console.log(`[CRON] Processing article: ${article.title}`);
       const result = await processSingleArticle(article);
-
       if (result.success) {
         successCount++;
+        console.log(`[CRON] Successfully processed article ID: ${article.articleId}`);
       } else {
         failureCount++;
+        console.error(`[CRON] Failed to process article ID: ${article.articleId}`);
       }
     }
+    // --- End of Change ---
 
     const report = {
       message: "CRON job completed.",
@@ -61,8 +66,8 @@ export async function GET(request: Request) {
       failed: failureCount,
       total: articlesToProcess.length,
     };
-
-    console.log("[CRON] Batch processing complete.", report);
+    
+    console.log("[CRON] Batch finished.", report);
     return NextResponse.json(report);
   } catch (error: any) {
     console.error(

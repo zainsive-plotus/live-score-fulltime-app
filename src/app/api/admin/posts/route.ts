@@ -4,13 +4,9 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import dbConnect from "@/lib/dbConnect";
-import Post from "@/models/Post";
-
-// This is a dedicated endpoint for the admin panel.
-// It fetches ALL posts without the curation/language fallback logic.
+import Post, { NewsType } from "@/models/Post";
 
 export async function GET(request: Request) {
-  // 1. Admin-only check
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -18,9 +14,20 @@ export async function GET(request: Request) {
 
   try {
     await dbConnect();
+    
+    // --- Start of Change ---
+    const { searchParams } = new URL(request.url);
+    const newsType = searchParams.get("newsType") as NewsType | null;
 
-    // 2. Fetch ALL posts, sorted by creation date. This is what the admin panel needs.
-    const posts = await Post.find({}).sort({ createdAt: -1 }).lean();
+    const query: { newsType?: NewsType } = {};
+
+    if (newsType) {
+      query.newsType = newsType;
+    }
+    // --- End of Change ---
+
+    // The query object is passed to the find method
+    const posts = await Post.find(query).sort({ createdAt: -1 }).lean();
 
     return NextResponse.json(posts);
   } catch (error) {

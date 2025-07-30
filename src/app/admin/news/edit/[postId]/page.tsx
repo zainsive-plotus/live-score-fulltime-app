@@ -1,4 +1,4 @@
-// ===== src/app/admin/news/edit/[postId]/page.tsx (Corrected with Meta Fields) =====
+// ===== src/app/admin/news/edit/[postId]/page.tsx =====
 
 "use client";
 
@@ -10,18 +10,14 @@ import toast from "react-hot-toast";
 import Image from "next/image";
 import slugify from "slugify";
 
-// Component Imports
 import StyledLink from "@/components/StyledLink";
 import RichTextEditor from "@/components/admin/RichTextEditor";
 import TranslationsWidget from "@/components/admin/TranslationsWidget";
 
-// Icon Imports
 import { UploadCloud, XCircle, Save, Loader2 } from "lucide-react";
 
-// Type Imports
 import { IPost, SportsCategory, NewsType } from "@/models/Post";
 
-// Static Data for Form Fields
 const availableSportsCategories: { id: SportsCategory; label: string }[] = [
   { id: "football", label: "Football" },
   { id: "basketball", label: "Basketball" },
@@ -29,14 +25,18 @@ const availableSportsCategories: { id: SportsCategory; label: string }[] = [
   { id: "general", label: "General" },
 ];
 
+// --- Start of Change ---
+// Added "Recent News" to the list of available news types.
 const availableNewsTypes: { id: NewsType; label: string }[] = [
   { id: "news", label: "General News" },
+  { id: "recent", label: "Recent News (AI Curated)" },
   { id: "highlights", label: "Highlights" },
   { id: "reviews", label: "Match Review" },
   { id: "prediction", label: "Prediction/Analysis" },
+  { id: "transfer", label: "Transfer" },
 ];
+// --- End of Change ---
 
-// Data Fetching Function
 const fetchPost = async (postId: string): Promise<IPost> => {
   const { data } = await axios.get(`/api/posts/${postId}`);
   return data;
@@ -48,7 +48,6 @@ export default function EditNewsPostPage() {
   const queryClient = useQueryClient();
   const postId = params.postId as string;
 
-  // --- Form State ---
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(true);
@@ -70,7 +69,6 @@ export default function EditNewsPostPage() {
   const [language, setLanguage] = useState("");
   const [translationGroupId, setTranslationGroupId] = useState("");
 
-  // --- Data Fetching for the Post ---
   const {
     data: postData,
     isLoading,
@@ -81,7 +79,6 @@ export default function EditNewsPostPage() {
     enabled: !!postId,
   });
 
-  // --- Effect to Populate Form from Fetched Data (Robustly) ---
   useEffect(() => {
     if (postData) {
       setTitle(postData.title || "");
@@ -109,7 +106,6 @@ export default function EditNewsPostPage() {
     }
   }, [postData]);
 
-  // --- Handlers for Form Interactions ---
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTitle = e.target.value;
     setTitle(newTitle);
@@ -155,7 +151,6 @@ export default function EditNewsPostPage() {
     }
   };
 
-  // --- Mutation to Update the Post (with Enhanced Error Handling) ---
   const updatePostMutation = useMutation({
     mutationFn: (updatedPost: Partial<IPost> & { slug?: string }) =>
       axios.put(`/api/posts/${postId}`, updatedPost),
@@ -400,47 +395,46 @@ export default function EditNewsPostPage() {
                         accept="image/*"
                       />
                     </label>
+                    <p className="pl-1">or drag and drop</p>
                   </div>
+                  <p className="text-xs text-gray-500">
+                    PNG, JPG, WEBP up to 5MB
+                  </p>
                 </div>
               )}
             </div>
-            {featuredImage && (
-              <div className="space-y-2">
-                <div>
-                  <label
-                    htmlFor="imageTitle"
-                    className="block text-xs font-medium text-brand-light mb-1"
-                  >
-                    Image Title
-                  </label>
-                  <input
-                    id="imageTitle"
-                    type="text"
-                    value={imageTitle}
-                    onChange={(e) => setImageTitle(e.target.value)}
-                    className="w-full p-2 text-sm rounded bg-gray-700 text-white border border-gray-600"
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="imageAltText"
-                    className="block text-xs font-medium text-brand-light mb-1"
-                  >
-                    Image Alt Text
-                  </label>
-                  <input
-                    id="imageAltText"
-                    type="text"
-                    value={imageAltText}
-                    onChange={(e) => setImageAltText(e.target.value)}
-                    className="w-full p-2 text-sm rounded bg-gray-700 text-white border border-gray-600"
-                  />
-                </div>
-              </div>
-            )}
+            <div>
+              <label
+                htmlFor="imageTitle"
+                className="block text-sm font-medium text-brand-light mb-1"
+              >
+                Image Title
+              </label>
+              <input
+                id="imageTitle"
+                type="text"
+                value={imageTitle}
+                onChange={(e) => setImageTitle(e.target.value)}
+                className="w-full p-2 rounded bg-gray-700 text-white border border-gray-600"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="imageAltText"
+                className="block text-sm font-medium text-brand-light mb-1"
+              >
+                Image Alt Text
+              </label>
+              <input
+                id="imageAltText"
+                type="text"
+                value={imageAltText}
+                onChange={(e) => setImageAltText(e.target.value)}
+                className="w-full p-2 rounded bg-gray-700 text-white border border-gray-600"
+              />
+            </div>
           </div>
 
-          {/* --- SEO & Linking Section --- */}
           <div className="bg-brand-secondary p-4 rounded-lg space-y-4">
             <h3 className="text-lg font-semibold text-white">SEO & Linking</h3>
             <div>

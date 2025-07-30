@@ -6,21 +6,33 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import dbConnect from "@/lib/dbConnect";
 import TickerMessage from "@/models/TickerMessage";
 import Language from "@/models/Language";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import redis from "@/lib/redis";
+import OpenAI from "openai"; // --- Import OpenAI ---
 
-const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY as string);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+// --- Initialize OpenAI client ---
+const openai = new OpenAI({
+  apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
+});
 
 const CACHE_KEY_PREFIX = "ticker-messages:active:";
 
+// --- Rewritten for OpenAI ---
 async function translateText(text: string, sourceLang: string, targetLang: string): Promise<string> {
   const prompt = `Translate the following text from ${sourceLang} to ${targetLang}. Return ONLY the translated text, without any quotes, labels, or extra formatting.
 
 Text to translate: "${text}"`;
 
-  const result = await model.generateContent(prompt);
-  return (await result.response).text().trim().replace(/["']/g, "");
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.2,
+  });
+
+  const translatedText = response.choices[0]?.message?.content?.trim().replace(/["']/g, "");
+  if (!translatedText) {
+    throw new Error(`OpenAI failed to translate ticker message to ${targetLang}.`);
+  }
+  return translatedText;
 }
 
 export async function POST(request: Request) {
@@ -43,16 +55,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Source message not found" }, { status: 404 });
     }
 
-    // --- Start of Fix ---
-    // Self-healing: Ensure the source message has a translationGroupId.
-    // If it's missing (e.g., legacy data), assign its own _id as the group ID.
     if (!sourceMessage.translationGroupId) {
-      console.warn(`Ticker message ${sourceMessage._id} was missing a translationGroupId. Self-healing.`);
       sourceMessage.translationGroupId = sourceMessage._id;
       await sourceMessage.save();
     }
     const groupId = sourceMessage.translationGroupId;
-    // --- End of Fix ---
 
     const [allLanguages, existingTranslations] = await Promise.all([
       Language.find({ isActive: true }).lean(),
@@ -78,13 +85,15 @@ export async function POST(request: Request) {
       const newMessage = new TickerMessage({
         message: translatedText,
         language: targetLang.code,
-        translationGroupId: groupId, // Use the now-guaranteed group ID
+        translationGroupId: groupId,
         isActive: sourceMessage.isActive,
         order: sourceMessage.order,
       });
 
       await newMessage.save();
-      await redis.del(`${CACHE_KEY_PREFIX}${targetLang.code}`);
+      if (redis.del) {
+        await redis.del(`${CACHE_KEY_PREFIX}${targetLang.code}`);
+      }
       translatedCount++;
     });
 

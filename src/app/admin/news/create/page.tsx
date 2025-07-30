@@ -1,4 +1,4 @@
-// ===== src/app/admin/news/create/page.tsx (Corrected with Meta Fields) =====
+// ===== src/app/admin/news/create/page.tsx =====
 
 "use client";
 
@@ -27,12 +27,18 @@ const availableSportsCategories: { id: SportsCategory; label: string }[] = [
   { id: "general", label: "General" },
 ];
 
+// --- Start of Change ---
+// Added "Recent News" to the list of available news types.
 const availableNewsTypes: { id: NewsType; label: string }[] = [
   { id: "news", label: "General News" },
+  { id: "recent", label: "Recent News (AI Curated)" },
   { id: "highlights", label: "Highlights" },
   { id: "reviews", label: "Match Review" },
   { id: "prediction", label: "Prediction/Analysis" },
+  { id: "transfer", label: "Transfer" },
 ];
+// --- End of Change ---
+
 
 export default function CreateNewsPostPage() {
   const router = useRouter();
@@ -78,7 +84,7 @@ export default function CreateNewsPostPage() {
         remove: /[*+~.()'"!:@]/g,
       });
       setSlug(newSlug);
-      // Also pre-fill meta title
+
       setMetaTitle(newTitle);
     }
   };
@@ -105,7 +111,7 @@ export default function CreateNewsPostPage() {
         remove: /[*+~.()'"!:@]/g,
       });
       setSlug(newSlug);
-      setMetaTitle(fromTitle); // Pre-fill meta title
+      setMetaTitle(fromTitle);
 
       if (fromImage) setFeaturedImage(fromImage);
       if (fromCategories)
@@ -391,47 +397,46 @@ export default function CreateNewsPostPage() {
                         accept="image/*"
                       />
                     </label>
+                    <p className="pl-1">or drag and drop</p>
                   </div>
+                  <p className="text-xs text-gray-500">
+                    PNG, JPG, WEBP up to 5MB
+                  </p>
                 </div>
               )}
             </div>
-            {featuredImage && (
-              <div className="space-y-2">
-                <div>
-                  <label
-                    htmlFor="imageTitle"
-                    className="block text-xs font-medium text-brand-light mb-1"
-                  >
-                    Image Title
-                  </label>
-                  <input
-                    id="imageTitle"
-                    type="text"
-                    value={imageTitle}
-                    onChange={(e) => setImageTitle(e.target.value)}
-                    className="w-full p-2 text-sm rounded bg-gray-700 text-white border border-gray-600"
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="imageAltText"
-                    className="block text-xs font-medium text-brand-light mb-1"
-                  >
-                    Image Alt Text
-                  </label>
-                  <input
-                    id="imageAltText"
-                    type="text"
-                    value={imageAltText}
-                    onChange={(e) => setImageAltText(e.target.value)}
-                    className="w-full p-2 text-sm rounded bg-gray-700 text-white border border-gray-600"
-                  />
-                </div>
-              </div>
-            )}
+            <div>
+              <label
+                htmlFor="imageTitle"
+                className="block text-sm font-medium text-brand-light mb-1"
+              >
+                Image Title
+              </label>
+              <input
+                id="imageTitle"
+                type="text"
+                value={imageTitle}
+                onChange={(e) => setImageTitle(e.target.value)}
+                className="w-full p-2 rounded bg-gray-700 text-white border border-gray-600"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="imageAltText"
+                className="block text-sm font-medium text-brand-light mb-1"
+              >
+                Image Alt Text
+              </label>
+              <input
+                id="imageAltText"
+                type="text"
+                value={imageAltText}
+                onChange={(e) => setImageAltText(e.target.value)}
+                className="w-full p-2 rounded bg-gray-700 text-white border border-gray-600"
+              />
+            </div>
           </div>
 
-          {/* --- SEO & Linking Section --- */}
           <div className="bg-brand-secondary p-4 rounded-lg space-y-4">
             <h3 className="text-lg font-semibold text-white">SEO & Linking</h3>
             <div>

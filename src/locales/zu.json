@@ -478,5 +478,24 @@
   "football_news_description": "Izindaba zakamuva ezivela emhlabeni webhola.",
 
   "table_of_contents": "Uhlu Lokuqukethwe",
-  "detailed_stats_unavailable": "Izibalo ezinemininingwane azitholakali"
+  "detailed_stats_unavailable": "Izibalo ezinemininingwane azitholakali",
+
+  "news_hub_title": "Isizinda Sezindaba",
+  "news_hub_subtitle": "Umthombo wakho oyinhloko wezindaba zezemidlalo nezihloko.",
+  "latest_from_web": "Okuvela Kuwebhu",
+  "read_on_source": "Funda Emthonjeni",
+  "football_news_title": "Izindaba Zebhola",
+  "transfer_news_title": "Izindaba Zokudluliswa",
+  "see_all": "Bona Konke",
+  "no_recent_news_found_subtitle": "Azikho izindaba ezintsha ezingaboniswa okwamanje.",
+
+  "recent_news_title": "Izindaba Zakamuva",
+  "news_archive_title": "Umgcinomafa Wezindaba",
+  "football_news_archive_title": "Umgcinomafa Wezindaba Zebhola",
+  "transfer_news_archive_title": "Umgcinomafa Wezindaba Zokudluliswa",
+  "recent_news_archive_title": "Umgcinomafa Wezindaba Zakamuva",
+  "news_archive_subtitle": "Dlulisa amehlo kuzo zonke izihloko kulesi sigaba.",
+  "source_available": "Umthombo Utholakele",
+  "no_news_in_category_subtitle": "Azikho izindaba kulesi sigaba okwamanje.",
+  "footer_rights_reserved": "Wonke amalungelo agodliwe."
 }

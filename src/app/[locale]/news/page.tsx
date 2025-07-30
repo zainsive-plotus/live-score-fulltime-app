@@ -1,4 +1,4 @@
-// ===== src/app/[locale]/news/page.tsx (Redesigned - Minimal) =====
+// ===== src/app/[locale]/news/page.tsx =====
 
 import type { Metadata } from "next";
 import { IPost } from "@/models/Post";
@@ -10,11 +10,9 @@ import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
 import { Suspense } from "react";
 import { getNews } from "@/lib/data/news";
-import GeneralNewsClient from "./GeneralNewsClient";
-import { NewsCardSkeleton } from "@/components/NewsCard"; // <-- Import the new single skeleton
+import NewsPageClient from "./NewsPageClient";
 
 const PAGE_PATH = "/news";
-const ITEMS_PER_PAGE = 12; // Sync with client component
 
 export async function generateMetadata({
   params: { locale },
@@ -34,11 +32,13 @@ export async function generateMetadata({
 }
 
 const generateInitialJsonLd = (posts: IPost[], t: Function) => {
-  const paginatedPosts = posts.slice(0, ITEMS_PER_PAGE);
-  if (paginatedPosts.length === 0) return null;
+  if (posts.length === 0) return null;
 
-  const itemListElement = paginatedPosts.map((post, index) => {
-    const postUrl = `/${post.language}/news/${post.slug}`;
+  const itemListElement = posts.map((post, index) => {
+    const postUrl = post.originalSourceUrl
+      ? post.originalSourceUrl
+      : `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/${post.language}/news/${post.slug}`;
+      
     return {
       "@type": "ListItem",
       position: index + 1,
@@ -74,7 +74,22 @@ const generateInitialJsonLd = (posts: IPost[], t: Function) => {
   };
 };
 
-export default async function GeneralNewsPage({
+const NewsPageSkeleton = () => (
+    <div className="space-y-12 animate-pulse">
+        <div className="w-full aspect-video md:aspect-[2.4/1] bg-brand-secondary rounded-xl"></div>
+        <div>
+            <div className="h-8 w-1/3 bg-gray-700 rounded mb-6"></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="aspect-square bg-brand-secondary rounded-xl"></div>
+                <div className="aspect-square bg-brand-secondary rounded-xl"></div>
+                <div className="aspect-square bg-brand-secondary rounded-xl"></div>
+                <div className="aspect-square bg-brand-secondary rounded-xl"></div>
+            </div>
+        </div>
+    </div>
+);
+
+export default async function NewsHubPage({
   params,
 }: {
   params: { locale: string };
@@ -82,9 +97,17 @@ export default async function GeneralNewsPage({
   const { locale } = params;
   const t = await getI18n(locale);
 
-  const allNews = (await getNews({ locale, sportsCategory: "general" })) ?? [];
+  // --- Start of Change ---
+  // Fetch data for all sections in parallel, using the new `newsType` filter
+  const [recentNews, footballNews, transferNews] = await Promise.all([
+    getNews({ locale, newsType: "recent" }).then(news => news.slice(0, 5)),
+    getNews({ locale, sportsCategory: "football", newsType: "news" }).then(news => news.slice(0, 8)),
+    getNews({ locale, newsType: "transfer" }).then(news => news.slice(0, 4)),
+  ]);
+  // --- End of Change ---
 
-  const jsonLdData = generateInitialJsonLd(allNews, t);
+  // Use the 'recentNews' for the main JSON-LD block
+  const jsonLdData = generateInitialJsonLd(recentNews, t);
 
   return (
     <>
@@ -106,25 +129,18 @@ export default async function GeneralNewsPage({
               </div>
               <div>
                 <h1 className="text-4xl font-extrabold text-white">
-                  {t("latest_news")}
+                  {t("news_hub_title")}
                 </h1>
-                <p className="text-brand-muted">{t("latest_news_subtitle")}</p>
+                <p className="text-brand-muted">{t("news_hub_subtitle")}</p>
               </div>
             </div>
 
-            <Suspense
-              fallback={
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <NewsCardSkeleton />
-                  <NewsCardSkeleton />
-                  <NewsCardSkeleton />
-                  <NewsCardSkeleton />
-                  <NewsCardSkeleton />
-                  <NewsCardSkeleton />
-                </div>
-              }
-            >
-              <GeneralNewsClient initialNews={allNews} />
+            <Suspense fallback={<NewsPageSkeleton />}>
+              <NewsPageClient
+                recentNews={recentNews}
+                footballNews={footballNews}
+                transferNews={transferNews}
+              />
             </Suspense>
           </main>
         </div>

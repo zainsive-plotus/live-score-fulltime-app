@@ -1,4 +1,4 @@
-// ===== src/app/[locale]/news/[slug]/page.tsx (AI Crawlability Enhanced) =====
+// ===== src/app/[locale]/news/[slug]/page.tsx =====
 
 import { notFound, redirect } from "next/navigation";
 import dbConnect from "@/lib/dbConnect";
@@ -15,7 +15,9 @@ import Script from "next/script";
 import { generateHreflangTags } from "@/lib/hreflang";
 import { generateTableOfContents } from "@/lib/toc";
 import TableOfContents from "@/components/TableOfContents";
-import { WithContext, NewsArticle, BreadcrumbList } from "schema-dts"; // Import schema types
+import { WithContext, NewsArticle, BreadcrumbList } from "schema-dts";
+import StyledLink from "@/components/StyledLink"; // Import StyledLink
+import { ExternalLink } from "lucide-react"; // Import an icon
 
 const DEFAULT_LOCALE = "tr";
 const BASE_URL =
@@ -151,7 +153,6 @@ export default async function GeneralNewsArticlePage({
     post.content.replace(/<[^>]*>?/gm, "").substring(0, 160);
   const imageUrl = post.featuredImage || `${BASE_URL}/og-image.jpg`;
 
-  // --- ENHANCED JSON-LD STRUCTURED DATA ---
   const jsonLd: WithContext<NewsArticle | BreadcrumbList>[] = [
     {
       "@context": "https://schema.org",
@@ -165,7 +166,7 @@ export default async function GeneralNewsArticlePage({
       datePublished: new Date(post.createdAt).toISOString(),
       dateModified: new Date(post.updatedAt).toISOString(),
       author: {
-        "@type": "Organization", // Using Organization as author is robust
+        "@type": "Organization",
         name: "Fan Skor",
         url: BASE_URL,
       },
@@ -239,6 +240,20 @@ export default async function GeneralNewsArticlePage({
                     date: format(new Date(post.createdAt), "MMMM dd, yyyy"),
                   })}
                 </p>
+
+                {/* --- Start of Change --- */}
+                {/* Conditionally render the "Read on Source" button */}
+                {post.originalSourceUrl && (
+                  <StyledLink
+                    href={post.originalSourceUrl}
+                    isExternal={true}
+                    className="inline-flex items-center gap-2 bg-brand-purple text-white font-bold py-3 px-6 rounded-lg hover:opacity-90 transition-opacity my-4"
+                  >
+                    <ExternalLink size={18} />
+                    {t("read_full_story_on_source")}
+                  </StyledLink>
+                )}
+                {/* --- End of Change --- */}
 
                 {toc.length > 0 && <TableOfContents toc={toc} />}
 

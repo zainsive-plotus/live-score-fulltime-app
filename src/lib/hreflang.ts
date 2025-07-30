@@ -1,51 +1,53 @@
 // ===== src/lib/hreflang.ts =====
 
-const SUPPORTED_LOCALES = ["tr", "en", "fr", "es", "zu"];
-const DEFAULT_LOCALE = "tr";
+import { i18nCache } from "./i18n/i18n.cache";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
-// --- START OF MODIFICATION ---
-// The function now accepts an optional 'availableLocales' array.
-export function generateHreflangTags(
+export async function generateHreflangTags(
   path: string,
   currentLocale: string,
   availableLocales?: string[]
 ) {
-  // --- END OF MODIFICATION ---
-
   const cleanPath = path === "/page" || path === "/" ? "" : path;
+
+  // --- Start of Fix ---
+  // Re-introduce the special handling for the default locale.
+  const defaultLocale = await i18nCache.getDefaultLocale();
+
+  const getUrlForLocale = (locale: string) => {
+    if (locale === defaultLocale) {
+      // Default locale gets the clean, non-prefixed URL.
+      return `${BASE_URL}${cleanPath}`;
+    }
+    // All other locales get a prefixed URL.
+    return `${BASE_URL}/${locale}${cleanPath}`;
+  };
+
+  const canonicalUrl = getUrlForLocale(currentLocale);
 
   const alternates: {
     canonical: string;
     languages: { [key: string]: string };
   } = {
-    canonical:
-      currentLocale === DEFAULT_LOCALE
-        ? `${BASE_URL}${cleanPath}`
-        : `${BASE_URL}/${currentLocale}${cleanPath}`,
+    canonical: canonicalUrl,
     languages: {},
   };
 
-  // --- START OF MODIFICATION ---
-  // Use the provided list of available locales, or fall back to all supported locales.
+  const supportedLocales = await i18nCache.getLocales();
   const localesToUse =
     availableLocales && availableLocales.length > 0
       ? availableLocales
-      : SUPPORTED_LOCALES;
-  // --- END OF MODIFICATION ---
+      : supportedLocales;
 
   localesToUse.forEach((locale) => {
-    if (locale === DEFAULT_LOCALE) {
-      alternates.languages[locale] = `${BASE_URL}${cleanPath}`;
-    } else {
-      alternates.languages[locale] = `${BASE_URL}/${locale}${cleanPath}`;
-    }
+    alternates.languages[locale] = getUrlForLocale(locale);
   });
 
-  // The x-default should always point to the default locale's version of the page.
-  alternates.languages["x-default"] = `${BASE_URL}${cleanPath}`;
+  // The x-default should point to the non-prefixed, default language version.
+  alternates.languages["x-default"] = getUrlForLocale(defaultLocale);
+  // --- End of Fix ---
 
   return alternates;
 }

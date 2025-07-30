@@ -498,5 +498,24 @@
   "no_general_news_found_subtitle": "It seems there are no news articles available at the moment. Please check back later!",
   "table_of_contents": "Table of Contents",
 
-   "detailed_stats_unavailable": "Detailed Stats Not Available"
+  "detailed_stats_unavailable": "Detailed Stats Not Available",
+
+  "news_hub_title": "News Hub",
+  "news_hub_subtitle": "Your central source for sports stories and headlines.",
+  "latest_from_web": "Latest From The Web",
+  "read_on_source": "Read on Source",
+  "football_news_title": "Football News",
+  "transfer_news_title": "Transfer News",
+  "see_all": "See All",
+  "no_recent_news_found_subtitle": "There are no recent news articles to display at this time.",
+
+  "recent_news_title": "Recent News",
+  "news_archive_title": "News Archive",
+  "football_news_archive_title": "Football News Archive",
+  "transfer_news_archive_title": "Transfer News Archive",
+  "recent_news_archive_title": "Recent News Archive",
+  "news_archive_subtitle": "Browse all articles in this category.",
+  "source_available": "Source Available",
+  "no_news_in_category_subtitle": "There are no news articles in this category yet.",
+  "footer_rights_reserved": "All rights reserved."
 }

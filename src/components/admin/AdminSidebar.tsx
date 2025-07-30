@@ -23,7 +23,7 @@ import {
   Type,
   Bot,
   Languages,
-  Megaphone, // <-- Import new icon
+  Megaphone,
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 
@@ -60,7 +60,8 @@ export default function AdminSidebar() {
   const isAiSectionActive =
     pathname.startsWith("/admin/auto-news") ||
     pathname.startsWith("/admin/ai-journalists") ||
-    pathname.startsWith("/admin/title-templates");
+    pathname.startsWith("/admin/title-templates") ||
+    pathname.startsWith("/admin/curated-news"); // <-- Add new page to condition
 
   const isPagesSectionActive =
     pathname.startsWith("/admin/faqs") || pathname.startsWith("/admin/pages");
@@ -80,17 +81,21 @@ export default function AdminSidebar() {
     { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
     { name: "News", href: "/admin/news", icon: Newspaper },
     { name: "Languages", href: "/admin/languages", icon: Languages },
-    { name: "Ticker Messages", href: "/admin/ticker-messages", icon: Megaphone }, // <-- Add Ticker link
+    { name: "Ticker Messages", href: "/admin/ticker-messages", icon: Megaphone },
     { name: "Casino Partners", href: "/admin/casino-partners", icon: Crown },
     { name: "File Manager", href: "/admin/file-manager", icon: FileText },
     { name: "Banners", href: "/admin/banners", icon: ImageIcon },
   ];
-
+  
+  // --- Start of Change ---
+  // Added "Curated News" to the AI sub-navigation
   const aiSubNav = [
-    { name: "News Engine", href: "/admin/auto-news", icon: Sparkles },
+    { name: "Automation Log", href: "/admin/auto-news", icon: Sparkles },
+    { name: "Curated News", href: "/admin/curated-news", icon: Bot },
     { name: "AI Journalists", href: "/admin/ai-journalists", icon: User },
     { name: "Title Templates", href: "/admin/title-templates", icon: Type },
   ];
+  // --- End of Change ---
 
   const pagesSubNav = [
     { name: "FAQs", href: "/admin/faqs", icon: HelpCircle },

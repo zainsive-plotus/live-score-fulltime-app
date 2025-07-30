@@ -482,5 +482,24 @@
   "no_general_news_found_subtitle": "Şu anda herhangi bir haber makalesi bulunamadı. Lütfen daha sonra tekrar kontrol edin!",
 
   "table_of_contents": "İçindekiler",
-  "detailed_stats_unavailable": "Ayrıntılı İstatistikler Mevcut Değil"
+  "detailed_stats_unavailable": "Ayrıntılı İstatistikler Mevcut Değil",
+
+  "news_hub_title": "Haber Merkezi",
+  "news_hub_subtitle": "Spor hikayeleri ve manşetleri için merkezi kaynağınız.",
+  "latest_from_web": "Web'den Son Gelişmeler",
+  "read_on_source": "Kaynakta Oku",
+  "football_news_title": "Futbol Haberleri",
+  "transfer_news_title": "Transfer Haberleri",
+  "see_all": "Tümünü Gör",
+  "no_recent_news_found_subtitle": "Şu anda görüntülenecek yeni bir haber bulunmamaktadır.",
+
+  "recent_news_title": "Güncel Haberler",
+  "news_archive_title": "Haber Arşivi",
+  "football_news_archive_title": "Futbol Haberleri Arşivi",
+  "transfer_news_archive_title": "Transfer Haberleri Arşivi",
+  "recent_news_archive_title": "Güncel Haberler Arşivi",
+  "news_archive_subtitle": "Bu kategorideki tüm makalelere göz atın.",
+  "source_available": "Kaynak Mevcut",
+  "no_news_in_category_subtitle": "Bu kategoride henüz bir haber bulunmamaktadır.",
+  "footer_rights_reserved": "Tüm hakları saklıdır."
 }

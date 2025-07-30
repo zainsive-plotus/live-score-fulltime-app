@@ -486,5 +486,24 @@
   "football_news_description": "Las últimas noticias del mundo del fútbol.",
 
   "table_of_contents": "Tabla de Contenidos",
-  "detailed_stats_unavailable": "Estadísticas detalladas no disponibles"
+  "detailed_stats_unavailable": "Estadísticas detalladas no disponibles",
+
+  "news_hub_subtitle": "Su fuente central de historias y titulares deportivos.",
+  "latest_from_web": "Lo Último de la Web",
+  "read_on_source": "Leer en la Fuente",
+  "football_news_title": "Noticias de Fútbol",
+  "transfer_news_title": "Noticias de Fichajes",
+  "see_all": "Ver Todo",
+  "no_recent_news_found_subtitle": "No hay noticias recientes para mostrar en este momento.",
+  "news_hub_title": "Centro de Noticias",
+
+  "recent_news_title": "Noticias Recientes",
+  "news_archive_title": "Archivo de Noticias",
+  "football_news_archive_title": "Archivo de Noticias de Fútbol",
+  "transfer_news_archive_title": "Archivo de Noticias de Fichajes",
+  "recent_news_archive_title": "Archivo de Noticias Recientes",
+  "news_archive_subtitle": "Explore todos los artículos de esta categoría.",
+  "source_available": "Fuente Disponible",
+  "no_news_in_category_subtitle": "Aún no hay noticias en esta categoría.",
+  "footer_rights_reserved": "Todos los derechos reservados."
 }

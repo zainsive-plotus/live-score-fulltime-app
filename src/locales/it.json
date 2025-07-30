@@ -489,5 +489,23 @@
   "no_general_news_found_subtitle": "Sembra che non ci siano articoli di notizie disponibili al momento. Si prega di ricontrollare più tardi!",
 
   "table_of_contents": "Indice dei Contenuti",
-  "detailed_stats_unavailable": "Statistiche dettagliate non disponibili"
+  "detailed_stats_unavailable": "Statistiche dettagliate non disponibili",
+
+  "news_hub_title": "Centro Notizie",
+  "news_hub_subtitle": "La tua fonte centrale per storie e titoli sportivi.",
+  "latest_from_web": "Ultime dal Web",
+  "read_on_source": "Leggi sulla Fonte",
+  "football_news_title": "Notizie di Calcio",
+  "transfer_news_title": "Notizie di Mercato",
+  "see_all": "Vedi Tutto",
+  "no_recent_news_found_subtitle": "Non ci sono notizie recenti da visualizzare in questo momento.",
+
+  "news_archive_title": "Archivio Notizie",
+  "football_news_archive_title": "Archivio Notizie di Calcio",
+  "transfer_news_archive_title": "Archivio Notizie di Mercato",
+  "recent_news_archive_title": "Archivio Notizie Recenti",
+  "news_archive_subtitle": "Sfoglia tutti gli articoli in questa categoria.",
+  "source_available": "Fonte Disponibile",
+  "no_news_in_category_subtitle": "Non ci sono ancora notizie in questa categoria.",
+  "footer_rights_reserved": "Tutti i diritti riservati."
 }

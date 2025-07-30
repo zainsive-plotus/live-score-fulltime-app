@@ -5,22 +5,17 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import dbConnect from "@/lib/dbConnect";
 import Post from "@/models/Post";
-import AIPrompt from "@/models/AIPrompt";
 import AIJournalist from "@/models/AIJournalist";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import axios from "axios";
-import { proxyAndUploadImage } from "@/lib/image-processing-server"; // Re-importing the original image processor
+import { proxyAndUploadImage } from "@/lib/image-processing-server";
 import slugify from "slugify";
+import OpenAI from "openai"; // --- Import OpenAI ---
 
-// AI Configuration
-const genAI = new GoogleGenerativeAI(
-  process.env.NEXT_PUBLIC_GEMINI_API_KEY as string
-);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
-const TITLE_PROMPT_NAME = "AI Title Generation";
-const PREDICTION_PROMPT_NAME = "AI Prediction Content Generation";
+// --- Initialize OpenAI client ---
+const openai = new OpenAI({
+  apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
+});
 
-// --- Helper function to fetch fixture data from external API ---
 async function getFixtureData(fixtureId: number) {
   const options = (endpoint: string, params: object) => ({
     method: "GET",
@@ -37,7 +32,6 @@ async function getFixtureData(fixtureId: number) {
     throw new Error(`Fixture data not found for ID: ${fixtureId}`);
   }
 
-  // Fetch H2H and Form data for a richer prompt context
   const { home, away } = fixtureData.teams;
   const [h2hRes, homeFormRes, awayFormRes] = await Promise.all([
     axios.request(
@@ -63,116 +57,87 @@ async function getFixtureData(fixtureId: number) {
   };
 }
 
-// --- Helper function to generate a title using AI ---
+// --- Rewritten for OpenAI ---
 async function generatePredictionTitle(
   homeTeamName: string,
   awayTeamName: string,
   leagueName: string,
-  journalistId?: string
+  journalistTonePrompt?: string
 ): Promise<string> {
-  const titlePromptDoc = await AIPrompt.findOne({
-    name: TITLE_PROMPT_NAME,
-    type: "title",
+  const prompt = `
+    You are an expert sports journalist. Your ONLY task is to generate a new, original, SEO-friendly title in TURKISH for a news article about the upcoming match: ${homeTeamName} vs ${awayTeamName} in the ${leagueName}.
+    
+    Your journalistic voice and tone should be: ${journalistTonePrompt || "Objective and informative."}
+    
+    The new title MUST be highly distinct, capture a fresh angle, and be plain text only with no markdown or quotes.
+    
+    Generated Title:
+  `;
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.8,
   });
-  const defaultTitlePrompt =
-    "You are an expert sports journalist. Your ONLY task is to generate a new, original, SEO-friendly title in TURKISH for a news article based on the following match. The new title MUST be highly distinct, capture a fresh angle, and be plain text only with no markdown or quotes.\n\nMatch: {home_team} vs {away_team}\nLeague: {league_name}\n\nGenerated Title:";
-
-  let finalTitlePrompt = titlePromptDoc?.prompt || defaultTitlePrompt;
-  let journalistTonePrompt = "";
-  if (journalistId) {
-    const journalist = await AIJournalist.findById(journalistId);
-    if (journalist && journalist.isActive) {
-      journalistTonePrompt = `As "${journalist.name}", your unique journalistic voice and tone should be: ${journalist.tonePrompt}\n\n`;
-    }
+  
+  const title = response.choices[0]?.message?.content?.trim().replace(/["*]/g, "");
+  if (!title) {
+    throw new Error("OpenAI failed to generate a prediction title.");
   }
-
-  const fullPrompt = `${journalistTonePrompt}${finalTitlePrompt}`
-    .replace("{home_team}", homeTeamName)
-    .replace("{away_team}", awayTeamName)
-    .replace("{league_name}", leagueName);
-
-  const result = await model.generateContent(fullPrompt);
-  const responseText = (await result.response).text().trim();
-  return responseText.replace(/[\*#"\n]/g, "");
+  return title;
 }
 
-// --- ENHANCED Helper function to generate high-quality content ---
+// --- Rewritten for OpenAI ---
 async function generatePredictionContent(
   predictionData: any,
-  journalistId?: string
+  journalistTonePrompt?: string
 ): Promise<string> {
-  const contentPromptDoc = await AIPrompt.findOne({
-    name: PREDICTION_PROMPT_NAME,
-    type: "prediction_content",
+  const prompt = `
+    You are an expert sports journalist and a charismatic storyteller. Your task is to transform the provided raw match data into a compelling, conversational, and humanized narrative in **PURE HTML** and **TURKISH**. Your writing should be engaging, insightful, and optimized for readability and SEO.
+
+    Your unique journalistic voice and tone should be: ${journalistTonePrompt || "Objective and informative."}
+
+    **CRITICAL INSTRUCTIONS:**
+    1.  **HTML ONLY:** Your entire response **MUST** be pure, valid HTML. Use tags like \`<h2>\`, \`<h3>\`, \`<p>\`, \`<strong>\`, \`<em>\`, \`<ul>\`, and \`<li>\`.
+    2.  **NO MARKDOWN:** **ABSOLUTELY NO MARKDOWN SYNTAX** like \`#\` or \`*\` is allowed.
+    3.  **NO PREAMBLE:** Your response must start directly with an HTML tag (e.g., \`<h2>\`). Do not write "Here is the article...".
+    4.  **LANGUAGE & TONE:** The entire article **MUST** be in Turkish. Adopt a conversational, authoritative, and engaging tone.
+
+    **ARTICLE STRUCTURE (Example Flow):**
+    1.  **Etkileyici Giriş (Engaging Intro):** Start with a hook.
+    2.  **Takımların Form Durumu (Team Form):** Analyze the recent form of both teams.
+    3.  **Geçmişin İzleri: H2H Analizi (H2H Analysis):** Discuss past encounters.
+    4.  **Maçın Anahtar Oyuncuları (Key Players):** Identify key players.
+    5.  **Fanskor'un Gözünden Maçın Kaderi (Fanskor's Prediction):** State the prediction clearly.
+
+    **Provided Match Data (use this to write the article):**
+    \`\`\`json
+    {
+        "league_name": "${predictionData.league.name}",
+        "home_team_name": "${predictionData.teams.home.name}",
+        "away_team_name": "${predictionData.teams.away.name}",
+        "h2h_results_count": ${predictionData.h2h.length},
+        "home_form_string": "${predictionData.homeForm}",
+        "away_form_string": "${predictionData.awayForm}"
+    }
+    \`\`\`
+
+    Your Generated HTML Article (Must start with \`<h2>\`):
+  `;
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.7,
   });
 
-  const enhancedPrompt = `
-You are an expert sports journalist and a charismatic storyteller. Your task is to transform the provided raw match data into a compelling, conversational, and humanized narrative in **PURE HTML** and **TURKISH**. Your writing should be engaging, insightful, and optimized for readability and SEO.
-
-**CRITICAL INSTRUCTIONS:**
-1.  **HTML ONLY:** Your entire response **MUST** be pure, valid HTML. Use tags like \`<h2>\`, \`<h3>\`, \`<p>\`, \`<strong>\`, \`<em>\`, \`<ul>\`, and \`<li>\`.
-2.  **NO MARKDOWN:** **ABSOLUTELY NO MARKDOWN SYNTAX** like \`#\` or \`*\` is allowed.
-3.  **NO PREAMBLE:** Your response must start directly with an HTML tag (e.g., \`<h2>\`). Do not write "Here is the article...".
-4.  **LANGUAGE & TONE:** The entire article **MUST** be in Turkish. Adopt a conversational, authoritative, and engaging tone. Ask rhetorical questions to the reader. Use vivid language and analogies to make statistics interesting.
-
-**CONTENT & SEO GUIDELINES:**
-*   **Narrative Flow:** Don't just list data. Weave the stats, H2H, and form into a story about the upcoming match. Create a compelling argument for why the match is important.
-*   **Heading Hierarchy:** Use descriptive \`<h2>\` and \`<h3>\` tags that naturally include keywords (e.g., "Takımların Son Form Durumu," "Kritik Mücadele Alanları," "Maçın Anahtar Oyuncuları"). **Do not use \`<h1>\`**.
-*   **Keyword Integration:** Naturally use the team names, league name, and related terms like "maç tahmini," "analiz," "kadrolar," and "puan durumu" throughout the text.
-*   **Provide Value:** Your analysis should give the reader a deeper understanding of what to expect, beyond just the raw numbers.
-
-**ARTICLE STRUCTURE (Example Flow):**
-1.  **Etkileyici Giriş (Engaging Intro):** Start with a hook. Example: "<h2>Futbolseverler Nefeslerini Tuttu: {league_name} Sahnesinde Dev Randevu!</h2><p>Bu hafta sonu {league_name} sahnesi, {home_team_name} ile {away_team_name} arasında nefes kesecek bir mücadeleye ev sahipliği yapıyor. Peki bu kritik 90 dakikada bizleri neler bekliyor? Gelin, hep birlikte bu dev maçın şifrelerini çözelim.</p>"
-2.  **Takımların Form Durumu (Team Form):** Analyze the recent form of both teams. Discuss their recent wins, losses, and what this momentum means.
-3.  **Geçmişin İzleri: H2H Analizi (H2H Analysis):** Discuss past encounters. Who has the historical upper hand?
-4.  **Puan Durumundaki Yansımalar (Standings Impact):** Explain the stakes. What does a win, loss, or draw mean for each team's position in the league?
-5.  **Maçın Anahtar Oyuncuları (Key Players):** Identify one key player from each team who could decide the fate of the match and explain why.
-6.  **Fanskor'un Gözünden Maçın Kaderi (Fanskor's Prediction):** State the prediction clearly and justify it conversationally based on the analysis above.
-7.  **Sonuç ve Beklentiler (Conclusion):** Summarize and look ahead. End with a question to engage the reader.
-
-**Provided Match Data (use this to write the article):**
-\`\`\`json
-{match_data}
-\`\`\`
-
-**Your Generated HTML Article (Must start with \`<h2>\`):**
-`;
-
-  let finalContentPrompt = contentPromptDoc?.prompt || enhancedPrompt;
-  const { league, teams, h2h, homeForm, awayForm } = predictionData;
-  const dataForPrompt = {
-    league_name: league.name,
-    home_team_name: teams.home.name,
-    away_team_name: teams.away.name,
-    h2h_results: h2h.slice(0, 3),
-    home_form: homeForm,
-    away_form: awayForm,
-  };
-
-  finalContentPrompt = finalContentPrompt.replace(
-    "{match_data}",
-    JSON.stringify(dataForPrompt, null, 2)
-  );
-
-  let journalistTonePrompt = "";
-  if (journalistId) {
-    const journalist = await AIJournalist.findById(journalistId);
-    if (journalist && journalist.isActive) {
-      journalistTonePrompt = `As "${journalist.name}", your unique journalistic voice and tone should be: ${journalist.tonePrompt}\n\n`;
-    }
+  const content = response.choices[0]?.message?.content?.trim().replace(/^```(?:html)?\n?|```$/g, "").trim();
+  if (!content || !content.includes("<p>")) {
+    throw new Error("OpenAI failed to generate valid prediction content.");
   }
-
-  const fullPrompt = `${journalistTonePrompt}${finalContentPrompt}`;
-  const result = await model.generateContent(fullPrompt);
-  const aiResponseText = (await result.response).text();
-
-  return aiResponseText
-    .trim()
-    .replace(/^```(?:html)?\n?|```$/g, "")
-    .trim();
+  return content;
 }
 
-// --- Main POST handler ---
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") {
@@ -205,6 +170,11 @@ export async function POST(request: Request) {
       );
     }
 
+    const journalist = await AIJournalist.findById(journalistId);
+    if (!journalist) {
+        throw new Error(`Journalist with ID ${journalistId} not found.`);
+    }
+
     const fixtureData = await getFixtureData(fixtureId);
     const { teams, league } = fixtureData;
 
@@ -212,11 +182,11 @@ export async function POST(request: Request) {
       teams.home.name,
       teams.away.name,
       league.name,
-      journalistId
+      journalist.tonePrompt
     );
     const predictionContent = await generatePredictionContent(
       fixtureData,
-      journalistId
+      journalist.tonePrompt
     );
 
     const featuredImageUrl = await proxyAndUploadImage(
@@ -227,9 +197,8 @@ export async function POST(request: Request) {
     const postSlug = slugify(newPostTitle, {
       lower: true,
       strict: true,
-      remove: /[*+~.()'"!:@]/g,
     });
-    const existingSlug = await Post.findOne({ slug: postSlug });
+    const existingSlug = await Post.findOne({ slug: postSlug, language: 'tr' });
     const finalSlug = existingSlug
       ? `${postSlug}-${Date.now().toString().slice(-5)}`
       : postSlug;
@@ -241,12 +210,11 @@ export async function POST(request: Request) {
       content: predictionContent,
       slug: finalSlug,
       status: "draft",
-      author:
-        (await AIJournalist.findById(journalistId))?.name ||
-        "AI Auto-Generator",
+      author: journalist.name,
       isAIGenerated: true,
       sportsCategory: [sportsCategory],
       newsType: "prediction",
+      language: 'tr', // Predictions are generated in Turkish first
       linkedFixtureId: fixtureId,
       linkedLeagueId: league.id,
       featuredImage: featuredImageUrl,
