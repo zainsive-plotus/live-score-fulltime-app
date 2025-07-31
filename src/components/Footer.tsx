@@ -166,38 +166,30 @@ export default function Footer() {
             />
           </div>
           <div className="flex items-center gap-6 md:gap-8">
-            <Link href="/responsible-gaming" title="Responsible Gaming">
-              <Image
-                src="/images/logos/18plus.svg"
-                alt="18+ Responsible Gaming"
-                width={40}
-                height={40}
-              />
-            </Link>
-            <Link href="/about-us#credibility" title="Verified by GamCare">
-              <Image
-                src="/images/logos/gamcare.svg"
-                alt="GamCare Verified"
-                width={110}
-                height={35}
-              />
-            </Link>
-            <Link href="/responsible-gaming#gambleaware" title="BeGambleAware">
-              <Image
-                src="/images/logos/begambleaware.svg"
-                alt="BeGambleAware"
-                width={190}
-                height={25}
-              />
-            </Link>
-            <Link href="/about-us#security" title="Secure Connection">
-              <Image
-                src="/images/logos/dmca-protected.svg"
-                alt="DMCA Protected"
-                width={180}
-                height={35}
-              />
-            </Link>
+            <Image
+              src="/images/logos/18plus.svg"
+              alt="18+ Responsible Gaming"
+              width={40}
+              height={40}
+            />
+            <Image
+              src="/images/logos/gamcare.svg"
+              alt="GamCare Verified"
+              width={110}
+              height={35}
+            />
+            <Image
+              src="/images/logos/begambleaware.svg"
+              alt="BeGambleAware"
+              width={190}
+              height={25}
+            />
+            <Image
+              src="/images/logos/dmca-protected.svg"
+              alt="DMCA Protected"
+              width={180}
+              height={35}
+            />
           </div>
         </div>
 
