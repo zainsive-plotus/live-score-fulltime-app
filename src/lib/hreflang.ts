@@ -1,6 +1,7 @@
 // ===== src/lib/hreflang.ts =====
 
-import { i18nCache } from "./i18n/i18n.cache";
+// ***** FIX: Import constants from the single source of truth *****
+import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from "./i18n/config";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
@@ -12,16 +13,16 @@ export async function generateHreflangTags(
 ) {
   const cleanPath = path === "/page" || path === "/" ? "" : path;
 
-  // --- Start of Fix ---
-  // Re-introduce the special handling for the default locale.
-  const defaultLocale = await i18nCache.getDefaultLocale();
+  // ***** FIX: Use the imported constant directly *****
+  // This removes the database call and ensures consistency with the middleware.
+  const defaultLocale = DEFAULT_LOCALE;
 
   const getUrlForLocale = (locale: string) => {
     if (locale === defaultLocale) {
-      // Default locale gets the clean, non-prefixed URL.
+      // For the default locale, the URL has no language prefix.
+      // This is the CRUCIAL part that makes the hreflang tags point to the correct canonical URL.
       return `${BASE_URL}${cleanPath}`;
     }
-    // All other locales get a prefixed URL.
     return `${BASE_URL}/${locale}${cleanPath}`;
   };
 
@@ -35,19 +36,17 @@ export async function generateHreflangTags(
     languages: {},
   };
 
-  const supportedLocales = await i18nCache.getLocales();
+  // Use the provided available locales for the page, or fall back to all supported locales.
   const localesToUse =
     availableLocales && availableLocales.length > 0
       ? availableLocales
-      : supportedLocales;
+      : SUPPORTED_LOCALES;
 
   localesToUse.forEach((locale) => {
     alternates.languages[locale] = getUrlForLocale(locale);
   });
 
-  // The x-default should point to the non-prefixed, default language version.
   alternates.languages["x-default"] = getUrlForLocale(defaultLocale);
-  // --- End of Fix ---
 
   return alternates;
 }
