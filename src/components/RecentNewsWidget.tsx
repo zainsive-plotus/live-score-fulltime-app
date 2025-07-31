@@ -17,7 +17,9 @@ const fetchRecentNews = async (
   const { data } = await axios.get(
     `/api/posts?status=published&limit=${limit}&language=${locale}&newsType=recent`
   );
-  return data;
+  // ***** FIX HERE *****
+  // The API returns an object { posts: [...] }, so we need to return data.posts, not the whole data object.
+  return data.posts;
 };
 
 interface RecentNewsWidgetProps {
@@ -67,21 +69,17 @@ export default function RecentNewsWidget({ limit = 4 }: RecentNewsWidgetProps) {
             <p>{t("error_loading_news")}</p>
           </div>
         ) : recentPosts && recentPosts.length > 0 ? (
-          // --- Start of Change ---
-          // The component now links to the internal slug page for all items.
-          // The `isExternal` prop is no longer needed for this widget.
           recentPosts.map((post) => (
-             <SidebarNewsItem
+            <SidebarNewsItem
               key={post._id as string}
               post={{
                 ...post,
-                slug: `/news/${post.slug}`, // Always use the internal slug path
+                slug: `/news/${post.slug}`,
                 createdAt: new Date(post.createdAt),
                 updatedAt: new Date(post.updatedAt),
               }}
             />
           ))
-          // --- End of Change ---
         ) : (
           <div className="rounded-lg p-6 text-center text-text-muted">
             <Info size={28} className="mx-auto mb-2" />
