@@ -16,8 +16,8 @@ import { generateHreflangTags } from "@/lib/hreflang";
 import { generateTableOfContents } from "@/lib/toc";
 import TableOfContents from "@/components/TableOfContents";
 import { WithContext, NewsArticle, BreadcrumbList } from "schema-dts";
-import StyledLink from "@/components/StyledLink"; // Import StyledLink
-import { ExternalLink } from "lucide-react"; // Import an icon
+import StyledLink from "@/components/StyledLink";
+import { ExternalLink } from "lucide-react";
 
 const DEFAULT_LOCALE = "tr";
 const BASE_URL =
@@ -84,7 +84,7 @@ export async function generateMetadata({
 
   const pagePath = `/news/${postToRender.slug}`;
   const availableLocales = allTranslations.map((p) => p.language);
-  const hreflangAlternates = generateHreflangTags(
+  const hreflangAlternates = await generateHreflangTags(
     pagePath,
     locale,
     availableLocales
@@ -101,11 +101,16 @@ export async function generateMetadata({
   return {
     title: postToRender.metaTitle || `${postToRender.title} | Fan Skor`,
     description: description,
+
+    // ***** CORRECT FIX IS HERE *****
+    // The `alternates` object itself contains the `canonical` URL and the `languages` (hreflang) map.
+    // Next.js will correctly render both the canonical and hreflang links from this single object.
     alternates: hreflangAlternates,
+
     openGraph: {
       title: postToRender.metaTitle || postToRender.title,
       description: description,
-      url: `${BASE_URL}/${locale}${pagePath}`,
+      url: hreflangAlternates.canonical, // Use the generated canonical URL for Open Graph
       type: "article",
       publishedTime: new Date(postToRender.createdAt).toISOString(),
       modifiedTime: new Date(postToRender.updatedAt).toISOString(),
@@ -241,8 +246,8 @@ export default async function GeneralNewsArticlePage({
                   })}
                 </p>
 
-                {/* --- Start of Change --- */}
-                {/* Conditionally render the "Read on Source" button */}
+                {}
+                {}
                 {post.originalSourceUrl && (
                   <StyledLink
                     href={post.originalSourceUrl}
@@ -253,7 +258,7 @@ export default async function GeneralNewsArticlePage({
                     {t("read_full_story_on_source")}
                   </StyledLink>
                 )}
-                {/* --- End of Change --- */}
+                {}
 
                 {toc.length > 0 && <TableOfContents toc={toc} />}
 
