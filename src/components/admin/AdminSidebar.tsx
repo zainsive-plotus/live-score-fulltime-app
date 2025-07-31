@@ -24,7 +24,7 @@ import {
   Bot,
   Languages,
   Megaphone,
-  FileJson, // <-- Import the new icon
+  FileJson,
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 
@@ -67,8 +67,17 @@ export default function AdminSidebar() {
   const isPagesSectionActive =
     pathname.startsWith("/admin/faqs") || pathname.startsWith("/admin/pages");
 
+  // New active check for the Localization section
+  const isLocalizationSectionActive =
+    pathname.startsWith("/admin/languages") ||
+    pathname.startsWith("/admin/translations");
+
   const [isAiOpen, setIsAiOpen] = useState(isAiSectionActive);
   const [isPagesOpen, setIsPagesOpen] = useState(isPagesSectionActive);
+  // New state for the Localization dropdown
+  const [isLocalizationOpen, setIsLocalizationOpen] = useState(
+    isLocalizationSectionActive
+  );
 
   useEffect(() => {
     setIsAiOpen(isAiSectionActive);
@@ -78,12 +87,14 @@ export default function AdminSidebar() {
     setIsPagesOpen(isPagesSectionActive);
   }, [isPagesSectionActive]);
 
+  // New effect for the Localization dropdown
+  useEffect(() => {
+    setIsLocalizationOpen(isLocalizationSectionActive);
+  }, [isLocalizationSectionActive]);
+
   const navItems = [
     { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
     { name: "News", href: "/admin/news", icon: Newspaper },
-    { name: "Languages", href: "/admin/languages", icon: Languages },
-    // ***** NEW ITEM ADDED HERE *****
-    { name: "Translations", href: "/admin/translations", icon: FileJson },
     {
       name: "Ticker Messages",
       href: "/admin/ticker-messages",
@@ -92,6 +103,12 @@ export default function AdminSidebar() {
     { name: "Casino Partners", href: "/admin/casino-partners", icon: Crown },
     { name: "File Manager", href: "/admin/file-manager", icon: FileText },
     { name: "Banners", href: "/admin/banners", icon: ImageIcon },
+  ];
+
+  // New sub-nav array for Localization
+  const localizationSubNav = [
+    { name: "Languages", href: "/admin/languages", icon: Languages },
+    { name: "Translations", href: "/admin/translations", icon: FileJson },
   ];
 
   const aiSubNav = [
@@ -147,6 +164,48 @@ export default function AdminSidebar() {
               </Link>
             );
           })}
+
+          {/* ***** NEW LOCALIZATION DROPDOWN SECTION ***** */}
+          <div>
+            <button
+              onClick={() => setIsLocalizationOpen(!isLocalizationOpen)}
+              className={`w-full flex items-center justify-between p-3 rounded-lg transition-colors duration-200 ${
+                isLocalizationSectionActive
+                  ? "bg-brand-purple text-white"
+                  : "text-brand-muted hover:bg-gray-700 hover:text-white"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Languages size={20} />
+                <span>Localization</span>
+              </div>
+              <ChevronRight
+                size={18}
+                className={`transition-transform duration-300 ${
+                  isLocalizationOpen ? "rotate-90" : ""
+                }`}
+              />
+            </button>
+            <div
+              className={`grid transition-all duration-300 ease-in-out ${
+                isLocalizationOpen
+                  ? "grid-rows-[1fr] opacity-100 pt-1"
+                  : "grid-rows-[0fr] opacity-0"
+              }`}
+            >
+              <ul className="overflow-hidden space-y-1 pl-4">
+                {localizationSubNav.map((item) => (
+                  <SubNavItem
+                    key={item.name}
+                    href={item.href}
+                    name={item.name}
+                    icon={item.icon}
+                    isActive={pathname.startsWith(item.href)}
+                  />
+                ))}
+              </ul>
+            </div>
+          </div>
 
           <div>
             <button
