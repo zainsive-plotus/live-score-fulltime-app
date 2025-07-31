@@ -1,14 +1,24 @@
+// ===== src/lib/i18n/i18n.cache.ts =====
+
 import dbConnect from "@/lib/dbConnect";
 import Language, { ILanguage } from "@/models/Language";
-import path from "path";
-import { promises as fs } from "fs";
+import Translation from "@/models/Translation";
+import redis from "@/lib/redis"; // Import your configured Redis client
 
-const LOCALES_DIR = path.join(process.cwd(), "src/locales");
+const CACHE_TTL_SECONDS = 60 * 60 * 24; // 24 hours
+
+const CACHE_KEYS = {
+  LOCALES: "i18n:meta:locales",
+  DEFAULT_LOCALE: "i18n:meta:default_locale",
+  TRANSLATIONS_PREFIX: "i18n:translations:",
+};
 
 interface CachedLocaleData {
   language: ILanguage;
   translations: Record<string, any>;
 }
+
+const isProduction = process.env.NODE_ENV === "production";
 
 export class I18nCache {
   private static instance: I18nCache;
@@ -26,66 +36,169 @@ export class I18nCache {
   }
 
   public async initialize(): Promise<void> {
-    // This guard prevents re-running the expensive DB/file operations
+    // In development, we skip initialization to force a fresh DB fetch on every request.
+    // In production, if already initialized, we don't need to do it again.
     if (this.isInitialized) {
       return;
     }
-    console.log("[I18N_CACHE] First-time initialization running...");
-    await this.loadData();
+
+    // --- PRODUCTION CACHING LOGIC ---
+    if (isProduction) {
+      try {
+        console.log(
+          "[I18N_CACHE] [PROD] Attempting to load translations from Redis..."
+        );
+        const cachedLocalesStr = await redis.get(CACHE_KEYS.LOCALES);
+        const cachedDefaultLocale = await redis.get(CACHE_KEYS.DEFAULT_LOCALE);
+
+        if (cachedLocalesStr && cachedDefaultLocale) {
+          const locales: string[] = JSON.parse(cachedLocalesStr);
+          const newCache = new Map<string, CachedLocaleData>();
+
+          for (const locale of locales) {
+            const translationsStr = await redis.get(
+              `${CACHE_KEYS.TRANSLATIONS_PREFIX}${locale}`
+            );
+            if (translationsStr) {
+              newCache.set(locale, JSON.parse(translationsStr));
+            } else {
+              throw new Error(
+                `Inconsistent cache: Missing translations for locale '${locale}'.`
+              );
+            }
+          }
+
+          this.cache = newCache;
+          this.defaultLocale = cachedDefaultLocale;
+          this.isInitialized = true;
+          console.log(
+            `[I18N_CACHE] [PROD] ✓ Successfully loaded translations for ${this.cache.size} locales from Redis.`
+          );
+          return;
+        }
+
+        console.log(
+          "[I18N_CACHE] [PROD] Redis cache miss. Loading from database..."
+        );
+        await this.loadDataFromDB();
+        return;
+      } catch (error) {
+        console.warn(
+          "[I18N_CACHE] [PROD] Could not load from Redis. Falling back to database.",
+          error
+        );
+        await this.loadDataFromDB();
+        return;
+      }
+    }
+
+    // --- DEVELOPMENT LOGIC (Always fetch from DB) ---
+    console.log(
+      "[I18N_CACHE] [DEV] Bypassing cache, loading directly from database..."
+    );
+    await this.loadDataFromDB();
   }
 
-  private async loadData(): Promise<void> {
-    // ... existing loadData logic is correct ...
-    console.log("[I18N_CACHE] Loading languages and translations...");
+  private async loadDataFromDB(): Promise<void> {
     try {
       await dbConnect();
-      const activeLanguages = await Language.find({ isActive: true }).lean();
+
+      const [activeLanguages, allTranslations] = await Promise.all([
+        Language.find({ isActive: true }).lean(),
+        Translation.find({}).lean(),
+      ]);
+
       const newCache = new Map<string, CachedLocaleData>();
       let foundDefault = false;
 
+      if (activeLanguages.length === 0) {
+        console.warn("[I18N_CACHE] No active languages found in the database.");
+        this.isInitialized = !isProduction; // Stay uninitialized in dev to allow re-fetching
+        return;
+      }
+
       for (const lang of activeLanguages) {
-        try {
-          const filePath = path.join(LOCALES_DIR, `${lang.code}.json`);
-          const fileContent = await fs.readFile(filePath, "utf-8");
-          const translations = JSON.parse(fileContent);
-          newCache.set(lang.code, { language: lang, translations });
-          if (lang.isDefault) {
-            this.defaultLocale = lang.code;
-            foundDefault = true;
-          }
-        } catch (error) {
-          console.error(
-            `[I18N_CACHE] Failed to load translations for '${lang.code}'. Skipping.`,
-            error
-          );
+        newCache.set(lang.code, { language: lang, translations: {} });
+        if (lang.isDefault) {
+          this.defaultLocale = lang.code;
+          foundDefault = true;
         }
       }
 
-      if (!foundDefault && activeLanguages.length > 0) {
+      if (!foundDefault) {
         this.defaultLocale = activeLanguages[0].code;
         console.warn(
-          `[I18N_CACHE] No default language set in DB. Falling back to '${this.defaultLocale}'.`
+          `[I18N_CACHE] No default language set. Falling back to '${this.defaultLocale}'.`
+        );
+      }
+
+      for (const translationDoc of allTranslations) {
+        for (const [langCode, text] of Object.entries(
+          translationDoc.translations
+        )) {
+          if (newCache.has(langCode)) {
+            newCache.get(langCode)!.translations[translationDoc.key] = text;
+          }
+        }
+      }
+
+      if (isProduction) {
+        const redisPipeline = redis.pipeline();
+        redisPipeline.set(
+          CACHE_KEYS.LOCALES,
+          JSON.stringify(Array.from(newCache.keys()))
+        );
+        redisPipeline.set(CACHE_KEYS.DEFAULT_LOCALE, this.defaultLocale);
+
+        for (const [locale, data] of newCache.entries()) {
+          redisPipeline.set(
+            `${CACHE_KEYS.TRANSLATIONS_PREFIX}${locale}`,
+            JSON.stringify(data),
+            "EX",
+            CACHE_TTL_SECONDS
+          );
+        }
+        await redisPipeline.exec();
+        console.log(
+          "[I18N_CACHE] [PROD] ✓ Populated Redis cache from database."
         );
       }
 
       this.cache = newCache;
-      this.isInitialized = true;
-      console.log(`[I18N_CACHE] Loaded ${this.cache.size} active languages.`);
+      // In development, we don't set isInitialized to true, so it re-fetches on every request.
+      // In production, we set it to true to prevent re-fetching until the server restarts or cache is invalidated.
+      this.isInitialized = isProduction;
+      console.log(
+        `[I18N_CACHE] Successfully loaded translations for ${this.cache.size} locales from DB.`
+      );
     } catch (error) {
       console.error(
-        "[I18N_CACHE] CRITICAL: Failed to load any i18n data.",
+        "[I18N_CACHE] CRITICAL: Failed to load i18n data from database.",
         error
       );
+      this.isInitialized = false;
     }
   }
 
   public async reload(): Promise<void> {
-    console.log("[I18N_CACHE] Received request to reload data.");
-    this.isInitialized = false; // Force re-initialization
+    console.log("[I18N_CACHE] Reload triggered. Invalidating cache...");
+
+    if (isProduction) {
+      const locales = await this.getLocales(); // This will initialize if not already
+      const keysToDel = [
+        CACHE_KEYS.LOCALES,
+        CACHE_KEYS.DEFAULT_LOCALE,
+        ...locales.map((l) => `${CACHE_KEYS.TRANSLATIONS_PREFIX}${l}`),
+      ];
+      if (keysToDel.length > 2) {
+        await redis.del(...keysToDel);
+      }
+    }
+
+    this.isInitialized = false;
+    this.cache.clear();
     await this.initialize();
   }
-
-  // --- Public Getters (now async) ---
 
   public async getLocales(): Promise<string[]> {
     await this.initialize();
@@ -106,4 +219,3 @@ export class I18nCache {
 }
 
 export const i18nCache = I18nCache.getInstance();
-// REMOVED: i18nCache.initialize(); <-- We no longer call this on module load

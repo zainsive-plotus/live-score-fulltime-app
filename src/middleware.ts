@@ -1,48 +1,35 @@
 // ===== src/middleware.ts =====
 
 import { NextRequest, NextResponse } from "next/server";
-import Negotiator from "negotiator";
-// DO NOT import from i18nCache here, as it connects to the database.
+// Negotiator is no longer needed for the new, simpler logic.
 
 const I18N_COOKIE_NAME = "NEXT_LOCALE";
-// --- Start of Fix ---
-// This list MUST be kept in sync with the active languages in your database.
-// This is a necessary trade-off to keep the middleware database-free and Edge-compatible.
 const SUPPORTED_LOCALES = ["tr", "en", "fr", "es", "zu", "it"];
 const DEFAULT_LOCALE = "tr";
-// --- End of Fix ---
 
+// --- Start of Simplified getLocale Function ---
 function getLocale(request: NextRequest): string {
+  // 1. Check for a previously set language cookie
   const cookieLocale = request.cookies.get(I18N_COOKIE_NAME)?.value;
   if (cookieLocale && SUPPORTED_LOCALES.includes(cookieLocale)) {
     return cookieLocale;
   }
 
-  const languages = new Negotiator({
-    headers: {
-      "accept-language": request.headers.get("accept-language") || "",
-    },
-  }).languages();
-
-  for (const lang of languages) {
-    if (SUPPORTED_LOCALES.includes(lang)) return lang;
-    const baseLang = lang.split("-")[0];
-    if (SUPPORTED_LOCALES.includes(baseLang)) return baseLang;
-  }
-
+  // 2. If no valid cookie, always return the site's default locale.
+  // We no longer check the browser's Accept-Language header for the initial redirect.
   return DEFAULT_LOCALE;
 }
+// --- End of Simplified getLocale Function ---
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip middleware for API, admin, static files, etc.
   if (
     pathname.startsWith("/admin") ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/api") ||
     pathname.startsWith("/_next") ||
-    pathname.includes(".") // Exclude files with extensions
+    pathname.includes(".")
   ) {
     return NextResponse.next();
   }
@@ -52,28 +39,24 @@ export async function middleware(request: NextRequest) {
   );
 
   if (pathnameHasLocale) {
-    // If a user tries to access the default locale with a prefix (e.g., /tr/news),
-    // redirect them to the clean, non-prefixed URL to avoid duplicate content.
     if (pathname.startsWith(`/${DEFAULT_LOCALE}`)) {
-        const newPath = pathname.replace(`/${DEFAULT_LOCALE}`, "");
-        const url = new URL(newPath === "" ? "/" : newPath, request.url);
-        return NextResponse.redirect(url);
+      const newPath = pathname.replace(`/${DEFAULT_LOCALE}`, "");
+      const url = new URL(newPath === "" ? "/" : newPath, request.url);
+      return NextResponse.redirect(url);
     }
     return NextResponse.next();
   }
 
-  // Logic to handle requests without a locale prefix.
   const detectedLocale = getLocale(request);
   let response: NextResponse;
 
   if (detectedLocale === DEFAULT_LOCALE) {
-    // For the default locale, REWRITE the URL to include the locale for Next.js's router,
-    // but keep the URL in the browser's address bar clean.
+    // For the default locale (now guaranteed for new visitors), REWRITE the URL.
     response = NextResponse.rewrite(
       new URL(`/${DEFAULT_LOCALE}${pathname}`, request.url)
     );
   } else {
-    // For all other locales, REDIRECT the user to the URL with the correct prefix.
+    // For returning visitors with a non-default language cookie, REDIRECT.
     response = NextResponse.redirect(
       new URL(`/${detectedLocale}${pathname}`, request.url)
     );
@@ -89,6 +72,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|assets|favicon.ico|sw.js|.*\\..*).*)'
+    "/((?!api|_next/static|_next/image|assets|favicon.ico|sw.js|.*\\..*).*)",
   ],
 };
