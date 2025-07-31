@@ -1,11 +1,15 @@
-import axios from "axios";
+// ===== src/app/sitemap-news.xml/route.ts =====
+
 import { IPost } from "@/models/Post";
+import dbConnect from "@/lib/dbConnect";
+import Post from "@/models/Post";
+import { DEFAULT_LOCALE } from "@/lib/i18n/config";
+
+// ***** FIX #1: Force this route to run in the Node.js runtime *****
+export const dynamic = "force-dynamic";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
-
-// We no longer need the full list of locales here, only the default.
-const DEFAULT_LOCALE = "tr";
 
 type SitemapEntry = {
   url: string;
@@ -15,7 +19,6 @@ type SitemapEntry = {
 };
 
 const getPath = (path: string, locale: string) => {
-  // This helper function remains correct. It adds a prefix if the locale is not the default.
   if (locale === DEFAULT_LOCALE) {
     return path;
   }
@@ -43,18 +46,12 @@ const generateXml = (entries: SitemapEntry[]) =>
 
 export async function GET() {
   try {
-    const { data: posts }: { data: IPost[] } = await axios.get(
-      `${BASE_URL}/api/posts?status=published`
-    );
+    // ***** FIX #2: Fetch data directly from the database *****
+    await dbConnect();
+    const posts: IPost[] = await Post.find({ status: "published" }).lean();
 
-    // --- START OF FIX ---
-    // Instead of flatMap, we use a simple map.
-    // For each post, we generate only ONE sitemap entry.
     const sitemapEntries: SitemapEntry[] = posts.map((post) => {
-      // The canonical path is always /news/[slug]
       const basePath = `/news/${post.slug}`;
-
-      // We use the post's OWN language to generate the correct path.
       const finalPath = getPath(basePath, post.language);
 
       return {
@@ -64,7 +61,6 @@ export async function GET() {
         priority: 0.8,
       };
     });
-    // --- END OF FIX ---
 
     const xml = generateXml(sitemapEntries);
 
@@ -74,7 +70,7 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error("Error generating news sitemap:", error);
+    console.error("[SITEMAP-NEWS] Error generating sitemap:", error);
     return new Response("Error generating sitemap.", { status: 500 });
   }
 }
