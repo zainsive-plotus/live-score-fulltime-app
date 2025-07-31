@@ -12,6 +12,11 @@ import { NewsListItemCompactSkeleton } from "@/components/NewsListItemCompact";
 import NewsArchiveClient from "./NewsArchiveClient";
 import { NewsType, SportsCategory } from "@/models/Post";
 
+// ***** FIX ADDED HERE *****
+// This tells Next.js to always render this page dynamically on the server
+// because it relies on searchParams for pagination.
+export const dynamic = "force-dynamic";
+
 const VALID_CATEGORIES = ["football", "transfer", "recent", "news"];
 const ITEMS_PER_PAGE = 10;
 
@@ -97,13 +102,13 @@ export default async function NewsCategoryPage({
               </div>
             }
           >
-            {/* --- Start of Fix --- */}
-            {/* Pass the category slug to the client component */}
+            {}
+            {}
             <NewsArchiveClient
               initialData={{ posts: allNews, pagination }}
               category={category}
             />
-            {/* --- End of Fix --- */}
+            {}
           </Suspense>
         </main>
       </div>
