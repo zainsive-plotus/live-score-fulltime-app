@@ -1,38 +1,52 @@
-// ===== src/app/api/posts/route.ts (Enhanced Error Handling) =====
+// ===== src/app/api/posts/route.ts =====
 
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import dbConnect from "@/lib/dbConnect";
-import Post, { IPost } from "@/models/Post";
+import Post, { IPost, NewsType, SportsCategory } from "@/models/Post";
+import { getNews } from "@/lib/data/news";
 import slugify from "slugify";
 import mongoose from "mongoose";
-import { getNews } from "@/lib/data/news";
 
 const DEFAULT_LOCALE = "tr";
 
 export async function GET(request: Request) {
-  // ... (GET handler remains the same)
-  const { searchParams } = new URL(request.url);
-  const locale = searchParams.get("language") || DEFAULT_LOCALE;
-  const limit = searchParams.get("limit");
-  const sportsCategory = searchParams.get("sportsCategory") as
-    | IPost["sportsCategory"][number]
-    | null;
-  const excludeSportsCategory = searchParams.get("excludeSportsCategory") as
-    | IPost["sportsCategory"][number]
-    | null;
-
   try {
-    const curatedNews = await getNews({
+    const { searchParams } = new URL(request.url);
+    const locale = searchParams.get("language") || DEFAULT_LOCALE;
+    const sportsCategory = searchParams.get(
+      "sportsCategory"
+    ) as SportsCategory | null;
+    const newsType = searchParams.get("newsType") as NewsType | null;
+    const pageParam = searchParams.get("page");
+    const limitParam = searchParams.get("limit");
+
+    // --- Start of Fix ---
+    // Read the linkedFixtureId from the URL search parameters.
+    const fixtureIdParam = searchParams.get("linkedFixtureId");
+    // --- End of Fix ---
+
+    const page = pageParam ? parseInt(pageParam, 10) : 1;
+    const limit = limitParam ? parseInt(limitParam, 10) : 10;
+
+    // --- Start of Fix ---
+    // Convert the fixtureId to a number if it exists.
+    const linkedFixtureId = fixtureIdParam
+      ? parseInt(fixtureIdParam, 10)
+      : undefined;
+    // --- End of Fix ---
+
+    const { posts, pagination } = await getNews({
       locale,
       sportsCategory: sportsCategory || undefined,
-      excludeSportsCategory: excludeSportsCategory || undefined,
+      newsType: newsType || undefined,
+      page,
+      limit,
+      linkedFixtureId, // Pass the ID to the data fetching function
     });
-    const limitedNews = limit
-      ? curatedNews.slice(0, parseInt(limit, 10))
-      : curatedNews;
-    return NextResponse.json(limitedNews);
+
+    return NextResponse.json({ posts, pagination });
   } catch (error) {
     console.error("[API/posts GET] Server error fetching posts:", error);
     return NextResponse.json(
@@ -67,7 +81,6 @@ export async function POST(request: Request) {
 
     const finalSlug = slugify(slug || title, { lower: true, strict: true });
 
-    // This check is good for an immediate response, but the catch block is the ultimate safety net.
     const slugExists = await Post.findOne({ slug: finalSlug, language });
     if (slugExists) {
       return NextResponse.json(
@@ -90,21 +103,20 @@ export async function POST(request: Request) {
     await newPost.save();
     return NextResponse.json(newPost, { status: 201 });
   } catch (error: any) {
-    // --- THIS IS THE KEY CHANGE ---
-    // Check for MongoDB's duplicate key error
+    console.error("[API/posts POST] Error creating post:", error);
     if (error.code === 11000) {
       return NextResponse.json(
         {
           error:
             "This slug is already in use for this language. Please choose a unique slug.",
         },
-        { status: 409 } // 409 Conflict is the correct status code
+        { status: 409 }
       );
     }
     if (error.name === "ValidationError") {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
-    console.error("[API/posts POST] Server error creating post:", error);
+
     return NextResponse.json(
       { error: "An unexpected server error occurred while creating the post." },
       { status: 500 }

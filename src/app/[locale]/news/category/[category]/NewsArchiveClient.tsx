@@ -2,27 +2,52 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
-import { IPost } from "@/models/Post";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import { IPost, NewsType, SportsCategory } from "@/models/Post";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Info, ExternalLink, Calendar, User } from "lucide-react";
 import Pagination from "@/components/Pagination";
 import StyledLink from "@/components/StyledLink";
 import Image from "next/image";
 import { formatDistanceToNow } from "date-fns";
+import { NewsListItemCompactSkeleton } from "@/components/NewsListItemCompact";
 
 const ITEMS_PER_PAGE = 10;
 
+// --- Start of New Data Fetching Logic ---
+const fetchArchiveNews = async (
+  locale: string,
+  category: string,
+  page: number
+) => {
+  const params = new URLSearchParams({
+    language: locale,
+    page: page.toString(),
+    limit: ITEMS_PER_PAGE.toString(),
+  });
+
+  if (category === "football") params.set("sportsCategory", "football");
+  if (category === "transfer") params.set("newsType", "transfer");
+  if (category === "recent") params.set("newsType", "recent");
+
+  const { data } = await axios.get(`/api/posts?${params.toString()}`);
+  return data;
+};
+// --- End of New Data Fetching Logic ---
+
 interface NewsArchiveClientProps {
-  initialNews: IPost[];
+  initialData: {
+    posts: IPost[];
+    pagination: { totalPages: number };
+  };
+  category: string;
 }
 
-// A generic list item that can handle both internal and external (curated) posts
 const ArchiveNewsItem = ({ item }: { item: IPost }) => {
   const placeholderImage = "/images/placeholder-logo.svg";
   const isExternal = !!item.originalSourceUrl;
-  
-  // Link to the internal detail page regardless of the source
   const href = `/news/${item.slug}`;
 
   return (
@@ -51,21 +76,26 @@ const ArchiveNewsItem = ({ item }: { item: IPost }) => {
           </p>
           <div className="flex-grow"></div>
           <div className="flex items-center gap-4 text-xs text-brand-muted mt-2">
-             <div className="flex items-center gap-1.5" title="Author">
+            <div className="flex items-center gap-1.5" title="Author">
               <User size={12} />
               <span>{item.author}</span>
             </div>
             <div className="flex items-center gap-1.5" title="Publish Date">
               <Calendar size={12} />
               <time dateTime={new Date(item.createdAt).toISOString()}>
-                {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
+                {formatDistanceToNow(new Date(item.createdAt), {
+                  addSuffix: true,
+                })}
               </time>
             </div>
             {isExternal && (
-                <div className="flex items-center gap-1.5 text-blue-400" title="External Link available">
-                    <ExternalLink size={12} />
-                    <span>Source Available</span>
-                </div>
+              <div
+                className="flex items-center gap-1.5 text-blue-400"
+                title="External Link available"
+              >
+                <ExternalLink size={12} />
+                <span>Source Available</span>
+              </div>
             )}
           </div>
         </div>
@@ -74,23 +104,45 @@ const ArchiveNewsItem = ({ item }: { item: IPost }) => {
   );
 };
 
+export default function NewsArchiveClient({
+  initialData,
+  category,
+}: NewsArchiveClientProps) {
+  const { t, locale } = useTranslation();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
-export default function NewsArchiveClient({ initialNews }: NewsArchiveClientProps) {
-  const { t } = useTranslation();
-  const [currentPage, setCurrentPage] = useState(1);
+  const currentPage = Number(searchParams.get("page")) || 1;
 
-  const { paginatedData, totalPages } = useMemo(() => {
-    const newsArray = Array.isArray(initialNews) ? initialNews : [];
-    const total = Math.ceil(newsArray.length / ITEMS_PER_PAGE);
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-    return {
-      paginatedData: newsArray.slice(startIndex, endIndex),
-      totalPages: total,
-    };
-  }, [initialNews, currentPage]);
+  // --- Start of Client-Side Fetching Logic ---
+  const { data, isLoading } = useQuery({
+    queryKey: ["archiveNews", category, currentPage, locale],
+    queryFn: () => fetchArchiveNews(locale, category, currentPage),
+    initialData: initialData, // Use server data for the first page load
+    staleTime: 1000 * 60, // 1 minute
+  });
+  // --- End of Client-Side Fetching Logic ---
 
-  if (!initialNews || initialNews.length === 0) {
+  const handlePageChange = (page: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", page.toString());
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <NewsListItemCompactSkeleton />
+        <NewsListItemCompactSkeleton />
+        <NewsListItemCompactSkeleton />
+        <NewsListItemCompactSkeleton />
+        <NewsListItemCompactSkeleton />
+      </div>
+    );
+  }
+
+  if (!data?.posts || data.posts.length === 0) {
     return (
       <div className="text-center py-20 bg-brand-secondary rounded-lg">
         <Info size={32} className="mx-auto text-brand-muted mb-3" />
@@ -106,16 +158,16 @@ export default function NewsArchiveClient({ initialNews }: NewsArchiveClientProp
 
   return (
     <div className="space-y-4">
-      {paginatedData.map((item) => (
+      {data.posts.map((item: any) => (
         <ArchiveNewsItem key={item._id as string} item={item} />
       ))}
 
-      {totalPages > 1 && (
+      {data.pagination.totalPages > 1 && (
         <div className="pt-4">
           <Pagination
             currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
+            totalPages={data.pagination.totalPages}
+            onPageChange={handlePageChange}
           />
         </div>
       )}

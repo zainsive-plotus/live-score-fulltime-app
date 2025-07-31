@@ -1,24 +1,19 @@
+// ===== src/components/MatchList.tsx =====
+
 "use client";
 
-import { useEffect, useMemo, useState, Dispatch, SetStateAction } from "react";
+import { useEffect, useState, Dispatch, SetStateAction } from "react";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import Image from "next/image";
-import { useLeagueContext } from "@/context/LeagueContext";
 import { League } from "@/types/api-football";
 import MatchListItem, { MatchListItemSkeleton } from "./MatchListItem";
 import MatchDateNavigator from "./MatchDateNavigator";
-import {
-  Globe,
-  ChevronsDown,
-  Search,
-  XCircle,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+import { Globe, Search, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import { proxyImageUrl } from "@/lib/image-proxy";
-import { useTranslation } from "@/hooks/useTranslation"; // <-- Import hook
+import { useTranslation } from "@/hooks/useTranslation";
+import Pagination from "./Pagination"; // We will use this for league pagination
 
 function useDebounce(value: string, delay: number) {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -34,25 +29,27 @@ function useDebounce(value: string, delay: number) {
 }
 
 type StatusFilter = "all" | "live" | "finished" | "scheduled";
-const INITIAL_MATCHES_TO_SHOW = 5;
-const MATCHES_PER_PAGE = 10;
-const LEAGUES_PER_PAGE = 8;
 
-const fetchAllMatches = async (
-  leagueId: number | null,
-  date: Date
-): Promise<any[]> => {
+// --- Start of New Data Fetching Logic ---
+const fetchPaginatedFixtures = async (
+  date: Date,
+  status: StatusFilter,
+  page: number,
+  limit: number
+) => {
   const dateString = format(date, "yyyy-MM-dd");
-  const url = leagueId
-    ? `/api/fixtures?league=${leagueId}&date=${dateString}`
-    : `/api/fixtures?date=${dateString}`;
-  const { data } = await axios.get(url);
+  const params = new URLSearchParams({
+    date: dateString,
+    status,
+    page: page.toString(),
+    limit: limit.toString(),
+    groupByLeague: "true",
+  });
+  const { data } = await axios.get(`/api/fixtures?${params.toString()}`);
   return data;
 };
-const fetchGlobalLiveMatches = async (): Promise<any[]> => {
-  const { data } = await axios.get("/api/global-live");
-  return data;
-};
+// --- End of New Data Fetching Logic ---
+
 const searchFixtures = async (query: string): Promise<any[]> => {
   if (query.length < 3) return [];
   const { data } = await axios.get(
@@ -133,45 +130,14 @@ export default function MatchList({
 }: {
   setLiveLeagues: Dispatch<SetStateAction<League[]>>;
 }) {
-  const { selectedLeague } = useLeagueContext();
   const [activeStatusFilter, setActiveStatusFilter] =
     useState<StatusFilter>("all");
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [visibleMatchCounts, setVisibleMatchCounts] = useState<
-    Record<string, number>
-  >({});
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
-  const { t } = useTranslation(); // <-- Use hook
-
-  const STATUS_MAP: Record<StatusFilter, string[]> = {
-    all: [],
-    live: ["1H", "HT", "2H", "ET", "P", "LIVE"],
-    finished: ["FT", "AET", "PEN"],
-    scheduled: ["NS", "TBD", "PST"],
-  };
-
+  const { t } = useTranslation();
   const [currentPage, setCurrentPage] = useState(1);
-
-  const {
-    data: allMatches,
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: [
-      "allMatches",
-      selectedLeague?.id || "global",
-      format(selectedDate, "yyyy-MM-dd"),
-    ],
-    queryFn: () => fetchAllMatches(selectedLeague?.id || null, selectedDate),
-    enabled: activeStatusFilter !== "live" && !debouncedSearchTerm,
-  });
-
-  const { data: liveMatchesData, isLoading: isLoadingLive } = useQuery({
-    queryKey: ["globalLiveMatchesList"],
-    queryFn: fetchGlobalLiveMatches,
-    enabled: activeStatusFilter === "live" && !debouncedSearchTerm,
-  });
+  const LEAGUES_PER_PAGE = 5;
 
   const { data: searchResults, isLoading: isLoadingSearch } = useQuery({
     queryKey: ["fixtureSearch", debouncedSearchTerm],
@@ -179,89 +145,37 @@ export default function MatchList({
     enabled: debouncedSearchTerm.length >= 3,
   });
 
+  const { data: paginatedData, isLoading: isLoadingFixtures } = useQuery({
+    queryKey: [
+      "paginatedFixtures",
+      format(selectedDate, "yyyy-MM-dd"),
+      activeStatusFilter,
+      currentPage,
+    ],
+    queryFn: () =>
+      fetchPaginatedFixtures(
+        selectedDate,
+        activeStatusFilter,
+        currentPage,
+        LEAGUES_PER_PAGE
+      ),
+    enabled: !debouncedSearchTerm,
+    keepPreviousData: true,
+  });
+
   const { data: globalLiveCount } = useQuery({
     queryKey: ["globalLiveCount"],
-    queryFn: fetchGlobalLiveMatches,
-    select: (data) => data.length,
+    queryFn: () => axios.get("/api/global-live").then((res) => res.data.length),
     refetchInterval: 30000,
     staleTime: 25000,
   });
 
   useEffect(() => {
-    setVisibleMatchCounts({});
     setCurrentPage(1);
   }, [selectedDate, activeStatusFilter, debouncedSearchTerm]);
 
-  const groupedMatches = useMemo(() => {
-    const isSearching = debouncedSearchTerm.length >= 3;
-    const matchesToProcess = isSearching
-      ? searchResults
-      : activeStatusFilter === "live"
-      ? liveMatchesData
-      : allMatches;
-
-    if (!matchesToProcess) return [];
-
-    const statusFilter = STATUS_MAP[activeStatusFilter];
-    const matchesToGroup =
-      !isSearching && statusFilter.length > 0
-        ? matchesToProcess.filter((m) =>
-            statusFilter.includes(m.fixture.status.short)
-          )
-        : matchesToProcess;
-
-    matchesToGroup.sort(
-      (a, b) =>
-        new Date(a.fixture.date).getTime() - new Date(b.fixture.date).getTime()
-    );
-
-    return matchesToGroup.reduce((acc, match) => {
-      const groupKey = isSearching
-        ? format(new Date(match.fixture.date), "yyyy-MM-dd")
-        : match.league.id;
-      const leagueInfo = {
-        ...match.league,
-        name: isSearching
-          ? format(new Date(match.fixture.date), "eeee, dd MMMM")
-          : match.league.name,
-      };
-      if (!acc[groupKey]) acc[groupKey] = { leagueInfo, matches: [] };
-      acc[groupKey].matches.push(match);
-      return acc;
-    }, {} as Record<string, { leagueInfo: any; matches: any[] }>);
-  }, [
-    allMatches,
-    liveMatchesData,
-    searchResults,
-    activeStatusFilter,
-    debouncedSearchTerm,
-    STATUS_MAP,
-  ]);
-
-  const paginatedLeagueGroups = useMemo(() => {
-    const leagueEntries = Object.entries(groupedMatches);
-    const totalPages = Math.ceil(leagueEntries.length / LEAGUES_PER_PAGE);
-    const startIndex = (currentPage - 1) * LEAGUES_PER_PAGE;
-    const endIndex = startIndex + LEAGUES_PER_PAGE;
-    return {
-      paginatedEntries: leagueEntries.slice(startIndex, endIndex),
-      totalPages,
-      totalLeagues: leagueEntries.length,
-    };
-  }, [groupedMatches, currentPage]);
-
-  const handleLoadMore = (leagueId: string | number) => {
-    setVisibleMatchCounts((prevCounts) => ({
-      ...prevCounts,
-      [leagueId]:
-        (prevCounts[leagueId] || INITIAL_MATCHES_TO_SHOW) + MATCHES_PER_PAGE,
-    }));
-  };
-
   const isCurrentlyLoading =
-    (isLoading && !debouncedSearchTerm && activeStatusFilter !== "live") ||
-    (isLoadingLive && !debouncedSearchTerm && activeStatusFilter === "live") ||
-    (isLoadingSearch && debouncedSearchTerm.length >= 3);
+    isLoadingFixtures || (isLoadingSearch && debouncedSearchTerm.length >= 3);
 
   return (
     <div className="space-y-4">
@@ -326,7 +240,7 @@ export default function MatchList({
       </div>
 
       <div className="space-y-4">
-        {isCurrentlyLoading ? (
+        {isCurrentlyLoading && !paginatedData ? (
           <div
             style={{ backgroundColor: "var(--color-primary)" }}
             className="rounded-lg p-2 space-y-2"
@@ -335,67 +249,30 @@ export default function MatchList({
               <MatchListItemSkeleton key={i} />
             ))}
           </div>
-        ) : paginatedLeagueGroups.paginatedEntries.length > 0 ? (
+        ) : paginatedData?.paginatedLeagueGroups?.length > 0 ? (
           <>
-            {paginatedLeagueGroups.paginatedEntries.map(
-              ([groupKey, { leagueInfo, matches }]: any) => {
-                const visibleCount =
-                  visibleMatchCounts[groupKey] || INITIAL_MATCHES_TO_SHOW;
-                const remainingMatches = matches.length - visibleCount;
-                const hasMore = remainingMatches > 0;
-                return (
-                  <div
-                    key={groupKey}
-                    style={{ backgroundColor: "var(--color-primary)" }}
-                    className="rounded-lg overflow-hidden"
-                  >
-                    <LeagueGroupHeader league={leagueInfo} />
-                    <div className="p-2 space-y-2">
-                      {matches.slice(0, visibleCount).map((match: any) => (
-                        <MatchListItem key={match.fixture.id} match={match} />
-                      ))}
-                      {hasMore && (
-                        <button
-                          onClick={() => handleLoadMore(groupKey)}
-                          className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-text-muted p-3 rounded-lg transition-colors hover:text-white"
-                          style={{ backgroundColor: "var(--color-secondary)" }}
-                        >
-                          <ChevronsDown size={16} />{" "}
-                          {t("show_more_matches", {
-                            count: Math.min(MATCHES_PER_PAGE, remainingMatches),
-                          })}
-                        </button>
-                      )}
-                    </div>
+            {paginatedData.paginatedLeagueGroups.map(
+              ({ leagueInfo, matches }: any) => (
+                <div
+                  key={leagueInfo.id}
+                  style={{ backgroundColor: "var(--color-primary)" }}
+                  className="rounded-lg overflow-hidden"
+                >
+                  <LeagueGroupHeader league={leagueInfo} />
+                  <div className="p-2 space-y-2">
+                    {matches.map((match: any) => (
+                      <MatchListItem key={match.fixture.id} match={match} />
+                    ))}
                   </div>
-                );
-              }
+                </div>
+              )
             )}
-            {paginatedLeagueGroups.totalPages > 1 && (
-              <div className="flex items-center justify-between p-2">
-                <button
-                  onClick={() => setCurrentPage((p) => p - 1)}
-                  disabled={currentPage === 1}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-secondary rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-700/50 transition-colors"
-                >
-                  <ChevronLeft size={16} />
-                  <span>{t("previous")}</span>
-                </button>
-                <span className="text-sm font-semibold text-brand-muted">
-                  {t("page_of", {
-                    currentPage,
-                    totalPages: paginatedLeagueGroups.totalPages,
-                  })}
-                </span>
-                <button
-                  onClick={() => setCurrentPage((p) => p + 1)}
-                  disabled={currentPage === paginatedLeagueGroups.totalPages}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-secondary rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-700/50 transition-colors"
-                >
-                  <span>{t("next")}</span>
-                  <ChevronRight size={16} />
-                </button>
-              </div>
+            {paginatedData?.pagination.totalPages > 1 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={paginatedData?.pagination.totalPages}
+                onPageChange={setCurrentPage}
+              />
             )}
           </>
         ) : (

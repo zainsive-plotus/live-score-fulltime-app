@@ -501,5 +501,11 @@
   "news_archive_subtitle": "Bu kategorideki tüm makalelere göz atın.",
   "source_available": "Kaynak Mevcut",
   "no_news_in_category_subtitle": "Bu kategoride henüz bir haber bulunmamaktadır.",
-  "footer_rights_reserved": "Tüm hakları saklıdır."
+  "footer_rights_reserved": "Tüm hakları saklıdır.",
+
+  "read_full_story_on_source": "Haberin Tamamını Kaynağında Oku",
+  "recent_news": "Güncel Haberler",
+  "showing_competitions": "{count} turnuva gösteriliyor",
+
+  "related_news": "İlgili Haberler"
 }

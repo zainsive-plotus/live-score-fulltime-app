@@ -9,37 +9,51 @@ const DEFAULT_LOCALE = "tr";
 interface GetNewsParams {
   locale: string;
   sportsCategory?: SportsCategory;
-  excludeSportsCategory?: SportsCategory;
-  newsType?: NewsType; // <-- This is the new parameter
+  newsType?: NewsType;
+  page?: number;
+  limit?: number;
+  linkedFixtureId?: number;
 }
 
-export async function getNews(params: GetNewsParams): Promise<IPost[]> {
-  const { locale, sportsCategory, excludeSportsCategory, newsType } = params;
+export async function getNews(
+  params: GetNewsParams
+): Promise<{
+  posts: IPost[];
+  pagination: { totalCount: number; totalPages: number };
+}> {
+  const {
+    locale,
+    sportsCategory,
+    newsType,
+    page = 1,
+    limit = 10,
+    linkedFixtureId,
+  } = params;
 
   try {
     await dbConnect();
 
-    // --- Start of Change ---
-    // The match stage is now more flexible to handle all filter types.
-    const matchStage: any = { status: "published" };
-    if (sportsCategory) {
-      matchStage.sportsCategory = { $in: [sportsCategory] };
-    }
-    if (excludeSportsCategory) {
-      // Ensure we don't overwrite the sportsCategory filter if it exists
-      if (matchStage.sportsCategory) {
-        matchStage.sportsCategory.$nin = [excludeSportsCategory];
-      } else {
-        matchStage.sportsCategory = { $nin: [excludeSportsCategory] };
-      }
-    }
-    // Add the new filter for newsType
-    if (newsType) {
-      matchStage.newsType = newsType;
-    }
-    // --- End of Change ---
+    const matchConditions: any[] = [{ status: "published" }];
 
-    const pipeline = [
+    // --- Start of Fix ---
+    // The value for $in must be an array. We wrap sportsCategory in square brackets.
+    if (sportsCategory) {
+      matchConditions.push({ sportsCategory: { $in: [sportsCategory] } });
+    }
+    // --- End of Fix ---
+
+    if (newsType) {
+      matchConditions.push({ newsType: newsType });
+    }
+    if (linkedFixtureId) {
+      matchConditions.push({ linkedFixtureId: linkedFixtureId });
+    }
+
+    const matchStage = { $and: matchConditions };
+
+    const skip = (page - 1) * limit;
+
+    const initialPipeline = [
       { $match: matchStage },
       {
         $addFields: {
@@ -63,35 +77,39 @@ export async function getNews(params: GetNewsParams): Promise<IPost[]> {
           },
         },
       },
+      { $sort: { effectiveGroupId: 1, langPriority: 1 } },
+      { $group: { _id: "$effectiveGroupId", document: { $first: "$$ROOT" } } },
+      { $replaceRoot: { newRoot: "$document" } },
+      { $sort: { createdAt: -1 } },
+    ];
+
+    const facetPipeline = [
+      ...initialPipeline,
       {
-        $sort: {
-          effectiveGroupId: 1,
-          langPriority: 1,
-        },
-      },
-      {
-        $group: {
-          _id: "$effectiveGroupId",
-          document: { $first: "$$ROOT" },
-        },
-      },
-      {
-        $replaceRoot: {
-          newRoot: "$document",
-        },
-      },
-      {
-        $sort: {
-          createdAt: -1,
+        $facet: {
+          paginatedResults: [{ $skip: skip }, { $limit: limit }],
+          totalCount: [{ $count: "count" }],
         },
       },
     ];
 
-    const curatedNews = await Post.aggregate(pipeline);
+    const results = await Post.aggregate(facetPipeline);
 
-    return JSON.parse(JSON.stringify(curatedNews));
+    const posts = results[0].paginatedResults;
+    const totalCount = results[0].totalCount[0]
+      ? results[0].totalCount[0].count
+      : 0;
+    const totalPages = Math.ceil(totalCount / limit);
+
+    return {
+      posts: JSON.parse(JSON.stringify(posts)),
+      pagination: {
+        totalCount,
+        totalPages,
+      },
+    };
   } catch (error) {
     console.error(`[getNews Data Fetching Error]`, error);
-    return [];
+    return { posts: [], pagination: { totalCount: 0, totalPages: 0 } };
   }
 }

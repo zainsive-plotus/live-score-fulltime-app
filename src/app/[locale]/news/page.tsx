@@ -38,7 +38,7 @@ const generateInitialJsonLd = (posts: IPost[], t: Function) => {
     const postUrl = post.originalSourceUrl
       ? post.originalSourceUrl
       : `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/${post.language}/news/${post.slug}`;
-      
+
     return {
       "@type": "ListItem",
       position: index + 1,
@@ -75,18 +75,18 @@ const generateInitialJsonLd = (posts: IPost[], t: Function) => {
 };
 
 const NewsPageSkeleton = () => (
-    <div className="space-y-12 animate-pulse">
-        <div className="w-full aspect-video md:aspect-[2.4/1] bg-brand-secondary rounded-xl"></div>
-        <div>
-            <div className="h-8 w-1/3 bg-gray-700 rounded mb-6"></div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="aspect-square bg-brand-secondary rounded-xl"></div>
-                <div className="aspect-square bg-brand-secondary rounded-xl"></div>
-                <div className="aspect-square bg-brand-secondary rounded-xl"></div>
-                <div className="aspect-square bg-brand-secondary rounded-xl"></div>
-            </div>
-        </div>
+  <div className="space-y-12 animate-pulse">
+    <div className="w-full aspect-video md:aspect-[2.4/1] bg-brand-secondary rounded-xl"></div>
+    <div>
+      <div className="h-8 w-1/3 bg-gray-700 rounded mb-6"></div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="aspect-square bg-brand-secondary rounded-xl"></div>
+        <div className="aspect-square bg-brand-secondary rounded-xl"></div>
+        <div className="aspect-square bg-brand-secondary rounded-xl"></div>
+        <div className="aspect-square bg-brand-secondary rounded-xl"></div>
+      </div>
     </div>
+  </div>
 );
 
 export default async function NewsHubPage({
@@ -97,16 +97,24 @@ export default async function NewsHubPage({
   const { locale } = params;
   const t = await getI18n(locale);
 
-  // --- Start of Change ---
-  // Fetch data for all sections in parallel, using the new `newsType` filter
+  // --- Start of Fix ---
+  // The calls to getNews now correctly destructure the 'posts' array from the returned object.
   const [recentNews, footballNews, transferNews] = await Promise.all([
-    getNews({ locale, newsType: "recent" }).then(news => news.slice(0, 5)),
-    getNews({ locale, sportsCategory: "football", newsType: "news" }).then(news => news.slice(0, 8)),
-    getNews({ locale, newsType: "transfer" }).then(news => news.slice(0, 4)),
+    getNews({ locale, newsType: "recent", limit: 5 }).then(
+      (result) => result.posts
+    ),
+    getNews({
+      locale,
+      sportsCategory: "football",
+      newsType: "news",
+      limit: 8,
+    }).then((result) => result.posts),
+    getNews({ locale, newsType: "transfer", limit: 4 }).then(
+      (result) => result.posts
+    ),
   ]);
-  // --- End of Change ---
+  // --- End of Fix ---
 
-  // Use the 'recentNews' for the main JSON-LD block
   const jsonLdData = generateInitialJsonLd(recentNews, t);
 
   return (

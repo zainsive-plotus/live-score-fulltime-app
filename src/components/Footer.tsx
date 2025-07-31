@@ -1,3 +1,5 @@
+// ===== src/components/Footer.tsx =====
+
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
@@ -34,10 +36,13 @@ const FooterColumn = ({
   </div>
 );
 
-const fetchRecentPosts = async (): Promise<IPost[]> => {
+// --- Start of Fix ---
+// This function now expects the structured response from the API
+const fetchRecentPosts = async (): Promise<{ posts: IPost[] }> => {
   const { data } = await axios.get("/api/posts?status=published&limit=5");
   return data;
 };
+// --- End of Fix ---
 
 const fetchRecentFootballScores = async () => {
   return [
@@ -52,11 +57,16 @@ const fetchRecentFootballScores = async () => {
 export default function Footer() {
   const { t } = useTranslation();
 
+  // --- Start of Fix ---
+  // The `useQuery` hook now uses the `select` option to transform the data,
+  // ensuring that the `recentPosts` variable is the array we need.
   const { data: recentPosts } = useQuery({
     queryKey: ["recentPostsFooter"],
     queryFn: fetchRecentPosts,
     staleTime: 1000 * 60 * 10,
+    select: (data) => data.posts, // Extract the 'posts' array from the API response
   });
+  // --- End of Fix ---
 
   const { data: footballScores } = useQuery({
     queryKey: ["recentScoresFooter"],
@@ -85,7 +95,7 @@ export default function Footer() {
                 {recentPosts?.map((post) => (
                   <Link
                     key={post._id as string}
-                    href={`/football/news/${post.slug}`}
+                    href={`/football/news/${post.slug}`} // Assuming these are football news for now
                     className="block truncate hover:text-white transition-colors"
                   >
                     {post.title}
@@ -156,31 +166,38 @@ export default function Footer() {
             />
           </div>
           <div className="flex items-center gap-6 md:gap-8">
+            <Link href="/responsible-gaming" title="Responsible Gaming">
               <Image
                 src="/images/logos/18plus.svg"
                 alt="18+ Responsible Gaming"
                 width={40}
                 height={40}
               />
-          
+            </Link>
+            <Link href="/about-us#credibility" title="Verified by GamCare">
               <Image
                 src="/images/logos/gamcare.svg"
                 alt="GamCare Verified"
                 width={110}
                 height={35}
               />
+            </Link>
+            <Link href="/responsible-gaming#gambleaware" title="BeGambleAware">
               <Image
                 src="/images/logos/begambleaware.svg"
                 alt="BeGambleAware"
                 width={190}
                 height={25}
               />
+            </Link>
+            <Link href="/about-us#security" title="Secure Connection">
               <Image
                 src="/images/logos/dmca-protected.svg"
                 alt="DMCA Protected"
                 width={180}
                 height={35}
               />
+            </Link>
           </div>
         </div>
 

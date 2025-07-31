@@ -1,39 +1,40 @@
+// ===== src/components/NewsSection.tsx =====
+
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { IPost } from "@/models/Post";
-import StyledLink from "./StyledLink";
+import SidebarNewsItem, { SidebarNewsItemSkeleton } from "./SidebarNewsItem";
 import { ArrowRight, Newspaper, Info } from "lucide-react";
-import { useTranslation } from "@/hooks/useTranslation"; // <-- 1. Import the hook
-import SidebarNewsItemWithImage, {
-  SidebarNewsItemWithImageSkeleton,
-} from "./SidebarNewsItemWithImage";
+import Link from "next/link";
+import { useTranslation } from "@/hooks/useTranslation";
 
 const fetchNews = async (
   limit: number = 5,
   locale: string
 ): Promise<IPost[]> => {
-  // 2. Add locale to the function and the API call
   const { data } = await axios.get(
-    `/api/posts?status=published&limit=${limit}&language=${locale}`
+    `/api/posts?status=published&limit=${limit}&language=${locale}&newsType=news`
   );
-  return data;
+  // --- Start of Fix ---
+  // The API now returns an object { posts: [...] }. We need to return the 'posts' array.
+  return data.posts;
+  // --- End of Fix ---
 };
 
 export default function NewsSection() {
-  const { t, locale } = useTranslation(); // <-- 3. Get the current locale
+  const { t, locale } = useTranslation();
 
   const {
     data: news,
     isLoading,
     isError,
   } = useQuery<IPost[]>({
-    // 4. Add locale to the queryKey to ensure refetching on language change
     queryKey: ["newsArticlesSidebarWidget", locale],
     queryFn: () => fetchNews(5, locale!),
     staleTime: 1000 * 60 * 10,
-    enabled: !!locale, // Ensure the query only runs when locale is available
+    enabled: !!locale,
   });
 
   return (
@@ -43,23 +44,23 @@ export default function NewsSection() {
           <Newspaper size={20} className="text-brand-purple" />
           {t("latest_news")}
         </h3>
-        <StyledLink
-          href="/news" // General news link
+        <Link
+          href="/news/category/news"
           className="flex items-center gap-1 text-xs font-semibold text-text-muted transition-colors hover:text-white"
         >
           {t("see_all")}
           <ArrowRight size={14} />
-        </StyledLink>
+        </Link>
       </div>
 
       <div className="p-2 space-y-1">
         {isLoading ? (
           <>
-            <SidebarNewsItemWithImageSkeleton />
-            <SidebarNewsItemWithImageSkeleton />
-            <SidebarNewsItemWithImageSkeleton />
-            <SidebarNewsItemWithImageSkeleton />
-            <SidebarNewsItemWithImageSkeleton />
+            <SidebarNewsItemSkeleton />
+            <SidebarNewsItemSkeleton />
+            <SidebarNewsItemSkeleton />
+            <SidebarNewsItemSkeleton />
+            <SidebarNewsItemSkeleton />
           </>
         ) : isError ? (
           <div className="rounded-lg p-6 text-center text-red-400">
@@ -67,7 +68,13 @@ export default function NewsSection() {
           </div>
         ) : news && news.length > 0 ? (
           news.map((post) => (
-            <SidebarNewsItemWithImage key={post._id as string} post={post} />
+            <SidebarNewsItem
+              key={post._id as string}
+              post={{
+                ...post,
+                slug: `/news/${post.slug}`,
+              }}
+            />
           ))
         ) : (
           <div className="rounded-lg p-6 text-center text-text-muted">

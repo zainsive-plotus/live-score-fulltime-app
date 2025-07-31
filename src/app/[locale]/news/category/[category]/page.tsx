@@ -1,4 +1,4 @@
-// ===== src/app/[locale]/news/[category]/page.tsx =====
+// ===== src/app/[locale]/news/category/[category]/page.tsx =====
 
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -12,17 +12,17 @@ import { NewsListItemCompactSkeleton } from "@/components/NewsListItemCompact";
 import NewsArchiveClient from "./NewsArchiveClient";
 import { NewsType, SportsCategory } from "@/models/Post";
 
-const VALID_CATEGORIES = ["football", "transfer", "recent"];
+const VALID_CATEGORIES = ["football", "transfer", "recent", "news"];
+const ITEMS_PER_PAGE = 10;
 
-// Helper to generate dynamic metadata based on the category
 export async function generateMetadata({
   params: { locale, category },
 }: {
   params: { locale: string; category: string };
 }): Promise<Metadata> {
   const t = await getI18n(locale);
-  
-  let pageTitle = t("news_archive_title"); // Default
+
+  let pageTitle = t("news_archive_title");
 
   if (category === "football") pageTitle = t("football_news_archive_title");
   if (category === "transfer") pageTitle = t("transfer_news_archive_title");
@@ -36,32 +36,38 @@ export async function generateMetadata({
 
 export default async function NewsCategoryPage({
   params: { locale, category },
+  searchParams,
 }: {
   params: { locale: string; category: string };
+  searchParams: { [key: string]: string | string[] | undefined };
 }) {
   const t = await getI18n(locale);
-
-  console.log(category);
-  
 
   if (!VALID_CATEGORIES.includes(category)) {
     notFound();
   }
 
-  // Determine filter based on the category slug
-  const filterOptions: { newsType?: NewsType; sportsCategory?: SportsCategory } = {};
+  const currentPage = Number(searchParams?.page || 1);
+
+  const filterOptions: {
+    newsType?: NewsType;
+    sportsCategory?: SportsCategory;
+  } = {};
   if (category === "football") filterOptions.sportsCategory = "football";
   if (category === "transfer") filterOptions.newsType = "transfer";
   if (category === "recent") filterOptions.newsType = "recent";
 
-  const allNews = (await getNews({ locale, ...filterOptions })) ?? [];
+  const { posts: allNews, pagination } = await getNews({
+    locale,
+    ...filterOptions,
+    page: currentPage,
+    limit: ITEMS_PER_PAGE,
+  });
 
   let pageTitle = t("news_archive_title");
   if (category === "football") pageTitle = t("football_news_archive_title");
   if (category === "transfer") pageTitle = t("transfer_news_archive_title");
   if (category === "recent") pageTitle = t("recent_news_archive_title");
-
-  console.log(allNews);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -91,7 +97,13 @@ export default async function NewsCategoryPage({
               </div>
             }
           >
-            <NewsArchiveClient initialNews={allNews} />
+            {/* --- Start of Fix --- */}
+            {/* Pass the category slug to the client component */}
+            <NewsArchiveClient
+              initialData={{ posts: allNews, pagination }}
+              category={category}
+            />
+            {/* --- End of Fix --- */}
           </Suspense>
         </main>
       </div>
@@ -99,12 +111,8 @@ export default async function NewsCategoryPage({
   );
 }
 
-// --- Start of Fix ---
-// This function tells Next.js which category pages to pre-build at build time.
-// Without this, Next.js doesn't know that "/news/recent" is a valid page to generate.
 export async function generateStaticParams() {
   return VALID_CATEGORIES.map((category) => ({
     category: category,
   }));
 }
-// --- End of Fix ---

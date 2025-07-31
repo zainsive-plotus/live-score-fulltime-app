@@ -497,5 +497,11 @@
   "news_archive_subtitle": "Dlulisa amehlo kuzo zonke izihloko kulesi sigaba.",
   "source_available": "Umthombo Utholakele",
   "no_news_in_category_subtitle": "Azikho izindaba kulesi sigaba okwamanje.",
-  "footer_rights_reserved": "Wonke amalungelo agodliwe."
+  "footer_rights_reserved": "Wonke amalungelo agodliwe.",
+
+  "read_full_story_on_source": "Funda Indaba Ephelele Emthonjeni Wayo",
+  "recent_news": "Izindaba Zakamuva",
+  "showing_competitions": "Kukhonjiswa imiqhudelwano engu-{count}",
+
+  "related_news": "Izindaba Ezihlobene"
 }

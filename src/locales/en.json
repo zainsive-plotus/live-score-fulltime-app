@@ -517,5 +517,11 @@
   "news_archive_subtitle": "Browse all articles in this category.",
   "source_available": "Source Available",
   "no_news_in_category_subtitle": "There are no news articles in this category yet.",
-  "footer_rights_reserved": "All rights reserved."
+  "footer_rights_reserved": "All rights reserved.",
+
+  "read_full_story_on_source": "Read Full Story on Source",
+  "recent_news": "Recent News",
+  "showing_competitions": "Showing {count} competitions",
+
+  "related_news": "Related News"
 }

@@ -1,7 +1,10 @@
+// ===== src/app/[locale]/football/news/NewsPageClient.tsx =====
+
 "use client";
 
-import { useState, useMemo } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 import { IPost } from "@/models/Post";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Info } from "lucide-react";
@@ -10,29 +13,65 @@ import NewsListItemCompact, {
   NewsListItemCompactSkeleton,
 } from "@/components/NewsListItemCompact";
 
-const ITEMS_PER_PAGE = 10; // We can show more items in this compact layout
+const ITEMS_PER_PAGE = 10;
+
+// This fetcher is now specific to this component's needs.
+const fetchFootballNews = async (locale: string, page: number) => {
+  const params = new URLSearchParams({
+    language: locale,
+    page: page.toString(),
+    limit: ITEMS_PER_PAGE.toString(),
+    sportsCategory: "football",
+    newsType: "news", // Explicitly ask for 'news' type
+  });
+
+  const { data } = await axios.get(`/api/posts?${params.toString()}`);
+  return data as { posts: IPost[]; pagination: { totalPages: number } };
+};
 
 interface NewsPageClientProps {
-  initialNews: IPost[];
+  initialData: {
+    posts: IPost[];
+    pagination: { totalPages: number };
+  };
 }
 
-export default function NewsPageClient({ initialNews }: NewsPageClientProps) {
-  const { t } = useTranslation();
+export default function NewsPageClient({ initialData }: NewsPageClientProps) {
+  const { t, locale } = useTranslation();
+  const router = useRouter();
   const pathname = usePathname();
-  const [currentPage, setCurrentPage] = useState(1);
+  const searchParams = useSearchParams();
 
-  const { paginatedData, totalPages } = useMemo(() => {
-    const newsArray = Array.isArray(initialNews) ? initialNews : [];
-    const total = Math.ceil(newsArray.length / ITEMS_PER_PAGE);
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-    return {
-      paginatedData: newsArray.slice(startIndex, endIndex),
-      totalPages: total,
-    };
-  }, [initialNews, currentPage]);
+  const currentPage = Number(searchParams.get("page")) || 1;
 
-  if (!initialNews || initialNews.length === 0) {
+  // useQuery handles all client-side data fetching after the initial load.
+  const { data, isLoading } = useQuery({
+    queryKey: ["footballNews", currentPage, locale],
+    queryFn: () => fetchFootballNews(locale, currentPage),
+    // The server-fetched data is used for the very first render.
+    initialData: initialData,
+    // This ensures that if the user navigates back to this page, the data isn't stale.
+    staleTime: 1000 * 60, // 1 minute
+  });
+
+  const handlePageChange = (page: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", page.toString());
+    // This navigation updates the URL, which in turn triggers the useQuery to re-fetch.
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        {[...Array(ITEMS_PER_PAGE)].map((_, i) => (
+          <NewsListItemCompactSkeleton key={i} />
+        ))}
+      </div>
+    );
+  }
+
+  if (!data?.posts || data.posts.length === 0) {
     return (
       <div className="text-center py-20 bg-brand-secondary rounded-lg">
         <Info size={32} className="mx-auto text-brand-muted mb-3" />
@@ -48,16 +87,16 @@ export default function NewsPageClient({ initialNews }: NewsPageClientProps) {
 
   return (
     <div className="space-y-4">
-      {paginatedData.map((post) => (
+      {data.posts.map((post) => (
         <NewsListItemCompact key={post._id as string} post={post} />
       ))}
 
-      {totalPages > 1 && (
+      {data.pagination.totalPages > 1 && (
         <div className="pt-4">
           <Pagination
             currentPage={currentPage}
-            totalPages={totalPages}
-            basePath={pathname}
+            totalPages={data.pagination.totalPages}
+            onPageChange={handlePageChange}
           />
         </div>
       )}

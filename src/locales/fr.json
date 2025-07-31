@@ -497,5 +497,11 @@
   "news_archive_subtitle": "Parcourez tous les articles de cette catégorie.",
   "source_available": "Source Disponible",
   "no_news_in_category_subtitle": "Il n'y a pas encore d'articles dans cette catégorie.",
-  "footer_rights_reserved": "Tous droits réservés."
+  "footer_rights_reserved": "Tous droits réservés.",
+
+  "read_full_story_on_source": "Lire l'Article Complet sur la Source",
+  "recent_news": "Actualités Récentes",
+  "showing_competitions": "Affichage de {count} compétitions",
+
+  "related_news": "Actualités Connexes"
 }

@@ -1,4 +1,4 @@
-// ===== src/app/[locale]/football/news/page.tsx (Redesigned) =====
+// ===== src/app/[locale]/football/news/page.tsx =====
 
 import type { Metadata } from "next";
 import { IPost } from "@/models/Post";
@@ -10,18 +10,18 @@ import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
 import { Suspense } from "react";
 import { getNews } from "@/lib/data/news";
-import NewsPageClient from "./NewsPageClient"; // <-- Import the new dedicated client component
-import { NewsListItemCompactSkeleton } from "@/components/NewsListItemCompact"; // <-- Import the new skeleton
+import NewsPageClient from "./NewsPageClient";
+import { NewsListItemCompactSkeleton } from "@/components/NewsListItemCompact";
 
 const PAGE_PATH = "/football/news";
-const ITEMS_PER_PAGE = 10; // Sync with client component
+const ITEMS_PER_PAGE = 10;
 
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ locale: string }>;
+  params: { locale: string };
 }): Promise<Metadata> {
-  const { locale } = await params;
+  const { locale } = params;
 
   const t = await getI18n(locale);
   const hreflangAlternates = await generateHreflangTags(PAGE_PATH, locale);
@@ -36,10 +36,9 @@ export async function generateMetadata({
 }
 
 const generateInitialJsonLd = (posts: IPost[], t: Function) => {
-  const paginatedPosts = posts.slice(0, ITEMS_PER_PAGE);
-  if (paginatedPosts.length === 0) return null;
+  if (!posts || posts.length === 0) return null;
 
-  const itemListElement = paginatedPosts.map((post, index) => {
+  const itemListElement = posts.map((post, index) => {
     const postUrl = `/${post.language}/news/${post.slug}`;
     return {
       "@type": "ListItem",
@@ -78,15 +77,30 @@ const generateInitialJsonLd = (posts: IPost[], t: Function) => {
 
 export default async function FootballNewsPage({
   params,
+  searchParams,
 }: {
   params: { locale: string };
+  searchParams: { [key: string]: string | string[] | undefined };
 }) {
   const { locale } = params;
   const t = await getI18n(locale);
 
-  const allNews = (await getNews({ locale, sportsCategory: "football" })) ?? [];
+  // Fetch only the first page of data on the server.
+  const currentPage = Number(searchParams?.page || 1);
 
-  const jsonLdData = generateInitialJsonLd(allNews, t);
+  // --- Start of Fix ---
+  // Ensure we fetch specifically for 'sportsCategory: football' AND 'newsType: news'
+  // to exclude the AI-curated 'recent' news.
+  const initialData = await getNews({
+    locale,
+    sportsCategory: "football",
+    newsType: "news",
+    page: currentPage,
+    limit: ITEMS_PER_PAGE,
+  });
+  // --- End of Fix ---
+
+  const jsonLdData = generateInitialJsonLd(initialData.posts, t);
 
   return (
     <>
@@ -126,7 +140,8 @@ export default async function FootballNewsPage({
                 </div>
               }
             >
-              <NewsPageClient initialNews={allNews} />
+              {/* Pass the initial data to the client component */}
+              <NewsPageClient initialData={initialData} />
             </Suspense>
           </main>
         </div>
