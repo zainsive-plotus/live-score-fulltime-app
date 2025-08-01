@@ -1,3 +1,5 @@
+// ===== src/app/sitemap.xml/route.ts =====
+
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
@@ -8,6 +10,8 @@ const generateSitemapIndexXml = () => {
     "sitemap-leagues.xml",
     "sitemap-teams.xml",
     "sitemap-matches.xml",
+    // ***** NEW SITEMAP ADDED HERE *****
+    "sitemap-standings.xml",
   ];
 
   const sitemapEntries = sitemaps

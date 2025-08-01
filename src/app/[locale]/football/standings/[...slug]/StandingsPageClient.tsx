@@ -9,7 +9,6 @@ import { useTranslation } from "@/hooks/useTranslation";
 import LeagueStandingsWidget from "@/components/league-detail-view/LeagueStandingsWidget";
 import { ListOrdered, Loader2 } from "lucide-react";
 
-// The API response type needs to be defined here for useQuery
 interface StandingsData {
   league: {
     id: number;
@@ -50,12 +49,14 @@ export default function StandingsPageClient({
     initialData.league.season
   );
 
-  const { data: standingsData, isLoading } = useQuery<StandingsData>({
+  const {
+    data: standingsData,
+    isLoading,
+    isFetching,
+  } = useQuery<StandingsData>({
     queryKey: ["standingsDetail", leagueId, selectedSeason],
     queryFn: () => fetchStandingsData(leagueId, selectedSeason),
-    // Use the server-fetched data as the initial data for the current season
     initialData: initialData,
-    // Keep previous data while fetching new season to prevent UI flicker
     keepPreviousData: true,
   });
 
@@ -77,35 +78,19 @@ export default function StandingsPageClient({
           </div>
           <div>
             <h1 className="text-3xl font-extrabold text-white">{seoTitle}</h1>
-            {/* Season Selector */}
-            {league && league.seasons && (
-              <select
-                value={selectedSeason}
-                onChange={(e) => setSelectedSeason(Number(e.target.value))}
-                className="mt-2 p-1 text-sm rounded bg-gray-700 text-white border border-gray-600 focus:outline-none"
-              >
-                {league.seasons.map((season) => (
-                  <option key={season} value={season}>
-                    {season}/{season + 1}
-                  </option>
-                ))}
-              </select>
-            )}
           </div>
         </div>
         <p className="text-brand-muted leading-relaxed">{seoDescription}</p>
       </div>
 
-      {isLoading && (
-        <div className="flex justify-center items-center p-8">
-          <Loader2 className="animate-spin" size={32} />
-        </div>
-      )}
-
-      {!isLoading && standingsData && (
+      {standingsData && (
         <LeagueStandingsWidget
-          standings={standingsData.standings}
-          league={standingsData.league}
+          initialStandings={standingsData.standings}
+          // ***** FIX IS HERE: Provide a default empty array *****
+          leagueSeasons={standingsData.league?.seasons || []}
+          currentSeason={selectedSeason}
+          onSeasonChange={setSelectedSeason}
+          isLoading={isFetching} // Use isFetching to show loading state on refetches
         />
       )}
     </main>
