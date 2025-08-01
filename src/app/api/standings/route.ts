@@ -1,25 +1,16 @@
-// ===== src/app/api/standings/route.ts (Redis Enhanced) =====
+// ===== src/app/api/standings/route.ts =====
 
 import { NextResponse } from "next/server";
 import axios from "axios";
 import { generateLeagueSlug } from "@/lib/generate-league-slug";
-import redis from "@/lib/redis"; // <-- 1. Import Redis client
+import redis from "@/lib/redis";
 
-const CACHE_TTL_SECONDS = 60 * 60 * 2; // Cache standings for 2 hours
-
-type TeamStanding = {
-  rank: number;
-  team: { id: number; name: string; logo: string };
-  points: number;
-  goalsDiff: number;
-  all: { played: number; win: number; draw: number; lose: number };
-  description: string | null;
-  group: string;
-};
+const CACHE_TTL_SECONDS = 60 * 60 * 2; // Cache for 2 hours
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const leagueId = searchParams.get("league");
+  // ***** FIX: Read the season from the search params, defaulting to the current year *****
   const season =
     searchParams.get("season") || new Date().getFullYear().toString();
 
@@ -30,58 +21,109 @@ export async function GET(request: Request) {
     );
   }
 
-  // 2. Create a unique cache key for this specific league and season
-  const cacheKey = `standings:${leagueId}:${season}`;
+  // ***** FIX: Include season in the cache key for uniqueness *****
+  const cacheKey = `standings:detailed:${leagueId}:${season}`;
 
   try {
-    // 3. Check Redis first
     const cachedData = await redis.get(cacheKey);
     if (cachedData) {
-      console.log(`[Cache HIT] Returning cached data for key: ${cacheKey}`);
       return NextResponse.json(JSON.parse(cachedData));
     }
 
-    // 4. Cache Miss: Fetch fresh data
-    console.log(`[Cache MISS] Fetching fresh data for key: ${cacheKey}`);
-    const options = {
+    const options = (endpoint: string, params: object) => ({
       method: "GET",
-      url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/standings`,
-      params: { league: leagueId, season: season },
-      headers: {
-        "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY,
-      },
-    };
-    
-    const response = await axios.request(options);
+      url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/${endpoint}`,
+      params,
+      headers: { "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
+    });
 
-    // If the API returns no data, cache an empty response to prevent repeated calls
-    if (!response.data.response || response.data.response.length === 0) {
-      const emptyResponse = { league: null, standings: [] };
-      await redis.set(cacheKey, JSON.stringify(emptyResponse), "EX", CACHE_TTL_SECONDS);
+    const [standingsResponse, topScorersResponse, leagueDetailsResponse] =
+      await Promise.all([
+        axios.request(
+          options("standings", { league: leagueId, season: season })
+        ),
+        axios.request(
+          options("players/topscorers", { league: leagueId, season: season })
+        ),
+        axios.request(options("leagues", { id: leagueId })),
+      ]);
+
+    if (
+      !standingsResponse.data.response ||
+      standingsResponse.data.response.length === 0
+    ) {
+      const emptyResponse = {
+        league: null,
+        standings: [],
+        leagueStats: null,
+        topScorer: null,
+      };
+      await redis.set(
+        cacheKey,
+        JSON.stringify(emptyResponse),
+        "EX",
+        CACHE_TTL_SECONDS
+      );
       return NextResponse.json(emptyResponse);
     }
 
-    const data = response.data.response[0];
+    const data = standingsResponse.data.response[0];
+    const topScorer = topScorersResponse.data.response?.[0] || null;
+    const leagueDetails = leagueDetailsResponse.data.response?.[0] || {};
+
+    const allStandings = data.league.standings.flat();
+    const totalMatchesPlayed =
+      allStandings.reduce(
+        (sum: number, team: any) => sum + team.all.played,
+        0
+      ) / 2;
+    const totalGoalsScored = allStandings.reduce(
+      (sum: number, team: any) => sum + team.all.goals.for,
+      0
+    );
+    const avgGoalsPerMatch =
+      totalMatchesPlayed > 0
+        ? (totalGoalsScored / totalMatchesPlayed).toFixed(2)
+        : "0.00";
+
+    const leagueStats = {
+      totalGoals: totalGoalsScored,
+      avgGoals: avgGoalsPerMatch,
+      totalMatches: Math.floor(totalMatchesPlayed),
+    };
 
     const transformedData = {
       league: {
         id: data.league.id,
         name: data.league.name,
+        country: data.league.country,
         logo: data.league.logo,
         type: data.league.type,
+        season: data.league.season,
+        // Add all available seasons to the response for the dropdown
+        seasons: leagueDetails.seasons
+          ?.map((s: any) => s.year)
+          .sort((a: number, b: number) => b - a) || [season],
         href: generateLeagueSlug(data.league.name, data.league.id),
       },
       standings: data.league.standings,
+      leagueStats,
+      topScorer,
     };
 
-    // 5. Store the fresh data in Redis
-    await redis.set(cacheKey, JSON.stringify(transformedData), "EX", CACHE_TTL_SECONDS);
-    console.log(`[Cache SET] Stored fresh data for key: ${cacheKey}`);
+    await redis.set(
+      cacheKey,
+      JSON.stringify(transformedData),
+      "EX",
+      CACHE_TTL_SECONDS
+    );
 
     return NextResponse.json(transformedData);
-
   } catch (error) {
-    console.error(`[API/standings] Error for league ${leagueId}:`, error);
+    console.error(
+      `[API/standings] Error for league ${leagueId} season ${season}:`,
+      error
+    );
     return NextResponse.json(
       { error: "Failed to fetch standings data" },
       { status: 500 }

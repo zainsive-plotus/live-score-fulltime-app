@@ -9,11 +9,10 @@ import Image from "next/image";
 import { League } from "@/types/api-football";
 import MatchListItem, { MatchListItemSkeleton } from "./MatchListItem";
 import MatchDateNavigator from "./MatchDateNavigator";
-import { Globe, Search, XCircle } from "lucide-react";
+import { Globe, Search, XCircle, ChevronDown } from "lucide-react"; // Added ChevronDown
 import { format } from "date-fns";
 import { proxyImageUrl } from "@/lib/image-proxy";
 import { useTranslation } from "@/hooks/useTranslation";
-import Pagination from "./Pagination"; // We will use this for league pagination
 
 function useDebounce(value: string, delay: number) {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -30,25 +29,16 @@ function useDebounce(value: string, delay: number) {
 
 type StatusFilter = "all" | "live" | "finished" | "scheduled";
 
-// --- Start of New Data Fetching Logic ---
-const fetchPaginatedFixtures = async (
-  date: Date,
-  status: StatusFilter,
-  page: number,
-  limit: number
-) => {
+const fetchAllFixturesByGroup = async (date: Date, status: StatusFilter) => {
   const dateString = format(date, "yyyy-MM-dd");
   const params = new URLSearchParams({
     date: dateString,
     status,
-    page: page.toString(),
-    limit: limit.toString(),
     groupByLeague: "true",
   });
   const { data } = await axios.get(`/api/fixtures?${params.toString()}`);
   return data;
 };
-// --- End of New Data Fetching Logic ---
 
 const searchFixtures = async (query: string): Promise<any[]> => {
   if (query.length < 3) return [];
@@ -136,8 +126,11 @@ export default function MatchList({
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
   const { t } = useTranslation();
-  const [currentPage, setCurrentPage] = useState(1);
-  const LEAGUES_PER_PAGE = 5;
+
+  // ***** NEW STATE to track expanded leagues *****
+  const [expandedLeagues, setExpandedLeagues] = useState<Set<number>>(
+    new Set()
+  );
 
   const { data: searchResults, isLoading: isLoadingSearch } = useQuery({
     queryKey: ["fixtureSearch", debouncedSearchTerm],
@@ -145,23 +138,28 @@ export default function MatchList({
     enabled: debouncedSearchTerm.length >= 3,
   });
 
-  const { data: paginatedData, isLoading: isLoadingFixtures } = useQuery({
+  const { data: fixtureData, isLoading: isLoadingFixtures } = useQuery({
     queryKey: [
-      "paginatedFixtures",
+      "allFixturesByGroup",
       format(selectedDate, "yyyy-MM-dd"),
       activeStatusFilter,
-      currentPage,
     ],
-    queryFn: () =>
-      fetchPaginatedFixtures(
-        selectedDate,
-        activeStatusFilter,
-        currentPage,
-        LEAGUES_PER_PAGE
-      ),
+    queryFn: () => fetchAllFixturesByGroup(selectedDate, activeStatusFilter),
     enabled: !debouncedSearchTerm,
-    keepPreviousData: true,
   });
+
+  // ***** NEW FUNCTION to toggle a league's expanded state *****
+  const toggleLeagueExpansion = (leagueId: number) => {
+    setExpandedLeagues((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(leagueId)) {
+        newSet.delete(leagueId);
+      } else {
+        newSet.add(leagueId);
+      }
+      return newSet;
+    });
+  };
 
   const { data: globalLiveCount } = useQuery({
     queryKey: ["globalLiveCount"],
@@ -170,12 +168,67 @@ export default function MatchList({
     staleTime: 25000,
   });
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [selectedDate, activeStatusFilter, debouncedSearchTerm]);
-
   const isCurrentlyLoading =
     isLoadingFixtures || (isLoadingSearch && debouncedSearchTerm.length >= 3);
+
+  if (debouncedSearchTerm) {
+    return (
+      <div className="space-y-4">
+        <div
+          className="flex flex-col gap-3 p-2 rounded-xl"
+          style={{ backgroundColor: "var(--color-primary)" }}
+        >
+          <h1 className="py-2 italic">{t("homepage_seo_text_title")}</h1>
+          <div className="relative">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
+              size={20}
+            />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder={t("search_fixtures_placeholder")}
+              className="w-full bg-[var(--color-secondary)] border border-gray-700/50 rounded-lg p-3 pl-11 text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-white"
+              >
+                <XCircle size={18} />
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="space-y-2">
+          {isLoadingSearch ? (
+            Array.from({ length: 5 }).map((_, i) => (
+              <MatchListItemSkeleton key={i} />
+            ))
+          ) : searchResults && searchResults.length > 0 ? (
+            searchResults.map((match: any) => (
+              <MatchListItem key={match.fixture.id} match={match} />
+            ))
+          ) : (
+            <div
+              className="text-center py-20 rounded-lg"
+              style={{ backgroundColor: "var(--color-primary)" }}
+            >
+              <p className="text-white font-semibold capitalize">
+                {t("no_matches_found_title")}
+              </p>
+              <p className="text-sm text-text-muted mt-1">
+                {t("no_search_results_subtitle", {
+                  searchTerm: debouncedSearchTerm,
+                })}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -196,51 +249,41 @@ export default function MatchList({
             placeholder={t("search_fixtures_placeholder")}
             className="w-full bg-[var(--color-secondary)] border border-gray-700/50 rounded-lg p-3 pl-11 text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
           />
-          {searchTerm && (
-            <button
-              onClick={() => setSearchTerm("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-white"
-            >
-              <XCircle size={18} />
-            </button>
-          )}
         </div>
-        {!debouncedSearchTerm && (
-          <>
-            <div className="flex justify-center">
-              <MatchDateNavigator
-                selectedDate={selectedDate}
-                onDateChange={setSelectedDate}
+        <>
+          <div className="flex justify-center">
+            <MatchDateNavigator
+              selectedDate={selectedDate}
+              onDateChange={setSelectedDate}
+            />
+          </div>
+          <div
+            className="flex items-center gap-1 p-1 rounded-xl w-full"
+            style={{ backgroundColor: "var(--color-secondary)" }}
+          >
+            {[
+              { key: "all", label: t("filter_all") },
+              { key: "live", label: t("filter_live") },
+              { key: "finished", label: t("filter_finished") },
+              { key: "scheduled", label: t("filter_scheduled") },
+            ].map((tab) => (
+              <TabButton
+                key={tab.key}
+                label={tab.label}
+                isActive={activeStatusFilter === tab.key}
+                liveCount={tab.key === "live" ? globalLiveCount : undefined}
+                hasLiveIndicator={
+                  tab.key === "live" && (globalLiveCount ?? 0) > 0
+                }
+                onClick={() => setActiveStatusFilter(tab.key as StatusFilter)}
               />
-            </div>
-            <div
-              className="flex items-center gap-1 p-1 rounded-xl w-full"
-              style={{ backgroundColor: "var(--color-secondary)" }}
-            >
-              {[
-                { key: "all", label: t("filter_all") },
-                { key: "live", label: t("filter_live") },
-                { key: "finished", label: t("filter_finished") },
-                { key: "scheduled", label: t("filter_scheduled") },
-              ].map((tab) => (
-                <TabButton
-                  key={tab.key}
-                  label={tab.label}
-                  isActive={activeStatusFilter === tab.key}
-                  liveCount={tab.key === "live" ? globalLiveCount : undefined}
-                  hasLiveIndicator={
-                    tab.key === "live" && (globalLiveCount ?? 0) > 0
-                  }
-                  onClick={() => setActiveStatusFilter(tab.key as StatusFilter)}
-                />
-              ))}
-            </div>
-          </>
-        )}
+            ))}
+          </div>
+        </>
       </div>
 
       <div className="space-y-4">
-        {isCurrentlyLoading && !paginatedData ? (
+        {isCurrentlyLoading ? (
           <div
             style={{ backgroundColor: "var(--color-primary)" }}
             className="rounded-lg p-2 space-y-2"
@@ -249,10 +292,15 @@ export default function MatchList({
               <MatchListItemSkeleton key={i} />
             ))}
           </div>
-        ) : paginatedData?.paginatedLeagueGroups?.length > 0 ? (
+        ) : fixtureData?.leagueGroups?.length > 0 ? (
           <>
-            {paginatedData.paginatedLeagueGroups.map(
-              ({ leagueInfo, matches }: any) => (
+            {fixtureData.leagueGroups.map(({ leagueInfo, matches }: any) => {
+              const isExpanded = expandedLeagues.has(leagueInfo.id);
+              const displayedMatches = isExpanded
+                ? matches
+                : matches.slice(0, 3);
+
+              return (
                 <div
                   key={leagueInfo.id}
                   style={{ backgroundColor: "var(--color-primary)" }}
@@ -260,20 +308,36 @@ export default function MatchList({
                 >
                   <LeagueGroupHeader league={leagueInfo} />
                   <div className="p-2 space-y-2">
-                    {matches.map((match: any) => (
+                    {displayedMatches.map((match: any) => (
                       <MatchListItem key={match.fixture.id} match={match} />
                     ))}
                   </div>
+                  {/* ***** RENDER 'LOAD MORE' BUTTON CONDITIONALLY ***** */}
+                  {matches.length > 3 && (
+                    <div className="p-2 pt-0 text-center">
+                      <button
+                        onClick={() => toggleLeagueExpansion(leagueInfo.id)}
+                        className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-text-muted hover:text-white hover:bg-gray-700/50 transition-colors py-2 rounded-md"
+                      >
+                        <span>
+                          {isExpanded
+                            ? t("show_less")
+                            : t("show_more_matches", {
+                                count: matches.length - 3,
+                              })}
+                        </span>
+                        <ChevronDown
+                          size={16}
+                          className={`transition-transform duration-200 ${
+                            isExpanded ? "rotate-180" : ""
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  )}
                 </div>
-              )
-            )}
-            {paginatedData?.pagination.totalPages > 1 && (
-              <Pagination
-                currentPage={currentPage}
-                totalPages={paginatedData?.pagination.totalPages}
-                onPageChange={setCurrentPage}
-              />
-            )}
+              );
+            })}
           </>
         ) : (
           <div
@@ -284,11 +348,7 @@ export default function MatchList({
               {t("no_matches_found_title")}
             </p>
             <p className="text-sm text-text-muted mt-1">
-              {debouncedSearchTerm
-                ? t("no_search_results_subtitle", {
-                    searchTerm: debouncedSearchTerm,
-                  })
-                : t("no_matches_for_date_subtitle")}
+              {t("no_matches_for_date_subtitle")}
             </p>
           </div>
         )}

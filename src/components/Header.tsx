@@ -22,7 +22,8 @@ import { useTranslation } from "@/hooks/useTranslation";
 import StyledLink from "./StyledLink";
 import NavDropdown from "./NavDropdown";
 import NotificationDropdown from "./NotificationDropdown";
-import { ArrowRight, Bell, Menu, X } from "lucide-react";
+// ***** ICON IMPORT ADDED HERE *****
+import { ArrowRight, Bell, Menu, X, ListOrdered } from "lucide-react";
 import Ticker from "./Ticker";
 import { useScrollDirection } from "@/hooks/useScrollDirection";
 
@@ -46,7 +47,7 @@ interface NavItem {
 const fetchLatestPost = async (): Promise<IPost | null> => {
   try {
     const { data } = await axios.get("/api/posts?status=published&limit=1");
-    return data[0] || null;
+    return data.posts[0] || null; // API returns { posts: [...] }
   } catch {
     return null;
   }
@@ -111,6 +112,13 @@ export default function Header() {
           description: t("leagues_description"),
           icon: FaTrophy,
         },
+        // ***** NEW MENU ITEM ADDED HERE *****
+        {
+          name: t("standings"),
+          href: "/football/standings",
+          description: t("standings_description"), // Remember to add this key to your translations
+          icon: ListOrdered,
+        },
         {
           name: t("teams"),
           href: "/football/teams",
@@ -141,17 +149,17 @@ export default function Header() {
   return (
     <div
       className={`
-        ${isSticky ? 'sticky' : 'relative'} 
-        top-0 z-50 w-full bg-brand-secondary shadow-xl shadow-black/20 
+        ${isSticky ? "sticky" : "relative"}
+        top-0 z-50 w-full bg-brand-secondary shadow-xl shadow-black/20
         border-b border-gray-700/50
         transition-transform duration-300 ease-in-out
-        ${isVisible ? 'translate-y-0' : '-translate-y-full'}
+        ${isVisible ? "translate-y-0" : "-translate-y-full"}
       `}
     >
-      {/* --- Start of Fix --- */}
-      {/* Added `relative z-10` to ensure this header and its dropdowns appear above the ticker */}
+      {}
+      {}
       <header className="relative w-full z-10">
-      {/* --- End of Fix --- */}
+        {}
         <div className="container mx-auto flex h-24 items-center justify-between px-4 lg:px-6">
           <StyledLink href="/" className="flex items-center flex-shrink-0">
             <Image
@@ -324,9 +332,9 @@ export default function Header() {
           </nav>
         </div>
       )}
-      
+
       <Suspense fallback={null}>
-       <Ticker />
+        <Ticker />
       </Suspense>
     </div>
   );

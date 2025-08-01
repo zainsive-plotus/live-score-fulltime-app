@@ -2,13 +2,13 @@
 
 "use client";
 
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, Fragment } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInView } from "react-intersection-observer";
 import axios from "axios";
-import { IPost, NewsType, SportsCategory } from "@/models/Post";
+import { IPost } from "@/models/Post";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Info, ExternalLink, Calendar, User } from "lucide-react";
-import Pagination from "@/components/Pagination";
 import StyledLink from "@/components/StyledLink";
 import Image from "next/image";
 import { formatDistanceToNow } from "date-fns";
@@ -16,7 +16,7 @@ import { NewsListItemCompactSkeleton } from "@/components/NewsListItemCompact";
 
 const ITEMS_PER_PAGE = 10;
 
-// --- Start of New Data Fetching Logic ---
+// The query function now accepts a pageParam from useInfiniteQuery
 const fetchArchiveNews = async (
   locale: string,
   category: string,
@@ -33,14 +33,16 @@ const fetchArchiveNews = async (
   if (category === "recent") params.set("newsType", "recent");
 
   const { data } = await axios.get(`/api/posts?${params.toString()}`);
-  return data;
+  return data as {
+    posts: IPost[];
+    pagination: { totalPages: number; totalCount: number };
+  };
 };
-// --- End of New Data Fetching Logic ---
 
 interface NewsArchiveClientProps {
   initialData: {
     posts: IPost[];
-    pagination: { totalPages: number };
+    pagination: { totalPages: number; totalCount: number };
   };
   category: string;
 }
@@ -48,7 +50,7 @@ interface NewsArchiveClientProps {
 const ArchiveNewsItem = ({ item }: { item: IPost }) => {
   const placeholderImage = "/images/placeholder-logo.svg";
   const isExternal = !!item.originalSourceUrl;
-  const href = `/news/${item.slug}`;
+  const href = `/${item.language}/news/${item.slug}`;
 
   return (
     <StyledLink
@@ -109,40 +111,51 @@ export default function NewsArchiveClient({
   category,
 }: NewsArchiveClientProps) {
   const { t, locale } = useTranslation();
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const { ref, inView } = useInView(); // Hook to detect when an element is visible
 
-  const currentPage = Number(searchParams.get("page")) || 1;
-
-  // --- Start of Client-Side Fetching Logic ---
-  const { data, isLoading } = useQuery({
-    queryKey: ["archiveNews", category, currentPage, locale],
-    queryFn: () => fetchArchiveNews(locale, category, currentPage),
-    initialData: initialData, // Use server data for the first page load
-    staleTime: 1000 * 60, // 1 minute
+  const {
+    data,
+    isLoading,
+    isError,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ["archiveNews", category, locale],
+    queryFn: ({ pageParam = 1 }) =>
+      fetchArchiveNews(locale, category, pageParam),
+    initialPageParam: 1,
+    // This function determines the next page number
+    getNextPageParam: (lastPage, allPages) => {
+      const currentPage = allPages.length;
+      const totalPages = lastPage.pagination.totalPages;
+      return currentPage < totalPages ? currentPage + 1 : undefined;
+    },
+    // Format the initial server-fetched data for useInfiniteQuery
+    initialData: {
+      pages: [initialData],
+      pageParams: [1],
+    },
   });
-  // --- End of Client-Side Fetching Logic ---
 
-  const handlePageChange = (page: number) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("page", page.toString());
-    router.push(`${pathname}?${params.toString()}`);
-  };
+  // Effect to fetch more data when the trigger element becomes visible
+  useEffect(() => {
+    if (inView && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <NewsListItemCompactSkeleton />
-        <NewsListItemCompactSkeleton />
-        <NewsListItemCompactSkeleton />
-        <NewsListItemCompactSkeleton />
-        <NewsListItemCompactSkeleton />
+        {[...Array(ITEMS_PER_PAGE)].map((_, i) => (
+          <NewsListItemCompactSkeleton key={i} />
+        ))}
       </div>
     );
   }
 
-  if (!data?.posts || data.posts.length === 0) {
+  if (isError || !data?.pages[0]?.posts || data.pages[0].posts.length === 0) {
     return (
       <div className="text-center py-20 bg-brand-secondary rounded-lg">
         <Info size={32} className="mx-auto text-brand-muted mb-3" />
@@ -158,19 +171,30 @@ export default function NewsArchiveClient({
 
   return (
     <div className="space-y-4">
-      {data.posts.map((item: any) => (
-        <ArchiveNewsItem key={item._id as string} item={item} />
+      {/* Map through the 'pages' array and then map through the 'posts' in each page */}
+      {data.pages.map((page, i) => (
+        <Fragment key={i}>
+          {page.posts.map((item: IPost) => (
+            <ArchiveNewsItem key={item._id as string} item={item} />
+          ))}
+        </Fragment>
       ))}
 
-      {data.pagination.totalPages > 1 && (
-        <div className="pt-4">
-          <Pagination
-            currentPage={currentPage}
-            totalPages={data.pagination.totalPages}
-            onPageChange={handlePageChange}
-          />
-        </div>
-      )}
+      {/* This is the trigger element. When it's in view, we fetch more data */}
+      <div ref={ref} className="h-10">
+        {isFetchingNextPage && (
+          <div className="space-y-4 pt-4">
+            <NewsListItemCompactSkeleton />
+            <NewsListItemCompactSkeleton />
+          </div>
+        )}
+        {!hasNextPage &&
+          data.pages[0].pagination.totalCount > ITEMS_PER_PAGE && (
+            <p className="text-center text-brand-muted py-4">
+              You've reached the end.
+            </p>
+          )}
+      </div>
     </div>
   );
 }

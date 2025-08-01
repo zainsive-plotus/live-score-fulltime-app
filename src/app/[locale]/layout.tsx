@@ -11,8 +11,6 @@ import { Suspense } from "react";
 import StickyFooterAd from "@/components/StickyFooterAd";
 import Loading from "./loading";
 import Footer from "@/components/Footer";
-import Ticker from "@/components/Ticker"; // <-- Import the new Ticker component
-import Header from "@/components/Header"; // <-- Import Header
 
 import { GoogleAnalytics } from "@next/third-parties/google";
 import { getI18n } from "@/lib/i18n/server";

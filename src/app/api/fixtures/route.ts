@@ -17,12 +17,10 @@ export async function GET(request: Request) {
   const date = searchParams.get("date");
   const season = searchParams.get("season");
 
-  // --- Start of New Logic ---
   const groupByLeague = searchParams.get("groupByLeague") === "true";
   const status = searchParams.get("status") || "all";
-  const page = parseInt(searchParams.get("page") || "1", 10);
-  const limit = parseInt(searchParams.get("limit") || "5", 10);
-  // --- End of New Logic ---
+  const page = parseInt(searchParams.get("page") || "0", 10);
+  const limit = parseInt(searchParams.get("limit") || "0", 10);
 
   const axiosOptions = (params: object) => ({
     method: "GET",
@@ -34,8 +32,6 @@ export async function GET(request: Request) {
   });
 
   try {
-    // --- Start of New Logic ---
-    // If groupByLeague is requested, use the new server-side pagination flow.
     if (groupByLeague) {
       const fetchDate = date || format(new Date(), "yyyy-MM-dd");
       const allFixtures = (
@@ -73,22 +69,27 @@ export async function GET(request: Request) {
       }, {});
 
       const leagueEntries = Object.values(groupedMatches);
-      const totalLeagues = leagueEntries.length;
-      const totalPages = Math.ceil(totalLeagues / limit);
 
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedLeagueGroups = leagueEntries.slice(startIndex, endIndex);
+      // ***** FIX IS HERE: Conditional Pagination *****
+      // If limit and page are provided, paginate. Otherwise, return everything.
+      if (limit > 0 && page > 0) {
+        const totalLeagues = leagueEntries.length;
+        const totalPages = Math.ceil(totalLeagues / limit);
+        const startIndex = (page - 1) * limit;
+        const endIndex = startIndex + limit;
+        const paginatedLeagueGroups = leagueEntries.slice(startIndex, endIndex);
 
-      return NextResponse.json({
-        paginatedLeagueGroups,
-        pagination: { currentPage: page, totalPages, totalLeagues },
-      });
+        return NextResponse.json({
+          paginatedLeagueGroups,
+          pagination: { currentPage: page, totalPages, totalLeagues },
+        });
+      } else {
+        // Return all groups if no pagination is requested
+        return NextResponse.json({ leagueGroups: leagueEntries });
+      }
     }
-    // --- End of New Logic ---
 
-    // --- Existing Logic (Unchanged) ---
-    // If groupByLeague is NOT requested, the old logic runs as before.
+    // ... (rest of the non-paginated, non-grouped logic remains the same)
     let matchesData: any[] = [];
 
     if (leagueId && season) {
@@ -146,7 +147,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(matchesData);
   } catch (error) {
-    console.error(`[API fixtures] Error:`, error);
+    console.error("[API/fixtures] Error fetching fixture data:", error);
     return NextResponse.json(
       { error: "Failed to fetch fixture data." },
       { status: 500 }
