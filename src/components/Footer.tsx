@@ -86,7 +86,7 @@ export default function Footer() {
 
         <div className="flex flex-col md:flex-row justify-between items-center text-sm text-brand-muted">
           <p className="mb-4 md:mb-0">
-            © {new Date().getFullYear()} Fanskor - {t("footer_rights_reserved")}
+            © {new Date().getFullYear()} Fan skor -{t("footer_rights_reserved")}
           </p>
           <div className="flex flex-wrap justify-center gap-x-4 gap-y-2">
             <Link href="/privacy-policy" className="hover:text-white">

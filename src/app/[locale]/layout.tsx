@@ -18,6 +18,8 @@ import { I18nProviderClient } from "@/lib/i18n/client";
 import { TimeZoneProvider } from "@/context/TimeZoneContext";
 import { i18nCache } from "@/lib/i18n/i18n.cache";
 import { generateHreflangTags } from "@/lib/hreflang";
+import { newRelicBrowserAgent } from "@/lib/new-relic";
+import Script from "next/script";
 
 const METADATA_BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
@@ -93,25 +95,40 @@ export default async function LocaleLayout({
   const translations = (await i18nCache.getTranslations(locale)) || {};
 
   return (
-    <>
-      <Suspense fallback={<Loading />}>
-        <NextAuthProvider>
-          <Providers>
-            <I18nProviderClient locale={locale} translations={translations}>
-              <TimeZoneProvider>
-                <LeagueProvider>
-                  <main>{children}</main>
-                  <StickyFooterAd />
-                  <Footer />
-                </LeagueProvider>
-              </TimeZoneProvider>
-            </I18nProviderClient>
-          </Providers>
-        </NextAuthProvider>
-      </Suspense>
-      {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
-        <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
-      )}
-    </>
+    // The lang attribute is important for accessibility and SEO
+    <html lang={locale}>
+      <head>
+        {/* ***** ADD THE NEW RELIC SCRIPT HERE ***** */}
+        {/* We use the 'beforeInteractive' strategy to ensure it loads and executes early. */}
+        {/* We check for NODE_ENV to ensure it only runs in production. */}
+        {process.env.NODE_ENV === "production" && (
+          <Script
+            id="new-relic-browser-agent"
+            strategy="beforeInteractive"
+            dangerouslySetInnerHTML={{ __html: newRelicBrowserAgent }}
+          />
+        )}
+      </head>
+      <body>
+        <Suspense fallback={<Loading />}>
+          <NextAuthProvider>
+            <Providers>
+              <I18nProviderClient locale={locale} translations={translations}>
+                <TimeZoneProvider>
+                  <LeagueProvider>
+                    <main>{children}</main>
+                    <StickyFooterAd />
+                    <Footer />
+                  </LeagueProvider>
+                </TimeZoneProvider>
+              </I18nProviderClient>
+            </Providers>
+          </NextAuthProvider>
+        </Suspense>
+        {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
+          <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
+        )}
+      </body>
+    </html>
   );
 }
