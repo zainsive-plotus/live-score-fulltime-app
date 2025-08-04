@@ -101,7 +101,7 @@ export default async function LocaleLayout({
         {/* ***** ADD THE NEW RELIC SCRIPT HERE ***** */}
         {/* We use the 'beforeInteractive' strategy to ensure it loads and executes early. */}
         {/* We check for NODE_ENV to ensure it only runs in production. */}
-        {process.env.NODE_ENV === "production" && (
+        {process.env.NEXT_PUBLIC_NODE_ENV === "production" && (
           <Script
             id="new-relic-browser-agent"
             strategy="beforeInteractive"
