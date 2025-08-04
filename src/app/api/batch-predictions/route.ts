@@ -1,8 +1,10 @@
-// src/app/api/batch-predictions/route.ts
+// ===== src/app/api/batch-predictions/route.ts =====
+
 import { NextResponse } from "next/server";
 import axios from "axios";
-// --- THE FIX: Import the new, standardized prediction engine ---
-import { generatePrediction } from "@/lib/prediction-engine";
+
+// ***** FIX IS HERE: Import the function by its correct name *****
+import { calculateCustomPrediction } from "@/lib/prediction-engine";
 import { convertPercentageToOdds } from "@/lib/odds-converter";
 
 type FanskorOdds = {
@@ -54,7 +56,6 @@ export async function POST(request: Request) {
       return NextResponse.json({});
     }
 
-    // --- THE FIX: Fetch only the data needed by the accurate engine ---
     const dataPromises = fixtures.map(async (fixture) => {
       const { teams, league, fixture: fixtureDetails } = fixture;
       const [homeTeamStats, awayTeamStats, h2h, standings] = await Promise.all([
@@ -74,7 +75,6 @@ export async function POST(request: Request) {
         apiRequest("standings", { league: league.id, season: league.season }),
       ]);
 
-      // If essential stats are missing, we can't make a prediction.
       if (!homeTeamStats || !awayTeamStats) {
         return { fixtureId: fixtureDetails.id, predictionData: null };
       }
@@ -108,15 +108,15 @@ export async function POST(request: Request) {
       if (result.status === "fulfilled" && result.value?.predictionData) {
         const { fixtureId, predictionData } = result.value;
         try {
-          // --- THE FIX: Call the single, official prediction engine ---
-          const predictionResult = generatePrediction(
+          // ***** FIX IS HERE: Call the function by its correct name *****
+          const predictionResult = calculateCustomPrediction(
             predictionData.h2h,
             predictionData.homeTeamStats,
             predictionData.awayTeamStats,
             predictionData.homeTeamId,
             predictionData.homeTeamRank,
             predictionData.awayTeamRank,
-            null, // No events data in batch mode
+            null,
             predictionData.matchStatus
           );
 

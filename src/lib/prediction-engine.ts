@@ -1,23 +1,18 @@
-// src/lib/prediction-engine.ts
+// ===== src/lib/prediction-engine.ts =====
 
-/**
- * FINAL OFFICIAL PREDICTION ENGINE V3.1
- * Based on the weighted model, now with live match momentum analysis.
- *
- * @param {object} data - An object containing all necessary data points.
- * @returns {object} An object with home, draw, and away win percentages.
- */
-export function generatePrediction(
+"use server-only"; // This logic should only run on the server
+
+// ***** FIX: Added 'export' keyword *****
+export const calculateCustomPrediction = (
   h2h: any[],
   homeTeamStats: any,
   awayTeamStats: any,
   homeTeamId: number,
   homeTeamRank: number | undefined,
   awayTeamRank: number | undefined,
-  matchEvents: any[] | null, // This is now crucial for live analysis
+  matchEvents: any[] | null,
   matchStatus: string
-): { home: number; draw: number; away: number } {
-  // Configuration for weights
+): { home: number; draw: number; away: number } => {
   const config = {
     weights: {
       homeAdvantage: 12,
@@ -25,9 +20,8 @@ export function generatePrediction(
       h2h: 2.5,
       rankDifference: 0.8,
       goalDifference: 6.0,
-      // --- NEW: Weights for live events ---
-      liveGoalMomentum: 15, // A huge boost for the scoring team
-      liveRedCardPenalty: -20, // A massive penalty for the team receiving a red card
+      liveGoalMomentum: 15,
+      liveRedCardPenalty: -20,
     },
     h2hMaxGames: 5,
     drawWeight: 0.85,
@@ -36,10 +30,8 @@ export function generatePrediction(
   let homeScore = 0;
   let awayScore = 0;
 
-  // 1. Home Advantage
   homeScore += config.weights.homeAdvantage;
 
-  // 2. Momentum (Recent Form)
   const calculateForm = (formString: string): number => {
     if (!formString) return 0;
     return (
@@ -50,7 +42,6 @@ export function generatePrediction(
   homeScore += calculateForm(homeTeamStats?.form || "") * config.weights.form;
   awayScore += calculateForm(awayTeamStats?.form || "") * config.weights.form;
 
-  // 3. Goal Form (Average Goal Difference)
   const homeGoalDiff =
     (homeTeamStats?.goals?.for?.average?.total ?? 0) -
     (homeTeamStats?.goals?.against?.average?.total ?? 0);
@@ -60,7 +51,6 @@ export function generatePrediction(
   homeScore += homeGoalDiff * config.weights.goalDifference;
   awayScore += awayGoalDiff * config.weights.goalDifference;
 
-  // 4. Head-to-Head (H2H) Records
   if (h2h && h2h.length > 0) {
     h2h.slice(0, config.h2hMaxGames).forEach((match) => {
       if (match.teams.home.winner) {
@@ -78,7 +68,6 @@ export function generatePrediction(
     });
   }
 
-  // 5. League Rank Difference
   if (homeTeamRank != null && awayTeamRank != null) {
     const rankDiff = Math.abs(homeTeamRank - awayTeamRank);
     if (homeTeamRank < awayTeamRank) {
@@ -88,35 +77,24 @@ export function generatePrediction(
     }
   }
 
-  // --- NEW: 6. Live Match Analysis ---
   if (
     ["1H", "HT", "2H", "ET", "BT", "P", "LIVE"].includes(matchStatus) &&
     matchEvents
   ) {
-    console.log(
-      `[Prediction Engine] Applying live analysis for match status: ${matchStatus}`
-    );
     matchEvents.forEach((event) => {
-      // Goal Momentum
       if (event.type === "Goal") {
-        if (event.team.id === homeTeamId) {
+        if (event.team.id === homeTeamId)
           homeScore += config.weights.liveGoalMomentum;
-        } else {
-          awayScore += config.weights.liveGoalMomentum;
-        }
+        else awayScore += config.weights.liveGoalMomentum;
       }
-      // Red Card Penalty
       if (event.type === "Card" && event.detail === "Red Card") {
-        if (event.team.id === homeTeamId) {
+        if (event.team.id === homeTeamId)
           homeScore += config.weights.liveRedCardPenalty;
-        } else {
-          awayScore += config.weights.liveRedCardPenalty;
-        }
+        else awayScore += config.weights.liveRedCardPenalty;
       }
     });
   }
 
-  // --- Final Calculation & Normalization ---
   homeScore = Math.max(1, homeScore);
   awayScore = Math.max(1, awayScore);
   const drawScore =
@@ -143,4 +121,15 @@ export function generatePrediction(
   }
 
   return { home: homePercent, draw: drawPercent, away: awayPercent };
-}
+};
+
+// ***** FIX: Added 'export' keyword *****
+export const convertPercentageToOdds = (
+  percent: number | undefined | null
+): string => {
+  if (percent === null || percent === undefined || percent <= 0) {
+    return "N/A";
+  }
+  const safePercent = Math.max(1, Math.min(percent, 99));
+  return (100 / safePercent).toFixed(2);
+};

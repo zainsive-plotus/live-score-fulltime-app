@@ -1,21 +1,29 @@
+// ===== src/components/match/MatchLineupsWidget.tsx =====
+
 "use client";
 
 import { memo } from "react";
 import Image from "next/image";
 import { proxyImageUrl } from "@/lib/image-proxy";
 import { Users } from "lucide-react";
-import { useTranslation } from "@/hooks/useTranslation"; // <-- Import hook
+import { useTranslation } from "@/hooks/useTranslation";
 
 const mapFormationToPositions = (formation: string, startXI: any[]) => {
+  // ***** FIX: Add a guard clause for missing startXI data *****
+  if (!startXI || !Array.isArray(startXI)) {
+    return []; // Return an empty array if startXI is not a valid array
+  }
+
   if (!formation) {
     console.warn(
-      `Invalid or missing formation string received. Using fallback grid layout.`
+      `Invalid or missing formation string. Using fallback grid layout.`
     );
     return startXI.map((p, i) => ({
       ...p,
       pos: { x: (i % 4) * 25 + 12.5, y: Math.floor(i / 4) * 25 + 15 },
     }));
   }
+
   const formationParts = formation.split("-").map(Number);
   if (formationParts.some(isNaN) || startXI.length < 11) {
     return startXI.map((p, i) => ({
@@ -23,15 +31,18 @@ const mapFormationToPositions = (formation: string, startXI: any[]) => {
       pos: { x: (i % 4) * 25 + 12.5, y: Math.floor(i / 4) * 25 + 15 },
     }));
   }
+
   const players = [...startXI];
   const positionedPlayers = [];
   const goalkeeper = players.find((p) => p.player.pos === "G");
   if (goalkeeper) {
     positionedPlayers.push({ ...goalkeeper, pos: { x: 50, y: 95 } });
   }
+
   const outfieldPlayers = players.filter((p) => p.player.pos !== "G").reverse();
   const totalRows = formationParts.length;
   let playerIndex = 0;
+
   formationParts.forEach((playersInRow, rowIndex) => {
     const y = 85 - ((rowIndex + 1) / (totalRows + 1)) * 75;
     const playersToPosition = outfieldPlayers.slice(
@@ -135,9 +146,15 @@ const MatchLineupsWidget = memo(function MatchLineupsWidget({
 }: {
   lineups: any[];
 }) {
-  const { t } = useTranslation(); // <-- Use hook
+  const { t } = useTranslation();
 
-  if (!lineups || lineups.length < 2) {
+  // ***** FIX: Add a guard clause for missing lineups data *****
+  if (
+    !lineups ||
+    lineups.length < 2 ||
+    !lineups[0].startXI ||
+    !lineups[1].startXI
+  ) {
     return (
       <div className="bg-brand-secondary rounded-lg p-6 text-center">
         <h2 className="text-2xl font-bold text-white mb-2">

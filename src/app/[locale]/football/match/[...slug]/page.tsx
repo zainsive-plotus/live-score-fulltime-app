@@ -1,9 +1,7 @@
 // ===== src/app/[locale]/football/match/[...slug]/page.tsx =====
 
 import { notFound } from "next/navigation";
-import axios from "axios";
 import type { Metadata } from "next";
-
 import { MatchHeader } from "@/components/match/MatchHeader";
 import MatchStatusBanner from "@/components/match/MatchStatusBanner";
 import MatchH2HWidget from "@/components/match/MatchH2HWidget";
@@ -20,6 +18,8 @@ import MatchHighlightsWidget from "@/components/match/MatchHighlightsWidget";
 import LinkedNewsWidget from "@/components/match/LinkedNewsWidget";
 import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
+// ***** FIX: Import the shared data fetching function *****
+import { fetchAllDataForFixture } from "@/lib/data/match";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
@@ -31,26 +31,7 @@ const getFixtureIdFromSlug = (slug: string): string | null => {
   return /^\d+$/.test(lastPart) ? lastPart : null;
 };
 
-const fetchMatchDetailsServer = async (fixtureId: string) => {
-  const publicAppUrl = process.env.NEXT_PUBLIC_PUBLIC_APP_URL;
-  if (!publicAppUrl) {
-    console.error(
-      "[Match Page Server] NEXT_PUBLIC_PUBLIC_APP_URL is not defined! Cannot fetch data."
-    );
-    return null;
-  }
-  const apiUrl = `${publicAppUrl}/api/match-details?fixture=${fixtureId}`;
-  try {
-    const { data } = await axios.get(apiUrl, { timeout: 15000 });
-    return data;
-  } catch (error: any) {
-    console.error(
-      `[Match Page Server] Failed to fetch initial match details (${apiUrl}):`,
-      error.message
-    );
-    return null;
-  }
-};
+// The old fetchMatchDetailsServer function is no longer needed and can be removed.
 
 export async function generateMetadata({
   params,
@@ -65,7 +46,8 @@ export async function generateMetadata({
     return { title: t("not_found_title") };
   }
 
-  const matchData = await fetchMatchDetailsServer(fixtureId);
+  // ***** FIX: Call the shared function directly *****
+  const matchData = await fetchAllDataForFixture(fixtureId).catch(() => null);
   if (!matchData || !matchData.fixture) {
     return { title: t("not_found_title") };
   }
@@ -84,33 +66,20 @@ export async function generateMetadata({
     awayTeam: awayTeam.name,
     leagueName: matchData.fixture.league.name,
   });
-  const ogImageUrl = `${BASE_URL}/og-image.jpg`; // Default OG image
+  const ogImageUrl = `${BASE_URL}/og-image.jpg`;
 
   return {
     title: pageTitle,
     description: pageDescription,
     alternates: hreflangAlternates,
-
-    // ***** FIX IS HERE: The Open Graph object is now complete and correct *****
     openGraph: {
       title: pageTitle,
       description: pageDescription,
-      // Use the canonical URL from the hreflang helper to ensure it's always correct
       url: hreflangAlternates.canonical,
       siteName: "Fan Skor",
-      // Add a default or dynamically generated image
-      images: [
-        {
-          url: ogImageUrl,
-          width: 1200,
-          height: 630,
-          alt: pageTitle,
-        },
-      ],
-      // Add the correct type for this kind of page
+      images: [{ url: ogImageUrl, width: 1200, height: 630, alt: pageTitle }],
       type: "article",
     },
-
     twitter: {
       card: "summary_large_image",
       title: pageTitle,
@@ -132,7 +101,8 @@ export default async function MatchDetailPage({
     notFound();
   }
 
-  const data = await fetchMatchDetailsServer(fixtureId);
+  // ***** FIX: Call the shared function directly *****
+  const data = await fetchAllDataForFixture(fixtureId).catch(() => null);
   if (!data || !data.fixture) {
     notFound();
   }
