@@ -21,6 +21,9 @@ import LinkedNewsWidget from "@/components/match/LinkedNewsWidget";
 import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
 
+const BASE_URL =
+  process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
+
 const getFixtureIdFromSlug = (slug: string): string | null => {
   if (!slug) return null;
   const parts = slug?.split("-");
@@ -52,9 +55,9 @@ const fetchMatchDetailsServer = async (fixtureId: string) => {
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ slug: string[]; locale: string }>;
+  params: { slug: string[]; locale: string };
 }): Promise<Metadata> {
-  const { slug, locale } = await params;
+  const { slug, locale } = params;
   const t = await getI18n(locale);
   const fixtureId = getFixtureIdFromSlug(slug[0]);
 
@@ -81,20 +84,38 @@ export async function generateMetadata({
     awayTeam: awayTeam.name,
     leagueName: matchData.fixture.league.name,
   });
+  const ogImageUrl = `${BASE_URL}/og-image.jpg`; // Default OG image
 
   return {
     title: pageTitle,
     description: pageDescription,
     alternates: hreflangAlternates,
+
+    // ***** FIX IS HERE: The Open Graph object is now complete and correct *****
     openGraph: {
       title: pageTitle,
       description: pageDescription,
-      url: `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}${pagePath}`,
+      // Use the canonical URL from the hreflang helper to ensure it's always correct
+      url: hreflangAlternates.canonical,
+      siteName: "Fan Skor",
+      // Add a default or dynamically generated image
+      images: [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
+          alt: pageTitle,
+        },
+      ],
+      // Add the correct type for this kind of page
+      type: "article",
     },
+
     twitter: {
       card: "summary_large_image",
       title: pageTitle,
       description: pageDescription,
+      images: [ogImageUrl],
     },
   };
 }
@@ -102,9 +123,9 @@ export async function generateMetadata({
 export default async function MatchDetailPage({
   params,
 }: {
-  params: Promise<{ slug: string[]; locale: string }>;
+  params: { slug: string[]; locale: string };
 }) {
-  const { slug, locale } = await params;
+  const { slug, locale } = params;
   const fixtureId = getFixtureIdFromSlug(slug[0]);
 
   if (!fixtureId) {
@@ -140,9 +161,6 @@ export default async function MatchDetailPage({
     homeTeam: homeTeam.name,
     awayTeam: awayTeam.name,
   });
-
-  console.log(fixture);
-  
 
   return (
     <div className="bg-brand-dark min-h-screen">

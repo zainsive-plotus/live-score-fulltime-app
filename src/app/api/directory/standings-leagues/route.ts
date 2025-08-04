@@ -7,21 +7,45 @@ import { generateLeagueSlug } from "@/lib/generate-league-slug";
 
 // A curated list of popular leagues that typically have standings
 const STANDINGS_LEAGUE_IDS = new Set([
+  // Top 5 European Leagues
   39, // Premier League (England)
   140, // La Liga (Spain)
   135, // Serie A (Italy)
   78, // Bundesliga (Germany)
   61, // Ligue 1 (France)
+
+  // Major UEFA Competitions
   2, // Champions League
   3, // Europa League
+  848, // Europa Conference League
+
+  // Other Popular European Leagues
   88, // Eredivisie (Netherlands)
   94, // Primeira Liga (Portugal)
   203, // Super Lig (Turkey)
+  144, // Jupiler Pro League (Belgium)
+  179, // Premiership (Scotland)
+  218, // Bundesliga (Austria)
+  197, // Super League (Greece)
+  207, // Super League (Switzerland)
+
+  // Americas
   253, // MLS (USA)
   262, // Liga MX (Mexico)
   71, // Serie A (Brazil)
+  128, // Liga Profesional (Argentina)
+  239, // Primera A (Colombia)
+  265, // Primera Division (Chile)
+
+  // CONMEBOL Competitions
   128, // Copa Libertadores
   130, // Copa Sudamericana
+
+  // Asia & Other
+  98, // J1 League (Japan)
+  188, // A-League (Australia)
+  307, // Saudi Pro League
+  20, // AFC Champions League
 ]);
 
 const CACHE_KEY = `leagues:directory:standings`;

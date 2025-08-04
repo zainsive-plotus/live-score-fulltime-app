@@ -1,29 +1,20 @@
-"use client";
+// ===== src/components/NewsSidebar.tsx =====
 
 import React from "react";
-import RecentNewsWidget from "./RecentNewsWidget";
-import CasinoPartnerWidget from "./CasinoPartnerWidget";
-import AdSlotWidget from "./AdSlotWidget";
+// We will import the dynamic components in a new client wrapper
+import NewsSidebarClientContent from "./NewsSidebarClientContent";
 
-// --- START OF MODIFICATION ---
-// The component now accepts an optional 'children' prop to render the Table of Contents
 export default function NewsSidebar({
   children,
 }: {
   children?: React.ReactNode;
 }) {
-  // --- END OF MODIFICATION ---
-
   return (
+    // This is now a simple layout container
     <aside className="space-y-8 lg:sticky lg:top-8">
-      {/* The Table of Contents will be rendered here if provided */}
       {children}
-
-      <AdSlotWidget location="news_sidebar" />
-      <RecentNewsWidget />
-      {/* <CasinoPartnerWidget /> */}
-      {/* Added a second ad slot for better monetization opportunities */}
-      <AdSlotWidget location="news_sidebar_bottom" />
+      {/* All dynamic and client-side content is moved to its own component */}
+      <NewsSidebarClientContent />
     </aside>
   );
 }

@@ -36,7 +36,13 @@ export async function generateMetadata({
   return {
     metadataBase: new URL(METADATA_BASE_URL),
     alternates: hreflangAlternates,
-    title: title,
+
+    // ***** FIX IS HERE: Use the title template object *****
+    title: {
+      default: title, // Title for the homepage (e.g., /en, /fr)
+      template: `%s | Fan Skor`, // Pattern for all other pages
+    },
+
     description: description,
     icons: {
       icon: [{ url: "/favicon.ico", type: "image/png" }],

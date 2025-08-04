@@ -18,7 +18,9 @@ export async function GET(request: Request) {
 
   // 1. Create a unique cache key based on the request parameters.
   // This ensures that different requests (e.g., for popular vs. all leagues) are cached separately.
-  const cacheKey = `leagues:${fetchAll ? 'all' : country || 'popular'}:${type || 'all'}`;
+  const cacheKey = `leagues:${fetchAll ? "all" : country || "popular"}:${
+    type || "all"
+  }`;
 
   try {
     // 2. Check Redis for cached data first.
@@ -31,7 +33,7 @@ export async function GET(request: Request) {
 
     // 3. If no data is in the cache (Cache Miss), fetch fresh data from the external API.
     console.log(`[Cache MISS] Fetching fresh data for key: ${cacheKey}`);
-    
+
     const params: { current: string; country?: string; type?: string } = {
       current: "true",
     };
@@ -78,13 +80,17 @@ export async function GET(request: Request) {
     // 4. Store the newly fetched and transformed data in Redis with an expiration time (TTL).
     // This ensures future requests will be served from the cache.
     if (transformedData.length > 0) {
-        await redis.set(cacheKey, JSON.stringify(transformedData), "EX", CACHE_TTL_SECONDS);
-        console.log(`[Cache SET] Stored fresh data for key: ${cacheKey}`);
+      await redis.set(
+        cacheKey,
+        JSON.stringify(transformedData),
+        "EX",
+        CACHE_TTL_SECONDS
+      );
+      console.log(`[Cache SET] Stored fresh data for key: ${cacheKey}`);
     }
 
     // 5. Return the fresh data to the client.
     return NextResponse.json(transformedData);
-    
   } catch (error) {
     console.error(`[API/leagues] Error fetching league data:`, error);
     return NextResponse.json(

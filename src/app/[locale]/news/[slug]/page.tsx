@@ -23,49 +23,56 @@ const DEFAULT_LOCALE = "tr";
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
-async function getPostAndTranslations(
+async function getPostAndHandleRedirects(
   slug: string,
   locale: string
 ): Promise<{ postToRender: IPost; allTranslations: IPost[] } | null> {
   await dbConnect();
 
-  let initialPost = await Post.findOne({
+  const exactMatch = await Post.findOne({
     slug,
     language: locale,
     status: "published",
   }).lean();
-
-  if (!initialPost) {
-    initialPost = await Post.findOne({ slug, status: "published" }).lean();
+  if (exactMatch) {
+    const allTranslations = await Post.find({
+      translationGroupId: exactMatch.translationGroupId,
+      status: "published",
+    }).lean();
+    return {
+      postToRender: JSON.parse(JSON.stringify(exactMatch)),
+      allTranslations: JSON.parse(JSON.stringify(allTranslations)),
+    };
   }
 
-  if (!initialPost) {
-    return null;
-  }
-
-  const translationGroupId = initialPost.translationGroupId;
-
-  const allTranslations = await Post.find({
-    translationGroupId,
+  const postInAnyLanguage = await Post.findOne({
+    slug,
     status: "published",
   }).lean();
+  if (postInAnyLanguage) {
+    const allTranslations = await Post.find({
+      translationGroupId: postInAnyLanguage.translationGroupId,
+      status: "published",
+    }).lean();
+    const correctVersionForLocale = allTranslations.find(
+      (p) => p.language === locale
+    );
 
-  if (allTranslations.length === 0) {
-    return null;
+    if (correctVersionForLocale) {
+      const correctUrl = `/${locale}/news/${correctVersionForLocale.slug}`;
+      redirect(correctUrl);
+    } else {
+      const defaultVersion =
+        allTranslations.find((p) => p.language === DEFAULT_LOCALE) ||
+        allTranslations[0];
+      const defaultUrl =
+        defaultVersion.language === DEFAULT_LOCALE
+          ? `/news/${defaultVersion.slug}`
+          : `/${defaultVersion.language}/news/${defaultVersion.slug}`;
+      redirect(defaultUrl);
+    }
   }
-
-  let postToRender = allTranslations.find((p) => p.language === locale);
-  if (!postToRender) {
-    postToRender = allTranslations.find((p) => p.language === DEFAULT_LOCALE);
-  }
-  if (!postToRender) {
-    postToRender = allTranslations[0];
-  }
-
-  return {
-    postToRender: JSON.parse(JSON.stringify(postToRender)),
-    allTranslations: JSON.parse(JSON.stringify(allTranslations)),
-  };
+  return null;
 }
 
 export async function generateMetadata({
@@ -74,7 +81,7 @@ export async function generateMetadata({
   params: { slug: string; locale: string };
 }): Promise<Metadata> {
   const { slug, locale } = params;
-  const data = await getPostAndTranslations(slug, locale);
+  const data = await getPostAndHandleRedirects(slug, locale);
 
   if (!data) {
     return { title: "Not Found" };
@@ -99,18 +106,13 @@ export async function generateMetadata({
     : `${BASE_URL}/og-image.jpg`;
 
   return {
-    title: postToRender.metaTitle || `${postToRender.title} | Fan Skor`,
+    title: postToRender.metaTitle || `${postToRender.title}`, // The layout adds "| Fan Skor"
     description: description,
-
-    // ***** CORRECT FIX IS HERE *****
-    // The `alternates` object itself contains the `canonical` URL and the `languages` (hreflang) map.
-    // Next.js will correctly render both the canonical and hreflang links from this single object.
     alternates: hreflangAlternates,
-
     openGraph: {
       title: postToRender.metaTitle || postToRender.title,
       description: description,
-      url: hreflangAlternates.canonical, // Use the generated canonical URL for Open Graph
+      url: hreflangAlternates.canonical,
       type: "article",
       publishedTime: new Date(postToRender.createdAt).toISOString(),
       modifiedTime: new Date(postToRender.updatedAt).toISOString(),
@@ -133,26 +135,19 @@ export default async function GeneralNewsArticlePage({
   params: { slug: string; locale: string };
 }) {
   const { slug, locale } = params;
-  const data = await getPostAndTranslations(slug, locale);
+  const data = await getPostAndHandleRedirects(slug, locale);
 
   if (!data) {
     notFound();
   }
 
-  const { postToRender } = data;
-
-  if (postToRender.language !== locale) {
-    const correctPath = `/${postToRender.language}/news/${postToRender.slug}`;
-    redirect(correctPath);
-  }
-
-  const post = postToRender;
+  const { postToRender: post } = data;
   const t = await getI18n(locale);
 
   const { processedHtml, toc } = generateTableOfContents(post.content);
 
   const pagePath = `/news/${post.slug}`;
-  const postUrl = `${BASE_URL}/${locale}${pagePath}`;
+  const postUrl = `${BASE_URL}${getPath(pagePath, locale)}`;
   const description =
     post.metaDescription ||
     post.content.replace(/<[^>]*>?/gm, "").substring(0, 160);
@@ -162,19 +157,12 @@ export default async function GeneralNewsArticlePage({
     {
       "@context": "https://schema.org",
       "@type": "NewsArticle",
-      mainEntityOfPage: {
-        "@type": "WebPage",
-        "@id": postUrl,
-      },
+      mainEntityOfPage: { "@type": "WebPage", "@id": postUrl },
       headline: post.title,
       image: [imageUrl],
       datePublished: new Date(post.createdAt).toISOString(),
       dateModified: new Date(post.updatedAt).toISOString(),
-      author: {
-        "@type": "Organization",
-        name: "Fan Skor",
-        url: BASE_URL,
-      },
+      author: { "@type": "Organization", name: "Fan Skor", url: BASE_URL },
       publisher: {
         "@type": "Organization",
         name: "Fan Skor",
@@ -193,22 +181,23 @@ export default async function GeneralNewsArticlePage({
           "@type": "ListItem",
           position: 1,
           name: t("homepage"),
-          item: `${BASE_URL}/${locale}`,
+          item: `${BASE_URL}/${locale === DEFAULT_LOCALE ? "" : locale}`,
         },
         {
           "@type": "ListItem",
           position: 2,
           name: t("news"),
-          item: `${BASE_URL}/${locale}/news`,
+          item: `${BASE_URL}/${locale === DEFAULT_LOCALE ? "" : locale}/news`,
         },
-        {
-          "@type": "ListItem",
-          position: 3,
-          name: post.title,
-        },
+        { "@type": "ListItem", position: 3, name: post.title },
       ],
     },
   ];
+
+  function getPath(path: string, locale: string) {
+    if (locale === DEFAULT_LOCALE) return path;
+    return `/${locale}${path}`;
+  }
 
   return (
     <>
@@ -245,9 +234,6 @@ export default async function GeneralNewsArticlePage({
                     date: format(new Date(post.createdAt), "MMMM dd, yyyy"),
                   })}
                 </p>
-
-                {}
-                {}
                 {post.originalSourceUrl && (
                   <StyledLink
                     href={post.originalSourceUrl}
@@ -258,15 +244,11 @@ export default async function GeneralNewsArticlePage({
                     {t("read_full_story_on_source")}
                   </StyledLink>
                 )}
-                {}
-
                 {toc.length > 0 && <TableOfContents toc={toc} />}
-
                 <div
                   className="prose prose-invert prose-lg lg:prose-xl max-w-none mt-8"
                   dangerouslySetInnerHTML={{ __html: processedHtml }}
                 />
-
                 <div className="mt-12 pt-8 border-t border-gray-700/50">
                   <h3 className="text-lg font-bold text-center text-brand-muted mb-4">
                     {t("share_this_article")}
@@ -276,7 +258,6 @@ export default async function GeneralNewsArticlePage({
               </div>
             </article>
           </div>
-
           <div className="lg:col-span-1">
             <NewsSidebar />
           </div>
