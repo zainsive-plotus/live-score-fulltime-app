@@ -12,51 +12,52 @@ if (!NEXT_PUBLIC_MONGODB_URI) {
 
 /**
  * Global is used here to maintain a cached connection across hot reloads
- * in development. This prevents connections growing exponentially
- * during API Route usage.
+ * in development. This prevents connections growing exponentially.
  */
-let cached = (global as any).mongoose;
+let cached: {
+  promise: Promise<any> | null;
+} = (global as any).mongoose;
 
 if (!cached) {
-  cached = (global as any).mongoose = { conn: null, promise: null };
+  cached = (global as any).mongoose = { promise: null };
 }
 
 async function dbConnect() {
-  // If we have a connection, reuse it
-  if (cached.conn) {
-    return cached.conn;
+  // If a connection promise already exists, we reuse it.
+  // This is the core of the singleton pattern.
+  if (cached.promise) {
+    console.log("Reusing existing Mongoose connection promise.");
+    return await cached.promise;
   }
 
-  // If a promise is already in progress, wait for it to resolve
-  if (!cached.promise) {
-    const opts = {
-      bufferCommands: false,
-      // Increase timeouts to make the connection more resilient during builds
-      serverSelectionTimeoutMS: 30000,
-      socketTimeoutMS: 45000,
-      // Mongoose 6 default is 5, let's allow more for parallel builds
-      maxPoolSize: 10,
-    };
+  // If no connection promise exists, create a new one.
+  const opts = {
+    bufferCommands: false,
+    serverSelectionTimeoutMS: 45000, // A generous timeout for builds
+  };
 
-    console.log("Creating new Mongoose connection...");
-    cached.promise = mongoose
-      .connect(NEXT_PUBLIC_MONGODB_URI!, opts)
-      .then((mongoose) => {
-        console.log("New Mongoose connection established.");
-        return mongoose;
-      });
-  }
+  console.log("Creating new Mongoose connection promise...");
+  cached.promise = mongoose
+    .connect(NEXT_PUBLIC_MONGODB_URI!, opts)
+    .then((mongoose) => {
+      console.log("✅ New Mongoose connection established.");
+      return mongoose;
+    })
+    .catch((err) => {
+      // If connection fails, nullify the promise so the next call can try again.
+      cached.promise = null;
+      console.error("❌ Mongoose connection failed:", err);
+      throw err; // Rethrow the error to fail the operation (e.g., the build)
+    });
 
   try {
-    cached.conn = await cached.promise;
+    // Await the newly created promise and return the connection
+    return await cached.promise;
   } catch (e) {
-    // If the connection fails, reset the promise so the next call can try again
+    // This catch is for safety but the catch block on the promise itself should handle it.
     cached.promise = null;
-    console.error("Mongoose connection failed:", e);
     throw e;
   }
-
-  return cached.conn;
 }
 
 export default dbConnect;
