@@ -105,7 +105,7 @@ export const MainContent: React.FC<MainContentProps> = ({
       </div>
 
       <div className="lg:col-span-1 flex flex-col gap-6">
-        <LatestHighlightsWidget />
+        {/* <LatestHighlightsWidget /> */}
         <AdSlotWidget location="homepage_right_sidebar" />
         <StandingsDisplay />
         <div className="space-y-8 gap-8">
