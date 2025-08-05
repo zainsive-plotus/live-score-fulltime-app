@@ -1,3 +1,4 @@
+// ===== src/components/match/MatchHeader.tsx =====
 "use client";
 
 import Image from "next/image";
@@ -16,7 +17,7 @@ import Link from "next/link";
 import { proxyImageUrl } from "@/lib/image-proxy";
 import { generateLeagueSlug } from "@/lib/generate-league-slug";
 import { generateTeamSlug } from "@/lib/generate-team-slug";
-import { useTranslation } from "@/hooks/useTranslation"; // <-- Import hook
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface Team {
   id: number;
@@ -64,7 +65,6 @@ const StatPill = ({
   </div>
 );
 
-// This sub-component now gets the 't' function passed down
 const PredictionResultWidget = ({
   result,
   teams,
@@ -161,7 +161,7 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({
   fixture,
   analytics,
 }) => {
-  const { t } = useTranslation(); // Use hook in the main component
+  const { t } = useTranslation();
   const { teams, league, fixture: fixtureDetails, goals, score } = fixture;
 
   const isLive = useMemo(
@@ -256,6 +256,7 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({
               alt={teams.home.name}
               width={80}
               height={80}
+              priority={true}
               className="w-16 h-16 md:w-20 md:h-20 object-contain hover:scale-110 transition-transform"
             />
           </Link>
@@ -306,6 +307,7 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({
               alt={teams.away.name}
               width={80}
               height={80}
+              priority={true}
               className="w-16 h-16 md:w-20 md:h-20 object-contain hover:scale-110 transition-transform"
             />
           </Link>

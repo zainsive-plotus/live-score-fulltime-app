@@ -1,5 +1,4 @@
 // ===== src/app/[locale]/layout.tsx =====
-
 import type { Metadata } from "next";
 import "../globals.css";
 import Providers from "../providers";
@@ -11,7 +10,6 @@ import { Suspense } from "react";
 import StickyFooterAd from "@/components/StickyFooterAd";
 import Loading from "./loading";
 import Footer from "@/components/Footer";
-
 import { GoogleAnalytics } from "@next/third-parties/google";
 import { getI18n } from "@/lib/i18n/server";
 import { I18nProviderClient } from "@/lib/i18n/client";
@@ -20,6 +18,7 @@ import { i18nCache } from "@/lib/i18n/i18n.cache";
 import { generateHreflangTags } from "@/lib/hreflang";
 import { newRelicBrowserAgent } from "@/lib/new-relic";
 import Script from "next/script";
+import { inter } from "../fonts"; // <-- 1. IMPORT THE FONT
 
 const METADATA_BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
@@ -38,13 +37,7 @@ export async function generateMetadata({
   return {
     metadataBase: new URL(METADATA_BASE_URL),
     alternates: hreflangAlternates,
-
-    // ***** FIX IS HERE: Use the title template object *****
-    title: {
-      default: title, // Title for the homepage (e.g., /en, /fr)
-      template: `%s | Fan Skor`, // Pattern for all other pages
-    },
-
+    title: { default: title, template: `%s | Fan Skor` },
     description: description,
     icons: {
       icon: [{ url: "/favicon.ico", type: "image/png" }],
@@ -53,10 +46,7 @@ export async function generateMetadata({
     robots: {
       index: true,
       follow: true,
-      googleBot: {
-        index: true,
-        follow: true,
-      },
+      googleBot: { index: true, follow: true },
     },
     openGraph: {
       title: title,
@@ -95,12 +85,9 @@ export default async function LocaleLayout({
   const translations = (await i18nCache.getTranslations(locale)) || {};
 
   return (
-    // The lang attribute is important for accessibility and SEO
-    <html lang={locale}>
+    // <-- 2. APPLY THE FONT VARIABLE TO THE HTML TAG
+    <html lang={locale} className={inter.variable}>
       <head>
-        {/* ***** ADD THE NEW RELIC SCRIPT HERE ***** */}
-        {/* We use the 'beforeInteractive' strategy to ensure it loads and executes early. */}
-        {/* We check for NODE_ENV to ensure it only runs in production. */}
         {process.env.NEXT_PUBLIC_NODE_ENV === "production" && (
           <Script
             id="new-relic-browser-agent"
@@ -109,7 +96,7 @@ export default async function LocaleLayout({
           />
         )}
       </head>
-      <body suppressHydrationWarning={true}>
+      <body>
         <Suspense fallback={<Loading />}>
           <NextAuthProvider>
             <Providers>
