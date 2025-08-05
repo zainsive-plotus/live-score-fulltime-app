@@ -1,9 +1,10 @@
+// ===== src/components/team/TeamFixturesWidget.tsx =====
 "use client";
 
 import { useState, useMemo } from "react";
 import { Info, CalendarClock } from "lucide-react";
-import MatchListItem, { MatchListItemSkeleton } from "../MatchListItem";
-import { useTranslation } from "@/hooks/useTranslation"; // <-- Import hook
+import MatchListItem from "../MatchListItem";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface TeamFixturesWidgetProps {
   fixtures: any[];
@@ -12,10 +13,9 @@ interface TeamFixturesWidgetProps {
 export default function TeamFixturesWidget({
   fixtures,
 }: TeamFixturesWidgetProps) {
-  const [activeTab, setActiveTab] = useState<"upcoming" | "results">(
-    "upcoming"
-  );
-  const { t } = useTranslation(); // <-- Use hook
+  // THE FIX IS HERE: Set the initial state to 'results'
+  const [activeTab, setActiveTab] = useState<"upcoming" | "results">("results");
+  const { t } = useTranslation();
 
   const filteredMatches = useMemo(() => {
     if (!fixtures) return [];
@@ -30,6 +30,7 @@ export default function TeamFixturesWidget({
         (m: any) => !["FT", "AET", "PEN"].includes(m.fixture.status.short)
       );
     } else {
+      // Results should be shown in reverse chronological order (most recent first)
       return sortedFixtures
         .filter((m: any) =>
           ["FT", "AET", "PEN"].includes(m.fixture.status.short)
