@@ -1,8 +1,8 @@
 // ===== src/app/[locale]/football/match/[...slug]/StandingsContent.tsx =====
+import "server-only";
 import TeamStandingsWidget from "@/components/match/TeamStandingsWidget";
 import { getStandings } from "@/lib/data/match";
 
-// The Asynchronous Server Component that fetches data
 export async function StandingsContent({
   leagueId,
   season,
@@ -16,13 +16,10 @@ export async function StandingsContent({
   awayTeamId: number;
   standingsSeoDescription: string;
 }) {
-  // This component now fetches its own data.
   const standingsResponse = await getStandings(leagueId, season);
-
-  // The TeamStandingsWidget is now a Server Component, so we pass the data directly.
   return (
     <TeamStandingsWidget
-      standingsResponse={standingsResponse} // Pass the raw response
+      standingsResponse={standingsResponse}
       homeTeamId={homeTeamId}
       awayTeamId={awayTeamId}
       standingsSeoDescription={standingsSeoDescription}
@@ -30,7 +27,6 @@ export async function StandingsContent({
   );
 }
 
-// The Skeleton Loader for this component
 export const StandingsContentSkeleton = () => (
   <div className="bg-brand-secondary rounded-lg h-96 animate-pulse p-6">
     <div className="h-8 w-1/2 bg-gray-700 rounded mb-4"></div>

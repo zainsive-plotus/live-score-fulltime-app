@@ -4,13 +4,14 @@ import axios from "axios";
 import "server-only";
 import { calculateCustomPrediction } from "@/lib/prediction-engine";
 
-// Base API request function - this should NOT be cached itself.
+// Base API request function - not cached itself
 const apiRequest = async (endpoint: string, params: object) => {
   const options = {
     method: "GET",
     url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/${endpoint}`,
     params,
     headers: { "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
+    timeout: 15000,
   };
   try {
     const response = await axios.request(options);
@@ -51,7 +52,7 @@ export const getCustomPredictionData = cache(async (fixtureId: string) => {
   const { league, teams } = fixtureData[0];
   const { home, away } = teams;
 
-  // These calls will be cached if already made during the render
+  // These subsequent calls will be instantly resolved from cache if already fetched
   const [h2h, homeTeamStats, awayTeamStats, standingsResponse] =
     await Promise.all([
       getH2H(home.id, away.id),

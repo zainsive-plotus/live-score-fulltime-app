@@ -8,8 +8,6 @@ import {
   getFixture,
   getCustomPredictionData,
   getBookmakerOdds,
-  getH2H,
-  getStatistics,
 } from "@/lib/data/match";
 
 // Components
@@ -27,7 +25,7 @@ import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
 import { AdSlotWidgetSkeleton } from "@/components/skeletons/WidgetSkeletons";
 
-// Dynamic components for streaming and their skeletons
+// Wrapper Components and their Skeletons
 import { H2HContent, H2HContentSkeleton } from "./H2HContent";
 import { LineupsContent, LineupsContentSkeleton } from "./LineupsContent";
 import { StandingsContent, StandingsContentSkeleton } from "./StandingsContent";
@@ -42,7 +40,6 @@ const getFixtureIdFromSlug = (slug: string): string | null => {
   return /^\d+$/.test(lastPart) ? lastPart : null;
 };
 
-// Metadata generation now correctly uses the cached getFixture function
 export async function generateMetadata({
   params,
 }: {
@@ -91,27 +88,22 @@ export default async function MatchDetailPage({
 
   if (!fixtureId) notFound();
 
-  // Fetch critical data for the main content area first.
+  // Fetch only the most critical data for the initial paint.
+  // The rest will be fetched inside Suspense boundaries.
   const fixtureResponse = await getFixture(fixtureId);
-  if (!fixtureResponse || fixtureResponse.length === 0) notFound();
+  if (!fixtureResponse || !fixtureResponse.length) notFound();
 
   const fixture = fixtureResponse[0];
   const { home: homeTeam, away: awayTeam } = fixture.teams;
-  const { id: homeTeamId, name: homeTeamName } = homeTeam;
-  const { id: awayTeamId, name: awayTeamName } = awayTeam;
+  const { id: homeTeamId } = homeTeam;
+  const { id: awayTeamId } = awayTeam;
   const { id: leagueId, season } = fixture.league;
 
-  // Controlled Parallel Fetch for main content analytics
-  const [predictionData, bookmakerOdds, h2h] = await Promise.all([
+  const [predictionData, bookmakerOdds] = await Promise.all([
     getCustomPredictionData(fixtureId),
     getBookmakerOdds(fixtureId),
-    getH2H(homeTeamId, awayTeamId),
   ]);
 
-  const analyticsForHeader = {
-    customPrediction: predictionData?.prediction,
-    bookmakerOdds,
-  };
   const isLive = ["1H", "HT", "2H", "ET", "BT", "P", "LIVE"].includes(
     fixture.fixture.status?.short
   );
@@ -119,18 +111,17 @@ export default async function MatchDetailPage({
     fixture.fixture.status?.short
   );
 
-  // SEO Text
   const h2hSeoDescription = t("match_page_h2h_seo_text", {
-    homeTeam: homeTeamName,
-    awayTeam: awayTeamName,
+    homeTeam: homeTeam.name,
+    awayTeam: awayTeam.name,
   });
   const standingsSeoDescription = t("match_page_standings_seo_text", {
-    homeTeam: homeTeamName,
-    awayTeam: awayTeamName,
+    homeTeam: homeTeam.name,
+    awayTeam: awayTeam.name,
   });
   const activitySeoDescription = t("match_page_activity_seo_text", {
-    homeTeam: homeTeamName,
-    awayTeam: awayTeamName,
+    homeTeam: homeTeam.name,
+    awayTeam: awayTeam.name,
   });
 
   return (
@@ -138,20 +129,26 @@ export default async function MatchDetailPage({
       <Header />
       <div className="container mx-auto p-4 md:p-6 lg:grid lg:grid-cols-3 lg:gap-8 lg:items-start">
         <main className="lg:col-span-2 space-y-6">
-          <MatchHeader fixture={fixture} analytics={analyticsForHeader} />
+          <MatchHeader
+            fixture={fixture}
+            analytics={{
+              customPrediction: predictionData?.prediction,
+              bookmakerOdds,
+            }}
+          />
           <MatchStatusBanner fixture={fixture} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <TeamFormWidget
               teamStats={predictionData?.homeTeamStats}
               team={homeTeam}
               location="Home"
-              h2hData={h2h}
+              h2hData={[]}
             />
             <TeamFormWidget
               teamStats={predictionData?.awayTeamStats}
               team={awayTeam}
               location="Away"
-              h2hData={h2h}
+              h2hData={[]}
             />
           </div>
 
@@ -162,8 +159,6 @@ export default async function MatchDetailPage({
           <Suspense fallback={<H2HContentSkeleton />}>
             <H2HContent
               fixtureId={fixtureId}
-              homeTeamId={homeTeamId}
-              awayTeamId={awayTeamId}
               h2hSeoDescription={h2hSeoDescription}
             />
           </Suspense>
@@ -174,19 +169,22 @@ export default async function MatchDetailPage({
             </Suspense>
           )}
 
-          <MatchActivityWidget
-            fixtureId={fixtureId}
-            homeTeamId={homeTeamId}
-            isLive={isLive}
-            activitySeoDescription={activitySeoDescription}
-          />
+          {/* ActivityWidget is client-side but fetches its initial data inside, so it also gets a Suspense boundary */}
+          <Suspense fallback={<div>Loading Activity...</div>}>
+            <MatchActivityWidget
+              fixtureId={fixtureId}
+              homeTeamId={homeTeamId}
+              isLive={isLive}
+              activitySeoDescription={activitySeoDescription}
+            />
+          </Suspense>
         </main>
 
         <aside className="lg:col-span-1 space-y-6 lg:sticky lg:top-6 mt-8 lg:mt-0">
           {isLive && <LiveOddsWidget fixtureId={fixtureId} />}
 
           <Suspense fallback={<LinkedNewsSkeleton />}>
-            <LinkedNewsContent fixtureId={Number(fixtureId)} />
+            <LinkedNewsContent fixtureId={Number(fixtureId)} locale={locale} />
           </Suspense>
 
           <Suspense fallback={<HighlightsSkeleton />}>
@@ -209,9 +207,8 @@ export default async function MatchDetailPage({
             bookmakerOdds={bookmakerOdds?.[0]?.bookmakers ?? []}
             teams={fixture.teams}
           />
-          <Suspense fallback={<AdSlotWidgetSkeleton />}>
-            <AdSlotWidget location="match_sidebar" />
-          </Suspense>
+          {/* AdSlotWidget is now a client component, no Suspense needed unless you want to show a skeleton */}
+          <AdSlotWidget location="match_sidebar" />
         </aside>
       </div>
     </div>
