@@ -1,35 +1,35 @@
+// ===== src/components/ZonedDate.tsx =====
 "use client";
 
+import { useState, useEffect } from "react";
 import { useTimeZone } from "@/context/TimeZoneContext";
 import { formatZonedTime } from "@/lib/date-formatter";
 
 interface ZonedDateProps {
-  /**
-   * The date string from the API/database, assumed to be in UTC.
-   */
   date: string | Date;
-  /**
-   * The desired output format string (e.g., 'HH:mm', 'dd MMM yyyy').
-   * @default 'HH:mm'
-   */
   format?: string;
 }
 
-/**
- * A client component that displays a UTC date in the user's local time zone.
- * It shows a placeholder on initial render and updates to the local time
- * once the client-side time zone is detected.
- */
 export default function ZonedDate({ date, format = "HH:mm" }: ZonedDateProps) {
   const { timeZone } = useTimeZone();
+  const [isMounted, setIsMounted] = useState(false);
 
-  // On the server or before the client-side time zone is detected,
-  // timeZone will be null. We render a placeholder.
-  if (!timeZone) {
-    return <span className="tabular-nums">--:--</span>;
+  // This useEffect ensures the component is only rendered on the client after hydration.
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // On the server and before hydration, render a placeholder.
+  if (!isMounted || !timeZone) {
+    const fallbackTime = new Date(date).toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "UTC",
+    });
+    return <span className="tabular-nums">{fallbackTime}</span>;
   }
 
-  // Once the timeZone is available on the client, we format and display the local time.
+  // Once mounted on the client, render the correctly zoned time.
   const formattedDate = formatZonedTime(date, timeZone, format);
 
   return <span className="tabular-nums">{formattedDate}</span>;

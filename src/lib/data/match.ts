@@ -1,111 +1,79 @@
 // ===== src/lib/data/match.ts =====
-
-import "server-only";
+import { cache } from "react";
 import axios from "axios";
-// ***** FIX: Import from the new, dedicated prediction engine file *****
-import {
-  calculateCustomPrediction,
-  convertPercentageToOdds,
-} from "@/lib/prediction-engine";
+import "server-only";
+import { calculateCustomPrediction } from "@/lib/prediction-engine";
 
-export const fetchAllDataForFixture = async (fixtureId: string | number) => {
-  const options = (endpoint: string, params: object) => ({
+// Base API request function - this should NOT be cached itself.
+const apiRequest = async (endpoint: string, params: object) => {
+  const options = {
     method: "GET",
     url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/${endpoint}`,
     params,
     headers: { "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
-  });
-
-  const fixtureResponse = await axios.request(
-    options("fixtures", { id: fixtureId })
-  );
-  const fixtureData = fixtureResponse.data.response[0];
-
-  if (!fixtureData) {
-    throw new Error(`Fixture not found with ID: ${fixtureId}`);
+  };
+  try {
+    const response = await axios.request(options);
+    return response.data.response;
+  } catch (error) {
+    console.error(`[API Football Error] Endpoint: ${endpoint}`, error);
+    return null;
   }
+};
 
-  const { league, teams } = fixtureData;
-  const { home: homeTeam, away: awayTeam } = teams;
+// --- Create smaller, individually cached functions for each data type ---
 
-  const [
-    eventsResponse,
-    statsResponse,
-    h2hResponse,
-    predictionResponse,
-    homeStatsResponse,
-    awayStatsResponse,
-    oddsResponse,
-    standingsResponse,
-  ] = await Promise.all([
-    axios.request(options("fixtures/events", { fixture: fixtureId })),
-    axios.request(options("fixtures/statistics", { fixture: fixtureId })),
-    axios.request(
-      options("fixtures/headtohead", { h2h: `${homeTeam.id}-${awayTeam.id}` })
-    ),
-    axios.request(options("predictions", { fixture: fixtureId })),
-    axios.request(
-      options("teams/statistics", {
-        league: league.id,
-        season: league.season,
-        team: homeTeam.id,
-      })
-    ),
-    axios.request(
-      options("teams/statistics", {
-        league: league.id,
-        season: league.season,
-        team: awayTeam.id,
-      })
-    ),
-    axios.request(
-      options("odds", { fixture: fixtureId, bookmaker: "8", bet: "1" })
-    ),
-    axios.request(
-      options("standings", { league: league.id, season: league.season })
-    ),
-  ]);
+export const getFixture = cache((fixtureId: string) =>
+  apiRequest("fixtures", { id: fixtureId })
+);
+export const getH2H = cache((homeTeamId: number, awayTeamId: number) =>
+  apiRequest("fixtures/headtohead", { h2h: `${homeTeamId}-${awayTeamId}` })
+);
+export const getStatistics = cache((fixtureId: string) =>
+  apiRequest("fixtures/statistics", { fixture: fixtureId })
+);
+export const getTeamStats = cache(
+  (leagueId: number, season: number, teamId: number) =>
+    apiRequest("teams/statistics", { league: leagueId, season, team: teamId })
+);
+export const getBookmakerOdds = cache((fixtureId: string) =>
+  apiRequest("odds", { fixture: fixtureId, bet: "1", bookmaker: "8" })
+);
+export const getStandings = cache((leagueId: number, season: number) =>
+  apiRequest("standings", { league: leagueId, season })
+);
 
-  const standings =
-    standingsResponse.data.response[0]?.league?.standings[0] || [];
-  const homeTeamRank = standings.find(
-    (s: any) => s.team.id === homeTeam.id
-  )?.rank;
-  const awayTeamRank = standings.find(
-    (s: any) => s.team.id === awayTeam.id
-  )?.rank;
+// A function to get the custom prediction data, which itself uses other cached functions
+export const getCustomPredictionData = cache(async (fixtureId: string) => {
+  const fixtureData = await getFixture(fixtureId);
+  if (!fixtureData || fixtureData.length === 0) return null;
 
-  const customPredictionPercentages = calculateCustomPrediction(
-    h2hResponse.data.response,
-    homeStatsResponse.data.response,
-    awayStatsResponse.data.response,
-    homeTeam.id,
+  const { league, teams } = fixtureData[0];
+  const { home, away } = teams;
+
+  // These calls will be cached if already made during the render
+  const [h2h, homeTeamStats, awayTeamStats, standingsResponse] =
+    await Promise.all([
+      getH2H(home.id, away.id),
+      getTeamStats(league.id, league.season, home.id),
+      getTeamStats(league.id, league.season, away.id),
+      getStandings(league.id, league.season),
+    ]);
+
+  const standings = standingsResponse?.[0]?.league?.standings[0] || [];
+  const homeTeamRank = standings.find((s: any) => s.team.id === home.id)?.rank;
+  const awayTeamRank = standings.find((s: any) => s.team.id === away.id)?.rank;
+
+  const prediction = calculateCustomPrediction(
+    h2h,
+    homeTeamStats,
+    awayTeamStats,
+    home.id,
     homeTeamRank,
     awayTeamRank,
-    eventsResponse.data.response,
-    fixtureData.fixture.status.short
+    null,
+    fixtureData[0].fixture.status.short
   );
 
-  const customPredictionOdds = customPredictionPercentages
-    ? {
-        home: convertPercentageToOdds(customPredictionPercentages.home),
-        draw: convertPercentageToOdds(customPredictionPercentages.draw),
-        away: convertPercentageToOdds(customPredictionPercentages.away),
-      }
-    : null;
-
-  return {
-    fixture: fixtureData,
-    events: eventsResponse.data.response,
-    statistics: statsResponse.data.response,
-    h2h: h2hResponse.data.response,
-    analytics: {
-      prediction: predictionResponse.data.response[0] ?? null,
-      homeTeamStats: homeStatsResponse.data.response ?? null,
-      awayTeamStats: awayStatsResponse.data.response ?? null,
-      customPrediction: customPredictionPercentages,
-      customOdds: customPredictionOdds,
-      bookmakerOdds: oddsResponse.data.response[0]?.bookmakers ?? [],
-    },
-  };
-};
+  return { prediction, homeTeamStats, awayTeamStats };
+});

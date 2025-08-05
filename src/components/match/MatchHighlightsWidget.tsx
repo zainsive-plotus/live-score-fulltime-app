@@ -1,17 +1,14 @@
+// ===== src/components/match/MatchHighlightsWidget.tsx =====
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
 import Slider from "react-slick";
 import { Film, ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
-import HighlightSlide from "../HighlightSlide"; // <-- Import the simple slide component
+import HighlightSlide from "../HighlightSlide";
 
-// Import slick CSS directly for stability
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 
-// Interface must match the properties needed by HighlightSlide
 interface Highlight {
   id: string;
   embedUrl: string;
@@ -19,21 +16,9 @@ interface Highlight {
 }
 
 interface MatchHighlightsWidgetProps {
-  fixtureId: string;
+  initialHighlights: Highlight[] | null;
 }
 
-const fetchHighlights = async (
-  fixtureId: string
-): Promise<Highlight[] | null> => {
-  try {
-    const { data } = await axios.get(`/api/highlights?fixtureId=${fixtureId}`);
-    return data?.highlights || data || null;
-  } catch (error) {
-    return null;
-  }
-};
-
-// --- Custom Arrow Components (copied from reference) ---
 const NextArrow = ({ onClick }: { onClick?: () => void }) => (
   <button
     onClick={onClick}
@@ -53,33 +38,18 @@ const PrevArrow = ({ onClick }: { onClick?: () => void }) => (
   </button>
 );
 
-const SliderSkeleton = () => (
-  <div className="animate-pulse">
-    <div className="h-8 w-1/3 bg-gray-700 rounded mb-4"></div>
-    <div className="aspect-video w-full rounded-lg bg-gray-700/50"></div>
-  </div>
-);
-
 export default function MatchHighlightsWidget({
-  fixtureId,
+  initialHighlights,
 }: MatchHighlightsWidgetProps) {
   const { t } = useTranslation();
 
-  const {
-    data: highlights,
-    isLoading,
-    isError,
-  } = useQuery<Highlight[] | null>({
-    queryKey: ["matchHighlights", fixtureId],
-    queryFn: () => fetchHighlights(fixtureId),
-    staleTime: 1000 * 60 * 5,
-    enabled: !!fixtureId,
-  });
+  if (!initialHighlights || initialHighlights.length === 0) {
+    return null;
+  }
 
-  // Use the exact same slider settings as the reference component
   const sliderSettings = {
     dots: false,
-    infinite: highlights ? highlights.length > 1 : false, // Be infinite only if there's more than one slide
+    infinite: initialHighlights.length > 1,
     speed: 500,
     slidesToShow: 1,
     slidesToScroll: 1,
@@ -91,14 +61,6 @@ export default function MatchHighlightsWidget({
     pauseOnHover: true,
   };
 
-  if (isError || (!isLoading && (!highlights || highlights.length === 0))) {
-    return null;
-  }
-
-  if (isLoading) {
-    return <SliderSkeleton />;
-  }
-
   return (
     <div className="w-full">
       <div className="mb-4">
@@ -108,10 +70,8 @@ export default function MatchHighlightsWidget({
         </h2>
       </div>
       <div className="relative w-full">
-        {" "}
-        {/* Wrapper for arrow positioning */}
         <Slider {...sliderSettings}>
-          {highlights?.map((highlight) => (
+          {initialHighlights.map((highlight) => (
             <HighlightSlide key={highlight.id} highlight={highlight} />
           ))}
         </Slider>

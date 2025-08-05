@@ -109,7 +109,7 @@ export default async function LocaleLayout({
           />
         )}
       </head>
-      <body>
+      <body suppressHydrationWarning={true}>
         <Suspense fallback={<Loading />}>
           <NextAuthProvider>
             <Providers>
