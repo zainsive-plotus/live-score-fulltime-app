@@ -15,6 +15,7 @@ function getLocale(request: NextRequest): string {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // The logic inside the middleware is correct, the problem is the matcher below.
   const pathnameHasLocale = SUPPORTED_LOCALES.some(
     (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
   );
@@ -25,9 +26,8 @@ export function middleware(request: NextRequest) {
       pathname === `/${DEFAULT_LOCALE}`
     ) {
       const newPath = pathname.replace(`/${DEFAULT_LOCALE}`, "");
-      return NextResponse.redirect(
-        new URL(newPath === "" ? "/" : newPath, request.url)
-      );
+      const url = new URL(newPath === "" ? "/" : newPath, request.url);
+      return NextResponse.redirect(url);
     }
     return NextResponse.next();
   }
@@ -53,12 +53,15 @@ export function middleware(request: NextRequest) {
   return response;
 }
 
+// THE FIX IS HERE: We add 'admin' to the negative lookahead
 export const config = {
-  // Match all request paths except for the ones starting with:
-  // - api (API routes)
-  // - _next/static (static files)
-  // - _next/image (image optimization files)
-  // - favicon.ico (favicon file)
-  // - any file with an extension (e.g., .xml, .svg, .png)
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|.*\\.).*)"],
+  matcher: [
+    // This regex matches all paths except for the ones starting with:
+    // - api (API routes)
+    // - _next/static (static files)
+    // - _next/image (image optimization files)
+    // - admin (admin routes) <-- THIS IS THE FIX
+    // - any file with an extension (e.g., .xml, .svg, .png)
+    "/((?!api|_next/static|_next/image|admin|favicon.ico|.*\\.).*)",
+  ],
 };
