@@ -89,11 +89,7 @@ export default async function LocaleLayout({
     <html lang={locale} className={inter.variable}>
       <head>
         {process.env.NEXT_PUBLIC_NODE_ENV === "production" && (
-          <Script
-            id="new-relic-browser-agent"
-            strategy="beforeInteractive"
-            dangerouslySetInnerHTML={{ __html: newRelicBrowserAgent }}
-          />
+          <Script src="./scripts/relic.js" />
         )}
       </head>
       <body>
