@@ -6,18 +6,16 @@ import { Newspaper } from "lucide-react";
 import SidebarNewsItem from "../SidebarNewsItem";
 import { useTranslation } from "@/hooks/useTranslation";
 
-// The widget now accepts posts as a prop instead of fetching them.
+// The widget now accepts posts as a prop
 interface LinkedNewsWidgetProps {
-  initialPosts: IPost[];
+  posts: IPost[];
 }
 
-export default function LinkedNewsWidget({
-  initialPosts,
-}: LinkedNewsWidgetProps) {
+export default function LinkedNewsWidget({ posts }: LinkedNewsWidgetProps) {
   const { t } = useTranslation();
 
   // If there are no posts, don't render anything.
-  if (!initialPosts || initialPosts.length === 0) {
+  if (!posts || posts.length === 0) {
     return null;
   }
 
@@ -31,7 +29,7 @@ export default function LinkedNewsWidget({
       </div>
 
       <div className="p-2 space-y-1">
-        {initialPosts.map((post) => (
+        {posts.map((post) => (
           <SidebarNewsItem
             key={post._id as string}
             post={{

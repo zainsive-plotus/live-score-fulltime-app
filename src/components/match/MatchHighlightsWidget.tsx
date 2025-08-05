@@ -5,7 +5,6 @@ import Slider from "react-slick";
 import { Film, ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
 import HighlightSlide from "../HighlightSlide";
-
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 
@@ -15,8 +14,9 @@ interface Highlight {
   title: string;
 }
 
+// The component now receives highlights as a prop
 interface MatchHighlightsWidgetProps {
-  initialHighlights: Highlight[] | null;
+  highlights: Highlight[] | null;
 }
 
 const NextArrow = ({ onClick }: { onClick?: () => void }) => (
@@ -39,26 +39,24 @@ const PrevArrow = ({ onClick }: { onClick?: () => void }) => (
 );
 
 export default function MatchHighlightsWidget({
-  initialHighlights,
+  highlights,
 }: MatchHighlightsWidgetProps) {
   const { t } = useTranslation();
 
-  if (!initialHighlights || initialHighlights.length === 0) {
+  // If there are no highlights, don't render anything.
+  if (!highlights || highlights.length === 0) {
     return null;
   }
 
   const sliderSettings = {
     dots: false,
-    infinite: initialHighlights.length > 1,
+    infinite: highlights.length > 1,
     speed: 500,
     slidesToShow: 1,
     slidesToScroll: 1,
     arrows: true,
     nextArrow: <NextArrow />,
     prevArrow: <PrevArrow />,
-    autoplay: true,
-    autoplaySpeed: 8000,
-    pauseOnHover: true,
   };
 
   return (
@@ -71,7 +69,7 @@ export default function MatchHighlightsWidget({
       </div>
       <div className="relative w-full">
         <Slider {...sliderSettings}>
-          {initialHighlights.map((highlight) => (
+          {highlights.map((highlight) => (
             <HighlightSlide key={highlight.id} highlight={highlight} />
           ))}
         </Slider>

@@ -1,8 +1,17 @@
 // ===== src/components/match/MatchActivityWidget.tsx =====
-import "server-only"; // Ensures this component only ever runs on the server
+import "server-only"; // This component now only ever runs on the server
 import axios from "axios";
 import MatchActivityClient from "./MatchActivityClient"; // Import the new Client Component
 
+// Define the type for the props, which will be passed down
+interface MatchActivityWidgetProps {
+  fixtureId: string;
+  isLive: boolean;
+  homeTeamId: number;
+  activitySeoDescription: string;
+}
+
+// Define the type for the event data
 interface MatchEvent {
   time: { elapsed: number };
   team: { id: number; name: string; logo: string };
@@ -10,13 +19,6 @@ interface MatchEvent {
   assist: { id: number | null; name: string | null };
   type: "Goal" | "Card" | "subst" | "Var";
   detail: string;
-}
-
-interface MatchActivityWidgetProps {
-  fixtureId: string;
-  isLive: boolean;
-  homeTeamId: number;
-  activitySeoDescription: string;
 }
 
 // Server-side data fetching function
@@ -38,7 +40,7 @@ const fetchInitialFixtureEvents = async (
   }
 };
 
-// This is now an async Server Component
+// This is now a pure async Server Component
 export default async function MatchActivityWidget({
   fixtureId,
   isLive,
@@ -49,12 +51,13 @@ export default async function MatchActivityWidget({
   const initialEvents = await fetchInitialFixtureEvents(fixtureId);
 
   // 2. Render the Client Component and pass the server-fetched data as a prop.
+  // We no longer need the homeTeamId prop for the client component as it's not used there.
   return (
     <MatchActivityClient
       initialEvents={initialEvents}
       fixtureId={fixtureId}
       isLive={isLive}
-      homeTeamId={homeTeamId}
+      homeTeamId={homeTeamId} // We can keep passing this if the client needs it for other logic
       activitySeoDescription={activitySeoDescription}
     />
   );

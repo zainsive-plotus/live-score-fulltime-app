@@ -1,5 +1,5 @@
 // ===== src/components/match/MatchActivityClient.tsx =====
-"use client"; // This MUST be the first line
+"use client";
 
 import { useQuery } from "@tanstack/react-query";
 import { memo, useMemo } from "react";
@@ -22,13 +22,10 @@ interface MatchEvent {
   detail: string;
 }
 
-// The client-side part of the data fetching (for polling)
 const fetchFixtureEvents = async (fixtureId: string): Promise<MatchEvent[]> => {
   const { data } = await axios.get(`/api/match-details?fixture=${fixtureId}`);
   return data?.events || [];
 };
-
-// --- UI Sub-components ---
 
 const getEventStyles = (type: string, detail: string) => {
   switch (type) {
@@ -88,7 +85,6 @@ const EventRow = memo(
 );
 EventRow.displayName = "EventRow";
 
-// The Client Component for UI and POLLING
 export default function MatchActivityClient({
   initialEvents,
   fixtureId,

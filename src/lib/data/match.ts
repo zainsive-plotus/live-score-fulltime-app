@@ -4,7 +4,7 @@ import axios from "axios";
 import "server-only";
 import { calculateCustomPrediction } from "@/lib/prediction-engine";
 
-// Base API request function - not cached itself
+// Base API request function
 const apiRequest = async (endpoint: string, params: object) => {
   const options = {
     method: "GET",
@@ -22,59 +22,70 @@ const apiRequest = async (endpoint: string, params: object) => {
   }
 };
 
-// --- Create smaller, individually cached functions for each data type ---
+// The single, cached function for the entire page's data needs
+export const fetchMatchPageData = cache(async (fixtureId: string) => {
+  const fixtureResponse = await apiRequest("fixtures", { id: fixtureId });
+  if (!fixtureResponse || fixtureResponse.length === 0) {
+    return null;
+  }
+  const fixture = fixtureResponse[0];
+  const { league, teams } = fixture;
+  const { home: homeTeam, away: awayTeam } = teams;
 
-export const getFixture = cache((fixtureId: string) =>
-  apiRequest("fixtures", { id: fixtureId })
-);
-export const getH2H = cache((homeTeamId: number, awayTeamId: number) =>
-  apiRequest("fixtures/headtohead", { h2h: `${homeTeamId}-${awayTeamId}` })
-);
-export const getStatistics = cache((fixtureId: string) =>
-  apiRequest("fixtures/statistics", { fixture: fixtureId })
-);
-export const getTeamStats = cache(
-  (leagueId: number, season: number, teamId: number) =>
-    apiRequest("teams/statistics", { league: leagueId, season, team: teamId })
-);
-export const getBookmakerOdds = cache((fixtureId: string) =>
-  apiRequest("odds", { fixture: fixtureId, bet: "1", bookmaker: "8" })
-);
-export const getStandings = cache((leagueId: number, season: number) =>
-  apiRequest("standings", { league: leagueId, season })
-);
-
-// A function to get the custom prediction data, which itself uses other cached functions
-export const getCustomPredictionData = cache(async (fixtureId: string) => {
-  const fixtureData = await getFixture(fixtureId);
-  if (!fixtureData || fixtureData.length === 0) return null;
-
-  const { league, teams } = fixtureData[0];
-  const { home, away } = teams;
-
-  // These subsequent calls will be instantly resolved from cache if already fetched
-  const [h2h, homeTeamStats, awayTeamStats, standingsResponse] =
-    await Promise.all([
-      getH2H(home.id, away.id),
-      getTeamStats(league.id, league.season, home.id),
-      getTeamStats(league.id, league.season, away.id),
-      getStandings(league.id, league.season),
-    ]);
-
-  const standings = standingsResponse?.[0]?.league?.standings[0] || [];
-  const homeTeamRank = standings.find((s: any) => s.team.id === home.id)?.rank;
-  const awayTeamRank = standings.find((s: any) => s.team.id === away.id)?.rank;
-
-  const prediction = calculateCustomPrediction(
+  // Fetch all other data in a controlled, parallel batch
+  const [
+    statistics,
     h2h,
     homeTeamStats,
     awayTeamStats,
-    home.id,
+    standingsResponse,
+    bookmakerOdds,
+  ] = await Promise.all([
+    apiRequest("fixtures/statistics", { fixture: fixtureId }),
+    apiRequest("fixtures/headtohead", { h2h: `${homeTeam.id}-${awayTeam.id}` }),
+    apiRequest("teams/statistics", {
+      league: league.id,
+      season: league.season,
+      team: homeTeam.id,
+    }),
+    apiRequest("teams/statistics", {
+      league: league.id,
+      season: league.season,
+      team: awayTeam.id,
+    }),
+    apiRequest("standings", { league: league.id, season: league.season }),
+    apiRequest("odds", { fixture: fixtureId, bet: "1", bookmaker: "8" }),
+  ]);
+
+  const standings = standingsResponse?.[0]?.league?.standings[0] || [];
+  const homeTeamRank = standings.find(
+    (s: any) => s.team.id === homeTeam.id
+  )?.rank;
+  const awayTeamRank = standings.find(
+    (s: any) => s.team.id === awayTeam.id
+  )?.rank;
+
+  const customPrediction = calculateCustomPrediction(
+    h2h,
+    homeTeamStats,
+    awayTeamStats,
+    homeTeam.id,
     homeTeamRank,
     awayTeamRank,
     null,
-    fixtureData[0].fixture.status.short
+    fixture.fixture.status.short
   );
 
-  return { prediction, homeTeamStats, awayTeamStats };
+  return {
+    fixture,
+    statistics,
+    h2h,
+    standings: standingsResponse,
+    analytics: {
+      homeTeamStats,
+      awayTeamStats,
+      customPrediction,
+      bookmakerOdds: bookmakerOdds?.[0]?.bookmakers ?? [],
+    },
+  };
 });

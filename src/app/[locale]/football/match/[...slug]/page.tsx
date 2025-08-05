@@ -2,36 +2,37 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { fetchMatchPageData } from "@/lib/data/match";
+import { getNews } from "@/lib/data/news"; // For fetching linked news on the server
+import { getMatchHighlights } from "@/lib/data/highlightly"; // For fetching highlights on the server
 
-// Data fetching functions
-import {
-  getFixture,
-  getCustomPredictionData,
-  getBookmakerOdds,
-} from "@/lib/data/match";
-
-// Components
+// --- Eagerly loaded Server Components (Above the fold) ---
 import Header from "@/components/Header";
 import { MatchHeader } from "@/components/match/MatchHeader";
 import MatchStatusBanner from "@/components/match/MatchStatusBanner";
 import TeamFormWidget from "@/components/match/TeamFormWidget";
-import AdSlotWidget from "@/components/AdSlotWidget";
-import LiveOddsWidget from "@/components/match/LiveOddsWidget";
-import MatchActivityWidget from "@/components/match/MatchActivityWidget";
+import MatchH2HWidget from "@/components/match/MatchH2HWidget";
+import MatchLineupsWidget from "@/components/match/MatchLineupsWidget";
+import MatchStatsWidget from "@/components/match/MatchStatsWidget";
+import TeamStandingsWidget from "@/components/match/TeamStandingsWidget";
 import MatchPredictionWidget from "@/components/match/MatchPredictionWidget";
 
-// SEO & i18n
+// --- Client Components for Interactivity ---
+import MatchActivityWidget from "@/components/match/MatchActivityWidget";
+import LiveOddsWidget from "@/components/match/LiveOddsWidget";
+import AdSlotWidget from "@/components/AdSlotWidget";
+import LinkedNewsWidget from "@/components/match/LinkedNewsWidget";
+import MatchHighlightsWidget from "@/components/match/MatchHighlightsWidget";
+
+// --- Skeletons for Suspense ---
+import {
+  AdSlotWidgetSkeleton,
+  RecentNewsWidgetSkeleton,
+} from "@/components/skeletons/WidgetSkeletons";
+
+// --- SEO & i18n ---
 import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
-import { AdSlotWidgetSkeleton } from "@/components/skeletons/WidgetSkeletons";
-
-// Wrapper Components and their Skeletons
-import { H2HContent, H2HContentSkeleton } from "./H2HContent";
-import { LineupsContent, LineupsContentSkeleton } from "./LineupsContent";
-import { StandingsContent, StandingsContentSkeleton } from "./StandingsContent";
-import { StatsContent, StatsContentSkeleton } from "./StatsContent";
-import { LinkedNewsContent, LinkedNewsSkeleton } from "./LinkedNewsContent";
-import { HighlightsContent, HighlightsSkeleton } from "./HighlightsContent";
 
 const getFixtureIdFromSlug = (slug: string): string | null => {
   if (!slug) return null;
@@ -48,28 +49,24 @@ export async function generateMetadata({
   const { slug, locale } = params;
   const t = await getI18n(locale);
   const fixtureId = getFixtureIdFromSlug(slug[0]);
-
   if (!fixtureId) return { title: t("not_found_title") };
 
-  const fixtureResponse = await getFixture(fixtureId);
-  if (!fixtureResponse || fixtureResponse.length === 0)
-    return { title: t("not_found_title") };
+  const data = await fetchMatchPageData(fixtureId);
+  if (!data) return { title: t("not_found_title") };
 
-  const fixtureData = fixtureResponse[0];
-  const { home: homeTeam, away: awayTeam } = fixtureData.teams;
+  const { home: homeTeam, away: awayTeam } = data.fixture.teams;
   const pagePath = `/football/match/${slug.join("/")}`;
   const hreflangAlternates = await generateHreflangTags(pagePath, locale);
   const pageTitle = t("match_page_title", {
     homeTeam: homeTeam.name,
     awayTeam: awayTeam.name,
-    leagueName: fixtureData.league.name,
+    leagueName: data.fixture.league.name,
   });
   const pageDescription = t("match_page_description", {
     homeTeam: homeTeam.name,
     awayTeam: awayTeam.name,
-    leagueName: fixtureData.league.name,
+    leagueName: data.fixture.league.name,
   });
-
   return {
     title: pageTitle,
     description: pageDescription,
@@ -85,24 +82,27 @@ export default async function MatchDetailPage({
   const { slug, locale } = params;
   const t = await getI18n(locale);
   const fixtureId = getFixtureIdFromSlug(slug[0]);
-
   if (!fixtureId) notFound();
 
-  // Fetch only the most critical data for the initial paint.
-  // The rest will be fetched inside Suspense boundaries.
-  const fixtureResponse = await getFixture(fixtureId);
-  if (!fixtureResponse || !fixtureResponse.length) notFound();
+  // 1. Fetch ALL data for the page in one go. It's cached.
+  const data = await fetchMatchPageData(fixtureId);
+  if (!data) notFound();
 
-  const fixture = fixtureResponse[0];
+  const { fixture, statistics, h2h, standings, analytics } = data;
   const { home: homeTeam, away: awayTeam } = fixture.teams;
-  const { id: homeTeamId } = homeTeam;
-  const { id: awayTeamId } = awayTeam;
-  const { id: leagueId, season } = fixture.league;
 
-  const [predictionData, bookmakerOdds] = await Promise.all([
-    getCustomPredictionData(fixtureId),
-    getBookmakerOdds(fixtureId),
+  // 2. Fetch data for sidebar widgets in parallel.
+  const [linkedNewsData, highlightsData] = await Promise.all([
+    getNews({ linkedFixtureId: fixture.fixture.id, limit: 5, locale }),
+    getMatchHighlights({
+      leagueName: fixture.league.name,
+      homeTeamName: homeTeam.name,
+      awayTeamName: awayTeam.name,
+      limit: 10,
+    }),
   ]);
+  const linkedPosts = linkedNewsData.posts;
+  const highlights = highlightsData?.data ?? [];
 
   const isLive = ["1H", "HT", "2H", "ET", "BT", "P", "LIVE"].includes(
     fixture.fixture.status?.short
@@ -132,82 +132,63 @@ export default async function MatchDetailPage({
           <MatchHeader
             fixture={fixture}
             analytics={{
-              customPrediction: predictionData?.prediction,
-              bookmakerOdds,
+              customPrediction: analytics.customPrediction,
+              bookmakerOdds: analytics.bookmakerOdds,
             }}
           />
           <MatchStatusBanner fixture={fixture} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <TeamFormWidget
-              teamStats={predictionData?.homeTeamStats}
+              teamStats={analytics.homeTeamStats}
               team={homeTeam}
               location="Home"
-              h2hData={[]}
+              h2hData={h2h}
             />
             <TeamFormWidget
-              teamStats={predictionData?.awayTeamStats}
+              teamStats={analytics.awayTeamStats}
               team={awayTeam}
               location="Away"
-              h2hData={[]}
+              h2hData={h2h}
             />
           </div>
-
-          <Suspense fallback={<LineupsContentSkeleton />}>
-            <LineupsContent fixtureId={fixtureId} />
-          </Suspense>
-
-          <Suspense fallback={<H2HContentSkeleton />}>
-            <H2HContent
-              fixtureId={fixtureId}
-              h2hSeoDescription={h2hSeoDescription}
-            />
-          </Suspense>
-
+          <MatchLineupsWidget lineups={fixture.lineups} />
+          <MatchH2HWidget
+            h2h={h2h}
+            teams={fixture.teams}
+            currentFixtureId={fixtureId}
+            h2hSeoDescription={h2hSeoDescription}
+          />
           {(isLive || isFinished) && (
-            <Suspense fallback={<StatsContentSkeleton />}>
-              <StatsContent fixtureId={fixtureId} />
-            </Suspense>
+            <MatchStatsWidget statistics={statistics} teams={fixture.teams} />
           )}
-
-          {/* ActivityWidget is client-side but fetches its initial data inside, so it also gets a Suspense boundary */}
-          <Suspense fallback={<div>Loading Activity...</div>}>
-            <MatchActivityWidget
-              fixtureId={fixtureId}
-              homeTeamId={homeTeamId}
-              isLive={isLive}
-              activitySeoDescription={activitySeoDescription}
-            />
-          </Suspense>
+          <MatchActivityWidget
+            fixtureId={fixtureId}
+            homeTeamId={homeTeam.id}
+            isLive={isLive}
+            activitySeoDescription={activitySeoDescription}
+          />
         </main>
 
         <aside className="lg:col-span-1 space-y-6 lg:sticky lg:top-6 mt-8 lg:mt-0">
           {isLive && <LiveOddsWidget fixtureId={fixtureId} />}
 
-          <Suspense fallback={<LinkedNewsSkeleton />}>
-            <LinkedNewsContent fixtureId={Number(fixtureId)} locale={locale} />
-          </Suspense>
+          {/* Pass server-fetched data as props */}
+          <LinkedNewsWidget posts={linkedPosts} />
+          <MatchHighlightsWidget highlights={highlights} />
 
-          <Suspense fallback={<HighlightsSkeleton />}>
-            <HighlightsContent fixtureId={fixtureId} />
-          </Suspense>
-
-          <Suspense fallback={<StandingsContentSkeleton />}>
-            <StandingsContent
-              leagueId={leagueId}
-              season={season}
-              homeTeamId={homeTeamId}
-              awayTeamId={awayTeamId}
-              standingsSeoDescription={standingsSeoDescription}
-            />
-          </Suspense>
+          <TeamStandingsWidget
+            standingsResponse={standings}
+            homeTeamId={homeTeam.id}
+            awayTeamId={awayTeam.id}
+            standingsSeoDescription={standingsSeoDescription}
+          />
 
           <MatchPredictionWidget
             apiPrediction={null}
-            customPrediction={predictionData?.prediction}
-            bookmakerOdds={bookmakerOdds?.[0]?.bookmakers ?? []}
+            customPrediction={analytics.customPrediction}
+            bookmakerOdds={analytics.bookmakerOdds}
             teams={fixture.teams}
           />
-          {/* AdSlotWidget is now a client component, no Suspense needed unless you want to show a skeleton */}
           <AdSlotWidget location="match_sidebar" />
         </aside>
       </div>
