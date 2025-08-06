@@ -1,39 +1,44 @@
-// ===== src/app/[locale]/football/match/[...slug]/page.tsx =====
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { fetchMatchPageData } from "@/lib/data/match";
-import { getNews } from "@/lib/data/news"; // For fetching linked news on the server
-import { getMatchHighlights } from "@/lib/data/highlightly"; // For fetching highlights on the server
 
-// --- Eagerly loaded Server Components (Above the fold) ---
+// Import NEW granular data functions
+import {
+  getFixture,
+  getH2H,
+  getTeamStats,
+  getStatistics,
+  getStandings,
+  getPredictionData,
+  getBookmakerOdds,
+  getLinkedNews,
+  getMatchHighlights,
+} from "@/lib/data/match";
+
+// Standard imports
+import { getI18n } from "@/lib/i18n/server";
+import { generateHreflangTags } from "@/lib/hreflang";
 import Header from "@/components/Header";
+
+// Existing Component imports
 import { MatchHeader } from "@/components/match/MatchHeader";
-import MatchStatusBanner from "@/components/match/MatchStatusBanner";
 import TeamFormWidget from "@/components/match/TeamFormWidget";
 import MatchH2HWidget from "@/components/match/MatchH2HWidget";
 import MatchLineupsWidget from "@/components/match/MatchLineupsWidget";
 import MatchStatsWidget from "@/components/match/MatchStatsWidget";
-import TeamStandingsWidget from "@/components/match/TeamStandingsWidget";
-import MatchPredictionWidget from "@/components/match/MatchPredictionWidget";
-
-// --- Client Components for Interactivity ---
 import MatchActivityWidget from "@/components/match/MatchActivityWidget";
-import LiveOddsWidget from "@/components/match/LiveOddsWidget";
 import AdSlotWidget from "@/components/AdSlotWidget";
+import LiveOddsWidget from "@/components/match/LiveOddsWidget";
 import LinkedNewsWidget from "@/components/match/LinkedNewsWidget";
 import MatchHighlightsWidget from "@/components/match/MatchHighlightsWidget";
-
-// --- Skeletons for Suspense ---
+import TeamStandingsWidget from "@/components/match/TeamStandingsWidget";
+import MatchPredictionWidget from "@/components/match/MatchPredictionWidget";
 import {
   AdSlotWidgetSkeleton,
   RecentNewsWidgetSkeleton,
 } from "@/components/skeletons/WidgetSkeletons";
 
-// --- SEO & i18n ---
-import { getI18n } from "@/lib/i18n/server";
-import { generateHreflangTags } from "@/lib/hreflang";
-
+// --- Helper Function ---
 const getFixtureIdFromSlug = (slug: string): string | null => {
   if (!slug) return null;
   const parts = slug?.split("-");
@@ -41,6 +46,7 @@ const getFixtureIdFromSlug = (slug: string): string | null => {
   return /^\d+$/.test(lastPart) ? lastPart : null;
 };
 
+// --- Metadata ---
 export async function generateMetadata({
   params,
 }: {
@@ -51,21 +57,21 @@ export async function generateMetadata({
   const fixtureId = getFixtureIdFromSlug(slug[0]);
   if (!fixtureId) return { title: t("not_found_title") };
 
-  const data = await fetchMatchPageData(fixtureId);
-  if (!data) return { title: t("not_found_title") };
+  const fixtureData = await getFixture(fixtureId);
+  if (!fixtureData) return { title: t("not_found_title") };
 
-  const { home: homeTeam, away: awayTeam } = data.fixture.teams;
+  const { teams, league } = fixtureData;
   const pagePath = `/football/match/${slug.join("/")}`;
   const hreflangAlternates = await generateHreflangTags(pagePath, locale);
   const pageTitle = t("match_page_title", {
-    homeTeam: homeTeam.name,
-    awayTeam: awayTeam.name,
-    leagueName: data.fixture.league.name,
+    homeTeam: teams.home.name,
+    awayTeam: teams.away.name,
+    leagueName: league.name,
   });
   const pageDescription = t("match_page_description", {
-    homeTeam: homeTeam.name,
-    awayTeam: awayTeam.name,
-    leagueName: data.fixture.league.name,
+    homeTeam: teams.home.name,
+    awayTeam: teams.away.name,
+    leagueName: league.name,
   });
   return {
     title: pageTitle,
@@ -73,6 +79,182 @@ export async function generateMetadata({
     alternates: hreflangAlternates,
   };
 }
+
+// ===== Start of Async Components and Skeletons for Streaming =====
+
+async function TeamFormContent({ fixture }: { fixture: any }) {
+  const { league, teams } = fixture;
+  const [h2hData, homeTeamStats, awayTeamStats] = await Promise.all([
+    getH2H(teams.home.id, teams.away.id),
+    getTeamStats(league.id, league.season, teams.home.id),
+    getTeamStats(league.id, league.season, teams.away.id),
+  ]);
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <TeamFormWidget
+        teamStats={homeTeamStats}
+        team={teams.home}
+        location="Home"
+        h2hData={h2hData}
+      />
+      <TeamFormWidget
+        teamStats={awayTeamStats}
+        team={teams.away}
+        location="Away"
+        h2hData={h2hData}
+      />
+    </div>
+  );
+}
+const TeamFormContentSkeleton = () => (
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="bg-brand-secondary rounded-lg h-[400px] animate-pulse p-4"></div>
+    <div className="bg-brand-secondary rounded-lg h-[400px] animate-pulse p-4"></div>
+  </div>
+);
+
+async function LineupsContent({ fixtureId }: { fixtureId: string }) {
+  const fixtureResponse = await getFixture(fixtureId);
+  return <MatchLineupsWidget lineups={fixtureResponse?.lineups} />;
+}
+const LineupsContentSkeleton = () => (
+  <div className="bg-brand-secondary rounded-lg h-[500px] animate-pulse p-6">
+    <div className="h-8 w-1/3 mx-auto bg-gray-700 rounded mb-6"></div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="h-80 bg-gray-700/50 rounded-lg"></div>
+      <div className="h-80 bg-gray-700/50 rounded-lg"></div>
+    </div>
+  </div>
+);
+
+async function H2HContent({
+  fixtureId,
+  h2hSeoDescription,
+}: {
+  fixtureId: string;
+  h2hSeoDescription: string;
+}) {
+  const fixtureResponse = await getFixture(fixtureId);
+  if (!fixtureResponse) return null;
+  const { home, away } = fixtureResponse.teams;
+  const h2h = await getH2H(home.id, away.id);
+  return (
+    <MatchH2HWidget
+      h2h={h2h}
+      teams={{ home, away }}
+      currentFixtureId={fixtureId}
+      h2hSeoDescription={h2hSeoDescription}
+    />
+  );
+}
+const H2HContentSkeleton = () => (
+  <div className="bg-brand-secondary rounded-lg h-[450px] animate-pulse p-6">
+    <div className="h-8 w-1/3 bg-gray-700 rounded mb-4"></div>
+    <div className="h-4 w-full bg-gray-700 rounded mb-6"></div>
+    <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="h-24 bg-gray-700/50 rounded"></div>
+      <div className="h-24 bg-gray-700/50 rounded"></div>
+      <div className="h-24 bg-gray-700/50 rounded"></div>
+    </div>
+    <div className="space-y-3">
+      <div className="h-12 bg-gray-700/50 rounded-md"></div>
+      <div className="h-12 bg-gray-700/50 rounded-md"></div>
+    </div>
+  </div>
+);
+
+async function StatsContent({ fixtureId }: { fixtureId: string }) {
+  const [statistics, fixtureResponse] = await Promise.all([
+    getStatistics(fixtureId),
+    getFixture(fixtureId),
+  ]);
+  return (
+    <MatchStatsWidget statistics={statistics} teams={fixtureResponse?.teams} />
+  );
+}
+const StatsContentSkeleton = () => (
+  <div className="bg-brand-secondary rounded-lg h-80 animate-pulse p-6">
+    <div className="h-8 w-1/3 bg-gray-700 rounded mb-6"></div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div key={i} className="space-y-2">
+          <div className="h-4 w-full bg-gray-700/50 rounded"></div>
+          <div className="h-2 w-full bg-gray-700 rounded-full"></div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+async function Sidebar({
+  fixtureData,
+  isLive,
+  locale,
+}: {
+  fixtureData: any;
+  isLive: boolean;
+  locale: string;
+}) {
+  const t = await getI18n(locale);
+  const { fixture, teams, league } = fixtureData;
+
+  const [
+    predictionData,
+    bookmakerOdds,
+    standingsResponse,
+    linkedPosts,
+    highlights,
+  ] = await Promise.all([
+    getPredictionData(
+      fixture.id.toString(),
+      teams.home.id,
+      teams.away.id,
+      league.id,
+      league.season
+    ),
+    getBookmakerOdds(fixture.id.toString()),
+    getStandings(league.id, league.season),
+    getLinkedNews(fixture.id, locale),
+    getMatchHighlights(league.name, teams.home.name, teams.away.name),
+  ]);
+
+  const standingsSeoDescription = t("match_page_standings_seo_text", {
+    homeTeam: teams.home.name,
+    awayTeam: teams.away.name,
+  });
+
+  return (
+    <>
+      {isLive && <LiveOddsWidget fixtureId={fixture.id.toString()} />}
+      <LinkedNewsWidget posts={linkedPosts} />
+      <MatchHighlightsWidget highlights={highlights} />
+      <TeamStandingsWidget
+        standingsResponse={standingsResponse}
+        homeTeamId={teams.home.id}
+        awayTeamId={teams.away.id}
+        standingsSeoDescription={standingsSeoDescription}
+      />
+      <MatchPredictionWidget
+        apiPrediction={null}
+        customPrediction={predictionData?.customPrediction}
+        bookmakerOdds={bookmakerOdds}
+        teams={teams}
+      />
+      <AdSlotWidget location="match_sidebar" />
+    </>
+  );
+}
+
+const SidebarSkeleton = () => (
+  <div className="space-y-6">
+    <RecentNewsWidgetSkeleton />
+    <div className="aspect-video w-full rounded-lg bg-gray-700/50 animate-pulse"></div>
+    <div className="bg-brand-secondary rounded-lg h-80 animate-pulse"></div>
+    <AdSlotWidgetSkeleton />
+  </div>
+);
+
+// ===== Main Page Component =====
 
 export default async function MatchDetailPage({
   params,
@@ -84,44 +266,24 @@ export default async function MatchDetailPage({
   const fixtureId = getFixtureIdFromSlug(slug[0]);
   if (!fixtureId) notFound();
 
-  // 1. Fetch ALL data for the page in one go. It's cached.
-  const data = await fetchMatchPageData(fixtureId);
-  if (!data) notFound();
+  // Initial, fast data fetch. This is all that's needed to render the shell.
+  const fixtureData = await getFixture(fixtureId);
+  if (!fixtureData) notFound();
 
-  const { fixture, statistics, h2h, standings, analytics } = data;
-  const { home: homeTeam, away: awayTeam } = fixture.teams;
-
-  // 2. Fetch data for sidebar widgets in parallel.
-  const [linkedNewsData, highlightsData] = await Promise.all([
-    getNews({ linkedFixtureId: fixture.fixture.id, limit: 5, locale }),
-    getMatchHighlights({
-      leagueName: fixture.league.name,
-      homeTeamName: homeTeam.name,
-      awayTeamName: awayTeam.name,
-      limit: 10,
-    }),
-  ]);
-  const linkedPosts = linkedNewsData.posts;
-  const highlights = highlightsData?.data ?? [];
+  const { teams, fixture: fixtureDetails } = fixtureData;
 
   const isLive = ["1H", "HT", "2H", "ET", "BT", "P", "LIVE"].includes(
-    fixture.fixture.status?.short
+    fixtureDetails.status?.short
   );
-  const isFinished = ["FT", "AET", "PEN"].includes(
-    fixture.fixture.status?.short
-  );
+  const isFinished = ["FT", "AET", "PEN"].includes(fixtureDetails.status.short);
 
   const h2hSeoDescription = t("match_page_h2h_seo_text", {
-    homeTeam: homeTeam.name,
-    awayTeam: awayTeam.name,
-  });
-  const standingsSeoDescription = t("match_page_standings_seo_text", {
-    homeTeam: homeTeam.name,
-    awayTeam: awayTeam.name,
+    homeTeam: teams.home.name,
+    awayTeam: teams.away.name,
   });
   const activitySeoDescription = t("match_page_activity_seo_text", {
-    homeTeam: homeTeam.name,
-    awayTeam: awayTeam.name,
+    homeTeam: teams.home.name,
+    awayTeam: teams.away.name,
   });
 
   return (
@@ -129,67 +291,41 @@ export default async function MatchDetailPage({
       <Header />
       <div className="container mx-auto p-4 md:p-6 lg:grid lg:grid-cols-3 lg:gap-8 lg:items-start">
         <main className="lg:col-span-2 space-y-6">
-          <MatchHeader
-            fixture={fixture}
-            analytics={{
-              customPrediction: analytics.customPrediction,
-              bookmakerOdds: analytics.bookmakerOdds,
-            }}
-          />
-          <MatchStatusBanner fixture={fixture} />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <TeamFormWidget
-              teamStats={analytics.homeTeamStats}
-              team={homeTeam}
-              location="Home"
-              h2hData={h2h}
+          <MatchHeader fixture={fixtureData} analytics={{}} />{" "}
+          {/* Renders instantly */}
+          <Suspense fallback={<TeamFormContentSkeleton />}>
+            <TeamFormContent fixture={fixtureData} />
+          </Suspense>
+          <Suspense fallback={<LineupsContentSkeleton />}>
+            <LineupsContent fixtureId={fixtureId} />
+          </Suspense>
+          <Suspense fallback={<H2HContentSkeleton />}>
+            <H2HContent
+              fixtureId={fixtureId}
+              h2hSeoDescription={h2hSeoDescription}
             />
-            <TeamFormWidget
-              teamStats={analytics.awayTeamStats}
-              team={awayTeam}
-              location="Away"
-              h2hData={h2h}
-            />
-          </div>
-          <MatchLineupsWidget lineups={fixture.lineups} />
-          <MatchH2HWidget
-            h2h={h2h}
-            teams={fixture.teams}
-            currentFixtureId={fixtureId}
-            h2hSeoDescription={h2hSeoDescription}
-          />
+          </Suspense>
           {(isLive || isFinished) && (
-            <MatchStatsWidget statistics={statistics} teams={fixture.teams} />
+            <Suspense fallback={<StatsContentSkeleton />}>
+              <StatsContent fixtureId={fixtureId} />
+            </Suspense>
           )}
           <MatchActivityWidget
             fixtureId={fixtureId}
-            homeTeamId={homeTeam.id}
+            homeTeamId={teams.home.id}
             isLive={isLive}
             activitySeoDescription={activitySeoDescription}
           />
         </main>
 
         <aside className="lg:col-span-1 space-y-6 lg:sticky lg:top-6 mt-8 lg:mt-0">
-          {isLive && <LiveOddsWidget fixtureId={fixtureId} />}
-
-          {/* Pass server-fetched data as props */}
-          <LinkedNewsWidget posts={linkedPosts} />
-          <MatchHighlightsWidget highlights={highlights} />
-
-          <TeamStandingsWidget
-            standingsResponse={standings}
-            homeTeamId={homeTeam.id}
-            awayTeamId={awayTeam.id}
-            standingsSeoDescription={standingsSeoDescription}
-          />
-
-          <MatchPredictionWidget
-            apiPrediction={null}
-            customPrediction={analytics.customPrediction}
-            bookmakerOdds={analytics.bookmakerOdds}
-            teams={fixture.teams}
-          />
-          <AdSlotWidget location="match_sidebar" />
+          <Suspense fallback={<SidebarSkeleton />}>
+            <Sidebar
+              fixtureData={fixtureData}
+              isLive={isLive}
+              locale={locale}
+            />
+          </Suspense>
         </aside>
       </div>
     </div>
