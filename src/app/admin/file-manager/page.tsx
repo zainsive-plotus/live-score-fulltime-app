@@ -1,52 +1,45 @@
-// src/app/admin/file-manager/page.tsx
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useRef, useState, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import toast from "react-hot-toast";
 import {
   UploadCloud,
   CheckCircle,
-  XCircle,
-  Loader2,
   Link as LinkIcon,
   FileText,
   Download,
   Copy,
   Trash2,
   RefreshCw,
-} from "lucide-react"; // Add Trash2
+  Loader2,
+} from "lucide-react";
 import Image from "next/image";
 
-// Type for a simplified uploaded file representation
 interface UploadedFile {
-  name: string; // Original file name (or name used on S3) - this is the S3 Key
-  url: string; // Public URL
-  type: string; // Mime type
-  size: number; // Size in bytes
+  name: string;
+  url: string;
+  type: string;
+  size: number;
+  lastModified: string | Date;
 }
 
-// Fetcher function for listing files from S3
 const fetchUploadedFiles = async (): Promise<UploadedFile[]> => {
-  const { data } = await axios.get("/api/upload"); // Call the new GET endpoint
+  const { data } = await axios.get("/api/upload");
   return data;
 };
 
 export default function AdminFileManagerPage() {
   const queryClient = useQueryClient();
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [downloadUrl, setDownloadUrl] = useState("");
   const [downloadFileName, setDownloadFileName] = useState("");
 
-  console.log("process.env.NEXT_PUBLIC_R2_PUBLIC_BUCKET_URL");
-
-  console.log(process.env.NEXT_PUBLIC_R2_PUBLIC_BUCKET_URL);
-
   const {
-    data: existingFiles,
+    data: files,
     isLoading: isLoadingFiles,
     error: filesError,
     refetch: refetchFiles,
@@ -56,78 +49,69 @@ export default function AdminFileManagerPage() {
     staleTime: 1000 * 60 * 5,
   });
 
-  const [currentUploadedFiles, setCurrentUploadedFiles] = useState<
-    UploadedFile[]
-  >([]);
+  const sortedFiles = useMemo(() => {
+    if (!files) return [];
+    return [...files].sort(
+      (a, b) =>
+        new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()
+    );
+  }, [files]);
 
-  useEffect(() => {
-    if (existingFiles) {
-      setCurrentUploadedFiles(existingFiles);
-    }
-  }, [existingFiles]);
+  const createMutation = (
+    mutationFn: (payload: any) => Promise<any>,
+    successMessage: string
+  ) =>
+    useMutation({
+      mutationFn,
+      onSuccess: (response) => {
+        const newFile: UploadedFile = response.data;
+        toast.success(successMessage);
 
-  const uploadMutation = useMutation({
-    mutationFn: (formData: FormData) => axios.post("/api/upload", formData),
-    onSuccess: (data) => {
-      toast.success("File uploaded successfully!");
-      setCurrentUploadedFiles((prev) => [
-        {
-          name: data.data.name || selectedFile?.name || "Unknown File",
-          url: data.data.url,
-          type:
-            data.data.type || selectedFile?.type || "application/octet-stream",
-          size: data.data.size || selectedFile?.size || 0,
-        },
-        ...prev.filter((f) => f.url !== data.data.url),
-      ]);
-      setSelectedFile(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-      queryClient.invalidateQueries({ queryKey: ["uploadedFiles"] });
-    },
-    onError: (err: any) => {
-      toast.error(err.response?.data?.error || "Failed to upload file.");
-      setSelectedFile(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-    },
-  });
+        // Step 1: Immediately and optimistically update the cache for instant UI feedback.
+        queryClient.setQueryData(
+          ["uploadedFiles"],
+          (oldData: UploadedFile[] | undefined) => [newFile, ...(oldData || [])]
+        );
 
-  const downloadFromUrlMutation = useMutation({
-    mutationFn: (payload: { url: string; fileName?: string }) =>
+        // Step 2 (THE FIX): Invalidate after a delay. This will trigger a background
+        // refetch to get the "official" state from R2 after it has had time to become consistent.
+        // The UI will remain correct even if this refetch happens.
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ["uploadedFiles"] });
+        }, 2500); // 2.5 second delay is a safe margin
+      },
+      onSettled: () => {
+        // This runs after success or error, good for cleanup
+        setSelectedFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        setDownloadUrl("");
+        setDownloadFileName("");
+      },
+      onError: (err: any) => {
+        toast.error(err.response?.data?.error || "Operation failed.");
+      },
+    });
+
+  const uploadMutation = createMutation(
+    (formData: FormData) => axios.post("/api/upload", formData),
+    "File uploaded successfully!"
+  );
+
+  const downloadFromUrlMutation = createMutation(
+    (payload: { url: string; fileName?: string }) =>
       axios.post("/api/admin/file-manager/download-from-url", payload),
-    onSuccess: (data) => {
-      toast.success("File downloaded from URL and uploaded!");
-      setCurrentUploadedFiles((prev) => [
-        {
-          name: data.data.name,
-          url: data.data.url,
-          type: data.data.type,
-          size: data.data.size,
-        },
-        ...prev.filter((f) => f.url !== data.data.url),
-      ]);
-      setDownloadUrl("");
-      setDownloadFileName("");
-      queryClient.invalidateQueries({ queryKey: ["uploadedFiles"] });
-    },
-    onError: (err: any) => {
-      toast.error(
-        err.response?.data?.error || "Failed to download file from URL."
-      );
-    },
-  });
+    "File downloaded from URL and uploaded!"
+  );
 
-  // --- NEW: Delete mutation ---
   const deleteFileMutation = useMutation({
     mutationFn: (fileKey: string) => axios.delete(`/api/upload?key=${fileKey}`),
     onSuccess: (_, fileKey) => {
       toast.success("File deleted successfully!");
-      // Optimistically update the list
-      setCurrentUploadedFiles((prev) => prev.filter((f) => f.name !== fileKey));
-      queryClient.invalidateQueries({ queryKey: ["uploadedFiles"] });
+      queryClient.setQueryData(
+        ["uploadedFiles"],
+        (oldData: UploadedFile[] | undefined) =>
+          oldData ? oldData.filter((f) => f.name !== fileKey) : []
+      );
     },
     onError: (err: any) => {
       toast.error(err.response?.data?.error || "Failed to delete file.");
@@ -200,7 +184,6 @@ export default function AdminFileManagerPage() {
         </h1>
       </div>
 
-      {/* File Upload Section */}
       <div className="bg-brand-secondary p-6 rounded-lg mb-8 shadow-xl">
         <h2 className="text-2xl font-bold text-white flex items-center gap-2 mb-4">
           <UploadCloud size={24} /> Upload New File
@@ -245,7 +228,6 @@ export default function AdminFileManagerPage() {
         </form>
       </div>
 
-      {/* Download from URL Section */}
       <div className="bg-brand-secondary p-6 rounded-lg mb-8 shadow-xl">
         <h2 className="text-2xl font-bold text-white flex items-center gap-2 mb-4">
           <Download size={24} /> Download from URL
@@ -305,7 +287,6 @@ export default function AdminFileManagerPage() {
         </form>
       </div>
 
-      {/* Uploaded Files List */}
       <div className="bg-brand-secondary rounded-lg overflow-hidden shadow-xl">
         <div className="p-6">
           <h2 className="text-2xl font-bold text-white flex items-center gap-2 mb-4">
@@ -330,9 +311,9 @@ export default function AdminFileManagerPage() {
           </p>
         ) : filesError ? (
           <p className="text-center p-8 text-red-400">
-            Failed to load files from S3: {filesError.message}
+            Failed to load files from S3: {(filesError as Error).message}
           </p>
-        ) : currentUploadedFiles.length === 0 ? (
+        ) : !sortedFiles || sortedFiles.length === 0 ? (
           <p className="text-center p-8 text-brand-muted">
             No files uploaded yet.
           </p>
@@ -350,78 +331,74 @@ export default function AdminFileManagerPage() {
                 </tr>
               </thead>
               <tbody>
-                {currentUploadedFiles.map(
-                  (
-                    file // Removed 'index' as key, using file.url
-                  ) => (
-                    <tr key={file.url} className="border-t border-gray-700/50">
-                      <td className="p-4">
-                        {file.type.startsWith("image/") ? (
-                          <Image
-                            src={file.url}
-                            alt={file.name}
-                            width={80}
-                            height={45}
-                            objectFit="contain"
-                            className="rounded-md bg-gray-700"
-                          />
-                        ) : (
-                          <div className="w-20 h-10 bg-gray-700 flex items-center justify-center text-xs text-brand-muted rounded-md">
-                            File
-                          </div>
-                        )}
-                      </td>
-                      <td
-                        className="p-4 font-medium max-w-xs truncate"
-                        title={file.name}
+                {sortedFiles.map((file) => (
+                  <tr key={file.url} className="border-t border-gray-700/50">
+                    <td className="p-4">
+                      {file.type.startsWith("image/") ? (
+                        <Image
+                          src={file.url}
+                          alt={file.name}
+                          width={80}
+                          height={45}
+                          style={{ objectFit: "contain" }}
+                          className="rounded-md bg-gray-700"
+                        />
+                      ) : (
+                        <div className="w-20 h-10 bg-gray-700 flex items-center justify-center text-xs text-brand-muted rounded-md">
+                          File
+                        </div>
+                      )}
+                    </td>
+                    <td
+                      className="p-4 font-medium max-w-xs truncate"
+                      title={file.name}
+                    >
+                      {file.name}
+                    </td>
+                    <td className="p-4 text-brand-muted text-sm">
+                      {file.type.split("/")[1] || file.type}
+                    </td>
+                    <td className="p-4 text-brand-muted text-sm">
+                      {formatFileSize(file.size)}
+                    </td>
+                    <td className="p-4 max-w-sm truncate">
+                      <a
+                        href={file.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-400 hover:underline text-sm"
+                        title={file.url}
                       >
-                        {file.name}
-                      </td>
-                      <td className="p-4 text-brand-muted text-sm">
-                        {file.type.split("/")[1] || file.type}
-                      </td>
-                      <td className="p-4 text-brand-muted text-sm">
-                        {formatFileSize(file.size)}
-                      </td>
-                      <td className="p-4 max-w-sm truncate">
-                        <a
-                          href={file.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-400 hover:underline text-sm"
-                          title={file.url}
-                        >
-                          {file.url}
-                        </a>
-                      </td>
-                      <td className="p-4 flex gap-2 items-center">
-                        <button
-                          onClick={() => copyToClipboard(file.url)}
-                          className="text-brand-purple hover:text-brand-purple/80 p-1 rounded-full bg-brand-dark"
-                          title="Copy URL"
-                        >
-                          <Copy size={18} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteFile(file.name, file.name)} // Pass file.name (which is the S3 Key) for deletion
-                          className="text-red-400 hover:text-red-300 p-1 rounded-full bg-brand-dark"
-                          title="Delete File"
-                          disabled={
-                            deleteFileMutation.isPending &&
-                            deleteFileMutation.variables === file.name
-                          } // Disable if this specific file is pending deletion
-                        >
-                          {deleteFileMutation.isPending &&
-                          deleteFileMutation.variables === file.name ? (
-                            <Loader2 size={18} className="animate-spin" />
-                          ) : (
-                            <Trash2 size={18} />
-                          )}
-                        </button>
-                      </td>
-                    </tr>
-                  )
-                )}
+                        {file.url}
+                      </a>
+                    </td>
+                    <td className="p-4 flex gap-2 items-center">
+                      <button
+                        onClick={() => copyToClipboard(file.url)}
+                        className="text-brand-purple hover:text-brand-purple/80 p-1 rounded-full bg-brand-dark"
+                        title="Copy URL"
+                      >
+                        <Copy size={18} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteFile(file.name, file.name)}
+                        className="text-red-400 hover:text-red-300 p-1 rounded-full bg-brand-dark"
+                        title="Delete File"
+                        disabled={
+                          deleteFileMutation.isPending &&
+                          deleteFileMutation.variables === file.name
+                        }
+                      >
+                        {deleteFileMutation.isPending &&
+                        deleteFileMutation.variables === file.name ? (
+                          <Loader2 size={18} className="animate-spin" />
+                        ) : (
+                          <Trash2 size={18} />
+                        )}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

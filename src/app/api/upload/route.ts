@@ -1,4 +1,5 @@
-// ===== src/app/api/upload/route.ts (REVISED FOR GIFS AND NO CROPPING) =====
+// ===== src/app/api/upload/route.ts =====
+
 import { NextResponse } from "next/server";
 import {
   S3Client,
@@ -12,7 +13,8 @@ import sharp from "sharp";
 import path from "path";
 import slugify from "slugify";
 
-// --- R2/S3 Client Configuration ---
+// ... (S3 client setup and other constants remain the same) ...
+
 const s3Client = new S3Client({
   region: "auto",
   endpoint: process.env.NEXT_PUBLIC_R2_ENDPOINT as string,
@@ -25,7 +27,6 @@ const s3Client = new S3Client({
 const R2_BUCKET_NAME = process.env.NEXT_PUBLIC_R2_BUCKET_NAME as string;
 const R2_PUBLIC_URL = process.env.NEXT_PUBLIC_R2_PUBLIC_BUCKET_URL as string;
 
-// --- GET handler to list uploaded files from R2 (unchanged) ---
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") {
@@ -35,7 +36,7 @@ export async function GET(request: Request) {
   try {
     const listObjectsCommand = new ListObjectsV2Command({
       Bucket: R2_BUCKET_NAME,
-      MaxKeys: 100,
+      MaxKeys: 1000,
     });
 
     const { Contents } = await s3Client.send(listObjectsCommand);
@@ -61,6 +62,7 @@ export async function GET(request: Request) {
         };
       }) || [];
 
+    // This sort is crucial for the GET request
     files.sort(
       (a, b) =>
         (b.lastModified?.getTime() || 0) - (a.lastModified?.getTime() || 0)
@@ -68,7 +70,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(files, { status: 200 });
   } catch (error) {
-    console.error("Error listing files from R2:", error);
+    console.error("[API Upload GET] Error:", error);
     return NextResponse.json(
       { error: "Failed to list files from Cloudflare R2." },
       { status: 500 }
@@ -76,7 +78,6 @@ export async function GET(request: Request) {
   }
 }
 
-// --- POST handler to upload files to R2 (UPDATED) ---
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") {
@@ -93,40 +94,42 @@ export async function POST(request: Request) {
     }
 
     let finalBuffer: Buffer;
-    let finalContentType: string = file.type;
+    let finalContentType: string;
     let finalFileExtension: string;
 
-    // ===== NEW GIF HANDLING LOGIC =====
-    if (file.type === "image/gif") {
-      finalBuffer = Buffer.from(await file.arrayBuffer());
+    const inputBuffer = Buffer.from(await file.arrayBuffer());
+    let sharpInstance = sharp(inputBuffer);
+
+    if (uploadType === "banner") {
+      sharpInstance = sharpInstance.resize(1200, 1200, {
+        fit: "inside",
+        withoutEnlargement: true,
+      });
+    } else {
+      sharpInstance = sharpInstance.resize(1200, 630, {
+        fit: "inside",
+        withoutEnlargement: true,
+      });
+    }
+
+    if (file.type === "image/png") {
+      finalBuffer = await sharpInstance.png({ quality: 80 }).toBuffer();
+      finalContentType = "image/png";
+      finalFileExtension = ".png";
+    } else if (file.type === "image/jpeg") {
+      finalBuffer = await sharpInstance.jpeg({ quality: 80 }).toBuffer();
+      finalContentType = "image/jpeg";
+      finalFileExtension = ".jpg";
+    } else if (file.type === "image/gif") {
+      finalBuffer = inputBuffer;
       finalContentType = "image/gif";
       finalFileExtension = ".gif";
     } else {
-      // Process other image types (PNG, JPEG, WebP, etc.)
-      const inputBuffer = Buffer.from(await file.arrayBuffer());
-      let sharpInstance = sharp(inputBuffer);
-
-      if (uploadType === "banner") {
-        // Banners should be resized to fit inside without cropping
-        sharpInstance = sharpInstance.resize(1200, 1200, {
-          fit: "inside", // This prevents cropping
-          withoutEnlargement: true,
-        });
-      } else {
-        // Other images (e.g., news featured images) should also be resized to fit without cropping
-        // Change from 'cover' to 'inside' to prevent cropping
-        sharpInstance = sharpInstance.resize(1200, 630, {
-          fit: "inside", // Changed from "cover" to "inside"
-          withoutEnlargement: true,
-        });
-      }
-
       finalBuffer = await sharpInstance.webp({ quality: 80 }).toBuffer();
       finalContentType = "image/webp";
       finalFileExtension = ".webp";
     }
 
-    // Generate the new filename with "fanskor-" prefix, slug, and unique suffix
     const originalFilename = file.name;
     const extension = path.extname(originalFilename);
     const basename = path.basename(originalFilename, extension);
@@ -136,7 +139,6 @@ export async function POST(request: Request) {
       remove: /[*+~.()'"!:@]/g,
     });
     const uniqueSuffix = Date.now().toString().slice(-6);
-
     const newFileName = `fanskor-${slug}-${uniqueSuffix}${finalFileExtension}`;
 
     const putObjectCommand = new PutObjectCommand({
@@ -147,7 +149,6 @@ export async function POST(request: Request) {
     });
 
     await s3Client.send(putObjectCommand);
-
     const publicUrl = `${R2_PUBLIC_URL}/${newFileName}`;
 
     return NextResponse.json({
@@ -156,9 +157,10 @@ export async function POST(request: Request) {
       name: newFileName,
       type: finalContentType,
       size: finalBuffer.length,
+      lastModified: new Date().toISOString(), // <-- THE FIX: Add the current timestamp
     });
   } catch (error) {
-    console.error("Error uploading to R2:", error);
+    console.error("[API Upload POST] Error:", error);
     return NextResponse.json(
       { error: "Failed to upload image to Cloudflare R2." },
       { status: 500 }
@@ -166,7 +168,7 @@ export async function POST(request: Request) {
   }
 }
 
-// --- DELETE handler to remove files from R2 (unchanged) ---
+// ... DELETE function remains the same ...
 export async function DELETE(request: Request) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") {
@@ -190,14 +192,13 @@ export async function DELETE(request: Request) {
     });
 
     await s3Client.send(deleteObjectCommand);
-    console.log(`Successfully deleted R2 object: ${fileKey}`);
 
     return NextResponse.json(
       { message: "File deleted successfully." },
       { status: 200 }
     );
   } catch (error: any) {
-    console.error(`Error deleting file ${fileKey} from R2:`, error);
+    console.error("[API Upload DELETE] Error:", error);
     if (error.name === "NoSuchKey") {
       return NextResponse.json(
         { error: "File not found on Cloudflare R2." },
