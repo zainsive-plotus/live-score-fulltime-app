@@ -443,14 +443,18 @@ export default async function FaqPage({
 
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
-import LeagueDetailView from "@/components/league-detail-view";
 import axios from "axios";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import RecentNewsWidget from "@/components/RecentNewsWidget";
-import AdSlotWidget from "@/components/AdSlotWidget";
 import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
+
+import LeagueHeader from "@/components/league-detail-view/LeagueHeader";
+import LeagueStandingsWidget from "@/components/league-detail-view/LeagueStandingsWidget";
+import LeagueFixturesWidget from "@/components/league-detail-view/LeagueFixturesWidget";
+import LeagueTeamsList from "@/components/league-detail-view/LeagueTeamsList";
+import AdSlotWidget from "@/components/AdSlotWidget";
+import RecentNewsWidget from "@/components/RecentNewsWidget";
 
 const getLeagueIdFromSlug = (slug: string): string | null => {
   if (!slug) return null;
@@ -459,36 +463,33 @@ const getLeagueIdFromSlug = (slug: string): string | null => {
   return /^\d+$/.test(lastPart) ? lastPart : null;
 };
 
-async function getLeagueData(leagueId: string): Promise<any | null> {
+async function getLeaguePageData(leagueId: string): Promise<any | null> {
   try {
-    const { data } = await axios.get(
-      `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/leagues?id=${leagueId}`,
-      {
-        headers: {
-          "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY,
-        },
-      }
-    );
-    if (!data.response || data.response.length === 0) return null;
-    const leagueData = data.response[0];
+    const season = new Date().getFullYear();
+    const options = (endpoint: string, params: object) => ({
+      method: "GET",
+      url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/${endpoint}`,
+      params,
+      headers: { "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
+    });
 
-    if (leagueData.league.type === "League") {
-      const standingsResponse = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/standings`,
-        {
-          params: { league: leagueId, season: new Date().getFullYear() },
-          headers: {
-            "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY,
-          },
-        }
-      );
-      leagueData.league.standings =
-        standingsResponse.data.response[0]?.league?.standings || [];
-    } else {
-      leagueData.league.standings = [];
-    }
+    const [leagueDetailsResponse, standingsResponse] = await Promise.all([
+      axios.request(options("leagues", { id: leagueId })),
+      axios.request(options("standings", { league: leagueId, season: season })),
+    ]);
+
+    const leagueData = leagueDetailsResponse.data.response[0];
+    if (!leagueData) return null;
+
+    leagueData.standings =
+      standingsResponse.data.response[0]?.league?.standings || [];
+
     return leagueData;
   } catch (error) {
+    console.error(
+      `[League Page] Failed to fetch data for league ${leagueId}:`,
+      error
+    );
     return null;
   }
 }
@@ -496,21 +497,15 @@ async function getLeagueData(leagueId: string): Promise<any | null> {
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ slug: string[]; locale: string }>;
+  params: { slug: string[]; locale: string };
 }): Promise<Metadata> {
-  const { slug, locale } = await params;
+  const { slug, locale } = params;
   const t = await getI18n(locale);
   const leagueId = getLeagueIdFromSlug(slug[0]);
+  if (!leagueId) return { title: t("not_found_title") };
 
-  if (!leagueId) {
-    return { title: t("not_found_title") };
-  }
-
-  const leagueData = await getLeagueData(leagueId);
-
-  if (!leagueData) {
-    return { title: t("not_found_title") };
-  }
+  const leagueData = await getLeaguePageData(leagueId);
+  if (!leagueData) return { title: t("not_found_title") };
 
   const { league, country } = leagueData;
   const pagePath = `/football/league/${slug.join("/")}`;
@@ -532,29 +527,56 @@ export async function generateMetadata({
 export default async function LeaguePage({
   params,
 }: {
-  params: Promise<{ slug: string[]; locale: string }>;
+  params: { slug: string[]; locale: string };
 }) {
-  const { slug } = await params;
+  const { slug } = params;
   const leagueId = getLeagueIdFromSlug(slug[0]);
+  if (!leagueId) notFound();
 
-  if (!leagueId) {
-    notFound();
-  }
+  const leagueData = await getLeaguePageData(leagueId);
+  if (!leagueData) notFound();
 
-  const leagueData = await getLeagueData(leagueId);
-
-  if (!leagueData) {
-    notFound();
-  }
+  const { league, country, seasons } = leagueData;
+  const currentSeason =
+    seasons.find((s: any) => s.current === true)?.year ||
+    new Date().getFullYear();
 
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
       <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr_288px] lg:gap-8 lg:items-start p-4 lg:p-0 lg:py-6">
         <Sidebar />
-        <main className="min-w-0">
-          <LeagueDetailView leagueData={leagueData} />
+
+        <main className="min-w-0 space-y-8">
+          <LeagueHeader
+            league={league}
+            country={country}
+            currentSeason={currentSeason}
+          />
+
+          {}
+          {league.type === "League" && (
+            <LeagueStandingsWidget
+              standings={leagueData.standings}
+              league={{
+                seasons: seasons
+                  .map((s: any) => s.year)
+                  .sort((a: number, b: number) => b - a),
+                id: league.id,
+              }}
+            />
+          )}
+
+          <LeagueFixturesWidget leagueId={league.id} season={currentSeason} />
+
+          <LeagueTeamsList
+            leagueId={league.id}
+            season={currentSeason}
+            countryName={country.name}
+            countryFlag={country.flag}
+          />
         </main>
+
         <aside className="hidden lg:block lg:col-span-1 space-y-8 min-w-0">
           <RecentNewsWidget />
           <AdSlotWidget location="homepage_right_sidebar" />
@@ -668,31 +690,211 @@ export default async function LeaguesPage({
   );
 }
 
+// ===== src/app/[locale]/football/match/[...slug]/H2HContent.tsx =====
+
+import "server-only";
+import MatchH2HWidget from "@/components/match/MatchH2HWidget";
+import { getH2H, getFixture } from "@/lib/data/match";
+
+export async function H2HContent({
+  fixtureId,
+  h2hSeoDescription,
+}: {
+  fixtureId: string;
+  h2hSeoDescription: string;
+}) {
+  const fixtureResponse = await getFixture(fixtureId);
+  if (!fixtureResponse || fixtureResponse.length === 0) return null;
+
+  const { home, away } = fixtureResponse[0].teams;
+  const h2h = await getH2H(home.id, away.id);
+
+  return (
+    <MatchH2HWidget
+      h2h={h2h}
+      teams={{ home, away }}
+      currentFixtureId={fixtureId}
+      h2hSeoDescription={h2hSeoDescription}
+    />
+  );
+}
+
+export const H2HContentSkeleton = () => (
+  <div className="bg-brand-secondary rounded-lg h-[450px] animate-pulse p-6">
+    <div className="h-8 w-1/3 bg-gray-700 rounded mb-4"></div>
+    <div className="h-4 w-full bg-gray-700 rounded mb-6"></div>
+    <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="h-24 bg-gray-700/50 rounded"></div>
+      <div className="h-24 bg-gray-700/50 rounded"></div>
+      <div className="h-24 bg-gray-700/50 rounded"></div>
+    </div>
+    <div className="space-y-3">
+      <div className="h-12 bg-gray-700/50 rounded-md"></div>
+      <div className="h-12 bg-gray-700/50 rounded-md"></div>
+    </div>
+  </div>
+);
+
+// ===== src/app/[locale]/football/match/[...slug]/LineupsContent.tsx =====
+
+import "server-only";
+import MatchLineupsWidget from "@/components/match/MatchLineupsWidget";
+import { getFixture } from "@/lib/data/match";
+
+export async function LineupsContent({ fixtureId }: { fixtureId: string }) {
+  const fixtureResponse = await getFixture(fixtureId);
+  const lineups = fixtureResponse?.[0]?.lineups;
+  return <MatchLineupsWidget lineups={lineups} />;
+}
+
+export const LineupsContentSkeleton = () => (
+  <div className="bg-brand-secondary rounded-lg h-[500px] animate-pulse p-6">
+    <div className="h-8 w-1/3 mx-auto bg-gray-700 rounded mb-6"></div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="h-80 bg-gray-700/50 rounded-lg"></div>
+      <div className="h-80 bg-gray-700/50 rounded-lg"></div>
+    </div>
+  </div>
+);
+
+// ===== src/app/[locale]/football/match/[...slug]/SidebarContent.tsx =====
+
+"use client";
+
+import dynamic from "next/dynamic";
+import {
+  AdSlotWidgetSkeleton,
+  RecentNewsWidgetSkeleton,
+} from "@/components/skeletons/WidgetSkeletons";
+
+const LiveOddsWidget = dynamic(
+  () => import("@/components/match/LiveOddsWidget"),
+  { ssr: false }
+);
+const LinkedNewsWidget = dynamic(
+  () => import("@/components/match/LinkedNewsWidget"),
+  { loading: () => <RecentNewsWidgetSkeleton /> }
+);
+const MatchHighlightsWidget = dynamic(
+  () => import("@/components/match/MatchHighlightsWidget"),
+  {
+    loading: () => (
+      <div className="aspect-video w-full rounded-lg bg-gray-700/50 animate-pulse"></div>
+    ),
+  }
+);
+const TeamStandingsWidget = dynamic(
+  () => import("@/components/match/TeamStandingsWidget")
+);
+const MatchPredictionWidget = dynamic(
+  () => import("@/components/match/MatchPredictionWidget")
+);
+const AdSlotWidget = dynamic(() => import("@/components/AdSlotWidget"), {
+  loading: () => <AdSlotWidgetSkeleton />,
+  ssr: false,
+});
+
+interface SidebarContentProps {
+  fixture: any;
+  isLive: boolean;
+  predictionData: any;
+  bookmakerOdds: any;
+  standingsSeoDescription: string;
+}
+
+export default function SidebarContent({
+  fixture,
+  isLive,
+  predictionData,
+  bookmakerOdds,
+  standingsSeoDescription,
+}: SidebarContentProps) {
+  const { league, teams, fixture: fixtureDetails } = fixture;
+
+  return (
+    <aside className="lg:col-span-1 space-y-6 lg:sticky lg:top-6 mt-8 lg:mt-0">
+      {isLive && <LiveOddsWidget fixtureId={fixtureDetails.id.toString()} />}
+      <LinkedNewsWidget fixtureId={fixtureDetails.id} />
+      <MatchHighlightsWidget fixtureId={fixtureDetails.id.toString()} />
+      <TeamStandingsWidget
+        leagueId={league.id}
+        season={league.season}
+        homeTeamId={teams.home.id}
+        awayTeamId={teams.away.id}
+        standingsSeoDescription={standingsSeoDescription}
+      />
+      <MatchPredictionWidget
+        apiPrediction={null}
+        customPrediction={predictionData?.prediction}
+        bookmakerOdds={bookmakerOdds?.[0]?.bookmakers ?? []}
+        teams={teams}
+      />
+      <AdSlotWidget location="match_sidebar" />
+    </aside>
+  );
+}
+
+// ===== src/app/[locale]/football/match/[...slug]/StatsContent.tsx =====
+
+import "server-only";
+import MatchStatsWidget from "@/components/match/MatchStatsWidget";
+import { getStatistics, getFixture } from "@/lib/data/match";
+
+export async function StatsContent({ fixtureId }: { fixtureId: string }) {
+  const [statistics, fixtureResponse] = await Promise.all([
+    getStatistics(fixtureId),
+    getFixture(fixtureId),
+  ]);
+  const teams = fixtureResponse?.[0]?.teams;
+  return <MatchStatsWidget statistics={statistics} teams={teams} />;
+}
+
+export const StatsContentSkeleton = () => (
+  <div className="bg-brand-secondary rounded-lg h-80 animate-pulse p-6">
+    <div className="h-8 w-1/3 bg-gray-700 rounded mb-6"></div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div key={i} className="space-y-2">
+          <div className="h-4 w-full bg-gray-700/50 rounded"></div>
+          <div className="h-2 w-full bg-gray-700 rounded-full"></div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
 // ===== src/app/[locale]/football/match/[...slug]/page.tsx =====
 
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { fetchMatchPageData } from "@/lib/data/match";
+import { getNews } from "@/lib/data/news";
+import { getMatchHighlights } from "@/lib/data/highlightly";
+
+import Header from "@/components/Header";
 import { MatchHeader } from "@/components/match/MatchHeader";
 import MatchStatusBanner from "@/components/match/MatchStatusBanner";
+import TeamFormWidget from "@/components/match/TeamFormWidget";
 import MatchH2HWidget from "@/components/match/MatchH2HWidget";
 import MatchLineupsWidget from "@/components/match/MatchLineupsWidget";
 import MatchStatsWidget from "@/components/match/MatchStatsWidget";
-import AdSlotWidget from "@/components/AdSlotWidget";
-import MatchPredictionWidget from "@/components/match/MatchPredictionWidget";
-import TeamFormWidget from "@/components/match/TeamFormWidget";
-import LiveOddsWidget from "@/components/match/LiveOddsWidget";
-import MatchActivityWidget from "@/components/match/MatchActivityWidget";
 import TeamStandingsWidget from "@/components/match/TeamStandingsWidget";
-import Header from "@/components/Header";
-import MatchHighlightsWidget from "@/components/match/MatchHighlightsWidget";
+import MatchPredictionWidget from "@/components/match/MatchPredictionWidget";
+
+import MatchActivityWidget from "@/components/match/MatchActivityWidget";
+import LiveOddsWidget from "@/components/match/LiveOddsWidget";
+import AdSlotWidget from "@/components/AdSlotWidget";
 import LinkedNewsWidget from "@/components/match/LinkedNewsWidget";
+import MatchHighlightsWidget from "@/components/match/MatchHighlightsWidget";
+
+import {
+  AdSlotWidgetSkeleton,
+  RecentNewsWidgetSkeleton,
+} from "@/components/skeletons/WidgetSkeletons";
+
 import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
-
-import { fetchAllDataForFixture } from "@/lib/data/match";
-
-const BASE_URL =
-  process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
 const getFixtureIdFromSlug = (slug: string): string | null => {
   if (!slug) return null;
@@ -709,50 +911,28 @@ export async function generateMetadata({
   const { slug, locale } = params;
   const t = await getI18n(locale);
   const fixtureId = getFixtureIdFromSlug(slug[0]);
+  if (!fixtureId) return { title: t("not_found_title") };
 
-  if (!fixtureId) {
-    return { title: t("not_found_title") };
-  }
+  const data = await fetchMatchPageData(fixtureId);
+  if (!data) return { title: t("not_found_title") };
 
-  const matchData = await fetchAllDataForFixture(fixtureId).catch(() => null);
-  if (!matchData || !matchData.fixture) {
-    return { title: t("not_found_title") };
-  }
-
-  const { home: homeTeam, away: awayTeam } = matchData.fixture.teams;
+  const { home: homeTeam, away: awayTeam } = data.fixture.teams;
   const pagePath = `/football/match/${slug.join("/")}`;
   const hreflangAlternates = await generateHreflangTags(pagePath, locale);
-
   const pageTitle = t("match_page_title", {
     homeTeam: homeTeam.name,
     awayTeam: awayTeam.name,
-    leagueName: matchData.fixture.league.name,
+    leagueName: data.fixture.league.name,
   });
   const pageDescription = t("match_page_description", {
     homeTeam: homeTeam.name,
     awayTeam: awayTeam.name,
-    leagueName: matchData.fixture.league.name,
+    leagueName: data.fixture.league.name,
   });
-  const ogImageUrl = `${BASE_URL}/og-image.jpg`;
-
   return {
     title: pageTitle,
     description: pageDescription,
     alternates: hreflangAlternates,
-    openGraph: {
-      title: pageTitle,
-      description: pageDescription,
-      url: hreflangAlternates.canonical,
-      siteName: "Fan Skor",
-      images: [{ url: ogImageUrl, width: 1200, height: 630, alt: pageTitle }],
-      type: "article",
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: pageTitle,
-      description: pageDescription,
-      images: [ogImageUrl],
-    },
   };
 }
 
@@ -762,28 +942,34 @@ export default async function MatchDetailPage({
   params: { slug: string[]; locale: string };
 }) {
   const { slug, locale } = params;
-  const fixtureId = getFixtureIdFromSlug(slug[0]);
-
-  if (!fixtureId) {
-    notFound();
-  }
-
-  const data = await fetchAllDataForFixture(fixtureId).catch(() => null);
-  if (!data || !data.fixture) {
-    notFound();
-  }
-
   const t = await getI18n(locale);
+  const fixtureId = getFixtureIdFromSlug(slug[0]);
+  if (!fixtureId) notFound();
+
+  const data = await fetchMatchPageData(fixtureId);
+  if (!data) notFound();
+
+  const { fixture, statistics, h2h, standings, analytics } = data;
+  const { home: homeTeam, away: awayTeam } = fixture.teams;
+
+  const [linkedNewsData, highlightsData] = await Promise.all([
+    getNews({ linkedFixtureId: fixture.fixture.id, limit: 5, locale }),
+    getMatchHighlights({
+      leagueName: fixture.league.name,
+      homeTeamName: homeTeam.name,
+      awayTeamName: awayTeam.name,
+      limit: 10,
+    }),
+  ]);
+  const linkedPosts = linkedNewsData.posts;
+  const highlights = highlightsData?.data ?? [];
 
   const isLive = ["1H", "HT", "2H", "ET", "BT", "P", "LIVE"].includes(
-    data.fixture.fixture.status?.short
+    fixture.fixture.status?.short
   );
   const isFinished = ["FT", "AET", "PEN"].includes(
-    data.fixture.fixture.status?.short
+    fixture.fixture.status?.short
   );
-
-  const { fixture, h2h, analytics, statistics } = data;
-  const { home: homeTeam, away: awayTeam } = fixture.teams;
 
   const h2hSeoDescription = t("match_page_h2h_seo_text", {
     homeTeam: homeTeam.name,
@@ -803,7 +989,13 @@ export default async function MatchDetailPage({
       <Header />
       <div className="container mx-auto p-4 md:p-6 lg:grid lg:grid-cols-3 lg:gap-8 lg:items-start">
         <main className="lg:col-span-2 space-y-6">
-          <MatchHeader fixture={fixture} analytics={analytics} />
+          <MatchHeader
+            fixture={fixture}
+            analytics={{
+              customPrediction: analytics.customPrediction,
+              bookmakerOdds: analytics.bookmakerOdds,
+            }}
+          />
           <MatchStatusBanner fixture={fixture} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <TeamFormWidget
@@ -836,17 +1028,21 @@ export default async function MatchDetailPage({
             activitySeoDescription={activitySeoDescription}
           />
         </main>
+
         <aside className="lg:col-span-1 space-y-6 lg:sticky lg:top-6 mt-8 lg:mt-0">
           {isLive && <LiveOddsWidget fixtureId={fixtureId} />}
-          <LinkedNewsWidget fixtureId={fixture.fixture.id} />
-          <MatchHighlightsWidget fixtureId={fixtureId} />
+
+          {}
+          <LinkedNewsWidget posts={linkedPosts} />
+          <MatchHighlightsWidget highlights={highlights} />
+
           <TeamStandingsWidget
-            leagueId={fixture.league.id}
-            season={fixture.league.season}
+            standingsResponse={standings}
             homeTeamId={homeTeam.id}
             awayTeamId={awayTeam.id}
             standingsSeoDescription={standingsSeoDescription}
           />
+
           <MatchPredictionWidget
             apiPrediction={null}
             customPrediction={analytics.customPrediction}
@@ -1456,12 +1652,19 @@ export default async function FootballStandingsHubPage({
 
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
-import TeamDetailView from "@/components/TeamDetailView";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { fetchTeamDetails } from "@/lib/data/team";
 import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
+
+import TeamHeader from "@/components/team/TeamHeader";
+import TeamSquadWidget from "@/components/team/TeamSquadWidget";
+import TeamFixturesWidget from "@/components/team/TeamFixturesWidget";
+import TeamInfoWidget from "@/components/team/TeamInfoWidget";
+import TeamTrophiesWidget from "@/components/team/TeamTrophiesWidget";
+import AdSlotWidget from "@/components/AdSlotWidget";
+import RecentNewsWidget from "@/components/RecentNewsWidget";
 
 const getTeamIdFromSlug = (slug: string): string | null => {
   if (!slug) return null;
@@ -1473,20 +1676,16 @@ const getTeamIdFromSlug = (slug: string): string | null => {
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ slug: string[]; locale: string }>;
+  params: { slug: string[]; locale: string };
 }): Promise<Metadata> {
-  const { slug, locale } = await params;
+  const { slug, locale } = params;
   const t = await getI18n(locale);
   const teamId = getTeamIdFromSlug(slug[0]);
 
-  if (!teamId) {
-    return { title: t("not_found_title") };
-  }
+  if (!teamId) return { title: t("not_found_title") };
 
   const teamData = await fetchTeamDetails(teamId);
-  if (!teamData) {
-    return { title: t("not_found_title") };
-  }
+  if (!teamData) return { title: t("not_found_title") };
 
   const { team } = teamData.teamInfo;
   const pagePath = `/football/team/${slug.join("/")}`;
@@ -1507,28 +1706,45 @@ export async function generateMetadata({
 export default async function TeamPage({
   params,
 }: {
-  params: Promise<{ slug: string[]; locale: string }>;
+  params: { slug: string[]; locale: string };
 }) {
-  const { locale, slug } = await params;
+  const { locale, slug } = params;
+  const t = await getI18n(locale);
 
   const teamId = getTeamIdFromSlug(slug[0]);
-  if (!teamId) {
-    notFound();
-  }
+  if (!teamId) notFound();
 
   const teamData = await fetchTeamDetails(teamId);
-  if (!teamData) {
-    notFound();
-  }
+  if (!teamData) notFound();
+
+  const { teamInfo, squad, fixtures } = teamData;
+  const { team, venue } = teamInfo;
 
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr] lg:gap-8 lg:items-start p-4 lg:p-0 lg:py-6">
+      {}
+      <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr_288px] lg:gap-8 lg:items-start p-4 lg:p-0 lg:py-6">
         <Sidebar />
-        <main className="min-w-0">
-          <TeamDetailView teamData={teamData} />
+
+        <main className="min-w-0 space-y-8">
+          <TeamHeader
+            team={team}
+            countryFlag={teamInfo.team.country && fixtures?.[0]?.league?.flag}
+            foundedText={t("founded_in", { year: team.founded })}
+          />
+          <TeamFixturesWidget fixtures={fixtures} />
+          <TeamSquadWidget squad={squad} />
         </main>
+
+        {}
+        <aside className="hidden lg:block lg:col-span-1 space-y-8 min-w-0">
+          <TeamInfoWidget venue={venue} />
+          <TeamTrophiesWidget teamId={team.id} />
+          <RecentNewsWidget />
+          <AdSlotWidget location="match_sidebar" />{" "}
+          {}
+        </aside>
       </div>
     </div>
   );
@@ -1838,7 +2054,6 @@ import { Suspense } from "react";
 import StickyFooterAd from "@/components/StickyFooterAd";
 import Loading from "./loading";
 import Footer from "@/components/Footer";
-
 import { GoogleAnalytics } from "@next/third-parties/google";
 import { getI18n } from "@/lib/i18n/server";
 import { I18nProviderClient } from "@/lib/i18n/client";
@@ -1847,6 +2062,7 @@ import { i18nCache } from "@/lib/i18n/i18n.cache";
 import { generateHreflangTags } from "@/lib/hreflang";
 import { newRelicBrowserAgent } from "@/lib/new-relic";
 import Script from "next/script";
+import { inter } from "../fonts";
 
 const METADATA_BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
@@ -1865,12 +2081,7 @@ export async function generateMetadata({
   return {
     metadataBase: new URL(METADATA_BASE_URL),
     alternates: hreflangAlternates,
-
-    title: {
-      default: title,
-      template: `%s | Fan Skor`,
-    },
-
+    title: { default: title, template: `%s | Fan Skor` },
     description: description,
     icons: {
       icon: [{ url: "/favicon.ico", type: "image/png" }],
@@ -1879,10 +2090,7 @@ export async function generateMetadata({
     robots: {
       index: true,
       follow: true,
-      googleBot: {
-        index: true,
-        follow: true,
-      },
+      googleBot: { index: true, follow: true },
     },
     openGraph: {
       title: title,
@@ -1922,17 +2130,10 @@ export default async function LocaleLayout({
 
   return (
 
-    <html lang={locale}>
+    <html lang={locale} className={inter.variable}>
       <head>
-        {}
-        {}
-        {}
         {process.env.NEXT_PUBLIC_NODE_ENV === "production" && (
-          <Script
-            id="new-relic-browser-agent"
-            strategy="beforeInteractive"
-            dangerouslySetInnerHTML={{ __html: newRelicBrowserAgent }}
-          />
+          <Script src="./scripts/relic.js" />
         )}
       </head>
       <body>
@@ -15192,6 +15393,16 @@ export async function POST(request: Request) {
     }
 }
 
+// ===== src/app/fonts.ts =====
+
+import { Inter } from "next/font/google";
+
+export const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-sans",
+});
+
 // ===== src/app/globals.css =====
 
 @font-face {
@@ -15559,8 +15770,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
+
     <html suppressHydrationWarning={true}>
-      {}
       <body
         className="bg-background text-text-primary"
         suppressHydrationWarning={true}
@@ -16332,10 +16543,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { IBanner } from "@/models/Banner";
 
-import { proxyImageUrl } from "@/lib/image-proxy";
-
 interface AdSlotWidgetProps {
   location: string;
+  initialBanner?: IBanner | null;
 }
 
 const fetchBannerForSlot = async (
@@ -16347,7 +16557,10 @@ const fetchBannerForSlot = async (
     );
     return data?.[0] || null;
   } catch (error) {
-
+    console.error(
+      `[AdSlotWidget] Client fetch failed for location "${location}":`,
+      error
+    );
     return null;
   }
 };
@@ -16356,7 +16569,10 @@ const AdBannerSkeleton = () => (
   <div className="w-full h-[250px] bg-brand-secondary rounded-lg animate-pulse"></div>
 );
 
-export default function AdSlotWidget({ location }: AdSlotWidgetProps) {
+export default function AdSlotWidget({
+  location,
+  initialBanner,
+}: AdSlotWidgetProps) {
   const {
     data: banner,
     isLoading,
@@ -16366,39 +16582,42 @@ export default function AdSlotWidget({ location }: AdSlotWidgetProps) {
     queryFn: () => fetchBannerForSlot(location),
     staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
+
+    initialData: initialBanner,
+
+    enabled: !initialBanner,
   });
 
-  if (isLoading) {
+  const finalBanner = initialBanner ?? banner;
+
+  if (isLoading && !initialBanner) {
     return <AdBannerSkeleton />;
   }
 
-  if (isError || !banner) {
+  if (isError || !finalBanner) {
     return null;
   }
 
   return (
     <div className="w-full">
       <Link
-        href={banner.linkUrl}
+        href={finalBanner.linkUrl}
         target="_blank"
         rel="noopener sponsored"
         className="relative block w-full overflow-hidden rounded-lg group"
-        aria-label={`Advertisement: ${banner.title}`}
+        aria-label={`Advertisement: ${finalBanner.title}`}
       >
-        {}
-        {}
         <Image
-          src={banner.imageUrl}
-          alt={banner.title}
+          src={finalBanner.imageUrl}
+          alt={finalBanner.title}
           width={300}
           height={250}
           unoptimized={true}
           className="w-full h-auto object-cover transition-transform duration-300 group-hover:scale-105"
         />
-
-        <div className="absolute bottom-0 left-0 p-4 w-full">
-          <p className="text-lg font-bold text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">
-            {banner.title}
+        <div className="absolute bottom-0 left-0 p-2 w-full bg-gradient-to-t from-black/70 to-transparent">
+          <p className="text-sm font-bold text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">
+            {finalBanner.title}
           </p>
           <span className="text-xs text-gray-300 drop-shadow-md">
             Advertisement
@@ -17717,38 +17936,30 @@ export default function Footer() {
             />
           </div>
           <div className="flex items-center gap-6 md:gap-8">
-            <Link href="/responsible-gaming" title="Responsible Gaming">
-              <Image
-                src="/images/logos/18plus.svg"
-                alt="18+ Responsible Gaming"
-                width={40}
-                height={40}
-              />
-            </Link>
-            <Link href="/about-us#credibility" title="Verified by GamCare">
-              <Image
-                src="/images/logos/gamcare.svg"
-                alt="GamCare Verified"
-                width={110}
-                height={35}
-              />
-            </Link>
-            <Link href="/responsible-gaming#gambleaware" title="BeGambleAware">
-              <Image
-                src="/images/logos/begambleaware.svg"
-                alt="BeGambleAware"
-                width={190}
-                height={25}
-              />
-            </Link>
-            <Link href="/about-us#security" title="Secure Connection">
-              <Image
-                src="/images/logos/dmca-protected.svg"
-                alt="DMCA Protected"
-                width={180}
-                height={35}
-              />
-            </Link>
+            <Image
+              src="/images/logos/18plus.svg"
+              alt="18+ Responsible Gaming"
+              width={40}
+              height={40}
+            />
+            <Image
+              src="/images/logos/gamcare.svg"
+              alt="GamCare Verified"
+              width={110}
+              height={35}
+            />
+            <Image
+              src="/images/logos/begambleaware.svg"
+              alt="BeGambleAware"
+              width={190}
+              height={25}
+            />
+            <Image
+              src="/images/logos/dmca-protected.svg"
+              alt="DMCA Protected"
+              width={180}
+              height={35}
+            />
           </div>
         </div>
 
@@ -23330,21 +23541,30 @@ export default VotingPanel;
 
 "use client";
 
+import { useState, useEffect } from "react";
 import { useTimeZone } from "@/context/TimeZoneContext";
 import { formatZonedTime } from "@/lib/date-formatter";
 
 interface ZonedDateProps {
-
   date: string | Date;
-
   format?: string;
 }
 
 export default function ZonedDate({ date, format = "HH:mm" }: ZonedDateProps) {
   const { timeZone } = useTimeZone();
+  const [isMounted, setIsMounted] = useState(false);
 
-  if (!timeZone) {
-    return <span className="tabular-nums">--:--</span>;
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted || !timeZone) {
+    const fallbackTime = new Date(date).toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "UTC",
+    });
+    return <span className="tabular-nums">{fallbackTime}</span>;
   }
 
   const formattedDate = formatZonedTime(date, timeZone, format);
@@ -26933,6 +27153,83 @@ export default function LeagueFixturesWidget({
   );
 }
 
+// ===== src/components/league-detail-view/LeagueHeader.tsx =====
+
+import Image from "next/image";
+import { proxyImageUrl } from "@/lib/image-proxy";
+import { Shield, Flag, Calendar } from "lucide-react";
+
+interface LeagueHeaderProps {
+  league: {
+    name: string;
+    logo: string;
+    type: string;
+  };
+  country: {
+    name: string;
+    flag: string | null;
+  };
+  currentSeason: number;
+}
+
+export default function LeagueHeader({
+  league,
+  country,
+  currentSeason,
+}: LeagueHeaderProps) {
+  return (
+    <div className="relative bg-brand-secondary rounded-lg overflow-hidden p-6 pt-10 text-center md:text-left">
+      {}
+      {country.flag && (
+        <Image
+          src={proxyImageUrl(country.flag)}
+          alt={`${country.name} flag`}
+          layout="fill"
+          objectFit="cover"
+          className="absolute inset-0 z-0 opacity-5"
+        />
+      )}
+      <div className="absolute inset-0 bg-gradient-to-t from-brand-secondary via-brand-secondary/80 to-transparent z-10"></div>
+
+      <div className="relative z-20 flex flex-col md:flex-row items-center gap-6">
+        {}
+        <div className="flex-shrink-0">
+          <Image
+            src={proxyImageUrl(league.logo)}
+            alt={league.name}
+            width={96}
+            height={96}
+            className="bg-white/90 rounded-full p-2 shadow-lg"
+          />
+        </div>
+
+        {}
+        <div className="flex-1">
+          <h1 className="text-4xl md:text-5xl font-extrabold text-white">
+            {league.name}
+          </h1>
+          <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-4 gap-y-2 mt-3 text-brand-muted">
+            <div className="flex items-center gap-1.5 text-sm">
+              <Shield size={14} />
+              <span>{league.type}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-sm">
+              <Flag size={14} />
+              <span>{country.name}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-sm">
+              <Calendar size={14} />
+              <span>
+                {currentSeason}/{currentSeason + 1}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ===== src/components/league-detail-view/LeagueStandingsWidget.tsx =====
 
 "use client";
@@ -26941,9 +27238,10 @@ import { useState } from "react";
 import Image from "next/image";
 import { proxyImageUrl } from "@/lib/image-proxy";
 import StyledLink from "@/components/StyledLink";
-import { Info, ShieldCheck, ShieldX, Eye, EyeOff } from "lucide-react";
+import { Info, ListOrdered } from "lucide-react";
 import { generateTeamSlug } from "@/lib/generate-team-slug";
 import { useTranslation } from "@/hooks/useTranslation";
+import Slider from "react-slick";
 
 interface TeamStanding {
   rank: number;
@@ -26958,14 +27256,12 @@ interface TeamStanding {
   };
   goalsDiff: number;
   description: string | null;
+  group: string;
 }
 
 interface LeagueStandingsWidgetProps {
-  initialStandings: TeamStanding[][];
-  leagueSeasons: number[];
-  currentSeason: number;
-  onSeasonChange: (season: number) => void;
-  isLoading: boolean;
+  standings: TeamStanding[][];
+  league: { seasons: number[]; id: number };
 }
 
 const getRankIndicatorClass = (description: string | null): string => {
@@ -26981,174 +27277,146 @@ const getRankIndicatorClass = (description: string | null): string => {
 };
 
 export default function LeagueStandingsWidget({
-  initialStandings,
-  leagueSeasons = [],
-  currentSeason,
-  onSeasonChange,
-  isLoading,
+  standings,
+  league,
 }: LeagueStandingsWidgetProps) {
   const { t } = useTranslation();
-  const [isFullView, setIsFullView] = useState(false);
-  const mainStandings = initialStandings?.[0] || [];
+  const [season, setSeason] = useState(league.seasons[0]);
+
+  if (!standings || standings.length === 0) {
+    return (
+      <div className="bg-brand-secondary rounded-lg p-6 text-center">
+        <Info size={32} className="mx-auto text-brand-muted mb-3" />
+        <p className="font-semibold text-white">
+          {t("standings_not_available")}
+        </p>
+      </div>
+    );
+  }
+
+  const sliderSettings = {
+    dots: true,
+    infinite: false,
+    speed: 500,
+    slidesToShow: 1,
+    slidesToScroll: 1,
+    arrows: false,
+    appendDots: (dots: any) => (
+      <div>
+        <ul className="m-0 pt-3"> {dots} </ul>
+      </div>
+    ),
+  };
 
   return (
-    <div className="bg-brand-secondary rounded-lg h-full flex flex-col">
-      <div className="p-4 border-b border-gray-700/50 flex flex-col md:flex-row justify-between items-center gap-4">
+    <div className="bg-brand-secondary rounded-lg">
+      <div className="p-4 border-b border-gray-700/50 flex justify-between items-center">
+        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+          <ListOrdered size={22} /> {t("standings")}
+        </h2>
         {}
-        <div className="flex items-center gap-2">
-          <label
-            htmlFor="season-select"
-            className="text-sm font-semibold text-brand-muted"
-          >
-            Season:
-          </label>
-          <select
-            id="season-select"
-            value={currentSeason}
-            onChange={(e) => onSeasonChange(Number(e.target.value))}
-            className="p-1.5 text-sm rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-purple"
-          >
-            {leagueSeasons.map((season) => (
-              <option key={season} value={season}>
-                {season}/{season + 1}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {}
-        <div className="flex items-center gap-2 p-1 rounded-lg bg-gray-800/50">
-          <button
-            onClick={() => setIsFullView(false)}
-            className={`px-3 py-1 text-xs font-bold rounded-md flex items-center gap-1.5 transition-colors ${
-              !isFullView
-                ? "bg-brand-purple text-white"
-                : "text-brand-muted hover:bg-gray-700"
-            }`}
-          >
-            <EyeOff size={14} /> Basic
-          </button>
-          <button
-            onClick={() => setIsFullView(true)}
-            className={`px-3 py-1 text-xs font-bold rounded-md flex items-center gap-1.5 transition-colors ${
-              isFullView
-                ? "bg-brand-purple text-white"
-                : "text-brand-muted hover:bg-gray-700"
-            }`}
-          >
-            <Eye size={14} /> Full
-          </button>
-        </div>
       </div>
 
-      {isLoading ? (
-        <div className="flex-grow flex items-center justify-center">
-          <p className="text-brand-muted">Loading new season...</p>
-        </div>
-      ) : mainStandings.length === 0 ? (
-        <div className="flex-grow flex flex-col justify-center items-center text-center p-4">
-          <Info size={28} className="mx-auto text-text-muted mb-2" />
-          <p className="text-text-light font-semibold text-sm">
-            {t("standings_not_available")}
-          </p>
-        </div>
+      {standings.length > 1 ? (
+        <Slider {...sliderSettings} className="p-4">
+          {standings.map((group, index) => (
+            <div key={index}>
+              <h3 className="text-center font-bold text-brand-light mb-3">
+                {group[0].group}
+              </h3>
+              <StandingsTable group={group} t={t} />
+            </div>
+          ))}
+        </Slider>
       ) : (
-        <div className="flex-grow overflow-auto custom-scrollbar">
-          <table className="w-full text-sm border-separate border-spacing-0">
-            <thead className="text-left text-text-muted sticky top-0 bg-brand-secondary z-10">
-              <tr className="text-xs uppercase">
-                <th className="p-2 w-8 text-center font-semibold">
-                  {t("table_header_rank_short")}
-                </th>
-                <th className="p-2 font-semibold">{t("table_header_team")}</th>
-                <th className="p-2 text-center font-semibold">
-                  {t("table_header_played_short")}
-                </th>
-                {isFullView && (
-                  <th className="p-2 text-center font-semibold">
-                    {t("wins_short")}
-                  </th>
-                )}
-                {isFullView && (
-                  <th className="p-2 text-center font-semibold">
-                    {t("draws_short")}
-                  </th>
-                )}
-                {isFullView && (
-                  <th className="p-2 text-center font-semibold">
-                    {t("losses_short")}
-                  </th>
-                )}
-                <th className="p-2 text-center font-semibold">
-                  {t("table_header_goaldiff_short")}
-                </th>
-                <th className="p-2 text-center font-bold">
-                  {t("table_header_points_short")}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="text-brand-light">
-              {mainStandings.map((item) => (
-                <tr
-                  key={item.team.id}
-                  className="hover:bg-[var(--color-primary)]/50 transition-colors"
-                >
-                  <td
-                    className={`p-2 border-t border-gray-700/50 text-center border-l-4 ${getRankIndicatorClass(
-                      item.description
-                    )}`}
-                  >
-                    <span className="font-bold">{item.rank}</span>
-                  </td>
-                  <td className="p-2 border-t border-gray-700/50">
-                    <StyledLink
-                      href={generateTeamSlug(item.team.name, item.team.id)}
-                      className="flex items-center gap-2 group"
-                    >
-                      <Image
-                        src={proxyImageUrl(item.team?.logo)}
-                        alt={item.team.name}
-                        width={20}
-                        height={20}
-                      />
-                      <span className="font-semibold group-hover:text-[var(--brand-accent)] transition-colors whitespace-nowrap truncate">
-                        {item.team.name}
-                      </span>
-                    </StyledLink>
-                  </td>
-                  <td className="p-2 text-center text-text-muted border-t border-gray-700/50">
-                    {item.all.played}
-                  </td>
-                  {isFullView && (
-                    <td className="p-2 text-center text-green-400 border-t border-gray-700/50">
-                      {item.all.win}
-                    </td>
-                  )}
-                  {isFullView && (
-                    <td className="p-2 text-center text-yellow-400 border-t border-gray-700/50">
-                      {item.all.draw}
-                    </td>
-                  )}
-                  {isFullView && (
-                    <td className="p-2 text-center text-red-400 border-t border-gray-700/50">
-                      {item.all.lose}
-                    </td>
-                  )}
-                  <td className="p-2 text-center text-text-muted border-t border-gray-700/50">
-                    {item.goalsDiff}
-                  </td>
-                  <td className="p-2 text-center font-bold text-white border-t border-gray-700/50">
-                    {item.points}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <StandingsTable group={standings[0]} t={t} />
       )}
     </div>
   );
 }
+
+const StandingsTable = ({
+  group,
+  t,
+}: {
+  group: TeamStanding[];
+  t: (key: string) => string;
+}) => (
+  <div className="overflow-x-auto">
+    <table className="w-full text-sm border-separate border-spacing-0">
+      <thead className="text-left text-text-muted sticky top-0 bg-brand-secondary z-10">
+        <tr className="text-xs uppercase">
+          <th className="p-2 w-8 text-center font-semibold">
+            {t("table_header_rank_short")}
+          </th>
+          <th className="p-2 font-semibold">{t("table_header_team")}</th>
+          <th className="p-2 text-center font-semibold">
+            {t("table_header_played_short")}
+          </th>
+          <th className="p-2 text-center font-semibold">{t("wins_short")}</th>
+          <th className="p-2 text-center font-semibold">{t("draws_short")}</th>
+          <th className="p-2 text-center font-semibold">{t("losses_short")}</th>
+          <th className="p-2 text-center font-semibold">
+            {t("table_header_goaldiff_short")}
+          </th>
+          <th className="p-2 text-center font-bold">
+            {t("table_header_points_short")}
+          </th>
+        </tr>
+      </thead>
+      <tbody className="text-brand-light">
+        {group.map((item) => (
+          <tr
+            key={item.team.id}
+            className="hover:bg-[var(--color-primary)]/50 transition-colors"
+          >
+            <td
+              className={`p-2 border-t border-gray-700/50 text-center border-l-4 ${getRankIndicatorClass(
+                item.description
+              )}`}
+            >
+              <span className="font-bold">{item.rank}</span>
+            </td>
+            <td className="p-2 border-t border-gray-700/50">
+              <StyledLink
+                href={generateTeamSlug(item.team.name, item.team.id)}
+                className="flex items-center gap-2 group"
+              >
+                <Image
+                  src={proxyImageUrl(item.team?.logo)}
+                  alt={item.team.name}
+                  width={20}
+                  height={20}
+                />
+                <span className="font-semibold group-hover:text-[var(--brand-accent)] transition-colors whitespace-nowrap truncate">
+                  {item.team.name}
+                </span>
+              </StyledLink>
+            </td>
+            <td className="p-2 text-center text-text-muted border-t border-gray-700/50">
+              {item.all.played}
+            </td>
+            <td className="p-2 text-center text-green-400 border-t border-gray-700/50">
+              {item.all.win}
+            </td>
+            <td className="p-2 text-center text-yellow-400 border-t border-gray-700/50">
+              {item.all.draw}
+            </td>
+            <td className="p-2 text-center text-red-400 border-t border-gray-700/50">
+              {item.all.lose}
+            </td>
+            <td className="p-2 text-center text-text-muted border-t border-gray-700/50">
+              {item.goalsDiff}
+            </td>
+            <td className="p-2 text-center font-bold text-white border-t border-gray-700/50">
+              {item.points}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+);
 
 // ===== src/components/league-detail-view/LeagueStatCard.tsx =====
 
@@ -27811,72 +28079,177 @@ export default function HeaderOdds({ fixtureId }: HeaderOddsProps) {
 
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
 import { IPost } from "@/models/Post";
 import { Newspaper } from "lucide-react";
-import SidebarNewsItem, { SidebarNewsItemSkeleton } from "../SidebarNewsItem";
+import SidebarNewsItem from "../SidebarNewsItem";
 import { useTranslation } from "@/hooks/useTranslation";
 
 interface LinkedNewsWidgetProps {
-  fixtureId: number;
+  posts: IPost[];
 }
 
-const fetchLinkedNews = async (fixtureId: number): Promise<IPost[]> => {
-  const { data } = await axios.get(
-    `/api/posts?status=published&linkedFixtureId=${fixtureId}&newsType=news`
-  );
-
-  return data.posts;
-
-};
-
-export default function LinkedNewsWidget({ fixtureId }: LinkedNewsWidgetProps) {
+export default function LinkedNewsWidget({ posts }: LinkedNewsWidgetProps) {
   const { t } = useTranslation();
 
-  const {
-    data: linkedPosts,
-    isLoading,
-    isError,
-  } = useQuery<IPost[]>({
-    queryKey: ["linkedNews", fixtureId],
-    queryFn: () => fetchLinkedNews(fixtureId),
-    staleTime: 1000 * 60 * 5,
-    enabled: !!fixtureId,
-  });
-
-  if (!isLoading && (isError || !linkedPosts || linkedPosts.length === 0)) {
+  if (!posts || posts.length === 0) {
     return null;
   }
 
   return (
     <section className="bg-brand-secondary rounded-lg shadow-lg">
       <div className="flex justify-between items-center p-4 border-b border-gray-700/50">
-        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+        <h2 className="text-xl font-bold text-white flex items-center gap-2">
           <Newspaper size={20} className="text-[var(--brand-accent)]" />
           {t("related_news")}
         </h2>
       </div>
 
       <div className="p-2 space-y-1">
-        {isLoading ? (
-          <>
-            <SidebarNewsItemSkeleton />
-            <SidebarNewsItemSkeleton />
-          </>
-        ) : (
-          linkedPosts?.map((post) => (
-            <SidebarNewsItem
-              key={post._id as string}
-              post={{
-                ...post,
-                slug: `/news/${post.slug}`,
-              }}
-            />
-          ))
-        )}
+        {posts.map((post) => (
+          <SidebarNewsItem
+            key={post._id as string}
+            post={{
+              ...post,
+              slug: `/${post.language}/news/${post.slug}`,
+            }}
+          />
+        ))}
       </div>
     </section>
+  );
+}
+
+// ===== src/components/match/LiveOddsClient.tsx =====
+
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import { TrendingUp, Goal, CornerUpRight, Users } from "lucide-react";
+
+interface LiveOddsClientProps {
+  initialOdds: any;
+  fixtureId: string;
+}
+
+const fetchLiveOdds = async (fixtureId: string) => {
+  const { data } = await axios.get(
+    `/api/live-odds-by-fixture?fixture=${fixtureId}`
+  );
+  return data;
+};
+
+const OddsMarketRow = ({
+  title,
+  icon: Icon,
+  oddsData,
+  labels,
+}: {
+  title: string;
+  icon: React.ElementType;
+  oddsData: any | null;
+  labels: { [key: string]: string };
+}) => {
+  if (!oddsData) return null;
+  return (
+    <div>
+      <h4 className="flex items-center gap-2 text-sm font-semibold text-brand-light mb-2">
+        <Icon size={16} className="text-brand-purple" />
+        {title} {oddsData.handicap && `(${oddsData.handicap})`}
+      </h4>
+      <div className="grid grid-cols-2 gap-2">
+        {Object.keys(labels).map(
+          (key) =>
+            oddsData[key] && (
+              <div
+                key={key}
+                className="bg-gray-800/50 p-2 rounded-md flex justify-between items-center text-xs"
+              >
+                <span className="text-brand-muted">{labels[key]}</span>
+                <span className="font-bold text-white">{oddsData[key]}</span>
+              </div>
+            )
+        )}
+      </div>
+    </div>
+  );
+};
+
+const LiveOddsSkeleton = () => (
+  <div className="bg-brand-secondary p-4 rounded-lg animate-pulse">
+    <div className="h-5 w-3/4 mb-4 bg-gray-700 rounded"></div>
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <div className="h-4 w-1/2 bg-gray-600 rounded"></div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="h-9 bg-gray-700/50 rounded-md"></div>
+          <div className="h-9 bg-gray-700/50 rounded-md"></div>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <div className="h-4 w-1/2 bg-gray-600 rounded"></div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="h-9 bg-gray-700/50 rounded-md"></div>
+          <div className="h-9 bg-gray-700/50 rounded-md"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+export default function LiveOddsClient({
+  initialOdds,
+  fixtureId,
+}: LiveOddsClientProps) {
+  const { data: liveOdds, isLoading } = useQuery({
+    queryKey: ["liveOdds", fixtureId],
+    queryFn: () => fetchLiveOdds(fixtureId),
+    initialData: initialOdds,
+    staleTime: 10 * 1000,
+    refetchInterval: 20 * 1000,
+    enabled: !!fixtureId,
+  });
+
+  if (isLoading && !initialOdds) {
+    return <LiveOddsSkeleton />;
+  }
+
+  if (!liveOdds) {
+    return null;
+  }
+
+  return (
+    <div className="bg-brand-secondary p-4 rounded-lg">
+      <div className="flex items-center gap-2 mb-4">
+        <TrendingUp size={20} className="text-green-400" />
+        <h3 className="text-lg font-bold text-white">Live Odds</h3>
+        <span className="relative flex h-3 w-3 ml-auto">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+        </span>
+      </div>
+
+      <div className="space-y-4">
+        <OddsMarketRow
+          title="Over / Under"
+          icon={Goal}
+          oddsData={liveOdds.overUnder}
+          labels={{ over: "Over", under: "Under" }}
+        />
+        <OddsMarketRow
+          title="Asian Handicap"
+          icon={Users}
+          oddsData={liveOdds.asianHandicap}
+          labels={{ home: "Home", away: "Away" }}
+        />
+        <OddsMarketRow
+          title="Match Corners"
+          icon={CornerUpRight}
+          oddsData={liveOdds.matchCorners}
+          labels={{ over: "Over", under: "Under" }}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -27911,7 +28284,6 @@ const OddsMarketRow = ({
   labels: { [key: string]: string };
 }) => {
   if (!oddsData) return null;
-
   return (
     <div>
       <h4 className="flex items-center gap-2 text-sm font-semibold text-brand-light mb-2">
@@ -27971,13 +28343,8 @@ export default function LiveOddsWidget({ fixtureId }: LiveOddsWidgetProps) {
     enabled: !!fixtureId,
   });
 
-  if (!isLoading && (isError || !liveOdds)) {
-    return null;
-  }
-
-  if (isLoading) {
-    return <LiveOddsSkeleton />;
-  }
+  if (isLoading) return <LiveOddsSkeleton />;
+  if (isError || !liveOdds) return null;
 
   return (
     <div className="bg-brand-secondary p-4 rounded-lg">
@@ -27989,7 +28356,6 @@ export default function LiveOddsWidget({ fixtureId }: LiveOddsWidgetProps) {
           <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
         </span>
       </div>
-
       <div className="space-y-4">
         <OddsMarketRow
           title="Over / Under"
@@ -28009,19 +28375,18 @@ export default function LiveOddsWidget({ fixtureId }: LiveOddsWidgetProps) {
           oddsData={liveOdds.matchCorners}
           labels={{ over: "Over", under: "Under" }}
         />
-        {}
       </div>
     </div>
   );
 }
 
-// ===== src/components/match/MatchActivityWidget.tsx =====
+// ===== src/components/match/MatchActivityClient.tsx =====
 
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { memo, useMemo } from "react";
 import axios from "axios";
-import { useMemo, memo } from "react";
 import {
   Clock,
   Goal,
@@ -28039,15 +28404,8 @@ interface MatchEvent {
   type: "Goal" | "Card" | "subst" | "Var";
   detail: string;
 }
-interface MatchActivityWidgetProps {
-  fixtureId: string;
-  isLive: boolean;
-  homeTeamId: number;
-  activitySeoDescription: string;
-}
 
 const fetchFixtureEvents = async (fixtureId: string): Promise<MatchEvent[]> => {
-
   const { data } = await axios.get(`/api/match-details?fixture=${fixtureId}`);
   return data?.events || [];
 };
@@ -28055,96 +28413,54 @@ const fetchFixtureEvents = async (fixtureId: string): Promise<MatchEvent[]> => {
 const getEventStyles = (type: string, detail: string) => {
   switch (type) {
     case "Goal":
-      return {
-        bg: "bg-green-500/10",
-        iconColor: "text-green-400",
-        glow: "shadow-lg shadow-green-500/10",
-      };
+      return { bg: "bg-green-500/10", iconColor: "text-green-400" };
     case "Card":
       return detail.includes("Yellow")
-        ? { bg: "bg-yellow-500/10", iconColor: "text-yellow-400", glow: "" }
-        : { bg: "bg-red-500/10", iconColor: "text-red-400", glow: "" };
+        ? { bg: "bg-yellow-500/10", iconColor: "text-yellow-400" }
+        : { bg: "bg-red-500/10", iconColor: "text-red-400" };
     case "subst":
-      return { bg: "bg-blue-500/10", iconColor: "text-blue-400", glow: "" };
+      return { bg: "bg-blue-500/10", iconColor: "text-blue-400" };
     default:
-      return { bg: "bg-gray-500/10", iconColor: "text-gray-400", glow: "" };
+      return { bg: "bg-gray-500/10", iconColor: "text-gray-400" };
   }
 };
-
-const EventIcon = memo(({ type, detail }: { type: string; detail: string }) => {
-  const styles = getEventStyles(type, detail);
-  const Icon =
-    type === "Goal"
-      ? Goal
-      : type === "Card"
-      ? RectangleVertical
-      : type === "subst"
-      ? ArrowLeftRight
-      : Clock;
-  return (
-    <div
-      className={`w-10 h-10 rounded-full flex items-center justify-center ${styles.bg} ${styles.iconColor}`}
-    >
-      <Icon size={18} />
-    </div>
-  );
-});
-EventIcon.displayName = "EventIcon";
 
 const EventRow = memo(
   ({
     event,
-    isHomeEvent,
     t,
   }: {
     event: MatchEvent;
-    isHomeEvent: boolean;
     t: (key: string, params?: any) => string;
   }) => {
     const styles = getEventStyles(event.type, event.detail);
-    const cardBaseClasses = `relative ${styles.bg} ${styles.glow} p-3 rounded-lg w-full max-w-xs transition-transform hover:scale-105`;
-    const alignmentClasses = isHomeEvent ? "text-right" : "text-left";
-
+    const Icon =
+      event.type === "Goal"
+        ? Goal
+        : event.type === "Card"
+        ? RectangleVertical
+        : event.type === "subst"
+        ? ArrowLeftRight
+        : Clock;
     const assistText = event.assist.name
       ? t("assist_by", { name: event.assist.name })
       : "";
 
-    const eventContent = (
-      <div className={`${cardBaseClasses} ${alignmentClasses}`}>
-        <p className="font-bold text-white text-sm">{event.player.name}</p>
-        {event.type === "subst" ? (
-          <p className="text-xs text-text-muted">
-            <span className="text-red-400">{t("substitution_out_short")}</span>{" "}
-            →{" "}
-            <span className="text-green-400">{t("substitution_in_short")}</span>{" "}
-            {event.assist.name}
-          </p>
-        ) : (
-          <p className="text-xs text-text-muted">
-            {event.detail} {assistText}
-          </p>
-        )}
-      </div>
-    );
-
     return (
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 md:gap-4">
+      <div className="relative">
         <div
-          className={`flex justify-end ${
-            !isHomeEvent && "opacity-0 pointer-events-none"
-          }`}
+          className={`absolute -left-[38px] top-1 w-8 h-8 rounded-full flex items-center justify-center ${styles.bg} ${styles.iconColor} border-4 border-brand-dark`}
         >
-          {isHomeEvent && eventContent}
+          <Icon size={16} />
         </div>
-        <div className="z-10 flex-shrink-0 flex items-center justify-center text-sm font-bold text-text-muted bg-brand-secondary h-12 w-12 rounded-full border-4 border-brand-dark">
-          <span className="z-20">{event.time.elapsed}'</span>
-        </div>
-        <div
-          className={`flex justify-start ${
-            isHomeEvent && "opacity-0 pointer-events-none"
-          }`}
-        >
-          {!isHomeEvent && eventContent}
+        <div>
+          <p className="text-xs font-bold text-brand-muted">
+            {event.time.elapsed}' - {event.detail}
+          </p>
+          <p className="font-semibold text-white">{event.player.name}</p>
+          {event.assist.name && (
+            <p className="text-sm text-brand-light">{assistText}</p>
+          )}
         </div>
       </div>
     );
@@ -28152,81 +28468,31 @@ const EventRow = memo(
 );
 EventRow.displayName = "EventRow";
 
-export default function MatchActivityWidget({
+export default function MatchActivityClient({
+  initialEvents,
   fixtureId,
   isLive,
-  homeTeamId,
   activitySeoDescription,
-}: MatchActivityWidgetProps) {
+}: {
+  initialEvents: MatchEvent[];
+  fixtureId: string;
+  isLive: boolean;
+  activitySeoDescription: string;
+}) {
   const { t } = useTranslation();
-  const {
-    data: events,
-    isLoading,
-    isError,
-  } = useQuery<MatchEvent[]>({
+
+  const { data: events } = useQuery<MatchEvent[]>({
     queryKey: ["fixtureEvents", fixtureId],
     queryFn: () => fetchFixtureEvents(fixtureId),
-    enabled: !!fixtureId,
+    initialData: initialEvents,
     refetchInterval: isLive ? 15000 : false,
-    staleTime: isLive ? 10000 : 1000 * 60 * 10,
+    staleTime: isLive ? 10000 : Infinity,
   });
 
   const sortedEvents = useMemo(() => {
     if (!events) return [];
-    return [...events].sort((a, b) => a.time.elapsed - b.time.elapsed);
+    return [...events].sort((a, b) => b.time.elapsed - a.time.elapsed);
   }, [events]);
-
-  const renderContent = () => {
-    if (isLoading) {
-      return (
-        <div className="space-y-4">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="flex items-center gap-4 p-3 animate-pulse">
-              <div className="flex-1 space-y-2 text-right">
-                <div className="h-4 w-3/4 ml-auto bg-gray-700 rounded"></div>
-                <div className="h-3 w-1/2 ml-auto bg-gray-700 rounded"></div>
-              </div>
-              <div className="w-12 h-12 rounded-full bg-gray-700"></div>
-              <div className="flex-1 space-y-2">
-                <div className="h-4 w-3/4 bg-gray-700 rounded"></div>
-                <div className="h-3 w-1/2 bg-gray-700 rounded"></div>
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-    }
-    if (isError) {
-      return (
-        <div className="text-center py-10 text-red-400">
-          <p>{t("error_loading_activity")}</p>
-        </div>
-      );
-    }
-    if (sortedEvents.length === 0) {
-      return (
-        <div className="text-center py-10 text-brand-muted">
-          <Info size={32} className="mx-auto mb-3" />
-          <p>{t("match_not_started")}</p>
-        </div>
-      );
-    }
-    return (
-      <div className="relative">
-        <div className="absolute top-0 left-1/2 h-full w-0.5 -translate-x-1/2 bg-gray-700/50"></div>
-        <div className="space-y-4">
-          {sortedEvents.map((event, index) => (
-            <EventRow
-              key={`${event.time.elapsed}-${event.player.id}-${index}`}
-              event={event}
-              isHomeEvent={event.team.id === homeTeamId}
-              t={t}
-            />
-          ))}
-        </div>
-      </div>
-    );
-  };
 
   return (
     <div className="bg-brand-secondary rounded-lg shadow-lg overflow-hidden">
@@ -28234,12 +28500,88 @@ export default function MatchActivityWidget({
         <h2 className="text-2xl font-bold text-white mb-4">
           {t("match_timeline")}
         </h2>
-        <p className="italic text-[#a3a3a3] leading-relaxed mb-8 text-sm">
+        <p className="italic text-brand-muted leading-relaxed mb-8 text-sm">
           {activitySeoDescription}
         </p>
-        {renderContent()}
+
+        {sortedEvents.length === 0 ? (
+          <div className="text-center py-10 text-brand-muted">
+            <Info size={32} className="mx-auto mb-3" />
+            <p>{t("match_not_started")}</p>
+          </div>
+        ) : (
+          <div className="relative border-l-2 border-gray-700/50 ml-6 pl-8 space-y-8">
+            {sortedEvents.map((event, index) => (
+              <EventRow
+                key={`${event.time.elapsed}-${event.player.id}-${index}`}
+                event={event}
+                t={t}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
+  );
+}
+
+// ===== src/components/match/MatchActivityWidget.tsx =====
+
+import "server-only";
+import axios from "axios";
+import MatchActivityClient from "./MatchActivityClient";
+
+interface MatchActivityWidgetProps {
+  fixtureId: string;
+  isLive: boolean;
+  homeTeamId: number;
+  activitySeoDescription: string;
+}
+
+interface MatchEvent {
+  time: { elapsed: number };
+  team: { id: number; name: string; logo: string };
+  player: { id: number; name: string };
+  assist: { id: number | null; name: string | null };
+  type: "Goal" | "Card" | "subst" | "Var";
+  detail: string;
+}
+
+const fetchInitialFixtureEvents = async (
+  fixtureId: string
+): Promise<MatchEvent[]> => {
+  try {
+
+    const { data } = await axios.get(
+      `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/api/match-details?fixture=${fixtureId}`
+    );
+    return data?.events || [];
+  } catch (error) {
+    console.error(
+      `[MatchActivityWidget] Failed to fetch initial events for fixture ${fixtureId}:`,
+      error
+    );
+    return [];
+  }
+};
+
+export default async function MatchActivityWidget({
+  fixtureId,
+  isLive,
+  homeTeamId,
+  activitySeoDescription,
+}: MatchActivityWidgetProps) {
+
+  const initialEvents = await fetchInitialFixtureEvents(fixtureId);
+
+  return (
+    <MatchActivityClient
+      initialEvents={initialEvents}
+      fixtureId={fixtureId}
+      isLive={isLive}
+      homeTeamId={homeTeamId}
+      activitySeoDescription={activitySeoDescription}
+    />
   );
 }
 
@@ -28811,6 +29153,7 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({
               alt={teams.home.name}
               width={80}
               height={80}
+              priority={true}
               className="w-16 h-16 md:w-20 md:h-20 object-contain hover:scale-110 transition-transform"
             />
           </Link>
@@ -28861,6 +29204,7 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({
               alt={teams.away.name}
               width={80}
               height={80}
+              priority={true}
               className="w-16 h-16 md:w-20 md:h-20 object-contain hover:scale-110 transition-transform"
             />
           </Link>
@@ -28891,13 +29235,10 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({
 
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
 import Slider from "react-slick";
 import { Film, ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
 import HighlightSlide from "../HighlightSlide";
-
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 
@@ -28908,19 +29249,8 @@ interface Highlight {
 }
 
 interface MatchHighlightsWidgetProps {
-  fixtureId: string;
+  highlights: Highlight[] | null;
 }
-
-const fetchHighlights = async (
-  fixtureId: string
-): Promise<Highlight[] | null> => {
-  try {
-    const { data } = await axios.get(`/api/highlights?fixtureId=${fixtureId}`);
-    return data?.highlights || data || null;
-  } catch (error) {
-    return null;
-  }
-};
 
 const NextArrow = ({ onClick }: { onClick?: () => void }) => (
   <button
@@ -28941,50 +29271,25 @@ const PrevArrow = ({ onClick }: { onClick?: () => void }) => (
   </button>
 );
 
-const SliderSkeleton = () => (
-  <div className="animate-pulse">
-    <div className="h-8 w-1/3 bg-gray-700 rounded mb-4"></div>
-    <div className="aspect-video w-full rounded-lg bg-gray-700/50"></div>
-  </div>
-);
-
 export default function MatchHighlightsWidget({
-  fixtureId,
+  highlights,
 }: MatchHighlightsWidgetProps) {
   const { t } = useTranslation();
 
-  const {
-    data: highlights,
-    isLoading,
-    isError,
-  } = useQuery<Highlight[] | null>({
-    queryKey: ["matchHighlights", fixtureId],
-    queryFn: () => fetchHighlights(fixtureId),
-    staleTime: 1000 * 60 * 5,
-    enabled: !!fixtureId,
-  });
+  if (!highlights || highlights.length === 0) {
+    return null;
+  }
 
   const sliderSettings = {
     dots: false,
-    infinite: highlights ? highlights.length > 1 : false,
+    infinite: highlights.length > 1,
     speed: 500,
     slidesToShow: 1,
     slidesToScroll: 1,
     arrows: true,
     nextArrow: <NextArrow />,
     prevArrow: <PrevArrow />,
-    autoplay: true,
-    autoplaySpeed: 8000,
-    pauseOnHover: true,
   };
-
-  if (isError || (!isLoading && (!highlights || highlights.length === 0))) {
-    return null;
-  }
-
-  if (isLoading) {
-    return <SliderSkeleton />;
-  }
 
   return (
     <div className="w-full">
@@ -28995,10 +29300,8 @@ export default function MatchHighlightsWidget({
         </h2>
       </div>
       <div className="relative w-full">
-        {" "}
-        {}
         <Slider {...sliderSettings}>
-          {highlights?.map((highlight) => (
+          {highlights.map((highlight) => (
             <HighlightSlide key={highlight.id} highlight={highlight} />
           ))}
         </Slider>
@@ -29756,41 +30059,101 @@ export default function TeamFormWidget({
   );
 }
 
+// ===== src/components/match/TeamStandingsTable.tsx =====
+
+"use client";
+
+import Image from "next/image";
+import Link from "next/link";
+import { useTranslation } from "@/hooks/useTranslation";
+import { generateTeamSlug } from "@/lib/generate-team-slug";
+
+export default function TeamStandingsTable({
+  relevantStandings,
+  homeTeamId,
+  awayTeamId,
+}: {
+  relevantStandings: any[];
+  homeTeamId: number;
+  awayTeamId: number;
+}) {
+  const { t } = useTranslation();
+
+  if (relevantStandings.length === 0) {
+    return (
+      <p className="text-center text-brand-muted p-4">
+        {t("standings_not_available")}
+      </p>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-left text-brand-light text-sm">
+        <thead className="bg-gray-800/50 text-xs text-brand-muted uppercase">
+          <tr>
+            <th className="p-3">#</th>
+            <th className="p-3">{t("team")}</th>
+            <th className="p-3 text-center">{t("matches_played_short")}</th>
+            <th className="p-3 text-center">{t("goal_difference_short")}</th>
+            <th className="p-3 text-center">{t("points_short")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {relevantStandings.map((teamStanding: any) => (
+            <tr
+              key={teamStanding.team.id}
+              className={`border-t border-gray-700/50 ${
+                teamStanding.team.id === homeTeamId ||
+                teamStanding.team.id === awayTeamId
+                  ? "bg-brand-dark font-bold"
+                  : ""
+              }`}
+            >
+              <td className="p-3">{teamStanding.rank}</td>
+              <td className="p-3">
+                <Link
+                  href={generateTeamSlug(
+                    teamStanding.team.name,
+                    teamStanding.team.id
+                  )}
+                  className="flex items-center gap-2 group"
+                >
+                  <Image
+                    src={teamStanding.team.logo}
+                    alt={teamStanding.team.name}
+                    width={20}
+                    height={20}
+                  />
+                  <span className="group-hover:text-brand-purple">
+                    {teamStanding.team.name}
+                  </span>
+                </Link>
+              </td>
+              <td className="p-3 text-center">{teamStanding.all.played}</td>
+              <td className="p-3 text-center">{teamStanding.goalsDiff}</td>
+              <td className="p-3 text-center">{teamStanding.points}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // ===== src/components/match/TeamStandingsWidget.tsx =====
 
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
 import { useMemo } from "react";
+import axios from "axios";
 import Image from "next/image";
-import { ChevronRight, Trophy } from "lucide-react";
 import Link from "next/link";
-import { generateLeagueSlug } from "@/lib/generate-league-slug";
+import { Trophy, ChevronRight } from "lucide-react";
 import { generateTeamSlug } from "@/lib/generate-team-slug";
-
-interface TeamStanding {
-  rank: number;
-  team: { id: number; name: string; logo: string };
-  points: number;
-  goalsDiff: number;
-  all: { played: number; win: number; draw: number; lose: number };
-  description: string | null;
-  group: string;
-}
-
-interface LeagueInfo {
-  id: number;
-  name: string;
-  logo: string;
-  type: string;
-  href: string;
-}
-
-interface StandingsResponse {
-  league: LeagueInfo | null;
-  standings: TeamStanding[][];
-}
+import { useTranslation } from "@/hooks/useTranslation";
+import TeamStandingsTable from "./TeamStandingsTable";
 
 interface TeamStandingsWidgetProps {
   leagueId: number;
@@ -29800,15 +30163,32 @@ interface TeamStandingsWidgetProps {
   standingsSeoDescription: string;
 }
 
-const fetchStandings = async (
-  leagueId: number,
-  season: number
-): Promise<StandingsResponse> => {
-  const { data } = await axios.get(
-    `/api/standings?league=${leagueId}&season=${season}`
-  );
-  return data;
+const fetchStandings = async (leagueId: number, season: number) => {
+  try {
+    const { data } = await axios.get(
+      `/api/standings?league=${leagueId}&season=${season}`
+    );
+    return data;
+  } catch (error) {
+    console.error(
+      `[TeamStandingsWidget] Failed to fetch standings for league ${leagueId}:`,
+      error
+    );
+    return null;
+  }
 };
+
+const StandingsSkeleton = () => (
+  <div className="bg-brand-secondary rounded-lg h-96 animate-pulse p-6">
+    <div className="h-8 w-1/2 bg-gray-700 rounded mb-4"></div>
+    <div className="h-6 w-1/3 bg-gray-700 rounded mb-6"></div>
+    <div className="space-y-2">
+      <div className="h-10 bg-gray-700/50 rounded-md"></div>
+      <div className="h-10 bg-gray-700/50 rounded-md"></div>
+      <div className="h-10 bg-gray-700/50 rounded-md"></div>
+    </div>
+  </div>
+);
 
 export default function TeamStandingsWidget({
   leagueId,
@@ -29817,158 +30197,80 @@ export default function TeamStandingsWidget({
   awayTeamId,
   standingsSeoDescription,
 }: TeamStandingsWidgetProps) {
+  const { t } = useTranslation();
+
   const {
     data: standingsData,
     isLoading,
     isError,
-  } = useQuery<StandingsResponse>({
+  } = useQuery({
     queryKey: ["standings", leagueId, season],
     queryFn: () => fetchStandings(leagueId, season),
+    staleTime: 1000 * 60 * 15,
     enabled: !!leagueId && !!season,
-    staleTime: 1000 * 60 * 5,
   });
 
-  const allStandings = useMemo(() => {
-
-    return standingsData?.standings ? standingsData.standings.flat() : [];
-  }, [standingsData]);
-
-  const homeTeamRank = useMemo(() => {
-    return allStandings.find((s) => s.team.id === homeTeamId);
-  }, [allStandings, homeTeamId]);
-
-  const awayTeamRank = useMemo(() => {
-    return allStandings.find((s) => s.team.id === awayTeamId);
-  }, [allStandings, awayTeamId]);
-
   const relevantStandings = useMemo(() => {
+    if (!standingsData || !standingsData.standings) return [];
+    const allStandings = standingsData.standings.flat();
+    const homeTeamRank = allStandings.find(
+      (s: any) => s.team.id === homeTeamId
+    );
+    const awayTeamRank = allStandings.find(
+      (s: any) => s.team.id === awayTeamId
+    );
+
     if (!homeTeamRank || !awayTeamRank) return [];
 
-    const ranksToShow = new Set<number>();
-    ranksToShow.add(homeTeamRank.rank);
-    ranksToShow.add(awayTeamRank.rank);
+    const teamRanks = [homeTeamRank.rank, awayTeamRank.rank].sort(
+      (a, b) => a - b
+    );
+    const minRank = Math.max(1, teamRanks[0] - 2);
+    const maxRank = Math.min(allStandings.length, teamRanks[1] + 2);
 
-    const sortedRanks = Array.from(ranksToShow).sort((a, b) => a - b);
-    const minRank = Math.max(1, sortedRanks[0] - 2);
-    const maxRank = sortedRanks[sortedRanks.length - 1] + 2;
+    let filtered = allStandings.filter(
+      (s: any) => s.rank >= minRank && s.rank <= maxRank
+    );
 
-    const filteredAndSorted = allStandings
-      .filter((s) => s.rank >= minRank && s.rank <= maxRank)
-      .sort((a, b) => a.rank - b.rank)
+    if (!filtered.some((s: any) => s.team.id === homeTeamId))
+      filtered.push(homeTeamRank);
+    if (!filtered.some((s: any) => s.team.id === awayTeamId))
+      filtered.push(awayTeamRank);
+
+    return Array.from(
+      new Map(filtered.map((item) => [item.team.id, item])).values()
+    )
+      .sort((a: any, b: any) => a.rank - b.rank)
       .slice(0, 5);
+  }, [standingsData, homeTeamId, awayTeamId]);
 
-    if (!filteredAndSorted.some((s) => s.team.id === homeTeamId)) {
-      filteredAndSorted.push(homeTeamRank);
-    }
-    if (!filteredAndSorted.some((s) => s.team.id === awayTeamId)) {
-      filteredAndSorted.push(awayTeamRank);
-    }
+  if (isLoading) return <StandingsSkeleton />;
+  if (isError || !standingsData?.league || relevantStandings.length === 0)
+    return null;
 
-    return Array.from(new Set(filteredAndSorted)).sort(
-      (a, b) => a.rank - b.rank
-    );
-  }, [homeTeamRank, awayTeamRank, allStandings, homeTeamId, awayTeamId]);
-
-  if (isLoading)
-    return (
-      <div className="bg-brand-dark rounded-lg p-6 shadow-lg animate-pulse">
-        <div className="h-6 w-3/4 bg-gray-700 rounded mb-4"></div>
-        <div className="h-4 w-1/2 bg-gray-600 rounded mb-4"></div>
-        <div className="space-y-2">
-          <div className="h-8 bg-gray-700 rounded"></div>
-          <div className="h-8 bg-gray-700 rounded"></div>
-          <div className="h-8 bg-gray-700 rounded"></div>
-        </div>
-      </div>
-    );
-  if (isError)
-    return (
-      <div className="bg-brand-dark rounded-lg p-6 text-red-400">
-        Failed to load standings.
-      </div>
-    );
-  if (!standingsData?.league)
-    return (
-      <div className="bg-brand-secondary rounded-lg p-6 text-brand-muted">
-        No standings available for this league.
-      </div>
-    );
-
-  const league = standingsData.league;
+  const { league } = standingsData;
 
   return (
     <div className="bg-brand-secondary rounded-lg shadow-lg overflow-hidden">
       <div className="p-6">
-        <h2 className="text-2xl font-bold text-white mb-4">League Standings</h2>
+        <h2 className="text-2xl font-bold text-white mb-2 flex items-center gap-2">
+          <Trophy size={22} className="text-yellow-400" />
+          {t("league_standings")}
+        </h2>
         <Link
           href={league.href}
-          className="flex items-center gap-3 mb-6 hover:text-white transition-colors"
+          className="block text-lg font-semibold text-brand-light hover:text-white transition-colors mb-4"
         >
-          <Image src={league.logo} alt={league.name} width={30} height={30} />
-          <span className="text-xl font-semibold">{league.name}</span>
-          <ChevronRight size={20} className="text-brand-muted" />
+          {league.name}
         </Link>
-
-        {}
-        <p className="italic text-[#a3a3a3] leading-relaxed mb-6 ">
+        <p className="italic text-brand-muted leading-relaxed mb-6 text-sm">
           {standingsSeoDescription}
         </p>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-brand-light text-sm">
-            <thead className="bg-gray-800/50 text-xs text-brand-muted uppercase">
-              <tr>
-                <th className="p-3">#</th>
-                <th className="p-3">Takım</th>
-                <th className="p-3">O</th>
-                <th className="p-3">G</th>
-                <th className="p-3">B</th>
-                <th className="p-3">M</th>
-                <th className="p-3">Av.</th>
-                <th className="p-3">P</th>
-              </tr>
-            </thead>
-            <tbody>
-              {relevantStandings.map((teamStanding) => (
-                <tr
-                  key={teamStanding.team.id}
-                  className={`border-t border-gray-700/50 ${
-                    teamStanding.team.id === homeTeamId ||
-                    teamStanding.team.id === awayTeamId
-                      ? "bg-brand-dark font-bold"
-                      : ""
-                  }`}
-                >
-                  <td className="p-3">{teamStanding.rank}</td>
-                  <td className="p-3 flex items-center gap-2">
-                    <Image
-                      src={teamStanding.team.logo}
-                      alt={teamStanding.team.name}
-                      width={20}
-                      height={20}
-                      className="w-5 h-5 object-contain"
-                    />
-                    <Link
-                      href={generateTeamSlug(
-                        teamStanding.team.name,
-                        teamStanding.team.id
-                      )}
-                      className="hover:text-white"
-                    >
-                      {teamStanding.team.name}
-                    </Link>
-                  </td>
-                  <td className="p-3">{teamStanding.all.played}</td>
-                  <td className="p-3">{teamStanding.all.win}</td>
-                  <td className="p-3">{teamStanding.all.draw}</td>
-                  <td className="p-3">{teamStanding.all.lose}</td>
-                  <td className="p-3">{teamStanding.goalsDiff}</td>
-                  <td className="p-3">{teamStanding.points}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <TeamStandingsTable
+          relevantStandings={relevantStandings}
+          homeTeamId={homeTeamId}
+          awayTeamId={awayTeamId}
+        />
       </div>
     </div>
   );
@@ -30142,7 +30444,7 @@ export default function StatsTab({ statistics, teams }: { statistics: any[], tea
 
 import { useState, useMemo } from "react";
 import { Info, CalendarClock } from "lucide-react";
-import MatchListItem, { MatchListItemSkeleton } from "../MatchListItem";
+import MatchListItem from "../MatchListItem";
 import { useTranslation } from "@/hooks/useTranslation";
 
 interface TeamFixturesWidgetProps {
@@ -30152,9 +30454,8 @@ interface TeamFixturesWidgetProps {
 export default function TeamFixturesWidget({
   fixtures,
 }: TeamFixturesWidgetProps) {
-  const [activeTab, setActiveTab] = useState<"upcoming" | "results">(
-    "upcoming"
-  );
+
+  const [activeTab, setActiveTab] = useState<"upcoming" | "results">("results");
   const { t } = useTranslation();
 
   const filteredMatches = useMemo(() => {
@@ -30170,6 +30471,7 @@ export default function TeamFixturesWidget({
         (m: any) => !["FT", "AET", "PEN"].includes(m.fixture.status.short)
       );
     } else {
+
       return sortedFixtures
         .filter((m: any) =>
           ["FT", "AET", "PEN"].includes(m.fixture.status.short)
@@ -30346,36 +30648,65 @@ import { proxyImageUrl } from "@/lib/image-proxy";
 import { Users, Shield, Zap, Goal, UserCircle } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
 
-const PlayerCard = ({ player }: { player: any }) => {
+const positionStyles: {
+  [key: string]: { bg: string; text: string; border: string };
+} = {
+  Goalkeeper: {
+    bg: "bg-amber-500/10",
+    text: "text-amber-400",
+    border: "border-amber-500/50",
+  },
+  Defender: {
+    bg: "bg-blue-500/10",
+    text: "text-blue-400",
+    border: "border-blue-500/50",
+  },
+  Midfielder: {
+    bg: "bg-green-500/10",
+    text: "text-green-400",
+    border: "border-green-500/50",
+  },
+  Attacker: {
+    bg: "bg-red-500/10",
+    text: "text-red-400",
+    border: "border-red-500/50",
+  },
+};
+
+const PlayerRow = ({ player }: { player: any }) => {
+  const style = positionStyles[player.position] || {
+    bg: "bg-gray-500/10",
+    text: "text-gray-400",
+    border: "border-gray-500/50",
+  };
+
   return (
-    <div className="bg-[var(--color-primary)] rounded-lg overflow-hidden group relative transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl hover:shadow-[var(--brand-accent)]/20">
-      <span className="absolute top-2 right-2 text-4xl font-black text-white/10 group-hover:text-white/20 transition-colors duration-300">
-        {player.number || "N/A"}
-      </span>
-
-      <div className="flex flex-col items-center p-4">
-        <div className="relative w-24 h-24 mb-3">
-          <Image
-            src={proxyImageUrl(player.photo)}
-            alt={player.name}
-            layout="fill"
-            objectFit="contain"
-            className="drop-shadow-lg transition-transform duration-300 group-hover:scale-110"
-          />
-        </div>
-        <h4 className="font-bold text-lg text-white text-center truncate w-full">
-          {player.name}
-        </h4>
-        <p className="text-sm text-text-muted">{player.position}</p>
+    <div
+      className={`flex items-center gap-3 p-2.5 rounded-lg border-l-4 transition-all duration-200 hover:bg-white/5 ${style.border}`}
+    >
+      <div className="relative flex-shrink-0">
+        <Image
+          src={proxyImageUrl(player.photo)}
+          alt={player.name}
+          width={40}
+          height={40}
+          className="rounded-full bg-gray-800"
+        />
+        <span
+          className={`absolute -bottom-1 -right-1 w-5 h-5 flex items-center justify-center rounded-full text-xs font-bold text-white ${style.bg} border-2 border-brand-secondary`}
+        >
+          {player.number || "?"}
+        </span>
       </div>
-
-      <div className="bg-black/20 p-2 grid grid-cols-2 gap-2 text-center text-xs">
-        <div className="text-text-secondary">
-          <strong className="text-white">{player.age}</strong> years
-        </div>
-        <div className="text-text-secondary truncate">
-          <strong className="text-white">{player.nationality}</strong>
-        </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-bold text-white truncate text-sm">{player.name}</p>
+        <p className={`text-xs font-semibold ${style.text}`}>
+          {player.position}
+        </p>
+      </div>
+      <div className="flex-shrink-0 text-right">
+        <p className="font-semibold text-white text-sm">{player.age}</p>
+        <p className="text-xs text-brand-muted">{player.nationality}</p>
       </div>
     </div>
   );
@@ -30386,16 +30717,21 @@ export default function TeamSquadWidget({ squad }: { squad: any[] }) {
   const { t } = useTranslation();
 
   const filteredSquad = useMemo(() => {
+    if (!squad || squad.length === 0) return [];
     if (filter === "All") return squad;
     return squad.filter((p) => p.position === filter);
   }, [squad, filter]);
 
   const squadSummary = useMemo(() => {
     if (!squad || squad.length === 0) return { count: 0, avgAge: 0 };
-    const totalAge = squad.reduce((acc, p) => acc + (p.age || 0), 0);
+    const validPlayers = squad.filter((p) => p.age);
+    const totalAge = validPlayers.reduce((acc, p) => acc + p.age, 0);
     return {
       count: squad.length,
-      avgAge: (totalAge / squad.length).toFixed(1),
+      avgAge:
+        validPlayers.length > 0
+          ? (totalAge / validPlayers.length).toFixed(1)
+          : "N/A",
     };
   }, [squad]);
 
@@ -30412,51 +30748,53 @@ export default function TeamSquadWidget({ squad }: { squad: any[] }) {
   ];
 
   return (
-    <div className="bg-brand-secondary rounded-lg p-4 md:p-6">
-      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
-        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <Users size={22} /> {t("full_squad")}
-        </h2>
-        <div className="flex items-center gap-4">
-          <div className="text-right">
-            <p className="text-xs text-text-muted">{t("total_players")}</p>
-            <p className="font-bold text-white">{squadSummary.count}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-xs text-text-muted">{t("average_age")}</p>
-            <p className="font-bold text-white">{squadSummary.avgAge}</p>
+    <div className="bg-brand-secondary rounded-lg">
+      <div className="p-4 md:p-6 border-b border-gray-700/50">
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            <Users size={22} /> {t("full_squad")}
+          </h2>
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <p className="text-xs text-text-muted">{t("total_players")}</p>
+              <p className="font-bold text-white">{squadSummary.count}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-text-muted">{t("average_age")}</p>
+              <p className="font-bold text-white">{squadSummary.avgAge}</p>
+            </div>
           </div>
         </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2 p-1 rounded-lg bg-[var(--color-primary)] mb-6">
-        {filterButtons.map(({ label, value, icon: Icon }) => (
-          <button
-            key={value}
-            onClick={() => setFilter(value)}
-            className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-sm font-semibold transition-colors ${
-              filter === value
-                ? "bg-[var(--brand-accent)] text-white"
-                : "text-text-muted hover:bg-gray-700/50"
-            }`}
-          >
-            <Icon size={16} />
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {squad && squad.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredSquad.map((player) => (
-            <PlayerCard key={player.id} player={player} />
+        <div className="flex flex-wrap items-center gap-2 p-1 rounded-lg bg-[var(--color-primary)] mt-4">
+          {filterButtons.map(({ label, value, icon: Icon }) => (
+            <button
+              key={value}
+              onClick={() => setFilter(value)}
+              className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-sm font-semibold transition-colors ${
+                filter === value
+                  ? "bg-[var(--brand-accent)] text-white"
+                  : "text-text-muted hover:bg-gray-700/50"
+              }`}
+            >
+              <Icon size={16} />
+              {label}
+            </button>
           ))}
         </div>
-      ) : (
-        <p className="text-center py-8 text-text-muted">
-          {t("squad_info_unavailable")}
-        </p>
-      )}
+      </div>
+
+      {}
+      <div className="p-2 space-y-2 max-h-[600px] overflow-y-auto custom-scrollbar">
+        {!squad || squad.length === 0 ? (
+          <div className="text-center py-8 text-brand-muted">
+            {t("squad_info_unavailable")}
+          </div>
+        ) : (
+          filteredSquad.map((player) => (
+            <PlayerRow key={player.id} player={player} />
+          ))
+        )}
+      </div>
     </div>
   );
 }
@@ -31199,74 +31537,62 @@ export async function getLatestPopularHighlights() {
 
 // ===== src/lib/data/match.ts =====
 
-import "server-only";
+import { cache } from "react";
 import axios from "axios";
+import "server-only";
+import { calculateCustomPrediction } from "@/lib/prediction-engine";
 
-import {
-  calculateCustomPrediction,
-  convertPercentageToOdds,
-} from "@/lib/prediction-engine";
-
-export const fetchAllDataForFixture = async (fixtureId: string | number) => {
-  const options = (endpoint: string, params: object) => ({
+const apiRequest = async (endpoint: string, params: object) => {
+  const options = {
     method: "GET",
     url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/${endpoint}`,
     params,
     headers: { "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
-  });
+    timeout: 15000,
+  };
+  try {
+    const response = await axios.request(options);
+    return response.data.response;
+  } catch (error) {
 
-  const fixtureResponse = await axios.request(
-    options("fixtures", { id: fixtureId })
-  );
-  const fixtureData = fixtureResponse.data.response[0];
-
-  if (!fixtureData) {
-    throw new Error(`Fixture not found with ID: ${fixtureId}`);
+    return null;
   }
+};
 
-  const { league, teams } = fixtureData;
+export const fetchMatchPageData = cache(async (fixtureId: string) => {
+  const fixtureResponse = await apiRequest("fixtures", { id: fixtureId });
+  if (!fixtureResponse || fixtureResponse.length === 0) {
+    return null;
+  }
+  const fixture = fixtureResponse[0];
+  const { league, teams } = fixture;
   const { home: homeTeam, away: awayTeam } = teams;
 
   const [
-    eventsResponse,
-    statsResponse,
-    h2hResponse,
-    predictionResponse,
-    homeStatsResponse,
-    awayStatsResponse,
-    oddsResponse,
+    statistics,
+    h2h,
+    homeTeamStats,
+    awayTeamStats,
     standingsResponse,
+    bookmakerOdds,
   ] = await Promise.all([
-    axios.request(options("fixtures/events", { fixture: fixtureId })),
-    axios.request(options("fixtures/statistics", { fixture: fixtureId })),
-    axios.request(
-      options("fixtures/headtohead", { h2h: `${homeTeam.id}-${awayTeam.id}` })
-    ),
-    axios.request(options("predictions", { fixture: fixtureId })),
-    axios.request(
-      options("teams/statistics", {
-        league: league.id,
-        season: league.season,
-        team: homeTeam.id,
-      })
-    ),
-    axios.request(
-      options("teams/statistics", {
-        league: league.id,
-        season: league.season,
-        team: awayTeam.id,
-      })
-    ),
-    axios.request(
-      options("odds", { fixture: fixtureId, bookmaker: "8", bet: "1" })
-    ),
-    axios.request(
-      options("standings", { league: league.id, season: league.season })
-    ),
+    apiRequest("fixtures/statistics", { fixture: fixtureId }),
+    apiRequest("fixtures/headtohead", { h2h: `${homeTeam.id}-${awayTeam.id}` }),
+    apiRequest("teams/statistics", {
+      league: league.id,
+      season: league.season,
+      team: homeTeam.id,
+    }),
+    apiRequest("teams/statistics", {
+      league: league.id,
+      season: league.season,
+      team: awayTeam.id,
+    }),
+    apiRequest("standings", { league: league.id, season: league.season }),
+    apiRequest("odds", { fixture: fixtureId, bet: "1", bookmaker: "8" }),
   ]);
 
-  const standings =
-    standingsResponse.data.response[0]?.league?.standings[0] || [];
+  const standings = standingsResponse?.[0]?.league?.standings[0] || [];
   const homeTeamRank = standings.find(
     (s: any) => s.team.id === homeTeam.id
   )?.rank;
@@ -31274,40 +31600,30 @@ export const fetchAllDataForFixture = async (fixtureId: string | number) => {
     (s: any) => s.team.id === awayTeam.id
   )?.rank;
 
-  const customPredictionPercentages = calculateCustomPrediction(
-    h2hResponse.data.response,
-    homeStatsResponse.data.response,
-    awayStatsResponse.data.response,
+  const customPrediction = calculateCustomPrediction(
+    h2h,
+    homeTeamStats,
+    awayTeamStats,
     homeTeam.id,
     homeTeamRank,
     awayTeamRank,
-    eventsResponse.data.response,
-    fixtureData.fixture.status.short
+    null,
+    fixture.fixture.status.short
   );
 
-  const customPredictionOdds = customPredictionPercentages
-    ? {
-        home: convertPercentageToOdds(customPredictionPercentages.home),
-        draw: convertPercentageToOdds(customPredictionPercentages.draw),
-        away: convertPercentageToOdds(customPredictionPercentages.away),
-      }
-    : null;
-
   return {
-    fixture: fixtureData,
-    events: eventsResponse.data.response,
-    statistics: statsResponse.data.response,
-    h2h: h2hResponse.data.response,
+    fixture,
+    statistics,
+    h2h,
+    standings: standingsResponse,
     analytics: {
-      prediction: predictionResponse.data.response[0] ?? null,
-      homeTeamStats: homeStatsResponse.data.response ?? null,
-      awayTeamStats: awayStatsResponse.data.response ?? null,
-      customPrediction: customPredictionPercentages,
-      customOdds: customPredictionOdds,
-      bookmakerOdds: oddsResponse.data.response[0]?.bookmakers ?? [],
+      homeTeamStats,
+      awayTeamStats,
+      customPrediction,
+      bookmakerOdds: bookmakerOdds?.[0]?.bookmakers ?? [],
     },
   };
-};
+});
 
 // ===== src/lib/data/news.ts =====
 
@@ -32454,7 +32770,6 @@ export function generateTableOfContents(htmlContent: string): {
 // ===== src/middleware.ts =====
 
 import { NextRequest, NextResponse } from "next/server";
-
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from "./lib/i18n/config";
 
 const I18N_COOKIE_NAME = "NEXT_LOCALE";
@@ -32470,22 +32785,11 @@ function getLocale(request: NextRequest): string {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (
-    pathname.startsWith("/api") ||
-    pathname.startsWith("/admin") ||
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/_next") ||
-    pathname.includes(".")
-  ) {
-    return NextResponse.next();
-  }
-
   const pathnameHasLocale = SUPPORTED_LOCALES.some(
     (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
   );
 
   if (pathnameHasLocale) {
-
     if (
       pathname.startsWith(`/${DEFAULT_LOCALE}/`) ||
       pathname === `/${DEFAULT_LOCALE}`
@@ -32494,7 +32798,6 @@ export function middleware(request: NextRequest) {
       const url = new URL(newPath === "" ? "/" : newPath, request.url);
       return NextResponse.redirect(url);
     }
-
     return NextResponse.next();
   }
 
@@ -32502,12 +32805,10 @@ export function middleware(request: NextRequest) {
   let response: NextResponse;
 
   if (detectedLocale === DEFAULT_LOCALE) {
-
     response = NextResponse.rewrite(
       new URL(`/${DEFAULT_LOCALE}${pathname}`, request.url)
     );
   } else {
-
     response = NextResponse.redirect(
       new URL(`/${detectedLocale}${pathname}`, request.url)
     );
@@ -32524,7 +32825,7 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: [
 
-    "/((?!api|_next/static|_next/image|assets|favicon.ico|sw.js|.*\\.xml$).*)",
+    "/((?!api|_next/static|_next/image|admin|favicon.ico|.*\\.).*)",
   ],
 };
 

@@ -1,4 +1,3 @@
-// ===== src/middleware.ts =====
 import { NextRequest, NextResponse } from "next/server";
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from "./lib/i18n/config";
 
@@ -15,7 +14,6 @@ function getLocale(request: NextRequest): string {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // The logic inside the middleware is correct, the problem is the matcher below.
   const pathnameHasLocale = SUPPORTED_LOCALES.some(
     (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
   );
@@ -53,15 +51,9 @@ export function middleware(request: NextRequest) {
   return response;
 }
 
-// THE FIX IS HERE: We add 'admin' to the negative lookahead
 export const config = {
   matcher: [
-    // This regex matches all paths except for the ones starting with:
-    // - api (API routes)
-    // - _next/static (static files)
-    // - _next/image (image optimization files)
-    // - admin (admin routes) <-- THIS IS THE FIX
-    // - any file with an extension (e.g., .xml, .svg, .png)
-    "/((?!api|_next/static|_next/image|admin|favicon.ico|.*\\.).*)",
+    // Add 'login' to the list of paths to ignore in the negative lookahead
+    "/((?!api|_next/static|_next/image|admin|login|favicon.ico|.*\\.).*)",
   ],
 };
