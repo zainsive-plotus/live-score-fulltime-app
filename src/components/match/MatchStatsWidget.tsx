@@ -1,13 +1,23 @@
+// ===== src/components/match/MatchStatsWidget.tsx =====
+
 "use client";
 
 import { memo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 import { BarChart3, Info } from "lucide-react";
-import { useTranslation } from "@/hooks/useTranslation"; // <-- Import hook
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface MatchStatsWidgetProps {
-  statistics: any[];
+  fixtureId: string;
   teams: { home: any; away: any };
 }
+
+const fetchStats = async (fixtureId: string) => {
+  if (!fixtureId) return [];
+  const { data } = await axios.get(`/api/statistics?fixture=${fixtureId}`);
+  return data || [];
+};
 
 const StatRow = memo(
   ({
@@ -51,13 +61,43 @@ const StatRow = memo(
 );
 StatRow.displayName = "StatRow";
 
+const StatsSkeleton = () => (
+  <div className="bg-brand-secondary rounded-lg p-4 md:p-6 animate-pulse">
+    <div className="h-7 w-1/2 bg-gray-700 rounded mb-6"></div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div key={i} className="space-y-2">
+          <div className="h-4 w-full bg-gray-600 rounded"></div>
+          <div className="h-2 w-full bg-gray-700 rounded-full"></div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
 const MatchStatsWidget = memo(function MatchStatsWidget({
-  statistics,
+  fixtureId,
   teams,
 }: MatchStatsWidgetProps) {
-  const { t } = useTranslation(); // <-- Use hook
+  const { t } = useTranslation();
 
-  if (!statistics || statistics.length < 2) {
+  const {
+    data: statistics,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["matchStats", fixtureId],
+    queryFn: () => fetchStats(fixtureId),
+    staleTime: 1000 * 60, // 1 minute
+    refetchInterval: 30000, // Refetch every 30 seconds for live stats
+    enabled: !!fixtureId,
+  });
+
+  if (isLoading) {
+    return <StatsSkeleton />;
+  }
+
+  if (isError || !statistics || statistics.length < 2) {
     return (
       <div className="bg-brand-secondary rounded-lg p-6">
         <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">

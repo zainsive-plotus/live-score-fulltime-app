@@ -11,11 +11,14 @@ import {
   ArrowLeftRight,
   RectangleVertical,
   Info,
+  Shield,
+  Video,
+  Flag,
 } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
 
 interface MatchEvent {
-  time: { elapsed: number };
+  time: { elapsed: number; extra: number | null };
   team: { id: number; name: string; logo: string };
   player: { id: number; name: string };
   assist: { id: number | null; name: string | null };
@@ -24,9 +27,7 @@ interface MatchEvent {
 }
 
 const fetchFixtureEvents = async (fixtureId: string): Promise<MatchEvent[]> => {
-  // We can fetch from the main details endpoint, but let's assume we might
-  // want a dedicated, lighter endpoint for just events later.
-  // For now, this is fine and will be de-duped by react-query.
+  if (!fixtureId) return [];
   const { data } = await axios.get(`/api/match-details?fixture=${fixtureId}`);
   return data?.fixture?.events || [];
 };
@@ -34,54 +35,95 @@ const fetchFixtureEvents = async (fixtureId: string): Promise<MatchEvent[]> => {
 const getEventStyles = (type: string, detail: string) => {
   switch (type) {
     case "Goal":
-      return { bg: "bg-green-500/10", iconColor: "text-green-400" };
+      return {
+        Icon: Goal,
+        color: "text-green-400",
+        border: "border-green-500",
+      };
     case "Card":
       return detail.includes("Yellow")
-        ? { bg: "bg-yellow-500/10", iconColor: "text-yellow-400" }
-        : { bg: "bg-red-500/10", iconColor: "text-red-400" };
+        ? {
+            Icon: RectangleVertical,
+            color: "text-yellow-400",
+            border: "border-yellow-500",
+          }
+        : {
+            Icon: RectangleVertical,
+            color: "text-red-400",
+            border: "border-red-500",
+          };
     case "subst":
-      return { bg: "bg-blue-500/10", iconColor: "text-blue-400" };
+      return {
+        Icon: ArrowLeftRight,
+        color: "text-blue-400",
+        border: "border-blue-500",
+      };
+    case "Var":
+      return {
+        Icon: Video,
+        color: "text-purple-400",
+        border: "border-purple-500",
+      };
     default:
-      return { bg: "bg-gray-500/10", iconColor: "text-gray-400" };
+      return { Icon: Clock, color: "text-gray-400", border: "border-gray-500" };
   }
 };
 
 const EventRow = memo(
-  ({
-    event,
-    t,
-  }: {
-    event: MatchEvent;
-    t: (key: string, params?: any) => string;
-  }) => {
-    const styles = getEventStyles(event.type, event.detail);
-    const Icon =
-      event.type === "Goal"
-        ? Goal
-        : event.type === "Card"
-        ? RectangleVertical
-        : event.type === "subst"
-        ? ArrowLeftRight
-        : Clock;
-    const assistText = event.assist.name
-      ? t("assist_by", { name: event.assist.name })
-      : "";
+  ({ event, isHomeTeam }: { event: MatchEvent; isHomeTeam: boolean }) => {
+    const { Icon, color, border } = getEventStyles(event.type, event.detail);
+
+    const eventTime = `${event.time.elapsed}${
+      event.time.extra ? `+${event.time.extra}` : ""
+    }'`;
 
     return (
-      <div className="relative">
+      <div
+        className={`flex relative ${
+          isHomeTeam ? "justify-start" : "justify-end"
+        }`}
+      >
+        {/* Connector line from timeline to card */}
         <div
-          className={`absolute -left-[38px] top-1 w-8 h-8 rounded-full flex items-center justify-center ${styles.bg} ${styles.iconColor} border-4 border-brand-dark`}
+          className={`absolute top-5 h-px w-[calc(50%-1.5rem)] bg-gray-700/50 ${
+            isHomeTeam ? "right-1/2" : "left-1/2"
+          }`}
+        ></div>
+
+        {/* The Event Card */}
+        <div
+          className={`w-[calc(50%-1.5rem)] relative p-3 rounded-lg border-l-4 bg-white/5 backdrop-blur-sm shadow-md ${border}`}
         >
-          <Icon size={16} />
+          {/* The arrow pointing to the timeline */}
+          <div
+            className={`absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-gray-800 rotate-45 ${
+              isHomeTeam ? "right-[-7px]" : "left-[-7px]"
+            }`}
+          ></div>
+
+          <div className="flex items-start gap-3">
+            <Icon size={20} className={`${color} flex-shrink-0 mt-0.5`} />
+            <div className="min-w-0">
+              <p className="font-bold text-white text-sm truncate">
+                {event.player.name}
+              </p>
+              <p className="text-xs text-brand-light truncate">
+                {event.detail}
+              </p>
+              {event.assist.name && (
+                <p className="text-xs text-brand-muted truncate">
+                  Assist: {event.assist.name}
+                </p>
+              )}
+            </div>
+          </div>
         </div>
-        <div>
-          <p className="text-xs font-bold text-brand-muted">
-            {event.time.elapsed}' - {event.detail}
-          </p>
-          <p className="font-semibold text-white">{event.player.name}</p>
-          {event.assist.name && (
-            <p className="text-sm text-brand-light">{assistText}</p>
-          )}
+
+        {/* The dot on the timeline */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-brand-dark rounded-full border-2 border-gray-700">
+          <span className="text-xs font-mono font-bold text-brand-muted">
+            {eventTime}
+          </span>
         </div>
       </div>
     );
@@ -89,32 +131,99 @@ const EventRow = memo(
 );
 EventRow.displayName = "EventRow";
 
-// Renamed from MatchActivityClient to MatchActivityWidget
+const PeriodHeader = ({
+  period,
+  t,
+}: {
+  period: string;
+  t: (key: string) => string;
+}) => {
+  const periodTranslations: Record<string, string> = {
+    HT: t("half_time"),
+    FT: t("full_time"),
+  };
+  const text = periodTranslations[period] || period;
+  return (
+    <div className="flex items-center gap-4 my-4">
+      <div className="flex-grow h-px bg-gray-700"></div>
+      <span className="text-xs font-bold text-brand-muted uppercase tracking-wider">
+        {text}
+      </span>
+      <div className="flex-grow h-px bg-gray-700"></div>
+    </div>
+  );
+};
+
+const ActivitySkeleton = () => (
+  <div className="bg-brand-secondary rounded-lg shadow-lg overflow-hidden animate-pulse p-6 min-h-[400px]">
+    <div className="h-8 w-1/3 bg-gray-700 rounded mb-4"></div>
+    <div className="h-4 w-full bg-gray-600 rounded mb-8"></div>
+    <div className="relative mx-auto w-0.5 h-[200px] bg-gray-700/50">
+      {/* Skeleton Event Left */}
+      <div className="absolute top-8 right-6 w-[calc(50vw-5rem)] max-w-[200px] h-20 bg-gray-700/50 rounded-lg"></div>
+      {/* Skeleton Event Right */}
+      <div className="absolute top-32 left-6 w-[calc(50vw-5rem)] max-w-[200px] h-20 bg-gray-700/50 rounded-lg"></div>
+    </div>
+  </div>
+);
+
 export default function MatchActivityWidget({
-  initialEvents,
   fixtureId,
   isLive,
+  homeTeamId,
   activitySeoDescription,
 }: {
-  initialEvents: MatchEvent[];
   fixtureId: string;
   isLive: boolean;
+  homeTeamId: number;
   activitySeoDescription: string;
 }) {
   const { t } = useTranslation();
 
-  const { data: events } = useQuery<MatchEvent[]>({
+  const {
+    data: events,
+    isLoading,
+    isError,
+  } = useQuery<MatchEvent[]>({
     queryKey: ["fixtureEvents", fixtureId],
     queryFn: () => fetchFixtureEvents(fixtureId),
-    initialData: initialEvents,
     refetchInterval: isLive ? 15000 : false,
     staleTime: isLive ? 10000 : Infinity,
+    enabled: !!fixtureId,
   });
 
-  const sortedEvents = useMemo(() => {
+  const timelineItems = useMemo(() => {
     if (!events) return [];
-    return [...events].sort((a, b) => b.time.elapsed - a.time.elapsed);
-  }, [events]);
+
+    const sorted = [...events].sort((a, b) => a.time.elapsed - b.time.elapsed);
+    const items: (MatchEvent | { type: "PeriodSeparator"; detail: string })[] =
+      [];
+
+    let lastPeriod = "1H";
+    items.push({ type: "PeriodSeparator", detail: "Match Started" });
+
+    sorted.forEach((event) => {
+      if (event.time.elapsed > 45 && lastPeriod === "1H") {
+        items.push({ type: "PeriodSeparator", detail: "HT" });
+        lastPeriod = "2H";
+      }
+      if (event.time.elapsed > 90 && lastPeriod === "2H") {
+        items.push({ type: "PeriodSeparator", detail: "FT" });
+        lastPeriod = "ET"; // Extra Time
+      }
+      items.push(event);
+    });
+
+    if (isLive && sorted.length > 0) {
+      // No end marker for live games
+    } else if (sorted.length > 0) {
+      items.push({ type: "PeriodSeparator", detail: "FT" });
+    }
+
+    return items.reverse();
+  }, [events, isLive]);
+
+  if (isLoading) return <ActivitySkeleton />;
 
   return (
     <div className="bg-brand-secondary rounded-lg shadow-lg overflow-hidden">
@@ -126,20 +235,44 @@ export default function MatchActivityWidget({
           {activitySeoDescription}
         </p>
 
-        {sortedEvents.length === 0 ? (
+        {isError || timelineItems.length <= 2 ? (
           <div className="text-center py-10 text-brand-muted">
             <Info size={32} className="mx-auto mb-3" />
             <p>{t("match_not_started")}</p>
           </div>
         ) : (
-          <div className="relative border-l-2 border-gray-700/50 ml-6 pl-8 space-y-8">
-            {sortedEvents.map((event, index) => (
-              <EventRow
-                key={`${event.time.elapsed}-${event.player.id}-${index}`}
-                event={event}
-                t={t}
-              />
-            ))}
+          <div className="relative">
+            <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-0.5 bg-gradient-to-t from-gray-800 to-gray-700"></div>
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 -mt-3 p-2 bg-gray-700 rounded-full">
+              <Clock size={16} />
+            </div>
+            {isLive ? null : (
+              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 -mb-3 p-2 bg-gray-700 rounded-full">
+                <Flag size={16} />
+              </div>
+            )}
+
+            <div className="space-y-6 pt-4 pb-4">
+              {timelineItems.map((item, index) => {
+                if (item.type === "PeriodSeparator") {
+                  return (
+                    <PeriodHeader
+                      key={`period-${index}`}
+                      period={item.detail}
+                      t={t}
+                    />
+                  );
+                }
+                return (
+                  <EventRow
+                    key={`${item.time.elapsed}-${item.player.id}-${index}`}
+                    event={item}
+                    isHomeTeam={item.team.id === homeTeamId}
+                    t={t}
+                  />
+                );
+              })}
+            </div>
           </div>
         )}
       </div>

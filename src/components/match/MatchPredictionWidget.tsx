@@ -5,6 +5,8 @@
 import { useMemo } from "react";
 import Image from "next/image";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 import { Sparkles, Users } from "lucide-react";
 import { proxyImageUrl } from "@/lib/image-proxy";
 
@@ -14,14 +16,32 @@ interface PredictionData {
   away: number;
 }
 
-interface MatchPredictionWidgetProps {
-  predictionData: {
-    customPrediction: PredictionData | null;
-    bookmakerOdds: any[];
-    teams: { home: any; away: any };
-  } | null;
-  isLoading: boolean;
+interface FullPredictionData {
+  customPrediction: PredictionData | null;
+  bookmakerOdds: any[];
+  teams: { home: any; away: any };
 }
+
+interface MatchPredictionWidgetProps {
+  fixtureId: string;
+}
+
+const fetchPredictionData = async (
+  fixtureId: string
+): Promise<FullPredictionData | null> => {
+  try {
+    const { data } = await axios.get(
+      `/api/match-prediction?fixtureId=${fixtureId}`
+    );
+    return data;
+  } catch (error) {
+    console.error(
+      `[MatchPredictionWidget] Failed to fetch prediction data for fixture ${fixtureId}:`,
+      error
+    );
+    return null;
+  }
+};
 
 const MAJOR_BOOKMAKER_IDS = new Set([1, 2, 6, 8, 9, 24, 31]);
 
@@ -145,12 +165,21 @@ export const PredictionWidgetSkeleton = () => (
 );
 
 export default function MatchPredictionWidget({
-  predictionData,
-  isLoading,
+  fixtureId,
 }: MatchPredictionWidgetProps) {
   const { t } = useTranslation();
 
-  // --- FIX: All hooks are now called unconditionally at the top ---
+  const {
+    data: predictionData,
+    isLoading,
+    isError,
+  } = useQuery<FullPredictionData | null>({
+    queryKey: ["predictionData", fixtureId],
+    queryFn: () => fetchPredictionData(fixtureId),
+    staleTime: 1000 * 60 * 5,
+    enabled: !!fixtureId,
+  });
+
   const majorBookmakers = useMemo(() => {
     if (!predictionData?.bookmakerOdds) return [];
     return predictionData.bookmakerOdds.filter((bookie) =>
@@ -202,23 +231,13 @@ export default function MatchPredictionWidget({
       predictionData.customPrediction.away
     );
   }, [predictionData?.customPrediction]);
-  // --- END OF HOOKS ---
 
   if (isLoading) {
     return <PredictionWidgetSkeleton />;
   }
 
-  if (!predictionData) {
-    return (
-      <div className="bg-brand-secondary p-4 rounded-lg">
-        <h3 className="text-lg font-bold text-white mb-2">
-          {t("prediction_comparison")}
-        </h3>
-        <p className="text-sm text-center text-brand-muted py-4">
-          {t("prediction_data_unavailable")}
-        </p>
-      </div>
-    );
+  if (isError || !predictionData) {
+    return null; // Don't render if there's an error or no data
   }
 
   const { customPrediction, teams } = predictionData;

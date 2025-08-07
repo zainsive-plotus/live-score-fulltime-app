@@ -26,6 +26,7 @@ const getFixtureIdFromSlug = (slug: string): string | null => {
   return /^\d+$/.test(lastPart) ? lastPart : null;
 };
 
+// This function calls our single, robust API endpoint
 const fetchMatchDetails = async (fixtureId: string, locale: string) => {
   const { data } = await axios.get(
     `/api/match-details?fixture=${fixtureId}&locale=${locale}`
@@ -64,7 +65,7 @@ export default function MatchDetailPageClient() {
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ["matchDetails", fixtureId, locale],
+    queryKey: ["matchDetailsClient", fixtureId, locale],
     queryFn: () => fetchMatchDetails(fixtureId!, locale!),
     enabled: !!fixtureId && !!locale,
     retry: 1,
@@ -93,6 +94,7 @@ export default function MatchDetailPageClient() {
     );
   }
 
+  // Destructure all data needed for the entire page from the single API call
   const {
     fixture: fixtureData,
     h2h,
@@ -130,14 +132,12 @@ export default function MatchDetailPageClient() {
       <Header />
       <div className="container mx-auto p-4 md:p-6 lg:grid lg:grid-cols-3 lg:gap-8 lg:items-start">
         <main className="lg:col-span-2 space-y-6">
-          {/* --- THIS IS THE FIX --- */}
           <MatchHeader
             fixture={fixtureData}
             homeTeamStats={homeTeamStats}
             awayTeamStats={awayTeamStats}
             predictionData={predictionData}
           />
-          {/* --- END OF FIX --- */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <TeamFormWidget
               teamStats={homeTeamStats}

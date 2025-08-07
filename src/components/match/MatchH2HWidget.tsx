@@ -1,16 +1,19 @@
+// ===== src/components/match/MatchH2HWidget.tsx =====
+
 "use client";
 
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import { format } from "date-fns";
 import Link from "next/link";
-import { ChevronRight, CalendarDays } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import { CalendarDays, Info } from "lucide-react";
 import { proxyImageUrl } from "@/lib/image-proxy";
 import { generateMatchSlug } from "@/lib/generate-match-slug";
-import { useTranslation } from "@/hooks/useTranslation"; // <-- Import hook
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface MatchH2HWidgetProps {
-  h2h: any[];
   teams: {
     home: { id: number; name: string; logo: string };
     away: { id: number; name: string; logo: string };
@@ -19,18 +22,62 @@ interface MatchH2HWidgetProps {
   h2hSeoDescription: string;
 }
 
+const fetchH2HData = async (homeTeamId: number, awayTeamId: number) => {
+  if (!homeTeamId || !awayTeamId) return [];
+  const { data } = await axios.get(
+    `/api/h2h?home=${homeTeamId}&away=${awayTeamId}`
+  );
+  return data || [];
+};
+
+const H2HSkeleton = () => (
+  <div className="bg-brand-secondary rounded-lg shadow-lg overflow-hidden animate-pulse p-6">
+    <div className="h-8 w-1/3 bg-gray-700 rounded mb-4"></div>
+    <div className="h-4 w-full bg-gray-600 rounded mb-6"></div>
+    <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="flex flex-col items-center space-y-2">
+        <div className="w-12 h-12 rounded-full bg-gray-700"></div>
+        <div className="h-6 w-8 bg-gray-600 rounded"></div>
+      </div>
+      <div className="flex flex-col items-center justify-center space-y-2">
+        <div className="h-6 w-8 bg-gray-600 rounded"></div>
+      </div>
+      <div className="flex flex-col items-center space-y-2">
+        <div className="w-12 h-12 rounded-full bg-gray-700"></div>
+        <div className="h-6 w-8 bg-gray-600 rounded"></div>
+      </div>
+    </div>
+    <div className="space-y-3">
+      <div className="h-12 bg-gray-700/50 rounded-md"></div>
+      <div className="h-12 bg-gray-700/50 rounded-md"></div>
+      <div className="h-12 bg-gray-700/50 rounded-md"></div>
+    </div>
+  </div>
+);
+
 export default function MatchH2HWidget({
-  h2h,
   teams,
   currentFixtureId,
   h2hSeoDescription,
 }: MatchH2HWidgetProps) {
   const [showAll, setShowAll] = useState(false);
-  const { t } = useTranslation(); // <-- Use hook
+  const { t } = useTranslation();
+
+  const {
+    data: h2h,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["h2h", teams.home.id, teams.away.id],
+    queryFn: () => fetchH2HData(teams.home.id, teams.away.id),
+    staleTime: 1000 * 60 * 60, // 1 hour
+  });
 
   const filteredH2H = useMemo(
     () =>
-      h2h.filter((match) => match.fixture.id !== parseInt(currentFixtureId)),
+      h2h?.filter(
+        (match: any) => match.fixture.id !== parseInt(currentFixtureId)
+      ) || [],
     [h2h, currentFixtureId]
   );
 
@@ -62,6 +109,8 @@ export default function MatchH2HWidget({
     return { homeWins, awayWins, draws };
   }, [filteredH2H, teams]);
 
+  if (isLoading) return <H2HSkeleton />;
+
   return (
     <div className="bg-brand-secondary rounded-lg shadow-lg overflow-hidden">
       <div className="p-6">
@@ -72,10 +121,11 @@ export default function MatchH2HWidget({
           {h2hSeoDescription}
         </p>
 
-        {filteredH2H.length === 0 ? (
-          <p className="text-brand-muted text-center p-4">
-            {t("no_h2h_matches_found")}
-          </p>
+        {isError || filteredH2H.length === 0 ? (
+          <div className="text-center py-10 text-brand-muted">
+            <Info size={32} className="mx-auto mb-3" />
+            <p>{t("no_h2h_matches_found")}</p>
+          </div>
         ) : (
           <>
             <div className="grid grid-cols-3 text-center gap-4 mb-6">
