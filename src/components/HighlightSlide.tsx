@@ -1,10 +1,12 @@
 // ===== src/components/HighlightSlide.tsx =====
 
-import LiteYouTubeEmbed from "./LiteYouTubeEmbed"; // Import the new facade component
+"use client";
+
+import LiteYouTubeEmbed from "./LiteYouTubeEmbed";
 
 interface Highlight {
   id: string;
-  embedUrl: string;
+  embedUrl: string | null | undefined; // Acknowledge that the URL can be null
   title: string;
 }
 
@@ -12,8 +14,14 @@ interface HighlightSlideProps {
   highlight: Highlight;
 }
 
-// Function to extract YouTube video ID from various URL formats
-function getYouTubeId(url: string): string | null {
+function getYouTubeId(url: string | null | undefined): string | null {
+  // --- THIS IS THE FIX ---
+  // If the URL is null, undefined, or not a string, return null immediately.
+  if (!url || typeof url !== "string") {
+    return null;
+  }
+  // --- END OF FIX ---
+
   const regExp =
     /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
   const match = url.match(regExp);
@@ -23,15 +31,11 @@ function getYouTubeId(url: string): string | null {
 export default function HighlightSlide({ highlight }: HighlightSlideProps) {
   const videoId = getYouTubeId(highlight.embedUrl);
 
-  // If we can't get a video ID, we can't use the facade.
-  // As a fallback, we can either render nothing or the original iframe.
-  // Here, we'll render nothing to guarantee performance.
+  // If we can't extract a valid video ID, we render nothing for this slide.
+  // This prevents the entire widget from crashing.
   if (!videoId) {
     return null;
   }
 
-  return (
-    // Replace the heavy iframe with our new lightweight facade component
-    <LiteYouTubeEmbed id={videoId} title={highlight.title} />
-  );
+  return <LiteYouTubeEmbed id={videoId} title={highlight.title} />;
 }
