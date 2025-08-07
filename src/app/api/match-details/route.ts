@@ -1,7 +1,6 @@
 // ===== src/app/api/match-details/route.ts =====
 
 import { NextResponse } from "next/server";
-import axios from "axios";
 import redis from "@/lib/redis";
 import {
   getFixture,
@@ -47,16 +46,9 @@ export async function GET(request: Request) {
     const { league, teams, fixture } = fixtureData;
     const { home, away } = teams;
 
-    const [
-      statistics,
-      h2h,
-      homeTeamStats,
-      awayTeamStats,
-      standingsResponse,
-      bookmakerOdds,
-      linkedNews,
-      highlights,
-    ] = await Promise.all([
+    // --- THIS IS THE FIX ---
+    // We are switching from Promise.all to Promise.allSettled
+    const allPromises = await Promise.allSettled([
       getStatistics(fixtureId),
       getH2H(home.id, away.id),
       getTeamStats(league.id, league.season, home.id),
@@ -66,6 +58,29 @@ export async function GET(request: Request) {
       getLinkedNews(fixture.id, locale),
       getMatchHighlights(league.name, home.name, away.name),
     ]);
+
+    // Helper to safely extract value or provide a fallback
+    const getValue = (result: PromiseSettledResult<any>, fallback: any) => {
+      if (result.status === "fulfilled") {
+        return result.value;
+      }
+      // Log the error on the server for debugging, but don't crash the request
+      console.error(
+        `[API/match-details] A sub-request failed for fixture ${fixtureId}:`,
+        result.reason
+      );
+      return fallback;
+    };
+
+    const statistics = getValue(allPromises[0], []);
+    const h2h = getValue(allPromises[1], []);
+    const homeTeamStats = getValue(allPromises[2], null);
+    const awayTeamStats = getValue(allPromises[3], null);
+    const standingsResponse = getValue(allPromises[4], []);
+    const bookmakerOdds = getValue(allPromises[5], []);
+    const linkedNews = getValue(allPromises[6], []);
+    const highlights = getValue(allPromises[7], []);
+    // --- END OF FIX ---
 
     const flatStandings =
       standingsResponse?.[0]?.league?.standings?.flat() || [];
@@ -83,7 +98,7 @@ export async function GET(request: Request) {
       home.id,
       homeTeamRank,
       awayTeamRank,
-      null, // Events not needed for pre-match prediction
+      null,
       fixture.status.short
     );
 
@@ -116,11 +131,11 @@ export async function GET(request: Request) {
     return NextResponse.json(responseData);
   } catch (error: any) {
     console.error(
-      `[API /match-details] Error for fixture ${fixtureId}:`,
+      `[API /match-details] A critical error occurred for fixture ${fixtureId}:`,
       error.message
     );
     return NextResponse.json(
-      { error: "Failed to fetch match details." },
+      { error: "Failed to fetch match details due to a critical error." },
       { status: 500 }
     );
   }
