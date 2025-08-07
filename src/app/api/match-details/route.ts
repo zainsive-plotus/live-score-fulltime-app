@@ -6,13 +6,9 @@ import {
   getFixture,
   getH2H,
   getTeamStats,
-  getStandings,
-  getBookmakerOdds,
   getLinkedNews,
-  getMatchHighlights,
   getStatistics,
 } from "@/lib/data/match";
-import { calculateCustomPrediction } from "@/lib/prediction-engine";
 
 const CACHE_TTL_LIVE = 60; // 1 minute
 const CACHE_TTL_FINISHED = 60 * 60 * 24 * 7; // 1 week
@@ -30,7 +26,8 @@ export async function GET(request: Request) {
     );
   }
 
-  const cacheKey = `match-details-client-v2:${fixtureId}:${locale}`;
+  // A new, leaner cache key
+  const cacheKey = `match-details-core-v3:${fixtureId}:${locale}`;
 
   try {
     const cachedData = await redis.get(cacheKey);
@@ -46,25 +43,17 @@ export async function GET(request: Request) {
     const { league, teams, fixture } = fixtureData;
     const { home, away } = teams;
 
-    // --- THIS IS THE FIX ---
-    // We are switching from Promise.all to Promise.allSettled
-    const allPromises = await Promise.allSettled([
+    // Fetch only the fast, essential data for the main page layout
+    const settledPromises = await Promise.allSettled([
       getStatistics(fixtureId),
       getH2H(home.id, away.id),
       getTeamStats(league.id, league.season, home.id),
       getTeamStats(league.id, league.season, away.id),
-      getStandings(league.id, league.season),
-      getBookmakerOdds(fixtureId),
       getLinkedNews(fixture.id, locale),
-      getMatchHighlights(league.name, home.name, away.name),
     ]);
 
-    // Helper to safely extract value or provide a fallback
     const getValue = (result: PromiseSettledResult<any>, fallback: any) => {
-      if (result.status === "fulfilled") {
-        return result.value;
-      }
-      // Log the error on the server for debugging, but don't crash the request
+      if (result.status === "fulfilled") return result.value;
       console.error(
         `[API/match-details] A sub-request failed for fixture ${fixtureId}:`,
         result.reason
@@ -72,35 +61,11 @@ export async function GET(request: Request) {
       return fallback;
     };
 
-    const statistics = getValue(allPromises[0], []);
-    const h2h = getValue(allPromises[1], []);
-    const homeTeamStats = getValue(allPromises[2], null);
-    const awayTeamStats = getValue(allPromises[3], null);
-    const standingsResponse = getValue(allPromises[4], []);
-    const bookmakerOdds = getValue(allPromises[5], []);
-    const linkedNews = getValue(allPromises[6], []);
-    const highlights = getValue(allPromises[7], []);
-    // --- END OF FIX ---
-
-    const flatStandings =
-      standingsResponse?.[0]?.league?.standings?.flat() || [];
-    const homeTeamRank = flatStandings.find(
-      (s: any) => s.team.id === home.id
-    )?.rank;
-    const awayTeamRank = flatStandings.find(
-      (s: any) => s.team.id === away.id
-    )?.rank;
-
-    const customPrediction = calculateCustomPrediction(
-      h2h,
-      homeTeamStats,
-      awayTeamStats,
-      home.id,
-      homeTeamRank,
-      awayTeamRank,
-      null,
-      fixture.status.short
-    );
+    const statistics = getValue(settledPromises[0], []);
+    const h2h = getValue(settledPromises[1], []);
+    const homeTeamStats = getValue(settledPromises[2], null);
+    const awayTeamStats = getValue(settledPromises[3], null);
+    const linkedNews = getValue(settledPromises[4], []);
 
     const responseData = {
       fixture: fixtureData,
@@ -108,14 +73,7 @@ export async function GET(request: Request) {
       h2h,
       homeTeamStats,
       awayTeamStats,
-      standings: standingsResponse,
-      predictionData: {
-        customPrediction,
-        bookmakerOdds: bookmakerOdds?.[0]?.bookmakers ?? [],
-        teams,
-      },
       linkedNews,
-      highlights,
     };
 
     const status = fixture.status.short;
@@ -131,11 +89,11 @@ export async function GET(request: Request) {
     return NextResponse.json(responseData);
   } catch (error: any) {
     console.error(
-      `[API /match-details] A critical error occurred for fixture ${fixtureId}:`,
+      `[API /match-details] Critical error for fixture ${fixtureId}:`,
       error.message
     );
     return NextResponse.json(
-      { error: "Failed to fetch match details due to a critical error." },
+      { error: "Failed to fetch core match details." },
       { status: 500 }
     );
   }

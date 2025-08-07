@@ -236,8 +236,20 @@ export default function MatchPredictionWidget({
     return <PredictionWidgetSkeleton />;
   }
 
+  // --- THIS IS THE FIX ---
+  // We check for data *after* loading is complete.
+  // If there's an error or no data, we show a message instead of returning null.
   if (isError || !predictionData) {
-    return null; // Don't render if there's an error or no data
+    return (
+      <div className="bg-brand-secondary p-4 rounded-lg">
+        <h3 className="text-lg font-bold text-white mb-2">
+          {t("prediction_comparison")}
+        </h3>
+        <p className="text-sm text-center text-brand-muted py-4">
+          {t("prediction_data_unavailable")}
+        </p>
+      </div>
+    );
   }
 
   const { customPrediction, teams } = predictionData;

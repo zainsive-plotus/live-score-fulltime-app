@@ -9,13 +9,13 @@ import {
 } from "@/components/skeletons/WidgetSkeletons";
 import { PredictionWidgetSkeleton } from "@/components/match/MatchPredictionWidget";
 
+// Each of these widgets is now a self-fetching client component
 const LiveOddsWidget = dynamic(
   () => import("@/components/match/LiveOddsWidget"),
   { ssr: false }
 );
 const LinkedNewsWidget = dynamic(
-  () => import("@/components/match/LinkedNewsWidget"),
-  { loading: () => <RecentNewsWidgetSkeleton /> }
+  () => import("@/components/match/LinkedNewsWidget")
 );
 const MatchHighlightsWidget = dynamic(
   () => import("@/components/match/MatchHighlightsWidget")
@@ -35,28 +35,32 @@ const AdSlotWidget = dynamic(() => import("@/components/AdSlotWidget"), {
 interface SidebarContentProps {
   fixtureData: any;
   isLive: boolean;
+  linkedNews: any[]; // LinkedNews is fast, so we can keep passing it as a prop
   standingsSeoDescription: string;
 }
 
 export default function SidebarContent({
   fixtureData,
   isLive,
+  linkedNews,
   standingsSeoDescription,
 }: SidebarContentProps) {
   const { fixture, league, teams } = fixtureData;
 
   return (
-    <aside className="lg:col-span-1 space-y-6 lg:sticky lg:top-6 mt-8 lg:mt-0">
+    // This component is now just a layout wrapper for the individual widgets
+    <>
       {isLive && <LiveOddsWidget fixtureId={fixture.id.toString()} />}
 
-      <LinkedNewsWidget fixtureId={fixture.id} />
+      {/* LinkedNews can still be a prop as it's fast */}
+      <LinkedNewsWidget posts={linkedNews} />
 
+      {/* These widgets now fetch their own data using the provided IDs/names */}
       <MatchHighlightsWidget
         leagueName={league.name}
         homeTeamName={teams.home.name}
         awayTeamName={teams.away.name}
       />
-
       <TeamStandingsWidget
         leagueId={league.id}
         season={league.season}
@@ -64,10 +68,9 @@ export default function SidebarContent({
         awayTeamId={teams.away.id}
         standingsSeoDescription={standingsSeoDescription}
       />
-
       <MatchPredictionWidget fixtureId={fixture.id.toString()} />
 
       <AdSlotWidget location="match_sidebar" />
-    </aside>
+    </>
   );
 }

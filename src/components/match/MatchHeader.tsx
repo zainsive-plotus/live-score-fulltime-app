@@ -15,7 +15,6 @@ import {
   Sparkles,
   CheckCircle,
   XCircle,
-  Loader2,
 } from "lucide-react";
 import Link from "next/link";
 import { proxyImageUrl } from "@/lib/image-proxy";
@@ -23,6 +22,7 @@ import { generateLeagueSlug } from "@/lib/generate-league-slug";
 import { generateTeamSlug } from "@/lib/generate-team-slug";
 import { useTranslation } from "@/hooks/useTranslation";
 
+// Re-defining interfaces locally for clarity
 interface Team {
   id: number;
   name: string;
@@ -31,28 +31,24 @@ interface Team {
 }
 interface Fixture {
   fixture: any;
-  id: number;
-  date: string;
-  status: { long: string; short: any; elapsed: number | null };
   teams: { home: Team; away: Team };
-  league: {
-    id: number;
-    name: string;
-    country: string;
-    logo: string;
-    flag: string;
-    season: number;
-    round: string;
-  };
+  league: any;
   goals: { home: number | null; away: number | null };
   score: { fulltime: { home: number | null; away: number | null } };
 }
 interface MatchHeaderProps {
   fixture: Fixture;
-  homeTeamStats?: any;
-  awayTeamStats?: any;
-  predictionData?: any;
 }
+
+// This component now fetches all the "extra" data it needs
+const fetchHeaderEnrichmentData = async (fixtureId: string, locale: string) => {
+  if (!fixtureId || !locale) return null;
+  // We can reuse the main details endpoint. React Query will dedupe requests.
+  const { data } = await axios.get(
+    `/api/match-details?fixture=${fixtureId}&locale=${locale}`
+  );
+  return data;
+};
 
 const StatPill = ({
   icon: Icon,
@@ -184,14 +180,16 @@ const PredictionResultWidget = ({
   );
 };
 
-export const MatchHeader: React.FC<MatchHeaderProps> = ({
-  fixture,
-  homeTeamStats,
-  awayTeamStats,
-  predictionData,
-}) => {
-  const { t } = useTranslation();
+export const MatchHeader: React.FC<MatchHeaderProps> = ({ fixture }) => {
+  const { t, locale } = useTranslation();
   const { teams, league, fixture: fixtureDetails, goals, score } = fixture;
+
+  const { data: enrichmentData, isLoading: isLoadingEnrichment } = useQuery({
+    queryKey: ["matchDetailsClient", fixtureDetails.id, locale],
+    queryFn: () =>
+      fetchHeaderEnrichmentData(fixtureDetails.id.toString(), locale!),
+    enabled: !!fixtureDetails.id && !!locale,
+  });
 
   const isLive = useMemo(
     () =>
@@ -209,7 +207,12 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({
   const finalScoreAway = score?.fulltime?.away ?? goals?.away;
 
   const { homeStrength, awayStrength, predictionResult } = useMemo(() => {
+    const homeTeamStats = enrichmentData?.homeTeamStats;
+    const awayTeamStats = enrichmentData?.awayTeamStats;
+    const predictionData = enrichmentData?.predictionData;
+
     const calcRating = (stats: any) => {
+      if (!stats) return { attack: "?", defense: "?" };
       const avgFor = stats?.goals?.for?.average?.total ?? "1.0";
       const avgAgainst = stats?.goals?.against?.average?.total ?? "1.0";
       return {
@@ -217,13 +220,15 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({
         defense: Math.min(10, (1.5 / parseFloat(avgAgainst)) * 10).toFixed(1),
       };
     };
+
     let result = {
       isFinished,
       predictedOutcome: null,
       confidence: 0,
       actualOutcome: null,
     };
-    if (predictionData) {
+
+    if (predictionData?.customPrediction) {
       const pred = predictionData.customPrediction;
       const maxConfidence = Math.max(pred.home, pred.draw, pred.away);
       let predictedOutcome: "Home Win" | "Draw" | "Away Win" = "Draw";
@@ -244,7 +249,7 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({
       awayStrength: calcRating(awayTeamStats),
       predictionResult: result,
     };
-  }, [predictionData, homeTeamStats, awayTeamStats, isFinished, teams]);
+  }, [enrichmentData, isFinished, teams]);
 
   return (
     <div className="bg-brand-secondary rounded-lg overflow-hidden shadow-lg mb-4">
@@ -295,13 +300,13 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({
               icon={Zap}
               value={homeStrength.attack}
               colorClass="text-green-400 bg-green-500"
-              isLoading={!homeTeamStats}
+              isLoading={isLoadingEnrichment}
             />
             <StatPill
               icon={Shield}
               value={homeStrength.defense}
               colorClass="text-blue-400 bg-blue-500"
-              isLoading={!homeTeamStats}
+              isLoading={isLoadingEnrichment}
             />
           </div>
         </div>
@@ -323,7 +328,7 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({
           <PredictionResultWidget
             result={predictionResult}
             teams={teams}
-            isLoading={!predictionData}
+            isLoading={isLoadingEnrichment}
             t={t}
           />
         </div>
@@ -347,13 +352,13 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({
               icon={Zap}
               value={awayStrength.attack}
               colorClass="text-green-400 bg-green-500"
-              isLoading={!awayTeamStats}
+              isLoading={isLoadingEnrichment}
             />
             <StatPill
               icon={Shield}
               value={awayStrength.defense}
               colorClass="text-blue-400 bg-blue-500"
-              isLoading={!awayTeamStats}
+              isLoading={isLoadingEnrichment}
             />
           </div>
         </div>

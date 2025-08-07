@@ -1,11 +1,12 @@
 // ===== src/components/league-detail-view/LeagueStandingsWidget.tsx =====
+
 "use client";
 
 import { useState } from "react";
 import Image from "next/image";
 import { proxyImageUrl } from "@/lib/image-proxy";
 import StyledLink from "@/components/StyledLink";
-import { Info, ListOrdered } from "lucide-react";
+import { Info, ListOrdered, Loader2 } from "lucide-react";
 import { generateTeamSlug } from "@/lib/generate-team-slug";
 import { useTranslation } from "@/hooks/useTranslation";
 import Slider from "react-slick";
@@ -27,8 +28,11 @@ interface TeamStanding {
 }
 
 interface LeagueStandingsWidgetProps {
-  standings: TeamStanding[][]; // The nested array of groups
-  league: { seasons: number[]; id: number }; // Pass seasons for the dropdown
+  initialStandings: TeamStanding[][];
+  leagueSeasons: number[];
+  currentSeason: number;
+  onSeasonChange: (season: number) => void;
+  isLoading: boolean;
 }
 
 const getRankIndicatorClass = (description: string | null): string => {
@@ -42,67 +46,6 @@ const getRankIndicatorClass = (description: string | null): string => {
   if (desc.includes("relegation")) return "bg-red-600/20 border-red-600";
   return "bg-gray-700/50 border-gray-600/50";
 };
-
-export default function LeagueStandingsWidget({
-  standings,
-  league,
-}: LeagueStandingsWidgetProps) {
-  const { t } = useTranslation();
-  const [season, setSeason] = useState(league.seasons[0]); // Default to the latest season
-
-  // Note: Add logic here to refetch standings when season changes if this becomes a fully dynamic component
-
-  if (!standings || standings.length === 0) {
-    return (
-      <div className="bg-brand-secondary rounded-lg p-6 text-center">
-        <Info size={32} className="mx-auto text-brand-muted mb-3" />
-        <p className="font-semibold text-white">
-          {t("standings_not_available")}
-        </p>
-      </div>
-    );
-  }
-
-  const sliderSettings = {
-    dots: true,
-    infinite: false,
-    speed: 500,
-    slidesToShow: 1,
-    slidesToScroll: 1,
-    arrows: false,
-    appendDots: (dots: any) => (
-      <div>
-        <ul className="m-0 pt-3"> {dots} </ul>
-      </div>
-    ),
-  };
-
-  return (
-    <div className="bg-brand-secondary rounded-lg">
-      <div className="p-4 border-b border-gray-700/50 flex justify-between items-center">
-        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <ListOrdered size={22} /> {t("standings")}
-        </h2>
-        {/* Season selector can be added back here if needed */}
-      </div>
-
-      {standings.length > 1 ? (
-        <Slider {...sliderSettings} className="p-4">
-          {standings.map((group, index) => (
-            <div key={index}>
-              <h3 className="text-center font-bold text-brand-light mb-3">
-                {group[0].group}
-              </h3>
-              <StandingsTable group={group} t={t} />
-            </div>
-          ))}
-        </Slider>
-      ) : (
-        <StandingsTable group={standings[0]} t={t} />
-      )}
-    </div>
-  );
-}
 
 const StandingsTable = ({
   group,
@@ -186,3 +129,90 @@ const StandingsTable = ({
     </table>
   </div>
 );
+
+export default function LeagueStandingsWidget({
+  initialStandings,
+  leagueSeasons = [],
+  currentSeason,
+  onSeasonChange,
+  isLoading,
+}: LeagueStandingsWidgetProps) {
+  const { t } = useTranslation();
+
+  if (!initialStandings || initialStandings.length === 0) {
+    return (
+      <div className="bg-brand-secondary rounded-lg p-6 text-center">
+        <Info size={32} className="mx-auto text-brand-muted mb-3" />
+        <p className="font-semibold text-white">
+          {t("standings_not_available")}
+        </p>
+      </div>
+    );
+  }
+
+  const sliderSettings = {
+    dots: true,
+    infinite: false,
+    speed: 500,
+    slidesToShow: 1,
+    slidesToScroll: 1,
+    arrows: false,
+    appendDots: (dots: any) => (
+      <div>
+        <ul className="m-0 pt-3"> {dots} </ul>
+      </div>
+    ),
+  };
+
+  return (
+    <div className="bg-brand-secondary rounded-lg">
+      <div className="p-4 border-b border-gray-700/50 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+          <ListOrdered size={22} /> {t("standings")}
+        </h2>
+        {leagueSeasons.length > 1 && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-brand-muted">
+              {t("season")}:
+            </span>
+            <select
+              value={currentSeason}
+              onChange={(e) => onSeasonChange(Number(e.target.value))}
+              className="p-2 rounded bg-gray-800 text-white border border-gray-600 text-sm focus:outline-none focus:ring-1 focus:ring-brand-purple"
+              disabled={isLoading}
+            >
+              {leagueSeasons.map((season) => (
+                <option key={season} value={season}>
+                  {season} - {season + 1}
+                </option>
+              ))}
+            </select>
+            {isLoading && <Loader2 className="animate-spin text-brand-muted" />}
+          </div>
+        )}
+      </div>
+
+      <div className="relative">
+        {isLoading && (
+          <div className="absolute inset-0 bg-brand-secondary/50 backdrop-blur-sm z-20 flex items-center justify-center">
+            <Loader2 size={32} className="animate-spin text-brand-purple" />
+          </div>
+        )}
+        {initialStandings.length > 1 ? (
+          <Slider {...sliderSettings} className="p-4">
+            {initialStandings.map((group, index) => (
+              <div key={index}>
+                <h3 className="text-center font-bold text-brand-light mb-3">
+                  {group[0].group}
+                </h3>
+                <StandingsTable group={group} t={t} />
+              </div>
+            ))}
+          </Slider>
+        ) : (
+          <StandingsTable group={initialStandings[0]} t={t} />
+        )}
+      </div>
+    </div>
+  );
+}
