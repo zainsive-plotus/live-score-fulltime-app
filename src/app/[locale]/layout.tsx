@@ -92,7 +92,7 @@ export default async function LocaleLayout({
           <Script src="./scripts/relic.js" />
         )}
       </head>
-      <body>
+      <body suppressHydrationWarning={true}>
         <Suspense fallback={<Loading />}>
           <NextAuthProvider>
             <Providers>

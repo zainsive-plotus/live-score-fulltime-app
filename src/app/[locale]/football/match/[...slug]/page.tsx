@@ -1,44 +1,33 @@
+// ===== src/app/[locale]/football/match/[...slug]/page.tsx =====
+
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
-// Import NEW granular data functions
 import {
   getFixture,
   getH2H,
   getTeamStats,
   getStatistics,
-  getStandings,
-  getPredictionData,
-  getBookmakerOdds,
   getLinkedNews,
-  getMatchHighlights,
 } from "@/lib/data/match";
 
-// Standard imports
 import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
 import Header from "@/components/Header";
+import SidebarContent from "./SidebarContent";
 
-// Existing Component imports
 import { MatchHeader } from "@/components/match/MatchHeader";
 import TeamFormWidget from "@/components/match/TeamFormWidget";
 import MatchH2HWidget from "@/components/match/MatchH2HWidget";
 import MatchLineupsWidget from "@/components/match/MatchLineupsWidget";
 import MatchStatsWidget from "@/components/match/MatchStatsWidget";
 import MatchActivityWidget from "@/components/match/MatchActivityWidget";
-import AdSlotWidget from "@/components/AdSlotWidget";
-import LiveOddsWidget from "@/components/match/LiveOddsWidget";
-import LinkedNewsWidget from "@/components/match/LinkedNewsWidget";
-import MatchHighlightsWidget from "@/components/match/MatchHighlightsWidget";
-import TeamStandingsWidget from "@/components/match/TeamStandingsWidget";
-import MatchPredictionWidget from "@/components/match/MatchPredictionWidget";
 import {
   AdSlotWidgetSkeleton,
   RecentNewsWidgetSkeleton,
 } from "@/components/skeletons/WidgetSkeletons";
 
-// --- Helper Function ---
 const getFixtureIdFromSlug = (slug: string): string | null => {
   if (!slug) return null;
   const parts = slug?.split("-");
@@ -46,7 +35,6 @@ const getFixtureIdFromSlug = (slug: string): string | null => {
   return /^\d+$/.test(lastPart) ? lastPart : null;
 };
 
-// --- Metadata ---
 export async function generateMetadata({
   params,
 }: {
@@ -79,8 +67,6 @@ export async function generateMetadata({
     alternates: hreflangAlternates,
   };
 }
-
-// ===== Start of Async Components and Skeletons for Streaming =====
 
 async function TeamFormContent({ fixture }: { fixture: any }) {
   const { league, teams } = fixture;
@@ -186,65 +172,6 @@ const StatsContentSkeleton = () => (
   </div>
 );
 
-async function Sidebar({
-  fixtureData,
-  isLive,
-  locale,
-}: {
-  fixtureData: any;
-  isLive: boolean;
-  locale: string;
-}) {
-  const t = await getI18n(locale);
-  const { fixture, teams, league } = fixtureData;
-
-  const [
-    predictionData,
-    bookmakerOdds,
-    standingsResponse,
-    linkedPosts,
-    highlights,
-  ] = await Promise.all([
-    getPredictionData(
-      fixture.id.toString(),
-      teams.home.id,
-      teams.away.id,
-      league.id,
-      league.season
-    ),
-    getBookmakerOdds(fixture.id.toString()),
-    getStandings(league.id, league.season),
-    getLinkedNews(fixture.id, locale),
-    getMatchHighlights(league.name, teams.home.name, teams.away.name),
-  ]);
-
-  const standingsSeoDescription = t("match_page_standings_seo_text", {
-    homeTeam: teams.home.name,
-    awayTeam: teams.away.name,
-  });
-
-  return (
-    <>
-      {isLive && <LiveOddsWidget fixtureId={fixture.id.toString()} />}
-      <LinkedNewsWidget posts={linkedPosts} />
-      <MatchHighlightsWidget highlights={highlights} />
-      <TeamStandingsWidget
-        standingsResponse={standingsResponse}
-        homeTeamId={teams.home.id}
-        awayTeamId={teams.away.id}
-        standingsSeoDescription={standingsSeoDescription}
-      />
-      <MatchPredictionWidget
-        apiPrediction={null}
-        customPrediction={predictionData?.customPrediction}
-        bookmakerOdds={bookmakerOdds}
-        teams={teams}
-      />
-      <AdSlotWidget location="match_sidebar" />
-    </>
-  );
-}
-
 const SidebarSkeleton = () => (
   <div className="space-y-6">
     <RecentNewsWidgetSkeleton />
@@ -253,8 +180,6 @@ const SidebarSkeleton = () => (
     <AdSlotWidgetSkeleton />
   </div>
 );
-
-// ===== Main Page Component =====
 
 export default async function MatchDetailPage({
   params,
@@ -266,11 +191,14 @@ export default async function MatchDetailPage({
   const fixtureId = getFixtureIdFromSlug(slug[0]);
   if (!fixtureId) notFound();
 
-  // Initial, fast data fetch. This is all that's needed to render the shell.
   const fixtureData = await getFixture(fixtureId);
   if (!fixtureData) notFound();
 
   const { teams, fixture: fixtureDetails } = fixtureData;
+
+  const [linkedPosts] = await Promise.all([
+    getLinkedNews(fixtureDetails.id, locale),
+  ]);
 
   const isLive = ["1H", "HT", "2H", "ET", "BT", "P", "LIVE"].includes(
     fixtureDetails.status?.short
@@ -285,14 +213,17 @@ export default async function MatchDetailPage({
     homeTeam: teams.home.name,
     awayTeam: teams.away.name,
   });
+  const standingsSeoDescription = t("match_page_standings_seo_text", {
+    homeTeam: teams.home.name,
+    awayTeam: teams.away.name,
+  });
 
   return (
     <div className="bg-brand-dark min-h-screen">
       <Header />
       <div className="container mx-auto p-4 md:p-6 lg:grid lg:grid-cols-3 lg:gap-8 lg:items-start">
         <main className="lg:col-span-2 space-y-6">
-          <MatchHeader fixture={fixtureData} analytics={{}} />{" "}
-          {/* Renders instantly */}
+          <MatchHeader fixture={fixtureData} analytics={{}} />
           <Suspense fallback={<TeamFormContentSkeleton />}>
             <TeamFormContent fixture={fixtureData} />
           </Suspense>
@@ -320,10 +251,11 @@ export default async function MatchDetailPage({
 
         <aside className="lg:col-span-1 space-y-6 lg:sticky lg:top-6 mt-8 lg:mt-0">
           <Suspense fallback={<SidebarSkeleton />}>
-            <Sidebar
+            <SidebarContent
               fixtureData={fixtureData}
               isLive={isLive}
-              locale={locale}
+              linkedNews={linkedPosts}
+              standingsSeoDescription={standingsSeoDescription}
             />
           </Suspense>
         </aside>

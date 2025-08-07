@@ -1,6 +1,9 @@
 // ===== src/components/match/MatchHighlightsWidget.tsx =====
+
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 import Slider from "react-slick";
 import { Film, ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -14,10 +17,34 @@ interface Highlight {
   title: string;
 }
 
-// The component now receives highlights as a prop
 interface MatchHighlightsWidgetProps {
-  highlights: Highlight[] | null;
+  leagueName: string;
+  homeTeamName: string;
+  awayTeamName: string;
 }
+
+const fetchHighlights = async (
+  leagueName: string,
+  homeTeamName: string,
+  awayTeamName: string
+) => {
+  const params = new URLSearchParams({
+    leagueName,
+    homeTeamName,
+    awayTeamName,
+  });
+  const { data } = await axios.get(
+    `/api/match-highlights?${params.toString()}`
+  );
+  return data;
+};
+
+const HighlightsSkeleton = () => (
+  <div className="w-full">
+    <div className="mb-4 h-8 w-1/2 bg-gray-700 rounded-md animate-pulse"></div>
+    <div className="aspect-video w-full rounded-lg bg-gray-700/50 animate-pulse"></div>
+  </div>
+);
 
 const NextArrow = ({ onClick }: { onClick?: () => void }) => (
   <button
@@ -28,6 +55,7 @@ const NextArrow = ({ onClick }: { onClick?: () => void }) => (
     <ChevronRight size={24} />
   </button>
 );
+
 const PrevArrow = ({ onClick }: { onClick?: () => void }) => (
   <button
     onClick={onClick}
@@ -39,12 +67,28 @@ const PrevArrow = ({ onClick }: { onClick?: () => void }) => (
 );
 
 export default function MatchHighlightsWidget({
-  highlights,
+  leagueName,
+  homeTeamName,
+  awayTeamName,
 }: MatchHighlightsWidgetProps) {
   const { t } = useTranslation();
 
-  // If there are no highlights, don't render anything.
-  if (!highlights || highlights.length === 0) {
+  const {
+    data: highlights,
+    isLoading,
+    isError,
+  } = useQuery<Highlight[]>({
+    queryKey: ["matchHighlights", leagueName, homeTeamName, awayTeamName],
+    queryFn: () => fetchHighlights(leagueName, homeTeamName, awayTeamName),
+    staleTime: 1000 * 60 * 15, // 15 minutes
+    enabled: !!(leagueName && homeTeamName && awayTeamName),
+  });
+
+  if (isLoading) {
+    return <HighlightsSkeleton />;
+  }
+
+  if (isError || !highlights || highlights.length === 0) {
     return null;
   }
 
