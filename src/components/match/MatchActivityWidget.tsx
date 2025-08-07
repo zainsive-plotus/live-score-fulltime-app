@@ -1,17 +1,19 @@
 // ===== src/components/match/MatchActivityWidget.tsx =====
-import "server-only"; // This component now only ever runs on the server
+
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import { memo, useMemo } from "react";
 import axios from "axios";
-import MatchActivityClient from "./MatchActivityClient"; // Import the new Client Component
+import {
+  Clock,
+  Goal,
+  ArrowLeftRight,
+  RectangleVertical,
+  Info,
+} from "lucide-react";
+import { useTranslation } from "@/hooks/useTranslation";
 
-// Define the type for the props, which will be passed down
-interface MatchActivityWidgetProps {
-  fixtureId: string;
-  isLive: boolean;
-  homeTeamId: number;
-  activitySeoDescription: string;
-}
-
-// Define the type for the event data
 interface MatchEvent {
   time: { elapsed: number };
   team: { id: number; name: string; logo: string };
@@ -21,44 +23,126 @@ interface MatchEvent {
   detail: string;
 }
 
-// Server-side data fetching function
-const fetchInitialFixtureEvents = async (
-  fixtureId: string
-): Promise<MatchEvent[]> => {
-  try {
-    // We use the full URL here because this is a server-to-server fetch
-    const { data } = await axios.get(
-      `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/api/match-details?fixture=${fixtureId}`
-    );
-    return data?.events || [];
-  } catch (error) {
-    console.error(
-      `[MatchActivityWidget] Failed to fetch initial events for fixture ${fixtureId}:`,
-      error
-    );
-    return []; // Return an empty array on failure to prevent page crashes
+const fetchFixtureEvents = async (fixtureId: string): Promise<MatchEvent[]> => {
+  // We can fetch from the main details endpoint, but let's assume we might
+  // want a dedicated, lighter endpoint for just events later.
+  // For now, this is fine and will be de-duped by react-query.
+  const { data } = await axios.get(`/api/match-details?fixture=${fixtureId}`);
+  return data?.fixture?.events || [];
+};
+
+const getEventStyles = (type: string, detail: string) => {
+  switch (type) {
+    case "Goal":
+      return { bg: "bg-green-500/10", iconColor: "text-green-400" };
+    case "Card":
+      return detail.includes("Yellow")
+        ? { bg: "bg-yellow-500/10", iconColor: "text-yellow-400" }
+        : { bg: "bg-red-500/10", iconColor: "text-red-400" };
+    case "subst":
+      return { bg: "bg-blue-500/10", iconColor: "text-blue-400" };
+    default:
+      return { bg: "bg-gray-500/10", iconColor: "text-gray-400" };
   }
 };
 
-// This is now a pure async Server Component
-export default async function MatchActivityWidget({
+const EventRow = memo(
+  ({
+    event,
+    t,
+  }: {
+    event: MatchEvent;
+    t: (key: string, params?: any) => string;
+  }) => {
+    const styles = getEventStyles(event.type, event.detail);
+    const Icon =
+      event.type === "Goal"
+        ? Goal
+        : event.type === "Card"
+        ? RectangleVertical
+        : event.type === "subst"
+        ? ArrowLeftRight
+        : Clock;
+    const assistText = event.assist.name
+      ? t("assist_by", { name: event.assist.name })
+      : "";
+
+    return (
+      <div className="relative">
+        <div
+          className={`absolute -left-[38px] top-1 w-8 h-8 rounded-full flex items-center justify-center ${styles.bg} ${styles.iconColor} border-4 border-brand-dark`}
+        >
+          <Icon size={16} />
+        </div>
+        <div>
+          <p className="text-xs font-bold text-brand-muted">
+            {event.time.elapsed}' - {event.detail}
+          </p>
+          <p className="font-semibold text-white">{event.player.name}</p>
+          {event.assist.name && (
+            <p className="text-sm text-brand-light">{assistText}</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+);
+EventRow.displayName = "EventRow";
+
+// Renamed from MatchActivityClient to MatchActivityWidget
+export default function MatchActivityWidget({
+  initialEvents,
   fixtureId,
   isLive,
-  homeTeamId,
   activitySeoDescription,
-}: MatchActivityWidgetProps) {
-  // 1. Fetch the initial data on the server.
-  const initialEvents = await fetchInitialFixtureEvents(fixtureId);
+}: {
+  initialEvents: MatchEvent[];
+  fixtureId: string;
+  isLive: boolean;
+  activitySeoDescription: string;
+}) {
+  const { t } = useTranslation();
 
-  // 2. Render the Client Component and pass the server-fetched data as a prop.
-  // We no longer need the homeTeamId prop for the client component as it's not used there.
+  const { data: events } = useQuery<MatchEvent[]>({
+    queryKey: ["fixtureEvents", fixtureId],
+    queryFn: () => fetchFixtureEvents(fixtureId),
+    initialData: initialEvents,
+    refetchInterval: isLive ? 15000 : false,
+    staleTime: isLive ? 10000 : Infinity,
+  });
+
+  const sortedEvents = useMemo(() => {
+    if (!events) return [];
+    return [...events].sort((a, b) => b.time.elapsed - a.time.elapsed);
+  }, [events]);
+
   return (
-    <MatchActivityClient
-      initialEvents={initialEvents}
-      fixtureId={fixtureId}
-      isLive={isLive}
-      homeTeamId={homeTeamId} // We can keep passing this if the client needs it for other logic
-      activitySeoDescription={activitySeoDescription}
-    />
+    <div className="bg-brand-secondary rounded-lg shadow-lg overflow-hidden">
+      <div className="p-4 md:p-6">
+        <h2 className="text-2xl font-bold text-white mb-4">
+          {t("match_timeline")}
+        </h2>
+        <p className="italic text-brand-muted leading-relaxed mb-8 text-sm">
+          {activitySeoDescription}
+        </p>
+
+        {sortedEvents.length === 0 ? (
+          <div className="text-center py-10 text-brand-muted">
+            <Info size={32} className="mx-auto mb-3" />
+            <p>{t("match_not_started")}</p>
+          </div>
+        ) : (
+          <div className="relative border-l-2 border-gray-700/50 ml-6 pl-8 space-y-8">
+            {sortedEvents.map((event, index) => (
+              <EventRow
+                key={`${event.time.elapsed}-${event.player.id}-${index}`}
+                event={event}
+                t={t}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

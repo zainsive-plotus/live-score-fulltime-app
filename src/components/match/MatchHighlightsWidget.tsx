@@ -55,7 +55,6 @@ const NextArrow = ({ onClick }: { onClick?: () => void }) => (
     <ChevronRight size={24} />
   </button>
 );
-
 const PrevArrow = ({ onClick }: { onClick?: () => void }) => (
   <button
     onClick={onClick}

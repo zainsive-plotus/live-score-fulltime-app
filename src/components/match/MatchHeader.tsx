@@ -49,14 +49,10 @@ interface Fixture {
 }
 interface MatchHeaderProps {
   fixture: Fixture;
+  homeTeamStats?: any;
+  awayTeamStats?: any;
+  predictionData?: any;
 }
-
-const fetchPredictionData = async (fixtureId: string) => {
-  const { data } = await axios.get(
-    `/api/match-prediction?fixtureId=${fixtureId}`
-  );
-  return data;
-};
 
 const StatPill = ({
   icon: Icon,
@@ -188,16 +184,14 @@ const PredictionResultWidget = ({
   );
 };
 
-export const MatchHeader: React.FC<MatchHeaderProps> = ({ fixture }) => {
+export const MatchHeader: React.FC<MatchHeaderProps> = ({
+  fixture,
+  homeTeamStats,
+  awayTeamStats,
+  predictionData,
+}) => {
   const { t } = useTranslation();
   const { teams, league, fixture: fixtureDetails, goals, score } = fixture;
-
-  const { data: predictionData, isLoading: isLoadingPrediction } = useQuery({
-    queryKey: ["predictionData", fixtureDetails.id.toString()],
-    queryFn: () => fetchPredictionData(fixtureDetails.id.toString()),
-    staleTime: 1000 * 60 * 5,
-    enabled: !!fixtureDetails.id,
-  });
 
   const isLive = useMemo(
     () =>
@@ -214,7 +208,15 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({ fixture }) => {
   const finalScoreHome = score?.fulltime?.home ?? goals?.home;
   const finalScoreAway = score?.fulltime?.away ?? goals?.away;
 
-  const { predictionResult } = useMemo(() => {
+  const { homeStrength, awayStrength, predictionResult } = useMemo(() => {
+    const calcRating = (stats: any) => {
+      const avgFor = stats?.goals?.for?.average?.total ?? "1.0";
+      const avgAgainst = stats?.goals?.against?.average?.total ?? "1.0";
+      return {
+        attack: Math.min(10, (parseFloat(avgFor) / 2.0) * 10).toFixed(1),
+        defense: Math.min(10, (1.5 / parseFloat(avgAgainst)) * 10).toFixed(1),
+      };
+    };
     let result = {
       isFinished,
       predictedOutcome: null,
@@ -237,8 +239,12 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({ fixture }) => {
         ? "Away Win"
         : "Draw";
     }
-    return { predictionResult: result };
-  }, [predictionData, isFinished, teams]);
+    return {
+      homeStrength: calcRating(homeTeamStats),
+      awayStrength: calcRating(awayTeamStats),
+      predictionResult: result,
+    };
+  }, [predictionData, homeTeamStats, awayTeamStats, isFinished, teams]);
 
   return (
     <div className="bg-brand-secondary rounded-lg overflow-hidden shadow-lg mb-4">
@@ -284,7 +290,20 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({ fixture }) => {
           <h2 className="font-bold text-white text-lg md:text-xl truncate w-full">
             {teams.home.name}
           </h2>
-          {/* Strength pills removed as data is not available */}
+          <div className="flex items-center gap-2">
+            <StatPill
+              icon={Zap}
+              value={homeStrength.attack}
+              colorClass="text-green-400 bg-green-500"
+              isLoading={!homeTeamStats}
+            />
+            <StatPill
+              icon={Shield}
+              value={homeStrength.defense}
+              colorClass="text-blue-400 bg-blue-500"
+              isLoading={!homeTeamStats}
+            />
+          </div>
         </div>
 
         <div className="flex flex-col items-center justify-center text-center gap-4">
@@ -304,7 +323,7 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({ fixture }) => {
           <PredictionResultWidget
             result={predictionResult}
             teams={teams}
-            isLoading={isLoadingPrediction}
+            isLoading={!predictionData}
             t={t}
           />
         </div>
@@ -323,7 +342,20 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({ fixture }) => {
           <h2 className="font-bold text-white text-lg md:text-xl truncate w-full">
             {teams.away.name}
           </h2>
-          {/* Strength pills removed as data is not available */}
+          <div className="flex items-center gap-2">
+            <StatPill
+              icon={Zap}
+              value={awayStrength.attack}
+              colorClass="text-green-400 bg-green-500"
+              isLoading={!awayTeamStats}
+            />
+            <StatPill
+              icon={Shield}
+              value={awayStrength.defense}
+              colorClass="text-blue-400 bg-blue-500"
+              isLoading={!awayTeamStats}
+            />
+          </div>
         </div>
       </div>
     </div>

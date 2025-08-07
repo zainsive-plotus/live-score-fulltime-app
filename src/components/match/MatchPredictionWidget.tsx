@@ -25,7 +25,6 @@ interface MatchPredictionWidgetProps {
 
 const MAJOR_BOOKMAKER_IDS = new Set([1, 2, 6, 8, 9, 24, 31]);
 
-// A new sub-component for displaying each prediction outcome
 const PredictionCard = ({
   label,
   team,
@@ -151,6 +150,7 @@ export default function MatchPredictionWidget({
 }: MatchPredictionWidgetProps) {
   const { t } = useTranslation();
 
+  // --- FIX: All hooks are now called unconditionally at the top ---
   const majorBookmakers = useMemo(() => {
     if (!predictionData?.bookmakerOdds) return [];
     return predictionData.bookmakerOdds.filter((bookie) =>
@@ -194,6 +194,16 @@ export default function MatchPredictionWidget({
     };
   }, [majorBookmakers]);
 
+  const highestPrediction = useMemo(() => {
+    if (!predictionData?.customPrediction) return null;
+    return Math.max(
+      predictionData.customPrediction.home,
+      predictionData.customPrediction.draw,
+      predictionData.customPrediction.away
+    );
+  }, [predictionData?.customPrediction]);
+  // --- END OF HOOKS ---
+
   if (isLoading) {
     return <PredictionWidgetSkeleton />;
   }
@@ -212,15 +222,6 @@ export default function MatchPredictionWidget({
   }
 
   const { customPrediction, teams } = predictionData;
-
-  const highestPrediction = useMemo(() => {
-    if (!customPrediction) return null;
-    return Math.max(
-      customPrediction.home,
-      customPrediction.draw,
-      customPrediction.away
-    );
-  }, [customPrediction]);
 
   return (
     <div className="bg-brand-secondary p-4 rounded-lg">

@@ -1,38 +1,19 @@
 // ===== src/components/match/TeamStandingsWidget.tsx =====
+
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import axios from "axios";
-import Image from "next/image";
 import Link from "next/link";
-import { Trophy, ChevronRight } from "lucide-react";
-import { generateTeamSlug } from "@/lib/generate-team-slug";
+import { Trophy } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
-import TeamStandingsTable from "./TeamStandingsTable"; // We will still use this for the UI
+import TeamStandingsTable from "./TeamStandingsTable";
 
 interface TeamStandingsWidgetProps {
-  leagueId: number;
-  season: number;
+  standingsResponse: any; // The full response from the /api/standings endpoint
   homeTeamId: number;
   awayTeamId: number;
   standingsSeoDescription: string;
 }
-
-const fetchStandings = async (leagueId: number, season: number) => {
-  try {
-    const { data } = await axios.get(
-      `/api/standings?league=${leagueId}&season=${season}`
-    );
-    return data;
-  } catch (error) {
-    console.error(
-      `[TeamStandingsWidget] Failed to fetch standings for league ${leagueId}:`,
-      error
-    );
-    return null;
-  }
-};
 
 const StandingsSkeleton = () => (
   <div className="bg-brand-secondary rounded-lg h-96 animate-pulse p-6">
@@ -47,28 +28,17 @@ const StandingsSkeleton = () => (
 );
 
 export default function TeamStandingsWidget({
-  leagueId,
-  season,
+  standingsResponse,
   homeTeamId,
   awayTeamId,
   standingsSeoDescription,
 }: TeamStandingsWidgetProps) {
   const { t } = useTranslation();
 
-  const {
-    data: standingsData,
-    isLoading,
-    isError,
-  } = useQuery({
-    queryKey: ["standings", leagueId, season],
-    queryFn: () => fetchStandings(leagueId, season),
-    staleTime: 1000 * 60 * 15, // Cache for 15 minutes
-    enabled: !!leagueId && !!season,
-  });
-
   const relevantStandings = useMemo(() => {
-    if (!standingsData || !standingsData.standings) return [];
-    const allStandings = standingsData.standings.flat();
+    if (!standingsResponse || !standingsResponse.standings) return [];
+
+    const allStandings = standingsResponse.standings.flat();
     const homeTeamRank = allStandings.find(
       (s: any) => s.team.id === homeTeamId
     );
@@ -98,13 +68,14 @@ export default function TeamStandingsWidget({
     )
       .sort((a: any, b: any) => a.rank - b.rank)
       .slice(0, 5);
-  }, [standingsData, homeTeamId, awayTeamId]);
+  }, [standingsResponse, homeTeamId, awayTeamId]);
 
-  if (isLoading) return <StandingsSkeleton />;
-  if (isError || !standingsData?.league || relevantStandings.length === 0)
-    return null;
+  // Use the league data directly from the response
+  const league = standingsResponse?.league;
 
-  const { league } = standingsData;
+  if (!league || relevantStandings.length === 0) {
+    return null; // Don't render if there's no league data or relevant teams
+  }
 
   return (
     <div className="bg-brand-secondary rounded-lg shadow-lg overflow-hidden">

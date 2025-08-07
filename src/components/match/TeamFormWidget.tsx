@@ -12,7 +12,7 @@ interface TeamFormWidgetProps {
   teamStats: any;
   team: any;
   location: "Home" | "Away";
-  h2hData: any[]; // New prop for fallback data
+  h2hData: any[];
 }
 
 const StatRow = ({
@@ -52,7 +52,7 @@ export default function TeamFormWidget({
   teamStats,
   team,
   location,
-  h2hData, // Use the new prop
+  h2hData,
 }: TeamFormWidgetProps) {
   const { t } = useTranslation();
 
@@ -60,40 +60,38 @@ export default function TeamFormWidget({
     let form = "";
     let stats = null;
 
-    // --- Start of Fix ---
-    // Primary source: Use detailed teamStats if available
     if (teamStats?.form) {
       form = teamStats.form;
       stats = {
         fixtures: teamStats.fixtures,
         goals: teamStats.goals,
       };
-    } 
-    // Fallback source: If form is missing, calculate from h2hData
-    else if (h2hData) {
+    } else if (h2hData) {
       const teamFixtures = h2hData
         .filter(
           (m: any) => m.teams.home.id === team.id || m.teams.away.id === team.id
         )
         .sort(
           (a: any, b: any) =>
-            new Date(b.fixture.date).getTime() - new Date(a.fixture.date).getTime()
+            new Date(b.fixture.date).getTime() -
+            new Date(a.fixture.date).getTime()
         )
-        .slice(0, 10); // Get last 10 to be safe
-      
-      form = teamFixtures.map((match: any) => {
-        const isHome = match.teams.home.id === team.id;
-        if (match.teams.home.winner) return isHome ? 'W' : 'L';
-        if (match.teams.away.winner) return isHome ? 'L' : 'W';
-        return 'D';
-      }).reverse().join(''); // Reverse to get chronological order
+        .slice(0, 10);
+
+      form = teamFixtures
+        .map((match: any) => {
+          const isHome = match.teams.home.id === team.id;
+          if (match.teams.home.winner) return isHome ? "W" : "L";
+          if (match.teams.away.winner) return isHome ? "L" : "W";
+          return "D";
+        })
+        .reverse()
+        .join("");
     }
-    // --- End of Fix ---
 
     return { formString: form, detailedStats: stats };
   }, [teamStats, h2hData, team.id]);
 
-  // Only show the "not available" message if we have NO data at all
   if (!formString && !detailedStats) {
     return (
       <div className="bg-brand-secondary p-4 rounded-lg">
@@ -111,7 +109,6 @@ export default function TeamFormWidget({
 
   return (
     <div className="bg-brand-secondary p-4 rounded-lg space-y-4">
-      {/* Header */}
       <div className="flex items-center gap-3">
         <Image
           src={proxyImageUrl(team.logo)}
@@ -127,7 +124,6 @@ export default function TeamFormWidget({
         </div>
       </div>
 
-      {/* Recent Form (Now uses fallback if needed) */}
       {formArray.length > 0 && (
         <div>
           <h4 className="font-semibold text-brand-light mb-2 flex items-center gap-2">
@@ -142,7 +138,6 @@ export default function TeamFormWidget({
         </div>
       )}
 
-      {/* Detailed Stats (Render ONLY if available) */}
       {detailedStats ? (
         <>
           <div>
@@ -152,19 +147,33 @@ export default function TeamFormWidget({
             <div className="bg-gray-800/50 p-2 rounded-md">
               <StatRow
                 label={t("matches_played")}
-                value={`${detailedStats.fixtures.played.home} (${t("home_short")}) / ${detailedStats.fixtures.played.away} (${t("away_short")})`}
+                value={`${detailedStats.fixtures.played.home} (${t(
+                  "home_short"
+                )}) / ${detailedStats.fixtures.played.away} (${t(
+                  "away_short"
+                )})`}
               />
               <StatRow
                 label={t("wins")}
-                value={`${detailedStats.fixtures.wins.home} (${t("home_short")}) / ${detailedStats.fixtures.wins.away} (${t("away_short")})`}
+                value={`${detailedStats.fixtures.wins.home} (${t(
+                  "home_short"
+                )}) / ${detailedStats.fixtures.wins.away} (${t("away_short")})`}
               />
               <StatRow
                 label={t("draws")}
-                value={`${detailedStats.fixtures.draws.home} (${t("home_short")}) / ${detailedStats.fixtures.draws.away} (${t("away_short")})`}
+                value={`${detailedStats.fixtures.draws.home} (${t(
+                  "home_short"
+                )}) / ${detailedStats.fixtures.draws.away} (${t(
+                  "away_short"
+                )})`}
               />
               <StatRow
                 label={t("losses")}
-                value={`${detailedStats.fixtures.loses.home} (${t("home_short")}) / ${detailedStats.fixtures.loses.away} (${t("away_short")})`}
+                value={`${detailedStats.fixtures.loses.home} (${t(
+                  "home_short"
+                )}) / ${detailedStats.fixtures.loses.away} (${t(
+                  "away_short"
+                )})`}
               />
             </div>
           </div>
@@ -195,8 +204,10 @@ export default function TeamFormWidget({
         </>
       ) : (
         <div className="text-center p-3 bg-gray-800/50 rounded-md">
-           <Info size={18} className="mx-auto text-brand-muted mb-2" />
-           <p className="text-sm text-brand-muted">{t("detailed_stats_unavailable")}</p>
+          <Info size={18} className="mx-auto text-brand-muted mb-2" />
+          <p className="text-sm text-brand-muted">
+            {t("detailed_stats_unavailable")}
+          </p>
         </div>
       )}
     </div>
