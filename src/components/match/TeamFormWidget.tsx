@@ -3,17 +3,32 @@
 "use client";
 
 import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 import { TrendingUp, Shield, BarChart2, Info } from "lucide-react";
 import Image from "next/image";
 import { proxyImageUrl } from "@/lib/image-proxy";
 import { useTranslation } from "@/hooks/useTranslation";
 
 interface TeamFormWidgetProps {
-  teamStats: any;
   team: any;
   location: "Home" | "Away";
-  h2hData: any[];
+  fixtureData: any; // Used to get IDs for the API call
 }
+
+const fetchTeamFormData = async (
+  teamId: number,
+  leagueId: number,
+  season: number
+) => {
+  const params = new URLSearchParams({
+    teamId: teamId.toString(),
+    leagueId: leagueId.toString(),
+    season: season.toString(),
+  });
+  const { data } = await axios.get(`/api/team-form-data?${params.toString()}`);
+  return data;
+};
 
 const StatRow = ({
   label,
@@ -48,59 +63,82 @@ const FormPill = ({ result }: { result: "W" | "D" | "L" }) => {
   );
 };
 
+const WidgetSkeleton = () => (
+  <div className="bg-brand-secondary p-4 rounded-lg space-y-4 animate-pulse h-[400px]">
+    <div className="flex items-center gap-3">
+      <div className="w-10 h-10 rounded-full bg-gray-700"></div>
+      <div className="space-y-2">
+        <div className="h-3 w-20 bg-gray-600 rounded"></div>
+        <div className="h-5 w-32 bg-gray-600 rounded"></div>
+      </div>
+    </div>
+    <div className="h-6 w-1/2 bg-gray-700 rounded"></div>
+    <div className="h-8 w-full bg-gray-700/50 rounded"></div>
+    <div className="h-6 w-1/2 bg-gray-700 rounded mt-4"></div>
+    <div className="h-24 w-full bg-gray-700/50 rounded"></div>
+  </div>
+);
+
 export default function TeamFormWidget({
-  teamStats,
   team,
   location,
-  h2hData,
+  fixtureData,
 }: TeamFormWidgetProps) {
   const { t } = useTranslation();
+  const { league } = fixtureData;
+
+  const {
+    data: teamStats,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["teamFormData", team.id, league.id, league.season],
+    queryFn: () => fetchTeamFormData(team.id, league.id, league.season),
+    staleTime: 1000 * 60 * 15,
+    enabled: !!team.id && !!league.id && !!league.season,
+  });
 
   const { formString, detailedStats } = useMemo(() => {
     let form = "";
     let stats = null;
 
-    if (teamStats?.form) {
-      form = teamStats.form;
+    if (teamStats && teamStats.fixtures?.played?.total > 0) {
+      form = teamStats.form || "";
       stats = {
         fixtures: teamStats.fixtures,
         goals: teamStats.goals,
       };
-    } else if (h2hData) {
-      const teamFixtures = h2hData
-        .filter(
-          (m: any) => m.teams.home.id === team.id || m.teams.away.id === team.id
-        )
-        .sort(
-          (a: any, b: any) =>
-            new Date(b.fixture.date).getTime() -
-            new Date(a.fixture.date).getTime()
-        )
-        .slice(0, 10);
-
-      form = teamFixtures
-        .map((match: any) => {
-          const isHome = match.teams.home.id === team.id;
-          if (match.teams.home.winner) return isHome ? "W" : "L";
-          if (match.teams.away.winner) return isHome ? "L" : "W";
-          return "D";
-        })
-        .reverse()
-        .join("");
     }
 
     return { formString: form, detailedStats: stats };
-  }, [teamStats, h2hData, team.id]);
+  }, [teamStats]);
 
-  if (!formString && !detailedStats) {
+  if (isLoading) {
+    return <WidgetSkeleton />;
+  }
+
+  if (isError || !detailedStats) {
     return (
-      <div className="bg-brand-secondary p-4 rounded-lg">
-        <h3 className="text-lg font-bold text-white mb-2">
-          {t("form_and_stats_title", { location })}
-        </h3>
-        <p className="text-sm text-brand-muted text-center py-4">
-          {t("stats_unavailable_for_team")}
-        </p>
+      <div className="bg-brand-secondary p-4 rounded-lg h-full flex flex-col">
+        <div className="flex items-center gap-3 mb-4">
+          <Image
+            src={proxyImageUrl(team.logo)}
+            alt={team.name}
+            width={40}
+            height={40}
+          />
+          <div>
+            <p className="text-xs text-brand-muted">
+              {location === "Home" ? t("home_team") : t("away_team")}
+            </p>
+            <h3 className="text-lg font-bold text-white">{team.name}</h3>
+          </div>
+        </div>
+        <div className="flex-grow flex items-center justify-center">
+          <p className="text-sm text-brand-muted text-center py-4">
+            {t("stats_unavailable_for_team")}
+          </p>
+        </div>
       </div>
     );
   }
@@ -138,7 +176,7 @@ export default function TeamFormWidget({
         </div>
       )}
 
-      {detailedStats ? (
+      {detailedStats && (
         <>
           <div>
             <h4 className="font-semibold text-brand-light mb-1 flex items-center gap-2">
@@ -202,13 +240,6 @@ export default function TeamFormWidget({
             </div>
           </div>
         </>
-      ) : (
-        <div className="text-center p-3 bg-gray-800/50 rounded-md">
-          <Info size={18} className="mx-auto text-brand-muted mb-2" />
-          <p className="text-sm text-brand-muted">
-            {t("detailed_stats_unavailable")}
-          </p>
-        </div>
       )}
     </div>
   );

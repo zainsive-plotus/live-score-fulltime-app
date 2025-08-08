@@ -22,7 +22,6 @@ import { generateLeagueSlug } from "@/lib/generate-league-slug";
 import { generateTeamSlug } from "@/lib/generate-team-slug";
 import { useTranslation } from "@/hooks/useTranslation";
 
-// Re-defining interfaces locally for clarity
 interface Team {
   id: number;
   name: string;
@@ -40,12 +39,12 @@ interface MatchHeaderProps {
   fixture: Fixture;
 }
 
-// This component now fetches all the "extra" data it needs
+// This fetch function is now used by the header to get its enrichment data
 const fetchHeaderEnrichmentData = async (fixtureId: string, locale: string) => {
   if (!fixtureId || !locale) return null;
-  // We can reuse the main details endpoint. React Query will dedupe requests.
+  // We use the robust prediction endpoint
   const { data } = await axios.get(
-    `/api/match-details?fixture=${fixtureId}&locale=${locale}`
+    `/api/match-prediction?fixtureId=${fixtureId}`
   );
   return data;
 };
@@ -185,10 +184,12 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({ fixture }) => {
   const { teams, league, fixture: fixtureDetails, goals, score } = fixture;
 
   const { data: enrichmentData, isLoading: isLoadingEnrichment } = useQuery({
-    queryKey: ["matchDetailsClient", fixtureDetails.id, locale],
+    // IMPORTANT: This key MUST match the one in MatchPredictionWidget
+    queryKey: ["predictionData", fixtureDetails.id.toString()],
     queryFn: () =>
       fetchHeaderEnrichmentData(fixtureDetails.id.toString(), locale!),
     enabled: !!fixtureDetails.id && !!locale,
+    staleTime: 1000 * 60 * 5,
   });
 
   const isLive = useMemo(
@@ -206,28 +207,14 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({ fixture }) => {
   const finalScoreHome = score?.fulltime?.home ?? goals?.home;
   const finalScoreAway = score?.fulltime?.away ?? goals?.away;
 
-  const { homeStrength, awayStrength, predictionResult } = useMemo(() => {
-    const homeTeamStats = enrichmentData?.homeTeamStats;
-    const awayTeamStats = enrichmentData?.awayTeamStats;
-    const predictionData = enrichmentData?.predictionData;
-
-    const calcRating = (stats: any) => {
-      if (!stats) return { attack: "?", defense: "?" };
-      const avgFor = stats?.goals?.for?.average?.total ?? "1.0";
-      const avgAgainst = stats?.goals?.against?.average?.total ?? "1.0";
-      return {
-        attack: Math.min(10, (parseFloat(avgFor) / 2.0) * 10).toFixed(1),
-        defense: Math.min(10, (1.5 / parseFloat(avgAgainst)) * 10).toFixed(1),
-      };
-    };
-
+  const { predictionResult } = useMemo(() => {
+    const predictionData = enrichmentData;
     let result = {
       isFinished,
       predictedOutcome: null,
       confidence: 0,
       actualOutcome: null,
     };
-
     if (predictionData?.customPrediction) {
       const pred = predictionData.customPrediction;
       const maxConfidence = Math.max(pred.home, pred.draw, pred.away);
@@ -245,8 +232,6 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({ fixture }) => {
         : "Draw";
     }
     return {
-      homeStrength: calcRating(homeTeamStats),
-      awayStrength: calcRating(awayTeamStats),
       predictionResult: result,
     };
   }, [enrichmentData, isFinished, teams]);
@@ -281,6 +266,7 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({ fixture }) => {
       </div>
 
       <div className="grid grid-cols-3 items-center p-4 md:p-6 gap-2 md:gap-4">
+        {/* Home Team Column */}
         <div className="flex flex-col items-center justify-start text-center gap-3">
           <Link href={generateTeamSlug(teams.home.name, teams.home.id)}>
             <Image
@@ -295,22 +281,10 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({ fixture }) => {
           <h2 className="font-bold text-white text-lg md:text-xl truncate w-full">
             {teams.home.name}
           </h2>
-          <div className="flex items-center gap-2">
-            <StatPill
-              icon={Zap}
-              value={homeStrength.attack}
-              colorClass="text-green-400 bg-green-500"
-              isLoading={isLoadingEnrichment}
-            />
-            <StatPill
-              icon={Shield}
-              value={homeStrength.defense}
-              colorClass="text-blue-400 bg-blue-500"
-              isLoading={isLoadingEnrichment}
-            />
-          </div>
+          {/* Strength pills removed for simplicity and to focus on prediction */}
         </div>
 
+        {/* Center Column */}
         <div className="flex flex-col items-center justify-center text-center gap-4">
           <span className="text-4xl md:text-5xl font-black text-white">
             {finalScoreHome ?? "?"} - {finalScoreAway ?? "?"}
@@ -333,6 +307,7 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({ fixture }) => {
           />
         </div>
 
+        {/* Away Team Column */}
         <div className="flex flex-col items-center justify-start text-center gap-3">
           <Link href={generateTeamSlug(teams.away.name, teams.away.id)}>
             <Image
@@ -347,20 +322,7 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({ fixture }) => {
           <h2 className="font-bold text-white text-lg md:text-xl truncate w-full">
             {teams.away.name}
           </h2>
-          <div className="flex items-center gap-2">
-            <StatPill
-              icon={Zap}
-              value={awayStrength.attack}
-              colorClass="text-green-400 bg-green-500"
-              isLoading={isLoadingEnrichment}
-            />
-            <StatPill
-              icon={Shield}
-              value={awayStrength.defense}
-              colorClass="text-blue-400 bg-blue-500"
-              isLoading={isLoadingEnrichment}
-            />
-          </div>
+          {/* Strength pills removed */}
         </div>
       </div>
     </div>

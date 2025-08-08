@@ -27,11 +27,11 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log("[Contact API] New contact form submission:");
-    console.log(`- Name: ${name}`);
-    console.log(`- Email: ${email}`);
-    console.log(`- Subject: ${subject}`);
-    console.log(`- Message: ${message}`);
+    // console.log("[Contact API] New contact form submission:");
+    // console.log(`- Name: ${name}`);
+    // console.log(`- Email: ${email}`);
+    // console.log(`- Subject: ${subject}`);
+    // console.log(`- Message: ${message}`);
 
     // --- Placeholder for actual email sending logic ---
     // In a real application, you would integrate with an email sending service here, e.g.:

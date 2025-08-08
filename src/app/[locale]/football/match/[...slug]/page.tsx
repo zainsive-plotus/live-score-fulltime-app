@@ -5,6 +5,7 @@
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { useParams } from "next/navigation";
+import { Suspense } from "react";
 import { useTranslation } from "@/hooks/useTranslation";
 import Header from "@/components/Header";
 import { MatchHeader } from "@/components/match/MatchHeader";
@@ -18,6 +19,7 @@ import {
   AdSlotWidgetSkeleton,
   RecentNewsWidgetSkeleton,
 } from "@/components/skeletons/WidgetSkeletons";
+import MatchFormationWidget from "@/components/match/MatchFormationWidget";
 
 const getFixtureIdFromSlug = (slug: string): string | null => {
   if (!slug) return null;
@@ -26,11 +28,8 @@ const getFixtureIdFromSlug = (slug: string): string | null => {
   return /^\d+$/.test(lastPart) ? lastPart : null;
 };
 
-// This function calls our single, robust, and now leaner API endpoint
-const fetchMatchDetails = async (fixtureId: string, locale: string) => {
-  const { data } = await axios.get(
-    `/api/match-details?fixture=${fixtureId}&locale=${locale}`
-  );
+const fetchMatchDetails = async (fixtureId: string) => {
+  const { data } = await axios.get(`/api/match-details?fixture=${fixtureId}`);
   return data;
 };
 
@@ -53,6 +52,19 @@ const PageSkeleton = () => (
   </div>
 );
 
+const TeamFormContentSkeleton = () => (
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="bg-brand-secondary rounded-lg h-[400px] animate-pulse p-4"></div>
+    <div className="bg-brand-secondary rounded-lg h-[400px] animate-pulse p-4"></div>
+  </div>
+);
+const H2HContentSkeleton = () => (
+  <div className="bg-brand-secondary rounded-lg h-[450px] animate-pulse p-6"></div>
+);
+const StatsContentSkeleton = () => (
+  <div className="bg-brand-secondary rounded-lg h-80 animate-pulse p-6"></div>
+);
+
 export default function MatchDetailPageClient() {
   const params = useParams();
   const { t, locale } = useTranslation();
@@ -65,9 +77,9 @@ export default function MatchDetailPageClient() {
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ["matchDetailsClient", fixtureId, locale],
-    queryFn: () => fetchMatchDetails(fixtureId!, locale!),
-    enabled: !!fixtureId && !!locale,
+    queryKey: ["matchDetailsClient", fixtureId],
+    queryFn: () => fetchMatchDetails(fixtureId!),
+    enabled: !!fixtureId,
     retry: 1,
   });
 
@@ -94,14 +106,7 @@ export default function MatchDetailPageClient() {
     );
   }
 
-  const {
-    fixture: fixtureData,
-    h2h,
-    homeTeamStats,
-    awayTeamStats,
-    statistics,
-    linkedNews,
-  } = matchData;
+  const { fixture: fixtureData, statistics, linkedNews } = matchData;
 
   const { teams, fixture: fixtureDetails } = fixtureData;
 
@@ -129,30 +134,36 @@ export default function MatchDetailPageClient() {
       <div className="container mx-auto p-4 md:p-6 lg:grid lg:grid-cols-3 lg:gap-8 lg:items-start">
         <main className="lg:col-span-2 space-y-6">
           <MatchHeader fixture={fixtureData} />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <TeamFormWidget
-              teamStats={homeTeamStats}
-              team={teams.home}
-              location="Home"
-              h2hData={h2h}
-            />
-            <TeamFormWidget
-              teamStats={awayTeamStats}
-              team={teams.away}
-              location="Away"
-              h2hData={h2h}
-            />
-          </div>
-          <MatchLineupsWidget lineups={fixtureData.lineups} />
-          <MatchH2HWidget
-            h2h={h2h}
-            teams={teams}
-            currentFixtureId={fixtureId!}
-            h2hSeoDescription={h2hSeoDescription}
-          />
+
+          <Suspense fallback={<TeamFormContentSkeleton />}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <TeamFormWidget
+                team={teams.home}
+                location="Home"
+                fixtureData={fixtureData}
+              />
+              <TeamFormWidget
+                team={teams.away}
+                location="Away"
+                fixtureData={fixtureData}
+              />
+            </div>
+          </Suspense>
+
           {(isLive || isFinished) && (
             <MatchStatsWidget statistics={statistics} teams={teams} />
           )}
+
+          <MatchFormationWidget fixtureId={fixtureId!} />
+
+          <Suspense fallback={<H2HContentSkeleton />}>
+            <MatchH2HWidget
+              teams={teams}
+              currentFixtureId={fixtureId!}
+              h2hSeoDescription={h2hSeoDescription}
+            />
+          </Suspense>
+
           <MatchActivityWidget
             initialEvents={fixtureData.events}
             fixtureId={fixtureId!}

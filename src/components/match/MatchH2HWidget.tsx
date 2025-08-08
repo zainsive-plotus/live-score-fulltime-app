@@ -8,7 +8,7 @@ import { format } from "date-fns";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import { CalendarDays, Info } from "lucide-react";
+import { CalendarDays, Info, ChevronRight } from "lucide-react";
 import { proxyImageUrl } from "@/lib/image-proxy";
 import { generateMatchSlug } from "@/lib/generate-match-slug";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -68,9 +68,10 @@ export default function MatchH2HWidget({
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ["h2h", teams.home.id, teams.away.id],
+    queryKey: ["h2hData", teams.home.id, teams.away.id],
     queryFn: () => fetchH2HData(teams.home.id, teams.away.id),
     staleTime: 1000 * 60 * 60, // 1 hour
+    enabled: !!teams.home.id && !!teams.away.id,
   });
 
   const filteredH2H = useMemo(
@@ -87,25 +88,22 @@ export default function MatchH2HWidget({
     if (!filteredH2H || filteredH2H.length === 0) {
       return { homeWins: 0, awayWins: 0, draws: 0 };
     }
-
-    let homeWins = 0;
-    let awayWins = 0;
-    let draws = 0;
+    let homeWins = 0,
+      awayWins = 0,
+      draws = 0;
 
     filteredH2H.forEach((match: any) => {
-      if (match.fixture.status.short === "FT") {
-        if (match.teams.home.winner) {
-          if (match.teams.home.id === teams.home.id) homeWins++;
-          else awayWins++;
-        } else if (match.teams.away.winner) {
-          if (match.teams.away.id === teams.away.id) awayWins++;
-          else homeWins++;
-        } else {
-          draws++;
-        }
+      // --- THIS IS THE FIX ---
+      // Correctly handle draws where winner is null, not just false
+      if (match.teams.home.winner === true) {
+        homeWins++;
+      } else if (match.teams.away.winner === true) {
+        awayWins++;
+      } else {
+        draws++;
       }
+      // --- END OF FIX ---
     });
-
     return { homeWins, awayWins, draws };
   }, [filteredH2H, teams]);
 
@@ -129,37 +127,43 @@ export default function MatchH2HWidget({
         ) : (
           <>
             <div className="grid grid-cols-3 text-center gap-4 mb-6">
-              <div className="flex flex-col items-center">
+              <div className="flex flex-col items-center p-3 bg-gray-800/30 rounded-lg">
                 <Image
                   src={proxyImageUrl(teams.home.logo)}
                   alt={teams.home.name}
-                  width={50}
-                  height={50}
-                  className="w-12 h-12 object-contain mb-2"
+                  width={40}
+                  height={40}
+                  className="w-10 h-10 object-contain mb-2"
                 />
-                <span className="text-white font-semibold text-lg">
+                <span className="text-white font-black text-xl">
                   {headToHeadRecords.homeWins}
                 </span>
-                <span className="text-brand-muted text-sm">{t("wins")}</span>
+                <span className="text-brand-muted text-xs font-bold">
+                  {t("wins")}
+                </span>
               </div>
-              <div className="flex flex-col items-center justify-center">
-                <span className="text-white font-semibold text-lg">
+              <div className="flex flex-col items-center justify-center p-3 bg-gray-800/30 rounded-lg">
+                <span className="text-white font-black text-xl">
                   {headToHeadRecords.draws}
                 </span>
-                <span className="text-brand-muted text-sm">{t("draws")}</span>
+                <span className="text-brand-muted text-xs font-bold">
+                  {t("draws")}
+                </span>
               </div>
-              <div className="flex flex-col items-center">
+              <div className="flex flex-col items-center p-3 bg-gray-800/30 rounded-lg">
                 <Image
                   src={proxyImageUrl(teams.away.logo)}
                   alt={teams.away.name}
-                  width={50}
-                  height={50}
-                  className="w-12 h-12 object-contain mb-2"
+                  width={40}
+                  height={40}
+                  className="w-10 h-10 object-contain mb-2"
                 />
-                <span className="text-white font-semibold text-lg">
+                <span className="text-white font-black text-xl">
                   {headToHeadRecords.awayWins}
                 </span>
-                <span className="text-brand-muted text-sm">{t("wins")}</span>
+                <span className="text-brand-muted text-xs font-bold">
+                  {t("wins")}
+                </span>
               </div>
             </div>
 
@@ -172,48 +176,51 @@ export default function MatchH2HWidget({
                     match.teams.away.name,
                     match.fixture.id
                   )}
-                  className="block bg-gray-800/50 p-3 rounded-md hover:bg-gray-700/50 transition-colors duration-200"
+                  className="block bg-gray-800/50 p-3 rounded-md hover:bg-gray-700/50 transition-colors duration-200 group"
                 >
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <CalendarDays size={16} className="text-brand-muted" />
-                      <span className="text-brand-muted">
-                        {format(new Date(match.fixture.date), "dd MMM yyyy")}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2">
-                        <Image
-                          src={proxyImageUrl(match.teams.home.logo)}
-                          alt={match.teams.home.name}
-                          width={24}
-                          height={24}
-                          className="w-6 h-6 object-contain"
-                        />
-                        <span className="text-white font-medium">
-                          {match.teams.home.name}
-                        </span>
-                        <span className="font-bold text-white text-lg">
-                          {match.goals.home}
-                        </span>
-                      </div>
-                      <span className="text-brand-muted"> - </span>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-white text-lg">
-                          {match.goals.away}
-                        </span>
-                        <span className="text-white font-medium">
-                          {match.teams.away.name}
-                        </span>
-                        <Image
-                          src={proxyImageUrl(match.teams.away.logo)}
-                          alt={match.teams.away.name}
-                          width={24}
-                          height={24}
-                          className="w-6 h-6 object-contain"
-                        />
-                      </div>
-                    </div>
+                  <div className="flex justify-between items-center text-sm mb-2">
+                    <span className="text-brand-muted font-semibold">
+                      {match.league.name}
+                    </span>
+                    <span className="text-brand-muted flex items-center gap-1.5">
+                      <CalendarDays size={14} />
+                      {format(new Date(match.fixture.date), "dd MMM yyyy")}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-base">
+                    <span
+                      className={`flex items-center gap-2 font-bold ${
+                        match.teams.home.winner
+                          ? "text-white"
+                          : "text-brand-light"
+                      }`}
+                    >
+                      <Image
+                        src={proxyImageUrl(match.teams.home.logo)}
+                        alt={match.teams.home.name}
+                        width={24}
+                        height={24}
+                      />
+                      {match.teams.home.name}
+                    </span>
+                    <span className="px-3 py-1 bg-brand-dark rounded-md font-black text-white text-lg">
+                      {match.goals.home} - {match.goals.away}
+                    </span>
+                    <span
+                      className={`flex items-center gap-2 font-bold ${
+                        match.teams.away.winner
+                          ? "text-white"
+                          : "text-brand-light"
+                      }`}
+                    >
+                      {match.teams.away.name}
+                      <Image
+                        src={proxyImageUrl(match.teams.away.logo)}
+                        alt={match.teams.away.name}
+                        width={24}
+                        height={24}
+                      />
+                    </span>
                   </div>
                 </Link>
               ))}

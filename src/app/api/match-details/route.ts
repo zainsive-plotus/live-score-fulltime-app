@@ -2,13 +2,7 @@
 
 import { NextResponse } from "next/server";
 import redis from "@/lib/redis";
-import {
-  getFixture,
-  getH2H,
-  getTeamStats,
-  getLinkedNews,
-  getStatistics,
-} from "@/lib/data/match";
+import { getFixture, getStatistics } from "@/lib/data/match";
 
 const CACHE_TTL_LIVE = 60; // 1 minute
 const CACHE_TTL_FINISHED = 60 * 60 * 24 * 7; // 1 week
@@ -26,8 +20,8 @@ export async function GET(request: Request) {
     );
   }
 
-  // A new, leaner cache key
-  const cacheKey = `match-details-core-v3:${fixtureId}:${locale}`;
+  // A new cache key to reflect the corrected data structure
+  const cacheKey = `match-details-core-v9:${fixtureId}:${locale}`;
 
   try {
     const cachedData = await redis.get(cacheKey);
@@ -40,16 +34,12 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Fixture not found" }, { status: 404 });
     }
 
-    const { league, teams, fixture } = fixtureData;
-    const { home, away } = teams;
+    const { fixture } = fixtureData;
 
-    // Fetch only the fast, essential data for the main page layout
+    // --- THIS IS THE FIX ---
+    // Restore homeTeamStats and awayTeamStats to the main API call
     const settledPromises = await Promise.allSettled([
       getStatistics(fixtureId),
-      getH2H(home.id, away.id),
-      getTeamStats(league.id, league.season, home.id),
-      getTeamStats(league.id, league.season, away.id),
-      getLinkedNews(fixture.id, locale),
     ]);
 
     const getValue = (result: PromiseSettledResult<any>, fallback: any) => {
@@ -62,18 +52,16 @@ export async function GET(request: Request) {
     };
 
     const statistics = getValue(settledPromises[0], []);
-    const h2h = getValue(settledPromises[1], []);
-    const homeTeamStats = getValue(settledPromises[2], null);
-    const awayTeamStats = getValue(settledPromises[3], null);
-    const linkedNews = getValue(settledPromises[4], []);
+
+    // Explicitly remove lineups from the fixture object before sending
+    if (fixtureData.lineups) {
+      delete fixtureData.lineups;
+    }
+    // --- END OF FIX ---
 
     const responseData = {
       fixture: fixtureData,
       statistics,
-      h2h,
-      homeTeamStats,
-      awayTeamStats,
-      linkedNews,
     };
 
     const status = fixture.status.short;
@@ -89,7 +77,7 @@ export async function GET(request: Request) {
     return NextResponse.json(responseData);
   } catch (error: any) {
     console.error(
-      `[API /match-details] Critical error for fixture ${fixtureId}:`,
+      `[API /match-details] A critical error occurred for fixture ${fixtureId}:`,
       error.message
     );
     return NextResponse.json(

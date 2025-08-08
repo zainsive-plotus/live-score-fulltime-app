@@ -7,7 +7,7 @@ import Image from "next/image";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import { Sparkles, Users } from "lucide-react";
+import { Sparkles, Users, Info } from "lucide-react";
 import { proxyImageUrl } from "@/lib/image-proxy";
 
 interface PredictionData {
@@ -191,11 +191,9 @@ export default function MatchPredictionWidget({
     if (!majorBookmakers || majorBookmakers.length === 0) {
       return { bestOdds: null };
     }
-
     let maxHome = 0,
       maxDraw = 0,
       maxAway = 0;
-
     majorBookmakers.forEach((bookie) => {
       const bet = bookie.bets.find((b: any) => b.id === 1);
       if (bet) {
@@ -213,7 +211,6 @@ export default function MatchPredictionWidget({
         if (awayOdd > maxAway) maxAway = awayOdd;
       }
     });
-
     return {
       bestOdds: {
         home: maxHome.toFixed(2),
@@ -236,9 +233,6 @@ export default function MatchPredictionWidget({
     return <PredictionWidgetSkeleton />;
   }
 
-  // --- THIS IS THE FIX ---
-  // We check for data *after* loading is complete.
-  // If there's an error or no data, we show a message instead of returning null.
   if (isError || !predictionData) {
     return (
       <div className="bg-brand-secondary p-4 rounded-lg">
@@ -253,6 +247,21 @@ export default function MatchPredictionWidget({
   }
 
   const { customPrediction, teams } = predictionData;
+  const noPrediction = !customPrediction;
+  const noOdds = majorBookmakers.length === 0 || !bestOdds;
+
+  if (noPrediction && noOdds) {
+    return (
+      <div className="bg-brand-secondary p-4 rounded-lg">
+        <h3 className="text-lg font-bold text-white mb-2">
+          {t("prediction_comparison")}
+        </h3>
+        <p className="text-sm text-center text-brand-muted py-4">
+          {t("prediction_data_unavailable")}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-brand-secondary p-4 rounded-lg">
@@ -263,7 +272,7 @@ export default function MatchPredictionWidget({
         </h3>
       </div>
 
-      {customPrediction && (
+      {customPrediction ? (
         <div className="mb-4">
           <h4 className="font-semibold text-brand-light mb-2">
             {t("fanskor_prediction_engine")}
@@ -288,9 +297,14 @@ export default function MatchPredictionWidget({
             />
           </div>
         </div>
+      ) : (
+        <div className="text-center py-4 text-brand-muted text-sm my-4 bg-gray-800/30 rounded-lg">
+          <Info size={20} className="mx-auto mb-2" />
+          <p>{t("prediction_engine_unavailable")}</p>
+        </div>
       )}
 
-      {majorBookmakers.length > 0 && bestOdds && (
+      {majorBookmakers.length > 0 && bestOdds ? (
         <div className="mt-4 pt-4 border-t border-gray-700/50">
           <h4 className="font-semibold text-brand-light mb-2">
             {t("compare_bookmakers", { count: majorBookmakers.length })}
@@ -316,6 +330,10 @@ export default function MatchPredictionWidget({
               />
             ))}
           </div>
+        </div>
+      ) : (
+        <div className="text-center py-4 text-brand-muted text-sm mt-4 border-t border-gray-700/50">
+          <p>{t("bookmaker_odds_unavailable")}</p>
         </div>
       )}
     </div>
