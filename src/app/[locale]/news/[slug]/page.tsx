@@ -2,7 +2,7 @@
 
 import { notFound, redirect } from "next/navigation";
 import dbConnect from "@/lib/dbConnect";
-import Post, { IPost } from "@/models/Post";
+import Post, { IPost, IPostWithTranslations } from "@/models/Post"; // Import IPostWithTranslations
 import { format } from "date-fns";
 import Header from "@/components/Header";
 import Image from "next/image";
@@ -23,56 +23,51 @@ const DEFAULT_LOCALE = "tr";
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
+// Simplified this function, as metadata generation will handle the rest
 async function getPostAndHandleRedirects(
   slug: string,
   locale: string
-): Promise<{ postToRender: IPost; allTranslations: IPost[] } | null> {
+): Promise<IPostWithTranslations | null> {
   await dbConnect();
 
-  const exactMatch = await Post.findOne({
-    slug,
-    language: locale,
-    status: "published",
-  }).lean();
-  if (exactMatch) {
-    const allTranslations = await Post.find({
-      translationGroupId: exactMatch.translationGroupId,
-      status: "published",
-    }).lean();
-    return {
-      postToRender: JSON.parse(JSON.stringify(exactMatch)),
-      allTranslations: JSON.parse(JSON.stringify(allTranslations)),
-    };
-  }
-
+  // Find a post that matches the slug, regardless of language
   const postInAnyLanguage = await Post.findOne({
     slug,
     status: "published",
-  }).lean();
-  if (postInAnyLanguage) {
-    const allTranslations = await Post.find({
-      translationGroupId: postInAnyLanguage.translationGroupId,
-      status: "published",
-    }).lean();
+  }).exec();
+
+  if (!postInAnyLanguage) {
+    return null; // This will trigger a 404 Not Found
+  }
+
+  // If the found post's language doesn't match the URL's locale, we must redirect.
+  if (postInAnyLanguage.language !== locale) {
+    const allTranslations = await postInAnyLanguage.getTranslations();
     const correctVersionForLocale = allTranslations.find(
       (p) => p.language === locale
     );
 
+    let redirectUrl = "";
     if (correctVersionForLocale) {
-      const correctUrl = `/${locale}/news/${correctVersionForLocale.slug}`;
-      redirect(correctUrl);
+      // Redirect to the correct slug for the requested locale
+      const path = `/news/${correctVersionForLocale.slug}`;
+      redirectUrl = `/${locale}${path}`;
     } else {
+      // If no version for the requested locale exists, redirect to the default (Turkish) version
       const defaultVersion =
         allTranslations.find((p) => p.language === DEFAULT_LOCALE) ||
         allTranslations[0];
-      const defaultUrl =
+      const path = `/news/${defaultVersion.slug}`;
+      redirectUrl =
         defaultVersion.language === DEFAULT_LOCALE
-          ? `/news/${defaultVersion.slug}`
-          : `/${defaultVersion.language}/news/${defaultVersion.slug}`;
-      redirect(defaultUrl);
+          ? path
+          : `/${defaultVersion.language}${path}`;
     }
+    redirect(redirectUrl);
   }
-  return null;
+
+  // If we've reached here, the slug and locale match, so return the post.
+  return postInAnyLanguage;
 }
 
 export async function generateMetadata({
@@ -81,48 +76,51 @@ export async function generateMetadata({
   params: { slug: string; locale: string };
 }): Promise<Metadata> {
   const { slug, locale } = params;
-  const data = await getPostAndHandleRedirects(slug, locale);
+  const post = await getPostAndHandleRedirects(slug, locale);
 
-  if (!data) {
+  if (!post) {
     return { title: "Not Found" };
   }
 
-  const { postToRender, allTranslations } = data;
+  // --- THIS IS THE FIX ---
+  // 1. Get all available translations for this post.
+  const allTranslations = await post.getTranslations();
 
-  const pagePath = `/news/${postToRender.slug}`;
-  const availableLocales = allTranslations.map((p) => p.language);
+  // 2. Pass this detailed translation info to our enhanced hreflang generator.
   const hreflangAlternates = await generateHreflangTags(
-    pagePath,
+    "/news",
+    slug,
     locale,
-    availableLocales
+    allTranslations
   );
+  // --- END OF FIX ---
 
   const description =
-    postToRender.metaDescription ||
-    postToRender.content.replace(/<[^>]*>?/gm, "").substring(0, 160);
+    post.metaDescription ||
+    post.content.replace(/<[^>]*>?/gm, "").substring(0, 160);
 
-  const imageUrl = postToRender.featuredImage
-    ? proxyImageUrl(postToRender.featuredImage)
+  const imageUrl = post.featuredImage
+    ? proxyImageUrl(post.featuredImage)
     : `${BASE_URL}/og-image.jpg`;
 
   return {
-    title: postToRender.metaTitle || `${postToRender.title}`, // The layout adds "| Fan Skor"
+    title: post.metaTitle || `${post.title}`,
     description: description,
     alternates: hreflangAlternates,
     openGraph: {
-      title: postToRender.metaTitle || postToRender.title,
+      title: post.metaTitle || post.title,
       description: description,
-      url: hreflangAlternates.canonical,
+      url: hreflangAlternates.canonical, // Use the correct canonical URL
       type: "article",
-      publishedTime: new Date(postToRender.createdAt).toISOString(),
-      modifiedTime: new Date(postToRender.updatedAt).toISOString(),
-      authors: [postToRender.author || "Fan Skor"],
+      publishedTime: new Date(post.createdAt).toISOString(),
+      modifiedTime: new Date(post.updatedAt).toISOString(),
+      authors: [post.author || "Fan Skor"],
       images: [
         {
           url: imageUrl,
           width: 1200,
           height: 630,
-          alt: postToRender.title,
+          alt: post.title,
         },
       ],
     },
@@ -135,19 +133,24 @@ export default async function GeneralNewsArticlePage({
   params: { slug: string; locale: string };
 }) {
   const { slug, locale } = params;
-  const data = await getPostAndHandleRedirects(slug, locale);
+  const post = await getPostAndHandleRedirects(slug, locale);
 
-  if (!data) {
+  if (!post) {
     notFound();
   }
 
-  const { postToRender: post } = data;
   const t = await getI18n(locale);
-
   const { processedHtml, toc } = generateTableOfContents(post.content);
 
-  const pagePath = `/news/${post.slug}`;
-  const postUrl = `${BASE_URL}${getPath(pagePath, locale)}`;
+  const allTranslations = await post.getTranslations();
+  const hreflangAlternates = await generateHreflangTags(
+    "/news",
+    slug,
+    locale,
+    allTranslations
+  );
+
+  const postUrl = hreflangAlternates.canonical; // Use the canonical URL from the hreflang data
   const description =
     post.metaDescription ||
     post.content.replace(/<[^>]*>?/gm, "").substring(0, 160);

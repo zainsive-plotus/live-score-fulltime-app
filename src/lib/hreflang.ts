@@ -1,52 +1,101 @@
 // ===== src/lib/hreflang.ts =====
 
-// ***** FIX: Import constants from the single source of truth *****
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from "./i18n/config";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
+// --- NEW TYPE DEFINITION ---
+// We define a type for the translation info our function can now accept.
+export type TranslationInfo = {
+  slug: string;
+  language: string;
+};
+
+// The function is updated to accept an optional array of translations.
 export async function generateHreflangTags(
-  path: string,
+  basePath: string, // e.g., "/news" or "/football/league"
+  currentSlug: string, // The slug from the current URL, e.g., "my-first-post"
   currentLocale: string,
-  availableLocales?: string[]
+  translations?: TranslationInfo[]
 ) {
-  const cleanPath = path === "/page" || path === "/" ? "" : path;
-
-  // ***** FIX: Use the imported constant directly *****
-  // This removes the database call and ensures consistency with the middleware.
   const defaultLocale = DEFAULT_LOCALE;
-
-  const getUrlForLocale = (locale: string) => {
-    if (locale === defaultLocale) {
-      // For the default locale, the URL has no language prefix.
-      // This is the CRUCIAL part that makes the hreflang tags point to the correct canonical URL.
-      return `${BASE_URL}${cleanPath}`;
-    }
-    return `${BASE_URL}/${locale}${cleanPath}`;
-  };
-
-  const canonicalUrl = getUrlForLocale(currentLocale);
 
   const alternates: {
     canonical: string;
     languages: { [key: string]: string };
   } = {
-    canonical: canonicalUrl,
+    canonical: "", // We will set this dynamically
     languages: {},
   };
 
-  // Use the provided available locales for the page, or fall back to all supported locales.
-  const localesToUse =
-    availableLocales && availableLocales.length > 0
-      ? availableLocales
-      : SUPPORTED_LOCALES;
+  const getUrlForLocale = (locale: string, slug: string) => {
+    // Construct the path without the locale first
+    const path = `${basePath}/${slug}`;
 
-  localesToUse.forEach((locale) => {
-    alternates.languages[locale] = getUrlForLocale(locale);
-  });
+    if (locale === defaultLocale) {
+      return `${BASE_URL}${path}`;
+    }
+    return `${BASE_URL}/${locale}${path}`;
+  };
 
-  alternates.languages["x-default"] = getUrlForLocale(defaultLocale);
+  // If we have a list of translations, use it to build precise hreflang tags
+  if (translations && translations.length > 0) {
+    translations.forEach((translation) => {
+      alternates.languages[translation.language] = getUrlForLocale(
+        translation.language,
+        translation.slug
+      );
+    });
+
+    // Set the canonical URL to the one that matches the current page's locale
+    const currentTranslation = translations.find(
+      (t) => t.language === currentLocale
+    );
+    alternates.canonical = getUrlForLocale(
+      currentLocale,
+      currentTranslation ? currentTranslation.slug : currentSlug
+    );
+  } else {
+    // Fallback for pages without translations (e.g., /contact-us)
+    SUPPORTED_LOCALES.forEach((locale) => {
+      // For non-translatable pages, the path is the same, just the locale prefix changes
+      const path = `${basePath}${currentSlug}`.replace("//", "/");
+      if (locale === defaultLocale) {
+        alternates.languages[locale] = `${BASE_URL}${path}`;
+      } else {
+        alternates.languages[locale] = `${BASE_URL}/${locale}${path}`;
+      }
+    });
+    const canonicalPath = `${basePath}${currentSlug}`.replace("//", "/");
+    if (currentLocale === defaultLocale) {
+      alternates.canonical = `${BASE_URL}${canonicalPath}`;
+    } else {
+      alternates.canonical = `${BASE_URL}/${currentLocale}${canonicalPath}`;
+    }
+  }
+
+  // Always set the x-default to the default locale's URL
+  if (translations && translations.length > 0) {
+    const defaultTranslation = translations.find(
+      (t) => t.language === defaultLocale
+    );
+    if (defaultTranslation) {
+      alternates.languages["x-default"] = getUrlForLocale(
+        defaultLocale,
+        defaultTranslation.slug
+      );
+    } else {
+      // Fallback if a default translation is missing for some reason
+      alternates.languages["x-default"] = getUrlForLocale(
+        defaultLocale,
+        currentSlug
+      );
+    }
+  } else {
+    const path = `${basePath}${currentSlug}`.replace("//", "/");
+    alternates.languages["x-default"] = `${BASE_URL}${path}`;
+  }
 
   return alternates;
 }

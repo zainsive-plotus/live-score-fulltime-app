@@ -1,12 +1,16 @@
 // ===== src/models/Post.ts =====
 
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, { Schema, Document, Model } from "mongoose"; // Added Model
 
 export type SportsCategory = "football" | "basketball" | "tennis" | "general";
-// --- Start of Change ---
-// Added 'recent' for AI-generated curated news. 'curated' is removed to avoid confusion.
-export type NewsType = "news" | "highlights" | "reviews" | "prediction" | "transfer" | "recent";
-// --- End of Change ---
+
+export type NewsType =
+  | "news"
+  | "highlights"
+  | "reviews"
+  | "prediction"
+  | "transfer"
+  | "recent";
 
 export interface IPost extends Document {
   title: string;
@@ -21,10 +25,8 @@ export interface IPost extends Document {
   featuredImageAltText?: string;
   metaTitle?: string;
   metaDescription?: string;
-
   language: string;
   translationGroupId: mongoose.Types.ObjectId;
-
   sportsCategory: SportsCategory[];
   isAIGenerated?: boolean;
   originalExternalArticleId?: mongoose.Types.ObjectId;
@@ -33,7 +35,12 @@ export interface IPost extends Document {
   linkedFixtureId?: number;
   linkedLeagueId?: number;
   linkedTeamId?: number;
-  originalSourceUrl?: string; 
+  originalSourceUrl?: string;
+}
+
+// --- THIS IS THE ADDITION ---
+export interface IPostWithTranslations extends IPost {
+  getTranslations: () => Promise<Pick<IPost, "slug" | "language">[]>;
 }
 
 const PostSchema: Schema = new Schema(
@@ -53,7 +60,6 @@ const PostSchema: Schema = new Schema(
     featuredImageAltText: { type: String, trim: true },
     metaTitle: { type: String, trim: true },
     metaDescription: { type: String, trim: true },
-
     language: {
       type: String,
       required: true,
@@ -64,7 +70,6 @@ const PostSchema: Schema = new Schema(
       required: true,
       index: true,
     },
-
     sportsCategory: {
       type: [
         {
@@ -87,15 +92,19 @@ const PostSchema: Schema = new Schema(
       unique: true,
       sparse: true,
     },
-    // --- Start of Change ---
-    // Updated the enum to include the new 'recent' type.
     newsType: {
       type: String,
-      enum: ["news", "highlights", "reviews", "prediction", "transfer", "recent"],
+      enum: [
+        "news",
+        "highlights",
+        "reviews",
+        "prediction",
+        "transfer",
+        "recent",
+      ],
       default: "news",
       required: true,
     },
-    // --- End of Change ---
     originalSourceUrl: {
       type: String,
       trim: true,
@@ -123,5 +132,17 @@ const PostSchema: Schema = new Schema(
 
 PostSchema.index({ slug: 1, language: 1 }, { unique: true });
 
-export default (mongoose.models.Post as mongoose.Model<IPost>) ||
-  mongoose.model<IPost>("Post", PostSchema);
+// --- THIS IS THE ADDITION ---
+PostSchema.methods.getTranslations = async function () {
+  if (!this.translationGroupId) return [];
+  return mongoose.models.Post.find({
+    translationGroupId: this.translationGroupId,
+    status: "published",
+  })
+    .select("slug language")
+    .lean();
+};
+// --- END OF ADDITION ---
+
+export default (mongoose.models.Post as Model<IPostWithTranslations>) ||
+  mongoose.model<IPostWithTranslations>("Post", PostSchema);
