@@ -32,7 +32,7 @@ export async function generateMetadata({
 
   const t = await getI18n(locale);
   const pageContent = await getPageContent();
-  const hreflangAlternates = await generateHreflangTags(PAGE_PATH, locale);
+  const hreflangAlternates = await generateHreflangTags(PAGE_PATH, "", locale);
 
   const title = t("gdpr_default_page_title");
 

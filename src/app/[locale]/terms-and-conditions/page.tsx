@@ -32,7 +32,7 @@ export async function generateMetadata({
   const { locale } = await params;
 
   const t = await getI18n(locale);
-  const hreflangAlternates = await generateHreflangTags(PAGE_PATH, locale);
+  const hreflangAlternates = await generateHreflangTags(PAGE_PATH, "", locale);
 
   const title = t("terms_and_conditions_default_title");
   const description = t("terms_and_conditions_default_desc");

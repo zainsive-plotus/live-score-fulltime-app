@@ -1,17 +1,16 @@
 // ===== src/app/[locale]/football/match/[...slug]/page.tsx =====
 
-"use client";
-
-import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
-import { useParams } from "next/navigation";
 import { Suspense } from "react";
-import { useTranslation } from "@/hooks/useTranslation";
+import { notFound } from "next/navigation";
+import type { Metadata } from "next";
+import { getFixture, getStatistics } from "@/lib/data/match"; // Only fast queries
+import { getI18n } from "@/lib/i18n/server";
+import { generateHreflangTags } from "@/lib/hreflang";
 import Header from "@/components/Header";
 import { MatchHeader } from "@/components/match/MatchHeader";
 import TeamFormWidget from "@/components/match/TeamFormWidget";
 import MatchH2HWidget from "@/components/match/MatchH2HWidget";
-import MatchLineupsWidget from "@/components/match/MatchLineupsWidget";
+import MatchLineupsWidget from "@/components/match/MatchFormationWidget";
 import MatchStatsWidget from "@/components/match/MatchStatsWidget";
 import MatchActivityWidget from "@/components/match/MatchActivityWidget";
 import SidebarContent from "./SidebarContent";
@@ -28,30 +27,46 @@ const getFixtureIdFromSlug = (slug: string): string | null => {
   return /^\d+$/.test(lastPart) ? lastPart : null;
 };
 
-const fetchMatchDetails = async (fixtureId: string) => {
-  const { data } = await axios.get(`/api/match-details?fixture=${fixtureId}`);
-  return data;
-};
+// Metadata generation remains on the server for SEO
+export async function generateMetadata({
+  params,
+}: {
+  params: { slug: string[]; locale: string };
+}): Promise<Metadata> {
+  const { slug, locale } = params;
+  const t = await getI18n(locale);
+  const fixtureId = getFixtureIdFromSlug(slug[0]);
+  if (!fixtureId) return { title: t("not_found_title") };
 
-const PageSkeleton = () => (
-  <div className="container mx-auto p-4 md:p-6 lg:grid lg:grid-cols-3 lg:gap-8 lg:items-start animate-pulse">
-    <main className="lg:col-span-2 space-y-6">
-      <div className="bg-brand-secondary h-64 rounded-lg"></div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-brand-secondary h-96 rounded-lg"></div>
-        <div className="bg-brand-secondary h-96 rounded-lg"></div>
-      </div>
-      <div className="bg-brand-secondary h-80 rounded-lg"></div>
-    </main>
-    <aside className="lg:col-span-1 space-y-6 lg:sticky lg:top-6 mt-8 lg:mt-0">
-      <RecentNewsWidgetSkeleton />
-      <div className="aspect-video w-full rounded-lg bg-gray-700/50"></div>
-      <div className="bg-brand-secondary h-80 rounded-lg"></div>
-      <AdSlotWidgetSkeleton />
-    </aside>
-  </div>
-);
+  const fixtureData = await getFixture(fixtureId);
+  if (!fixtureData) return { title: t("not_found_title") };
 
+  const { teams, league } = fixtureData;
+  const pagePath = `/football/match/${slug.join("/")}`;
+  const hreflangAlternates = await generateHreflangTags(
+    "/football/match",
+    slug.join("/"),
+    locale
+  );
+
+  const pageTitle = t("match_page_title", {
+    homeTeam: teams.home.name,
+    awayTeam: teams.away.name,
+    leagueName: league.name,
+  });
+  const pageDescription = t("match_page_description", {
+    homeTeam: teams.home.name,
+    awayTeam: teams.away.name,
+    leagueName: league.name,
+  });
+  return {
+    title: pageTitle,
+    description: pageDescription,
+    alternates: hreflangAlternates,
+  };
+}
+
+// Skeletons for Suspense Boundaries
 const TeamFormContentSkeleton = () => (
   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
     <div className="bg-brand-secondary rounded-lg h-[400px] animate-pulse p-4"></div>
@@ -64,49 +79,35 @@ const H2HContentSkeleton = () => (
 const StatsContentSkeleton = () => (
   <div className="bg-brand-secondary rounded-lg h-80 animate-pulse p-6"></div>
 );
+const FormationSkeleton = () => (
+  <div className="bg-brand-secondary rounded-lg p-4 md:p-6 animate-pulse h-[600px]"></div>
+);
+const SidebarSkeleton = () => (
+  <div className="space-y-6">
+    <RecentNewsWidgetSkeleton />
+    <div className="aspect-video w-full rounded-lg bg-gray-700/50 animate-pulse"></div>
+    <div className="bg-brand-secondary rounded-lg h-80 animate-pulse"></div>
+    <AdSlotWidgetSkeleton />
+  </div>
+);
 
-export default function MatchDetailPageClient() {
-  const params = useParams();
-  const { t, locale } = useTranslation();
+// This is now a Server Component
+export default async function MatchDetailPage({
+  params,
+}: {
+  params: { slug: string[]; locale: string };
+}) {
+  const { slug, locale } = params;
+  const t = await getI18n(locale);
+  const fixtureId = getFixtureIdFromSlug(slug[0]);
+  if (!fixtureId) notFound();
 
-  const slug = Array.isArray(params.slug) ? params.slug[0] : params.slug;
-  const fixtureId = getFixtureIdFromSlug(slug || "");
+  // The page now fetches ONLY the most essential data on the server.
+  const fixtureData = await getFixture(fixtureId);
+  if (!fixtureData) notFound();
 
-  const {
-    data: matchData,
-    isLoading,
-    isError,
-  } = useQuery({
-    queryKey: ["matchDetailsClient", fixtureId],
-    queryFn: () => fetchMatchDetails(fixtureId!),
-    enabled: !!fixtureId,
-    retry: 1,
-  });
-
-  if (isLoading) {
-    return (
-      <div className="bg-brand-dark min-h-screen">
-        <Header />
-        <PageSkeleton />
-      </div>
-    );
-  }
-
-  if (isError || !matchData) {
-    return (
-      <div className="bg-brand-dark min-h-screen">
-        <Header />
-        <div className="text-center py-20">
-          <h1 className="text-2xl font-bold text-white">Match Not Found</h1>
-          <p className="text-brand-muted mt-2">
-            Could not load details for this match.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  const { fixture: fixtureData, statistics, linkedNews } = matchData;
+  // We can pre-fetch stats as it's usually fast and part of the core view
+  const statistics = await getStatistics(fixtureId);
 
   const { teams, fixture: fixtureDetails } = fixtureData;
 
@@ -150,34 +151,40 @@ export default function MatchDetailPageClient() {
             </div>
           </Suspense>
 
-          {(isLive || isFinished) && (
-            <MatchStatsWidget statistics={statistics} teams={teams} />
-          )}
+          <Suspense fallback={<FormationSkeleton />}>
+            <MatchFormationWidget fixtureId={fixtureId} />
+          </Suspense>
 
-          <MatchFormationWidget fixtureId={fixtureId!} />
+          <MatchLineupsWidget lineups={fixtureData.lineups} />
 
           <Suspense fallback={<H2HContentSkeleton />}>
             <MatchH2HWidget
               teams={teams}
-              currentFixtureId={fixtureId!}
+              currentFixtureId={fixtureId}
               h2hSeoDescription={h2hSeoDescription}
             />
           </Suspense>
 
+          {(isLive || isFinished) && (
+            <MatchStatsWidget statistics={statistics || []} teams={teams} />
+          )}
+
           <MatchActivityWidget
-            initialEvents={fixtureData.events}
-            fixtureId={fixtureId!}
+            fixtureId={fixtureId}
             isLive={isLive}
+            homeTeamId={teams.home.id}
             activitySeoDescription={activitySeoDescription}
           />
         </main>
+
         <aside className="lg:col-span-1 space-y-6 lg:sticky lg:top-6 mt-8 lg:mt-0">
-          <SidebarContent
-            fixtureData={fixtureData}
-            isLive={isLive}
-            linkedNews={linkedNews}
-            standingsSeoDescription={standingsSeoDescription}
-          />
+          <Suspense fallback={<SidebarSkeleton />}>
+            <SidebarContent
+              fixtureData={fixtureData}
+              isLive={isLive}
+              standingsSeoDescription={standingsSeoDescription}
+            />
+          </Suspense>
         </aside>
       </div>
     </div>

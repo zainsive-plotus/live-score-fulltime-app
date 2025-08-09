@@ -30,7 +30,7 @@ export async function generateMetadata({
   const t = await getI18n(locale);
   const pageTitle = t("contact_us_meta_title");
   const pageDescription = t("contact_us_meta_description");
-  const hreflangAlternates = await generateHreflangTags(PAGE_PATH, locale);
+  const hreflangAlternates = await generateHreflangTags(PAGE_PATH, "", locale);
 
   return {
     title: pageTitle,

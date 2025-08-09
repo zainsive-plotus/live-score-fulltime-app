@@ -1,74 +1,136 @@
+// ===== src/lib/data/match.ts =====
+
 import { cache } from "react";
 import axios from "axios";
 import "server-only";
+import redis from "@/lib/redis";
 import { calculateCustomPrediction } from "@/lib/prediction-engine";
 import { getNews } from "@/lib/data/news";
 import { getMatchHighlights as fetchHighlights } from "@/lib/data/highlightly";
 
-// A single, reusable function for making API-Football requests
+const STALE_CACHE_TTL_SECONDS = 60 * 60 * 24 * 7; // Keep stale data for 7 days as a fallback
+
+// This is the new, resilient API request function that handles cache fallbacks.
 const apiRequest = async <T>(
   endpoint: string,
-  params: object
+  params: object,
+  cacheKey: string
 ): Promise<T | null> => {
-  const options = {
-    method: "GET",
-    url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/${endpoint}`,
-    params,
-    headers: { "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
-    timeout: 15000,
-  };
   try {
+    const options = {
+      method: "GET",
+      url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/${endpoint}`,
+      params,
+      headers: { "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
+      timeout: 8000, // Fail faster to allow cache fallback
+    };
     const response = await axios.request(options);
-    return response.data.response;
-  } catch (error) {
-    console.error(`[data/match.ts] API request failed for ${endpoint}:`, error);
-    return null;
+    const data = response.data.response;
+
+    // If the API returns valid data, cache it with a long TTL to serve as a future fallback
+    if (data && (!Array.isArray(data) || data.length > 0)) {
+      await redis.set(
+        cacheKey,
+        JSON.stringify(data),
+        "EX",
+        STALE_CACHE_TTL_SECONDS
+      );
+    }
+
+    return data;
+  } catch (error: any) {
+    // If the live API fails for any reason (timeout, DNS error, etc.), serve stale data.
+    console.error(
+      `[data/match.ts] API request for ${endpoint} with key ${cacheKey} failed: ${error.message}. Attempting to serve from cache.`
+    );
+
+    try {
+      const cachedData = await redis.get(cacheKey);
+      if (cachedData) {
+        console.log(
+          `[data/match.ts] ✓ Successfully served STALE data for key: ${cacheKey}`
+        );
+        return JSON.parse(cachedData);
+      } else {
+        // If there's no cached data, we must fail gracefully.
+        console.error(
+          `[data/match.ts] ✗ No stale data available in cache for key: ${cacheKey}.`
+        );
+        return null;
+      }
+    } catch (cacheError) {
+      console.error(
+        `[data/match.ts] ✗ CRITICAL: Redis lookup failed during fallback for key ${cacheKey}.`,
+        cacheError
+      );
+      return null;
+    }
   }
 };
 
-// --- Granular, Cached Data Fetching Functions for Streaming ---
+// All data functions are now wrapped with this resilient logic.
 
 export const getFixture = cache(async (fixtureId: string) => {
-  const fixtureResponse = await apiRequest<any>("fixtures", { id: fixtureId });
+  const cacheKey = `fixture:${fixtureId}`;
+  const fixtureResponse = await apiRequest<any[]>(
+    "fixtures",
+    { id: fixtureId },
+    cacheKey
+  );
   if (!fixtureResponse || fixtureResponse.length === 0) return null;
   return fixtureResponse[0];
 });
 
 export const getStatistics = cache(async (fixtureId: string) => {
-  return await apiRequest<any>("fixtures/statistics", { fixture: fixtureId });
+  const cacheKey = `statistics:${fixtureId}`;
+  return await apiRequest<any[]>(
+    "fixtures/statistics",
+    { fixture: fixtureId },
+    cacheKey
+  );
 });
 
 export const getH2H = cache(async (homeTeamId: number, awayTeamId: number) => {
-  return await apiRequest<any>("fixtures/headtohead", {
-    h2h: `${homeTeamId}-${awayTeamId}`,
-  });
+  const sortedIds = [homeTeamId, awayTeamId].sort();
+  const cacheKey = `h2h:${sortedIds[0]}-${sortedIds[1]}`;
+  return await apiRequest<any[]>(
+    "fixtures/headtohead",
+    { h2h: `${homeTeamId}-${awayTeamId}` },
+    cacheKey
+  );
 });
 
 export const getTeamStats = cache(
   async (leagueId: number, season: number, teamId: number) => {
-    return await apiRequest<any>("teams/statistics", {
-      league: leagueId,
-      season: season,
-      team: teamId,
-    });
+    const cacheKey = `team-stats:${teamId}:${leagueId}:${season}`;
+    return await apiRequest<any>(
+      "teams/statistics",
+      { league: leagueId, season: season, team: teamId },
+      cacheKey
+    );
   }
 );
 
 export const getStandings = cache(async (leagueId: number, season: number) => {
-  return await apiRequest<any>("standings", {
-    league: leagueId,
-    season: season,
-  });
+  const cacheKey = `standings:${leagueId}:${season}`;
+  return await apiRequest<any[]>(
+    "standings",
+    { league: leagueId, season: season },
+    cacheKey
+  );
 });
 
 export const getBookmakerOdds = cache(async (fixtureId: string) => {
-  const response = await apiRequest<any>("odds", {
-    fixture: fixtureId,
-    bet: "1",
-  });
+  const cacheKey = `odds:${fixtureId}`;
+  const response = await apiRequest<any[]>(
+    "odds",
+    { fixture: fixtureId, bet: "1" },
+    cacheKey
+  );
   return response ?? [];
 });
 
+// These functions do not call the failing external API directly, so they remain unchanged.
 export const getLinkedNews = cache(
   async (fixtureId: number, locale: string) => {
     const newsData = await getNews({
@@ -91,3 +153,103 @@ export const getMatchHighlights = cache(
     return highlightsData?.data ?? [];
   }
 );
+
+// This composite function will now automatically benefit from the resilience of the functions it calls.
+export const getPredictionData = cache(
+  async (
+    fixtureId: string,
+    homeTeamId: number,
+    awayTeamId: number,
+    leagueId: number,
+    season: number
+  ) => {
+    const [h2h, homeTeamStats, awayTeamStats, standingsResponse] =
+      await Promise.all([
+        getH2H(homeTeamId, awayTeamId),
+        getTeamStats(leagueId, season, homeTeamId),
+        getTeamStats(leagueId, season, awayTeamId),
+        getStandings(leagueId, season),
+      ]);
+
+    const flatStandings =
+      standingsResponse?.[0]?.league?.standings?.flat() || [];
+    const homeTeamRank = flatStandings.find(
+      (s: any) => s.team.id === homeTeamId
+    )?.rank;
+    const awayTeamRank = flatStandings.find(
+      (s: any) => s.team.id === awayTeamId
+    )?.rank;
+
+    const customPrediction = calculateCustomPrediction(
+      h2h,
+      homeTeamStats,
+      awayTeamStats,
+      homeTeamId,
+      homeTeamRank,
+      awayTeamRank,
+      null,
+      "NS"
+    );
+
+    return {
+      homeTeamStats,
+      awayTeamStats,
+      customPrediction,
+    };
+  }
+);
+
+// This function is marked as deprecated but will also benefit from the new resilience.
+export const fetchMatchPageData = cache(async (fixtureId: string) => {
+  console.warn(
+    "DEPRECATED: fetchMatchPageData is called. Please refactor to use granular data hooks."
+  );
+  const fixtureData = await getFixture(fixtureId);
+  if (!fixtureData) return null;
+  const { league, teams } = fixtureData;
+  const { home: homeTeam, away: awayTeam } = teams;
+  const [
+    statistics,
+    h2h,
+    homeTeamStats,
+    awayTeamStats,
+    standingsResponse,
+    bookmakerOdds,
+  ] = await Promise.all([
+    getStatistics(fixtureId),
+    getH2H(homeTeam.id, awayTeam.id),
+    getTeamStats(league.id, league.season, homeTeam.id),
+    getTeamStats(league.id, league.season, awayTeam.id),
+    getStandings(league.id, league.season),
+    getBookmakerOdds(fixtureId),
+  ]);
+  const standings = standingsResponse?.[0]?.league?.standings[0] || [];
+  const homeTeamRank = standings.find(
+    (s: any) => s.team.id === homeTeam.id
+  )?.rank;
+  const awayTeamRank = standings.find(
+    (s: any) => s.team.id === awayTeam.id
+  )?.rank;
+  const customPrediction = calculateCustomPrediction(
+    h2h,
+    homeTeamStats,
+    awayTeamStats,
+    homeTeam.id,
+    homeTeamRank,
+    awayTeamRank,
+    null,
+    fixtureData.fixture.status.short
+  );
+  return {
+    fixture: fixtureData,
+    statistics,
+    h2h,
+    standings: standingsResponse,
+    analytics: {
+      homeTeamStats,
+      awayTeamStats,
+      customPrediction,
+      bookmakerOdds,
+    },
+  };
+});

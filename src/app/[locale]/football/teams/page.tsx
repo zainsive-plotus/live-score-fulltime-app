@@ -41,7 +41,7 @@ export async function generateMetadata({
   const { locale } = await params;
 
   const t = await getI18n(locale);
-  const hreflangAlternates = await generateHreflangTags(PAGE_PATH, locale);
+  const hreflangAlternates = await generateHreflangTags(PAGE_PATH, "", locale);
 
   const pageTitle = t("teams_page_meta_title");
   const pageDescription = t("teams_page_meta_description");

@@ -57,8 +57,11 @@ export async function generateMetadata({
   }
 
   const { league } = initialData;
-  const pagePath = `/football/standings/${slug.join("/")}`;
-  const hreflangAlternates = await generateHreflangTags(pagePath, locale);
+  const hreflangAlternates = await generateHreflangTags(
+    "/football/standings",
+    slug.join("/"),
+    locale
+  );
 
   const pageTitle = t("standings_detail_page_title", {
     leagueName: league.name,

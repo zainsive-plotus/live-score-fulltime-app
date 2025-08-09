@@ -20,7 +20,7 @@ export async function generateMetadata({
   params: { locale: string };
 }): Promise<Metadata> {
   const t = await getI18n(locale);
-  const hreflangAlternates = await generateHreflangTags(PAGE_PATH, locale);
+  const hreflangAlternates = await generateHreflangTags(PAGE_PATH, "", locale);
   const pageTitle = t("general_news_meta_title");
   const pageDescription = t("general_news_meta_description");
 
