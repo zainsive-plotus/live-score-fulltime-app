@@ -1,13 +1,13 @@
 // ===== src/app/[locale]/football/league/[...slug]/page.tsx =====
+
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
-import axios from "axios";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
+import { getLeaguePageData } from "@/lib/data/league";
 
-// --- Import New & Existing Widgets ---
 import LeagueHeader from "@/components/league-detail-view/LeagueHeader";
 import LeagueStandingsWidget from "@/components/league-detail-view/LeagueStandingsWidget";
 import LeagueFixturesWidget from "@/components/league-detail-view/LeagueFixturesWidget";
@@ -22,39 +22,6 @@ const getLeagueIdFromSlug = (slug: string): string | null => {
   return /^\d+$/.test(lastPart) ? lastPart : null;
 };
 
-// This single data fetching function gets all necessary data for the page
-async function getLeaguePageData(leagueId: string): Promise<any | null> {
-  try {
-    const season = new Date().getFullYear();
-    const options = (endpoint: string, params: object) => ({
-      method: "GET",
-      url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/${endpoint}`,
-      params,
-      headers: { "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
-    });
-
-    // Fetch league details and standings in parallel
-    const [leagueDetailsResponse, standingsResponse] = await Promise.all([
-      axios.request(options("leagues", { id: leagueId })),
-      axios.request(options("standings", { league: leagueId, season: season })),
-    ]);
-
-    const leagueData = leagueDetailsResponse.data.response[0];
-    if (!leagueData) return null;
-
-    leagueData.standings =
-      standingsResponse.data.response[0]?.league?.standings || [];
-
-    return leagueData;
-  } catch (error) {
-    console.error(
-      `[League Page] Failed to fetch data for league ${leagueId}:`,
-      error
-    );
-    return null;
-  }
-}
-
 export async function generateMetadata({
   params,
 }: {
@@ -63,18 +30,31 @@ export async function generateMetadata({
   const { slug, locale } = params;
   const t = await getI18n(locale);
   const leagueId = getLeagueIdFromSlug(slug[0]);
-  if (!leagueId) return { title: t("not_found_title") };
 
-  const leagueData = await getLeaguePageData(leagueId);
-  if (!leagueData) return { title: t("not_found_title") };
-
-  const { league, country } = leagueData;
-  const pagePath = `/football/league/${slug.join("/")}`;
   const hreflangAlternates = await generateHreflangTags(
     "/football/league",
     slug.join("/"),
     locale
   );
+
+  if (!leagueId) {
+    return {
+      title: t("not_found_title"),
+      alternates: hreflangAlternates,
+    };
+  }
+
+  const leagueData = await getLeaguePageData(leagueId);
+
+  if (!leagueData) {
+    return {
+      title: t("not_found_title"),
+      alternates: hreflangAlternates,
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const { league, country } = leagueData;
 
   return {
     title: t("league_page_title", {
@@ -119,16 +99,15 @@ export default async function LeaguePage({
             currentSeason={currentSeason}
           />
 
-          {/* Display Standings prominently if it's a league */}
           {league.type === "League" && (
             <LeagueStandingsWidget
-              standings={leagueData.standings}
-              league={{
-                seasons: seasons
-                  .map((s: any) => s.year)
-                  .sort((a: number, b: number) => b - a),
-                id: league.id,
-              }}
+              initialStandings={leagueData.standings}
+              leagueSeasons={seasons
+                .map((s: any) => s.year)
+                .sort((a: number, b: number) => b - a)}
+              currentSeason={currentSeason}
+              // The onSeasonChange prop is now removed, fixing the error.
+              isLoading={false}
             />
           )}
 

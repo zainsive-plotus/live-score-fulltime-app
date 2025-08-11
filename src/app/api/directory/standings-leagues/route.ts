@@ -26,7 +26,7 @@ const STANDINGS_LEAGUE_IDS = new Set([
   144, // Jupiler Pro League (Belgium)
   179, // Premiership (Scotland)
   218, // Bundesliga (Austria)
-  197, // Super League (Greece)
+  // 197, // Super League (Greece)
   207, // Super League (Switzerland)
 
   // Americas
@@ -43,7 +43,7 @@ const STANDINGS_LEAGUE_IDS = new Set([
 
   // Asia & Other
   98, // J1 League (Japan)
-  188, // A-League (Australia)
+  // 188, // A-League (Australia)
   307, // Saudi Pro League
   20, // AFC Champions League
 ]);

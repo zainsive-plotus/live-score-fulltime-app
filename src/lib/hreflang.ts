@@ -10,7 +10,6 @@ export type TranslationInfo = {
   language: string;
 };
 
-// This is the new, more robust function
 export async function generateHreflangTags(
   basePath: string,
   currentSlug: string,
@@ -28,17 +27,28 @@ export async function generateHreflangTags(
 
   const getUrlForLocale = (locale: string, slug: string) => {
     // --- THIS IS THE FIX ---
-    // This logic now correctly joins paths, handling all edge cases.
-    // It prevents missing slashes and double slashes.
-    const pathSegments = [basePath, slug].filter(Boolean); // Filter out empty strings
-    const path = pathSegments.join("/");
-    const cleanPath = ("/" + path).replace(/\/+/g, "/"); // Ensure single leading slash and no double slashes
+    // This new logic correctly handles root paths and prevents trailing slashes.
+    let path = basePath;
+    if (slug) {
+      // Ensure there's a single slash between base path and slug
+      path = `${basePath.replace(/\/$/, "")}/${slug}`;
+    }
+
+    // For the absolute root, path will be just "/", handle it gracefully
+    if (path === "/") {
+      if (locale === defaultLocale) {
+        return `${BASE_URL}/`;
+      }
+      return `${BASE_URL}/${locale}/`;
+    }
+
+    const cleanPath = path.replace(/\/+/g, "/");
 
     if (locale === defaultLocale) {
-      // For the default locale, we don't add the /tr prefix
       return `${BASE_URL}${cleanPath}`;
     }
     return `${BASE_URL}/${locale}${cleanPath}`;
+    // --- END OF FIX ---
   };
 
   if (translations && translations.length > 0) {
@@ -56,14 +66,12 @@ export async function generateHreflangTags(
       currentTranslation ? currentTranslation.slug : currentSlug
     );
   } else {
-    // Fallback for pages without explicit translations
     SUPPORTED_LOCALES.forEach((locale) => {
       alternates.languages[locale] = getUrlForLocale(locale, currentSlug);
     });
     alternates.canonical = getUrlForLocale(currentLocale, currentSlug);
   }
 
-  // Set the x-default tag
   const defaultTranslation = translations?.find(
     (t) => t.language === defaultLocale
   );

@@ -2,7 +2,6 @@
 
 "use client";
 
-import { useState } from "react";
 import Image from "next/image";
 import { proxyImageUrl } from "@/lib/image-proxy";
 import StyledLink from "@/components/StyledLink";
@@ -31,7 +30,7 @@ interface LeagueStandingsWidgetProps {
   initialStandings: TeamStanding[][];
   leagueSeasons: number[];
   currentSeason: number;
-  onSeasonChange: (season: number) => void;
+  onSeasonChange?: (season: number) => void; // Prop is now optional
   isLoading: boolean;
 }
 
@@ -170,7 +169,8 @@ export default function LeagueStandingsWidget({
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
           <ListOrdered size={22} /> {t("standings")}
         </h2>
-        {leagueSeasons.length > 1 && (
+        {/* Only render the season selector if the onSeasonChange function is provided */}
+        {onSeasonChange && leagueSeasons.length > 1 && (
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-brand-muted">
               {t("season")}:
@@ -193,7 +193,7 @@ export default function LeagueStandingsWidget({
       </div>
 
       <div className="relative">
-        {isLoading && (
+        {isLoading && onSeasonChange && (
           <div className="absolute inset-0 bg-brand-secondary/50 backdrop-blur-sm z-20 flex items-center justify-center">
             <Loader2 size={32} className="animate-spin text-brand-purple" />
           </div>
