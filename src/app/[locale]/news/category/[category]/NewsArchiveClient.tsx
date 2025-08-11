@@ -16,7 +16,6 @@ import { NewsListItemCompactSkeleton } from "@/components/NewsListItemCompact";
 
 const ITEMS_PER_PAGE = 10;
 
-// The query function now accepts a pageParam from useInfiniteQuery
 const fetchArchiveNews = async (
   locale: string,
   category: string,
@@ -50,7 +49,12 @@ interface NewsArchiveClientProps {
 const ArchiveNewsItem = ({ item }: { item: IPost }) => {
   const placeholderImage = "/images/placeholder-logo.svg";
   const isExternal = !!item.originalSourceUrl;
-  const href = `/${item.language}/news/${item.slug}`;
+
+  // --- THIS IS THE FIX ---
+  // The href is now root-relative, without the language prefix.
+  // StyledLink will handle adding the correct /en, /fr, etc. prefix.
+  const href = `/news/${item.slug}`;
+  // --- END OF FIX ---
 
   return (
     <StyledLink
@@ -111,7 +115,7 @@ export default function NewsArchiveClient({
   category,
 }: NewsArchiveClientProps) {
   const { t, locale } = useTranslation();
-  const { ref, inView } = useInView(); // Hook to detect when an element is visible
+  const { ref, inView } = useInView();
 
   const {
     data,
@@ -125,20 +129,19 @@ export default function NewsArchiveClient({
     queryFn: ({ pageParam = 1 }) =>
       fetchArchiveNews(locale, category, pageParam),
     initialPageParam: 1,
-    // This function determines the next page number
+
     getNextPageParam: (lastPage, allPages) => {
       const currentPage = allPages.length;
       const totalPages = lastPage.pagination.totalPages;
       return currentPage < totalPages ? currentPage + 1 : undefined;
     },
-    // Format the initial server-fetched data for useInfiniteQuery
+
     initialData: {
       pages: [initialData],
       pageParams: [1],
     },
   });
 
-  // Effect to fetch more data when the trigger element becomes visible
   useEffect(() => {
     if (inView && hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
@@ -171,7 +174,6 @@ export default function NewsArchiveClient({
 
   return (
     <div className="space-y-4">
-      {/* Map through the 'pages' array and then map through the 'posts' in each page */}
       {data.pages.map((page, i) => (
         <Fragment key={i}>
           {page.posts.map((item: IPost) => (
@@ -179,8 +181,6 @@ export default function NewsArchiveClient({
           ))}
         </Fragment>
       ))}
-
-      {/* This is the trigger element. When it's in view, we fetch more data */}
       <div ref={ref} className="h-10">
         {isFetchingNextPage && (
           <div className="space-y-4 pt-4">

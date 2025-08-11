@@ -1,10 +1,13 @@
+// ===== src/components/CompactNewsItem.tsx =====
+
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
+import Link from "next/link"; // Can be a direct Next.js Link
 import { IPost } from "@/models/Post";
 import { formatDistanceToNow } from "date-fns";
 import { Calendar, User } from "lucide-react";
+import StyledLink from "./StyledLink"; // Keep using StyledLink for consistency
 
 interface CompactNewsItemProps {
   post: IPost;
@@ -26,17 +29,17 @@ export function CompactNewsItemSkeleton() {
 export default function CompactNewsItem({ post }: CompactNewsItemProps) {
   if (!post) return null;
 
-  // ===== THIS IS THE FIX =====
-  // Create a locale-prefixed path manually, because this component does not use StyledLink.
-  // We use the language property from the post object itself to ensure correctness.
-  const postUrl = `/${post.language}/news/${post.slug}`;
-  // ==========================
+  // --- THIS IS THE FIX ---
+  // The href is now root-relative, without the language prefix.
+  // StyledLink will handle adding the correct /en, /fr, etc. prefix.
+  const postUrl = `/news/${post.slug}`;
+  // --- END OF FIX ---
 
   const placeholderImage = "/images/placeholder-logo.svg";
 
   return (
     <div className="bg-brand-secondary rounded-lg transition-colors hover:bg-gray-800/50">
-      <Link href={postUrl} className="flex items-center gap-4 p-4 group">
+      <StyledLink href={postUrl} className="flex items-center gap-4 p-4 group">
         <div className="flex-shrink-0 w-24 h-16 relative">
           <Image
             src={post.featuredImage || placeholderImage}
@@ -65,7 +68,7 @@ export default function CompactNewsItem({ post }: CompactNewsItemProps) {
             </div>
           </div>
         </div>
-      </Link>
+      </StyledLink>
     </div>
   );
 }
