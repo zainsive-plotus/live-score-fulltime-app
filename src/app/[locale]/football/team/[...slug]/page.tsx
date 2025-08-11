@@ -30,20 +30,26 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug, locale } = params;
   const t = await getI18n(locale);
-  const teamId = getTeamIdFromSlug(slug[0]);
 
-  if (!teamId) return { title: t("not_found_title") };
-
-  const teamData = await fetchTeamDetails(teamId);
-  if (!teamData) return { title: t("not_found_title") };
-
-  const { team } = teamData.teamInfo;
-  const pagePath = `/football/team/${slug.join("/")}`;
   const hreflangAlternates = await generateHreflangTags(
     "/football/team",
     slug.join("/"),
     locale
   );
+
+  const teamId = getTeamIdFromSlug(slug[0]);
+
+  if (!teamId) {
+    return {
+      title: t("not_found_title"),
+      alternates: hreflangAlternates, // Still provide the correct alternates
+    };
+  }
+
+  const teamData = await fetchTeamDetails(teamId);
+  if (!teamData) return { title: t("not_found_title") };
+
+  const { team } = teamData.teamInfo;
 
   const pageTitle = t("team_page_meta_title", { teamName: team.name });
   const pageDescription = t("team_page_meta_description", {

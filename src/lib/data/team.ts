@@ -2,9 +2,9 @@
 
 import axios from "axios";
 import redis from "@/lib/redis";
+import "server-only"; // Ensure this is only used on the server
 
-const CACHE_TTL_SECONDS = 60 * 60 * 12; // 12 hours for fresh data
-const STALE_CACHE_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days for stale data
+const STALE_CACHE_TTL_SECONDS = 60 * 60 * 24 * 7; // Keep stale data for 7 days as a fallback
 
 export async function fetchTeamDetails(teamId: string) {
   const season = new Date().getFullYear().toString();
@@ -16,48 +16,53 @@ export async function fetchTeamDetails(teamId: string) {
       url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/${endpoint}`,
       params,
       headers: { "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
-      timeout: 8000, // Set a reasonable timeout
+      timeout: 8000, // Fail faster to allow cache fallback
     });
 
-    const [
-      teamInfoResponse,
-      squadResponse,
-      recentFixturesResponse,
-      standingsResponse,
-    ] = await Promise.all([
+    // Use Promise.allSettled to prevent one failed sub-request from crashing the whole function
+    const results = await Promise.allSettled([
       axios.request(options("teams", { id: teamId })),
       axios.request(options("players/squads", { team: teamId })),
       axios.request(options("fixtures", { team: teamId, last: 10 })),
       axios.request(options("standings", { team: teamId, season: season })),
     ]);
 
+    const teamInfoResponse =
+      results[0].status === "fulfilled" ? results[0].value : null;
+    const squadResponse =
+      results[1].status === "fulfilled" ? results[1].value : null;
+    const recentFixturesResponse =
+      results[2].status === "fulfilled" ? results[2].value : null;
+    const standingsResponse =
+      results[3].status === "fulfilled" ? results[3].value : null;
+
+    // The primary check: we must have basic team info to proceed.
     if (
+      !teamInfoResponse ||
       !teamInfoResponse.data.response ||
       teamInfoResponse.data.response.length === 0
     ) {
-      console.warn(`[data/team] No team info found for teamId: ${teamId}`);
-      return null;
+      throw new Error(`No team info found for teamId: ${teamId}`);
     }
 
     const responseData = {
       teamInfo: teamInfoResponse.data.response[0],
-      squad: squadResponse.data.response[0]?.players ?? [],
-      fixtures: recentFixturesResponse.data.response,
-      standings: standingsResponse.data.response,
+      squad: squadResponse?.data.response[0]?.players ?? [],
+      fixtures: recentFixturesResponse?.data.response ?? [],
+      standings: standingsResponse?.data.response ?? [],
     };
 
-    // Set the cache with a standard TTL
     await redis.set(
       cacheKey,
       JSON.stringify(responseData),
       "EX",
-      CACHE_TTL_SECONDS
+      STALE_CACHE_TTL_SECONDS
     );
 
     return responseData;
   } catch (error: any) {
     // --- THIS IS THE FIX ---
-    // If any API call fails (timeout, DNS error, etc.), we try to serve stale data.
+    // If any API call fails, we try to serve stale data from the cache.
     console.error(
       `[data/team] API fetch failed for teamId ${teamId}:`,
       error.code || error.message
@@ -72,11 +77,8 @@ export async function fetchTeamDetails(teamId: string) {
         console.log(
           `[data/team] ✓ Successfully served stale data for teamId ${teamId}.`
         );
-        // If we serve stale data, we can extend its life slightly
-        await redis.expire(cacheKey, STALE_CACHE_TTL_SECONDS);
         return JSON.parse(cachedData);
       } else {
-        // If there's no cached data at all, then we must fail.
         console.error(
           `[data/team] ✗ No stale data available in cache for teamId ${teamId}. Returning null.`
         );

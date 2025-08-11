@@ -36,19 +36,32 @@ export async function generateMetadata({
   const { slug, locale } = params;
   const t = await getI18n(locale);
   const fixtureId = getFixtureIdFromSlug(slug[0]);
-  if (!fixtureId) return { title: t("not_found_title") };
-
-  const fixtureData = await getFixture(fixtureId);
-  if (!fixtureData) return { title: t("not_found_title") };
-
-  const { teams, league } = fixtureData;
-  const pagePath = `/football/match/${slug.join("/")}`;
   const hreflangAlternates = await generateHreflangTags(
     "/football/match",
     slug.join("/"),
     locale
   );
 
+  if (!fixtureId) {
+    return {
+      title: t("not_found_title"),
+      alternates: hreflangAlternates,
+    };
+  }
+
+  const fixtureData = await getFixture(fixtureId);
+
+  // 2. If data fetch fails, return metadata with the correct canonical and a "noindex" tag.
+  if (!fixtureData) {
+    return {
+      title: t("not_found_title"),
+      alternates: hreflangAlternates,
+      robots: { index: false, follow: false },
+    };
+  }
+
+  // 3. If data fetch succeeds, return the full, rich metadata.
+  const { teams, league } = fixtureData;
   const pageTitle = t("match_page_title", {
     homeTeam: teams.home.name,
     awayTeam: teams.away.name,
@@ -59,6 +72,7 @@ export async function generateMetadata({
     awayTeam: teams.away.name,
     leagueName: league.name,
   });
+
   return {
     title: pageTitle,
     description: pageDescription,

@@ -52,7 +52,8 @@ const apiRequest = async <T>(
         );
         return JSON.parse(cachedData);
       } else {
-        // If there's no cached data, we must fail gracefully.
+        // If there's no cached data, we must fail gracefully by returning null.
+        // The calling page component will then trigger a notFound().
         console.error(
           `[data/match.ts] ✗ No stale data available in cache for key: ${cacheKey}.`
         );
