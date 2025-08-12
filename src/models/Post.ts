@@ -1,9 +1,8 @@
 // ===== src/models/Post.ts =====
 
-import mongoose, { Schema, Document, Model } from "mongoose"; // Added Model
+import mongoose, { Schema, Document, Model } from "mongoose";
 
 export type SportsCategory = "football" | "basketball" | "tennis" | "general";
-
 export type NewsType =
   | "news"
   | "highlights"
@@ -35,10 +34,9 @@ export interface IPost extends Document {
   linkedFixtureId?: number;
   linkedLeagueId?: number;
   linkedTeamId?: number;
-  originalSourceUrl?: string;
+  originalSourceUrl?: string; // <-- ADD THIS LINE
 }
 
-// --- THIS IS THE ADDITION ---
 export interface IPostWithTranslations extends IPost {
   getTranslations: () => Promise<Pick<IPost, "slug" | "language">[]>;
 }
@@ -105,10 +103,13 @@ const PostSchema: Schema = new Schema(
       default: "news",
       required: true,
     },
+    // --- THIS IS THE FIX ---
+    // Define the new field in the schema.
     originalSourceUrl: {
       type: String,
       trim: true,
     },
+    // --- END OF FIX ---
     linkedFixtureId: {
       type: Number,
       required: false,
@@ -132,7 +133,6 @@ const PostSchema: Schema = new Schema(
 
 PostSchema.index({ slug: 1, language: 1 }, { unique: true });
 
-// --- THIS IS THE ADDITION ---
 PostSchema.methods.getTranslations = async function () {
   if (!this.translationGroupId) return [];
   return mongoose.models.Post.find({
@@ -142,7 +142,6 @@ PostSchema.methods.getTranslations = async function () {
     .select("slug language")
     .lean();
 };
-// --- END OF ADDITION ---
 
 export default (mongoose.models.Post as Model<IPostWithTranslations>) ||
   mongoose.model<IPostWithTranslations>("Post", PostSchema);

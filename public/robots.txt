@@ -12,6 +12,11 @@ Allow: /
 User-agent: Google-Extended
 Allow: /
 
+# --- THIS IS THE FIX ---
+# Disallow crawling of Cloudflare's email protection path
+Disallow: /cdn-cgi/
+# --- END OF FIX ---
+
 # General rule for all other crawlers (including Googlebot for search)
 User-agent: *
 Allow: /
@@ -20,6 +25,7 @@ Allow: /
 Disallow: /admin/
 Disallow: /login/
 Disallow: /api/
+Disallow: /cdn-cgi/ # Also add it here for good measure
 
 # Specify the location of the sitemap index
 Sitemap: https://fanskor.com/sitemap.xml

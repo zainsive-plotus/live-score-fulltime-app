@@ -2,7 +2,7 @@
 
 import { notFound, redirect } from "next/navigation";
 import dbConnect from "@/lib/dbConnect";
-import Post, { IPost, IPostWithTranslations } from "@/models/Post"; // Import IPostWithTranslations
+import Post, { IPost, IPostWithTranslations } from "@/models/Post";
 import { format } from "date-fns";
 import Header from "@/components/Header";
 import Image from "next/image";
@@ -23,24 +23,21 @@ const DEFAULT_LOCALE = "tr";
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
-// Simplified this function, as metadata generation will handle the rest
 async function getPostAndHandleRedirects(
   slug: string,
   locale: string
 ): Promise<IPostWithTranslations | null> {
   await dbConnect();
 
-  // Find a post that matches the slug, regardless of language
   const postInAnyLanguage = await Post.findOne({
     slug,
     status: "published",
   }).exec();
 
   if (!postInAnyLanguage) {
-    return null; // This will trigger a 404 Not Found
+    return null;
   }
 
-  // If the found post's language doesn't match the URL's locale, we must redirect.
   if (postInAnyLanguage.language !== locale) {
     const allTranslations = await postInAnyLanguage.getTranslations();
     const correctVersionForLocale = allTranslations.find(
@@ -49,11 +46,9 @@ async function getPostAndHandleRedirects(
 
     let redirectUrl = "";
     if (correctVersionForLocale) {
-      // Redirect to the correct slug for the requested locale
       const path = `/news/${correctVersionForLocale.slug}`;
       redirectUrl = `/${locale}${path}`;
     } else {
-      // If no version for the requested locale exists, redirect to the default (Turkish) version
       const defaultVersion =
         allTranslations.find((p) => p.language === DEFAULT_LOCALE) ||
         allTranslations[0];
@@ -66,7 +61,6 @@ async function getPostAndHandleRedirects(
     redirect(redirectUrl);
   }
 
-  // If we've reached here, the slug and locale match, so return the post.
   return postInAnyLanguage;
 }
 
@@ -150,7 +144,7 @@ export default async function GeneralNewsArticlePage({
     allTranslations
   );
 
-  const postUrl = hreflangAlternates.canonical; // Use the canonical URL from the hreflang data
+  const postUrl = hreflangAlternates.canonical;
   const description =
     post.metaDescription ||
     post.content.replace(/<[^>]*>?/gm, "").substring(0, 160);

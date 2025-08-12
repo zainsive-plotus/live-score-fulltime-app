@@ -27,22 +27,20 @@ export async function generateHreflangTags(
 
   const getUrlForLocale = (locale: string, slug: string) => {
     // --- THIS IS THE FIX ---
-    // This new logic correctly handles root paths and prevents trailing slashes.
-    let path = basePath;
-    if (slug) {
-      // Ensure there's a single slash between base path and slug
-      path = `${basePath.replace(/\/$/, "")}/${slug}`;
-    }
+    // This logic now correctly handles all path joining without adding
+    // unnecessary trailing slashes.
+    const pathSegments = [basePath, slug].filter(Boolean);
+    let path = pathSegments.join("/");
 
-    // For the absolute root, path will be just "/", handle it gracefully
+    // Ensure it starts with a slash, but handle the root case ("/") gracefully.
     if (path === "/") {
-      if (locale === defaultLocale) {
-        return `${BASE_URL}/`;
-      }
-      return `${BASE_URL}/${locale}/`;
+      // This is the homepage
+      if (locale === defaultLocale) return `${BASE_URL}/`;
+      return `${BASE_URL}/${locale}`; // No trailing slash for locale-only paths
     }
 
-    const cleanPath = path.replace(/\/+/g, "/");
+    // For all other paths, ensure a single leading slash and no trailing slash.
+    const cleanPath = ("/" + path).replace(/\/+/g, "/").replace(/\/$/, "");
 
     if (locale === defaultLocale) {
       return `${BASE_URL}${cleanPath}`;
@@ -66,12 +64,14 @@ export async function generateHreflangTags(
       currentTranslation ? currentTranslation.slug : currentSlug
     );
   } else {
+    // Fallback for pages without explicit translations
     SUPPORTED_LOCALES.forEach((locale) => {
       alternates.languages[locale] = getUrlForLocale(locale, currentSlug);
     });
     alternates.canonical = getUrlForLocale(currentLocale, currentSlug);
   }
 
+  // Set the x-default tag
   const defaultTranslation = translations?.find(
     (t) => t.language === defaultLocale
   );
