@@ -10,9 +10,9 @@ const CACHE_TTL_SECONDS = 60 * 60 * 2; // Cache for 2 hours
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const leagueId = searchParams.get("league");
-  // ***** FIX: Read the season from the search params, defaulting to the current year *****
   const season =
     searchParams.get("season") || new Date().getFullYear().toString();
+  const date = searchParams.get("date"); // <-- NEW: Accept an optional date parameter
 
   if (!leagueId) {
     return NextResponse.json(
@@ -21,8 +21,10 @@ export async function GET(request: Request) {
     );
   }
 
-  // ***** FIX: Include season in the cache key for uniqueness *****
-  const cacheKey = `standings:detailed:${leagueId}:${season}`;
+  // Add date to the cache key to store historical standings separately
+  const cacheKey = `standings:detailed:${leagueId}:${season}:${
+    date || "latest"
+  }`;
 
   try {
     const cachedData = await redis.get(cacheKey);
@@ -37,16 +39,25 @@ export async function GET(request: Request) {
       headers: { "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
     });
 
+    // --- THIS IS THE FIX ---
+    // Build standings parameters dynamically
+    const standingsParams: { league: string; season: string; date?: string } = {
+      league: leagueId,
+      season: season,
+    };
+    if (date) {
+      standingsParams.date = date;
+    }
+
     const [standingsResponse, topScorersResponse, leagueDetailsResponse] =
       await Promise.all([
-        axios.request(
-          options("standings", { league: leagueId, season: season })
-        ),
+        axios.request(options("standings", standingsParams)), // Use dynamic params
         axios.request(
           options("players/topscorers", { league: leagueId, season: season })
         ),
         axios.request(options("leagues", { id: leagueId })),
       ]);
+    // --- END OF FIX ---
 
     if (
       !standingsResponse.data.response ||
@@ -100,7 +111,6 @@ export async function GET(request: Request) {
         logo: data.league.logo,
         type: data.league.type,
         season: data.league.season,
-        // Add all available seasons to the response for the dropdown
         seasons: leagueDetails.seasons
           ?.map((s: any) => s.year)
           .sort((a: number, b: number) => b - a) || [season],

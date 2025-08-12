@@ -1,9 +1,10 @@
+// ===== src/app/[locale]/football/leagues/page.tsx =====
+
 import type { Metadata } from "next";
-import axios from "axios";
+// Removed axios and League type, as they are no longer needed here
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import LeagueListClient from "@/components/LeagueListClient";
-import { League } from "@/types/api-football";
 import RecentNewsWidget from "@/components/RecentNewsWidget";
 import AdSlotWidget from "@/components/AdSlotWidget";
 import { getI18n } from "@/lib/i18n/server";
@@ -13,26 +14,7 @@ const PAGE_PATH = "/football/leagues";
 
 export const dynamic = "force-dynamic";
 
-const fetchAllLeaguesServer = async (): Promise<League[]> => {
-  const publicAppUrl = process.env.NEXT_PUBLIC_PUBLIC_APP_URL;
-  if (!publicAppUrl) {
-    console.error(
-      "[Leagues Page Server] NEXT_PUBLIC_PUBLIC_APP_URL is not defined! Cannot fetch all leagues."
-    );
-    return [];
-  }
-  const apiUrl = `${publicAppUrl}/api/leagues?fetchAll=true`;
-  try {
-    const { data } = await axios.get(apiUrl, { timeout: 15000 });
-    return data;
-  } catch (error: any) {
-    console.error(
-      `[Leagues Page Server] Failed to fetch all leagues (${apiUrl}):`,
-      error.message
-    );
-    return [];
-  }
-};
+// The server-side fetch function is no longer needed here.
 
 export async function generateMetadata({
   params,
@@ -71,7 +53,9 @@ export default async function LeaguesPage({
 }: {
   params: { locale: string };
 }) {
-  const allLeagues = await fetchAllLeaguesServer();
+  // --- THIS IS THE FIX ---
+  // The server-side data fetch is removed.
+  // const allLeagues = await fetchAllLeaguesServer();
   const t = await getI18n(locale);
 
   const leaguesPageSeoText = t("leagues_page_seo_text");
@@ -88,8 +72,9 @@ export default async function LeaguesPage({
           <p className="italic text-[#a3a3a3] leading-relaxed mb-8">
             {leaguesPageSeoText}
           </p>
-          {/* LeagueListClient uses the useTranslation hook and will get the locale from context */}
-          <LeagueListClient initialAllLeagues={allLeagues} />
+          {/* We now pass an empty array, the client component will fetch the data */}
+          <LeagueListClient initialAllLeagues={[]} />
+          {/* --- END OF FIX --- */}
         </main>
         <aside className="hidden lg:block lg:col-span-1 space-y-8 min-w-0">
           <RecentNewsWidget />

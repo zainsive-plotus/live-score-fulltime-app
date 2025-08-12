@@ -1,101 +1,149 @@
-// ===== src/app/api/leagues/route.ts (Redis Enhanced & Reimplemented) =====
+// ===== src/app/api/leagues/route.ts =====
 
 import { NextResponse } from "next/server";
-import axios from "axios";
-import { League } from "@/types/api-football";
+import dbConnect from "@/lib/dbConnect";
+import League from "@/models/League";
 import { generateLeagueSlug } from "@/lib/generate-league-slug";
-import redis from "@/lib/redis"; // Import our Redis client
+import redis from "@/lib/redis";
 
 const POPULAR_LEAGUE_IDS = new Set([39, 140, 135, 78, 61, 88, 94, 253, 203]);
 const POPULAR_CUP_IDS = new Set([2, 3, 531, 45, 9, 11]);
-const CACHE_TTL_SECONDS = 60 * 60 * 24; // Cache data for 24 hours
+const CACHE_TTL_SECONDS = 60 * 60 * 6;
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const country = searchParams.get("country");
-  const type = searchParams.get("type");
-  const fetchAll = searchParams.get("fetchAll");
 
-  // 1. Create a unique cache key based on the request parameters.
-  // This ensures that different requests (e.g., for popular vs. all leagues) are cached separately.
-  const cacheKey = `leagues:${fetchAll ? "all" : country || "popular"}:${
-    type || "all"
-  }`;
+  // --- THIS IS THE FIX ---
+  // Determine the request type and build the cache key and query accordingly.
+  const fetchAll = searchParams.get("fetchAll") === "true";
 
-  try {
-    // 2. Check Redis for cached data first.
-    const cachedData = await redis.get(cacheKey);
-    if (cachedData) {
-      console.log(`[Cache HIT] Returning cached data for key: ${cacheKey}`);
-      // If found, parse it and return it immediately. This is the fast path.
-      return NextResponse.json(JSON.parse(cachedData));
-    }
+  if (fetchAll) {
+    // Logic for the "/football/leagues" page (paginated)
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "15");
+    const searchQuery = searchParams.get("search") || "";
+    const type = searchParams.get("type");
 
-    // 3. If no data is in the cache (Cache Miss), fetch fresh data from the external API.
-    console.log(`[Cache MISS] Fetching fresh data for key: ${cacheKey}`);
+    const skip = (page - 1) * limit;
+    const cacheKey = `leagues:db:paginated:p${page}:l${limit}:q${searchQuery}:t${
+      type || "all"
+    }`;
 
-    const params: { current: string; country?: string; type?: string } = {
-      current: "true",
-    };
-    if (country) params.country = country;
-    if (type) params.type = type;
+    try {
+      const cachedData = await redis.get(cacheKey);
+      if (cachedData) {
+        return NextResponse.json(JSON.parse(cachedData));
+      }
 
-    const options = {
-      method: "GET",
-      url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/leagues`,
-      params: params,
-      headers: {
-        "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY,
-      },
-    };
+      await dbConnect();
+      const query: any = {};
+      if (type && type !== "all") {
+        query.type = type.charAt(0).toUpperCase() + type.slice(1);
+      }
+      if (searchQuery) {
+        const regex = new RegExp(searchQuery, "i");
+        query.$or = [
+          { name: { $regex: regex } },
+          { countryName: { $regex: regex } },
+        ];
+      }
 
-    const response = await axios.request(options);
-    let allLeagues = response.data.response;
+      const [leaguesFromDB, totalCount] = await Promise.all([
+        League.find(query).sort({ name: 1 }).skip(skip).limit(limit).lean(),
+        League.countDocuments(query),
+      ]);
 
-    // Filter for popular leagues if no specific country/fetchAll is requested.
-    if (!country && !fetchAll) {
-      const popularIds = type === "cup" ? POPULAR_CUP_IDS : POPULAR_LEAGUE_IDS;
-      allLeagues = allLeagues.filter((item: any) =>
-        popularIds.has(item.league.id)
-      );
-    }
-
-    // Transform the data into our desired format.
-    const transformedData: League[] = allLeagues
-      .filter(
-        (item: any) => item.league.id && item.league.name && item.league.logo
-      )
-      .map((item: any) => ({
-        id: item.league.id,
-        name: item.league.name,
-        logoUrl: item.league.logo,
-        countryName: item.country.name,
-        countryFlagUrl: item.country.flag,
-        type: item.league.type,
-        href: generateLeagueSlug(item.league.name, item.league.id),
+      const totalPages = Math.ceil(totalCount / limit);
+      const transformedData = leaguesFromDB.map((league) => ({
+        id: league.leagueId,
+        name: league.name,
+        logoUrl: league.logoUrl,
+        countryName: league.countryName,
+        countryFlagUrl: league.countryFlagUrl,
+        type: league.type,
+        href: generateLeagueSlug(league.name, league.leagueId),
       }));
 
-    transformedData.sort((a, b) => a.name.localeCompare(b.name));
+      const responseData = {
+        leagues: transformedData,
+        pagination: { currentPage: page, totalPages, totalCount },
+      };
+      await redis.set(
+        cacheKey,
+        JSON.stringify(responseData),
+        "EX",
+        CACHE_TTL_SECONDS
+      );
+      return NextResponse.json(responseData);
+    } catch (error) {
+      console.error(`[API/leagues] Error fetching paginated leagues:`, error);
+      return NextResponse.json(
+        { error: "Failed to fetch league data." },
+        { status: 500 }
+      );
+    }
+  } else {
+    // Logic for the Sidebar and other non-paginated views
+    const country = searchParams.get("country");
+    const type = searchParams.get("type");
 
-    // 4. Store the newly fetched and transformed data in Redis with an expiration time (TTL).
-    // This ensures future requests will be served from the cache.
-    if (transformedData.length > 0) {
+    let cacheIdentifier = country
+      ? country.toLowerCase().replace(/\s/g, "-")
+      : "popular";
+    const cacheKey = `leagues:db:non-paginated:${cacheIdentifier}:${
+      type || "all"
+    }`;
+
+    try {
+      const cachedData = await redis.get(cacheKey);
+      if (cachedData) {
+        return NextResponse.json(JSON.parse(cachedData));
+      }
+
+      await dbConnect();
+      const query: any = {};
+      if (country) {
+        query.countryName = country;
+      }
+      if (type) {
+        query.type = type.charAt(0).toUpperCase() + type.slice(1);
+      }
+      if (!country) {
+        const popularIds =
+          type === "cup"
+            ? Array.from(POPULAR_CUP_IDS)
+            : Array.from(POPULAR_LEAGUE_IDS);
+        query.leagueId = { $in: popularIds };
+      }
+
+      const leaguesFromDB = await League.find(query).sort({ name: 1 }).lean();
+      const transformedData = leaguesFromDB.map((league) => ({
+        id: league.leagueId,
+        name: league.name,
+        logoUrl: league.logoUrl,
+        countryName: league.countryName,
+        countryFlagUrl: league.countryFlagUrl,
+        type: league.type,
+        href: generateLeagueSlug(league.name, league.leagueId),
+      }));
+
       await redis.set(
         cacheKey,
         JSON.stringify(transformedData),
         "EX",
         CACHE_TTL_SECONDS
       );
-      console.log(`[Cache SET] Stored fresh data for key: ${cacheKey}`);
+      return NextResponse.json(transformedData);
+    } catch (error) {
+      console.error(
+        `[API/leagues] Error fetching non-paginated leagues:`,
+        error
+      );
+      return NextResponse.json(
+        { error: "Failed to fetch league data." },
+        { status: 500 }
+      );
     }
-
-    // 5. Return the fresh data to the client.
-    return NextResponse.json(transformedData);
-  } catch (error) {
-    console.error(`[API/leagues] Error fetching league data:`, error);
-    return NextResponse.json(
-      { error: "Failed to fetch league data." },
-      { status: 500 }
-    );
   }
+  // --- END OF FIX ---
 }

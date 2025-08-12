@@ -7,6 +7,7 @@ import type { Metadata } from "next";
 import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
 import { getLeaguePageData } from "@/lib/data/league";
+import { generateStandingsSlug } from "@/lib/generate-standings-slug";
 
 import LeagueHeader from "@/components/league-detail-view/LeagueHeader";
 import LeagueStandingsWidget from "@/components/league-detail-view/LeagueStandingsWidget";
@@ -14,6 +15,7 @@ import LeagueFixturesWidget from "@/components/league-detail-view/LeagueFixtures
 import LeagueTeamsList from "@/components/league-detail-view/LeagueTeamsList";
 import AdSlotWidget from "@/components/AdSlotWidget";
 import RecentNewsWidget from "@/components/RecentNewsWidget";
+import LeagueDetailWidget from "@/components/directory/LeagueDetailWidget";
 
 const getLeagueIdFromSlug = (slug: string): string | null => {
   if (!slug) return null;
@@ -86,6 +88,8 @@ export default async function LeaguePage({
     seasons.find((s: any) => s.current === true)?.year ||
     new Date().getFullYear();
 
+  const standingsSlug = generateStandingsSlug(league.name, league.id);
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -106,8 +110,9 @@ export default async function LeaguePage({
                 .map((s: any) => s.year)
                 .sort((a: number, b: number) => b - a)}
               currentSeason={currentSeason}
-              // The onSeasonChange prop is now removed, fixing the error.
               isLoading={false}
+              leagueId={league.id}
+              leagueSlug={standingsSlug}
             />
           )}
 
@@ -122,6 +127,11 @@ export default async function LeaguePage({
         </main>
 
         <aside className="hidden lg:block lg:col-span-1 space-y-8 min-w-0">
+          <LeagueDetailWidget
+            league={leagueData.league}
+            leagueStats={leagueData.leagueStats}
+            topScorer={leagueData.topScorer}
+          />
           <RecentNewsWidget />
           <AdSlotWidget location="homepage_right_sidebar" />
         </aside>

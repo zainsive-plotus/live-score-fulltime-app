@@ -1,3 +1,5 @@
+// ===== src/components/LeagueListClient.tsx =====
+
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -9,7 +11,8 @@ import DirectoryCard, {
 } from "@/components/DirectoryCard";
 import Pagination from "@/components/Pagination";
 import { Search, SearchX } from "lucide-react";
-import { useTranslation } from "@/hooks/useTranslation"; // <-- Import hook
+import { useTranslation } from "@/hooks/useTranslation";
+import { useDebounce } from "@/hooks/useDebounce";
 
 const ITEMS_PER_PAGE = 15;
 
@@ -18,58 +21,61 @@ const fetchActiveLeagueIds = async (): Promise<number[]> => {
   return data;
 };
 
-interface LeagueListClientProps {
-  initialAllLeagues: League[];
+interface PaginatedLeaguesResponse {
+  leagues: League[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalCount: number;
+  };
 }
 
-export default function LeagueListClient({
-  initialAllLeagues,
-}: LeagueListClientProps) {
+const fetchPaginatedLeagues = async (
+  page: number,
+  search: string,
+  type: string
+): Promise<PaginatedLeaguesResponse> => {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    limit: ITEMS_PER_PAGE.toString(),
+    search: search,
+    type: type,
+    fetchAll: "true", // Ensure we trigger the paginated logic
+  });
+  const { data } = await axios.get(`/api/leagues?${params.toString()}`);
+  return data;
+};
+
+export default function LeagueListClient() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState<"all" | "league" | "cup">("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const { t } = useTranslation(); // <-- Use hook
+  const { t } = useTranslation();
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
-  const { data: activeLeagueIds, isLoading: isLoadingActive } = useQuery({
+  const { data: leaguesResponse, isLoading: isLoadingLeagues } = useQuery({
+    queryKey: ["paginatedLeagues", currentPage, debouncedSearchTerm, filter],
+    queryFn: () =>
+      fetchPaginatedLeagues(currentPage, debouncedSearchTerm, filter),
+    placeholderData: (previousData) => previousData,
+    keepPreviousData: true,
+  });
+
+  const { data: activeLeagueIds } = useQuery({
     queryKey: ["activeLeagueIds"],
     queryFn: fetchActiveLeagueIds,
     staleTime: 1000 * 60 * 10,
   });
 
-  const filteredLeagues = useMemo(() => {
-    const activeIdsSet = new Set(activeLeagueIds || []);
-
-    const filtered = initialAllLeagues.filter((league) => {
-      const matchesSearch = league.name
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
-      const matchesFilter =
-        filter === "all" || league.type.toLowerCase() === filter;
-      return matchesSearch && matchesFilter;
-    });
-
-    const activeLeagues = filtered.filter((l) => activeIdsSet.has(l.id));
-    const inactiveLeagues = filtered.filter((l) => !activeIdsSet.has(l.id));
-
-    activeLeagues.sort((a, b) => a.name.localeCompare(b.name));
-    inactiveLeagues.sort((a, b) => a.name.localeCompare(b.name));
-
-    return [...activeLeagues, ...inactiveLeagues];
-  }, [initialAllLeagues, activeLeagueIds, searchTerm, filter]);
-
-  const { paginatedData, totalPages } = useMemo(() => {
-    const total = Math.ceil(filteredLeagues.length / ITEMS_PER_PAGE);
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-    return {
-      paginatedData: filteredLeagues.slice(startIndex, endIndex),
-      totalPages: total,
-    };
-  }, [filteredLeagues, currentPage]);
-
+  // Reset page to 1 when search or filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filter]);
+  }, [debouncedSearchTerm, filter]);
+
+  // --- THIS IS THE FIX ---
+  // A single, robust check for the loading state.
+  const isLoading = isLoadingLeagues && !leaguesResponse;
+  // --- END OF FIX ---
 
   return (
     <>
@@ -122,21 +128,23 @@ export default function LeagueListClient({
       </div>
 
       <div>
-        {isLoadingActive ? (
+        {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => (
               <DirectoryCardSkeleton key={i} />
             ))}
           </div>
-        ) : paginatedData.length > 0 ? (
+        ) : leaguesResponse && leaguesResponse.leagues.length > 0 ? (
           <>
             <div className="mb-4">
               <h2 className="text-xl font-bold text-white">
-                {t("showing_competitions", { count: filteredLeagues.length })}
+                {t("showing_competitions", {
+                  count: leaguesResponse.pagination.totalCount,
+                })}
               </h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {paginatedData.map((league) => (
+              {leaguesResponse.leagues.map((league) => (
                 <DirectoryCard
                   key={league.id}
                   {...league}
@@ -144,11 +152,13 @@ export default function LeagueListClient({
                 />
               ))}
             </div>
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={setCurrentPage}
-            />
+            {leaguesResponse.pagination.totalPages > 1 && (
+              <Pagination
+                currentPage={leaguesResponse.pagination.currentPage}
+                totalPages={leaguesResponse.pagination.totalPages}
+                onPageChange={setCurrentPage}
+              />
+            )}
           </>
         ) : (
           <div className="text-center py-20 bg-brand-secondary rounded-lg">
@@ -157,7 +167,9 @@ export default function LeagueListClient({
               {t("no_leagues_found_title")}
             </p>
             <p className="text-text-muted mt-2">
-              {t("no_leagues_found_subtitle", { searchTerm })}
+              {t("no_leagues_found_subtitle", {
+                searchTerm: debouncedSearchTerm,
+              })}
             </p>
           </div>
         )}
