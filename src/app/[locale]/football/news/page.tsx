@@ -24,7 +24,14 @@ export async function generateMetadata({
   const { locale } = params;
 
   const t = await getI18n(locale);
-  const hreflangAlternates = await generateHreflangTags(PAGE_PATH, locale);
+
+  // --- THIS IS THE DEFINITIVE FIX ---
+  // The arguments were in the wrong order.
+  // Correct signature: generateHreflangTags(basePath, currentSlug, currentLocale)
+  // Correct call for this static page:
+  const hreflangAlternates = await generateHreflangTags(PAGE_PATH, "", locale);
+  // --- END OF FIX ---
+
   const pageTitle = t("news_page_meta_title");
   const pageDescription = t("news_page_meta_description");
 
@@ -85,12 +92,8 @@ export default async function FootballNewsPage({
   const { locale } = params;
   const t = await getI18n(locale);
 
-  // Fetch only the first page of data on the server.
   const currentPage = Number(searchParams?.page || 1);
 
-  // --- Start of Fix ---
-  // Ensure we fetch specifically for 'sportsCategory: football' AND 'newsType: news'
-  // to exclude the AI-curated 'recent' news.
   const initialData = await getNews({
     locale,
     sportsCategory: "football",
@@ -98,7 +101,6 @@ export default async function FootballNewsPage({
     page: currentPage,
     limit: ITEMS_PER_PAGE,
   });
-  // --- End of Fix ---
 
   const jsonLdData = generateInitialJsonLd(initialData.posts, t);
 
@@ -140,7 +142,6 @@ export default async function FootballNewsPage({
                 </div>
               }
             >
-              {/* Pass the initial data to the client component */}
               <NewsPageClient initialData={initialData} />
             </Suspense>
           </main>

@@ -11,33 +11,47 @@ import { getNews } from "@/lib/data/news";
 import { NewsListItemCompactSkeleton } from "@/components/NewsListItemCompact";
 import NewsArchiveClient from "./NewsArchiveClient";
 import { NewsType, SportsCategory } from "@/models/Post";
+import { generateHreflangTags } from "@/lib/hreflang"; // <-- IMPORT HREFLANG
 
-// ***** FIX ADDED HERE *****
-// This tells Next.js to always render this page dynamically on the server
-// because it relies on searchParams for pagination.
 export const dynamic = "force-dynamic";
 
 const VALID_CATEGORIES = ["football", "transfer", "recent", "news"];
 const ITEMS_PER_PAGE = 10;
 
+// --- THIS IS THE FIX ---
+// We are adding the generateMetadata function to this page.
 export async function generateMetadata({
   params: { locale, category },
 }: {
   params: { locale: string; category: string };
 }): Promise<Metadata> {
+  if (!VALID_CATEGORIES.includes(category)) {
+    notFound();
+  }
+
   const t = await getI18n(locale);
 
-  let pageTitle = t("news_archive_title");
-
+  // Generate a dynamic title based on the category
+  let pageTitle = t("news_archive_title"); // Default title
   if (category === "football") pageTitle = t("football_news_archive_title");
   if (category === "transfer") pageTitle = t("transfer_news_archive_title");
   if (category === "recent") pageTitle = t("recent_news_archive_title");
 
+  // Generate the crucial canonical and hreflang tags
+  const pagePath = `/news/category/${category}`;
+  const hreflangAlternates = await generateHreflangTags(
+    "/news/category",
+    category,
+    locale
+  );
+
   return {
-    title: `${pageTitle} | FanSkor`,
+    title: pageTitle, // Use the dynamic title
     description: t("news_archive_subtitle"),
+    alternates: hreflangAlternates, // Add the canonical and hreflang tags
   };
 }
+// --- END OF FIX ---
 
 export default async function NewsCategoryPage({
   params: { locale, category },
@@ -102,13 +116,10 @@ export default async function NewsCategoryPage({
               </div>
             }
           >
-            {}
-            {}
             <NewsArchiveClient
               initialData={{ posts: allNews, pagination }}
               category={category}
             />
-            {}
           </Suspense>
         </main>
       </div>
