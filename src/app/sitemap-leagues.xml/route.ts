@@ -1,5 +1,6 @@
-import axios from "axios";
-import slugify from "slugify";
+// ===== src/app/sitemap-leagues.xml/route.ts =====
+
+import { getAllLeaguesForSitemap } from "@/lib/data/leagues"; // <-- CORRECTED IMPORT PATH
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
@@ -17,15 +18,6 @@ type SitemapEntry = {
 const getPath = (path: string, locale: string) => {
   if (locale === DEFAULT_LOCALE) return path;
   return `/${locale}${path}`;
-};
-
-const generateLeagueSlug = (name: string, id: number): string => {
-  const slug = slugify(name, {
-    lower: true,
-    strict: true,
-    remove: /[*+~.()'"!:@]/g,
-  });
-  return `/football/league/${slug}-${id}`;
 };
 
 const generateXml = (entries: SitemapEntry[]) =>
@@ -49,18 +41,15 @@ const generateXml = (entries: SitemapEntry[]) =>
 
 export async function GET() {
   try {
-    const { data: leagues } = await axios.get(
-      `${BASE_URL}/api/leagues?fetchAll=true`
-    );
+    // Instead of using axios, we import the function directly.
+    const leagues = await getAllLeaguesForSitemap();
 
     const sitemapEntries: SitemapEntry[] = leagues.flatMap((league: any) =>
       SUPPORTED_LOCALES.map((locale) => ({
-        url: `${BASE_URL}${getPath(
-          generateLeagueSlug(league.name, league.id),
-          locale
-        )}`,
+        // The data now includes the pre-generated slug (full path)
+        url: `${BASE_URL}${getPath(league.slug, locale)}`,
         lastModified: new Date(),
-        changeFrequency: "monthly",
+        changeFrequency: "weekly",
         priority: 0.7,
       }))
     );
@@ -73,7 +62,7 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error("[Sitemap] Failed to fetch league URLs:", error);
+    console.error("[sitemap-leagues] Error generating sitemap:", error);
     return new Response("Error generating sitemap.", { status: 500 });
   }
 }
