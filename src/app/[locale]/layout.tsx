@@ -91,6 +91,11 @@ export default async function LocaleLayout({
         {process.env.NEXT_PUBLIC_NODE_ENV === "production" && (
           <Script src="./scripts/relic.js" />
         )}
+        <script
+          src="https://analytics.ahrefs.com/analytics.js"
+          data-key="bUq3rBCRyMMiFSPFiUUAxg"
+          async
+        ></script>
       </head>
       <body suppressHydrationWarning={true}>
         <Suspense fallback={<Loading />}>
