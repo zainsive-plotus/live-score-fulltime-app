@@ -13,6 +13,8 @@ import { Globe, Search, XCircle, ChevronDown } from "lucide-react"; // Added Che
 import { format } from "date-fns";
 import { proxyImageUrl } from "@/lib/image-proxy";
 import { useTranslation } from "@/hooks/useTranslation";
+import StyledLink from "./StyledLink";
+import { generateLeagueSlug } from "@/lib/generate-league-slug";
 
 function useDebounce(value: string, delay: number) {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -51,33 +53,49 @@ const searchFixtures = async (query: string): Promise<any[]> => {
 const LeagueGroupHeader = ({
   league,
 }: {
-  league: { name: string; logo: string; country: string; flag: string | null };
-}) => (
-  <div
-    className="flex items-center gap-3 p-3 sticky top-0 z-10"
-    style={{ backgroundColor: "var(--color-primary)" }}
-  >
-    <div className="w-[28px] h-[28px] flex items-center justify-center">
-      {league.country === "World" ? (
-        <Globe size={24} className="text-text-muted" />
-      ) : (
-        league.flag && (
-          <Image
-            src={proxyImageUrl(league.flag)}
-            alt={league.country}
-            width={28}
-            height={28}
-            className="rounded-full object-contain"
-          />
-        )
-      )}
+  league: {
+    id: number;
+    name: string;
+    logo: string;
+    country: string;
+    flag: string | null;
+  };
+}) => {
+  const leagueHref = generateLeagueSlug(league.name, league.id);
+
+  return (
+    <div
+      className="flex items-center gap-3 p-3 sticky top-0 z-10"
+      style={{ backgroundColor: "var(--color-primary)" }}
+    >
+      <div className="w-[28px] h-[28px] flex items-center justify-center flex-shrink-0">
+        {league.country === "World" ? (
+          <Globe size={24} className="text-text-muted" />
+        ) : (
+          league.flag && (
+            <Image
+              src={proxyImageUrl(league.flag)}
+              alt={league.country}
+              width={28}
+              height={28}
+              className="rounded-full object-contain"
+            />
+          )
+        )}
+      </div>
+      <div className="min-w-0">
+        <p className="font-bold text-sm text-white truncate">
+          {league.country}
+        </p>
+        <StyledLink href={leagueHref} className="group">
+          <p className="text-sm text-[var(--brand-accent)] font-bold truncate group-hover:underline">
+            {league.name}
+          </p>
+        </StyledLink>
+      </div>
     </div>
-    <div>
-      <p className="font-bold text-base text-white">{league.country}</p>
-      <p className="text-sm text-text-muted">{league.name}</p>
-    </div>
-  </div>
-);
+  );
+};
 
 const TabButton = ({
   label,
