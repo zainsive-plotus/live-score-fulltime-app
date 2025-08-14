@@ -7,7 +7,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useTranslation } from "@/hooks/useTranslation";
 
-// Skeleton for the data-heavy part of the footer
 const FooterContentSkeleton = () => (
   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12 animate-pulse">
     {Array.from({ length: 4 }).map((_, i) => (
@@ -23,10 +22,9 @@ const FooterContentSkeleton = () => (
   </div>
 );
 
-// Dynamically import the content part of the footer
 const FooterContent = dynamic(() => import("./FooterContent"), {
   loading: () => <FooterContentSkeleton />,
-  ssr: false, // Footer content is not critical for SEO, can be client-loaded
+  ssr: false,
 });
 
 export default function Footer() {
@@ -35,10 +33,10 @@ export default function Footer() {
   return (
     <footer className="bg-brand-secondary text-white py-12">
       <div className="container mx-auto px-4">
-        {/* The dynamic component is rendered here */}
+        {}
         <FooterContent />
 
-        {/* Static content remains */}
+        {}
         <div className="flex flex-col md:flex-row justify-between items-center border-t border-gray-700/50 pt-8 mb-8">
           <div className="mb-6 md:mb-0">
             <Image
@@ -48,7 +46,8 @@ export default function Footer() {
               height={40}
             />
           </div>
-          <div className="flex items-center gap-6 md:gap-8">
+          {/* CORRECTED: Added flex-wrap, justify-center, and specific gaps for responsiveness */}
+          <div className="flex items-center justify-center flex-wrap gap-x-6 gap-y-4 md:gap-8">
             <Image
               src="/images/logos/18plus.svg"
               alt="18+ Responsible Gaming"
@@ -77,7 +76,7 @@ export default function Footer() {
         </div>
 
         <div className="flex flex-col md:flex-row justify-between items-center text-sm text-brand-muted">
-          <p className="mb-4 md:mb-0">
+          <p className="mb-4 md:mb-0 text-center md:text-left">
             © {new Date().getFullYear()} Fan skor -{t("footer_rights_reserved")}
           </p>
           <div className="flex flex-wrap justify-center gap-x-4 gap-y-2">

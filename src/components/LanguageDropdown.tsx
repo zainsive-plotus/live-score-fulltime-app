@@ -1,8 +1,8 @@
+// ===== src/components/LanguageDropdown.tsx =====
+
 "use client";
 
-import { useState, useTransition, Fragment } from "react";
-import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
+import { useState, Fragment } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import { ChevronDown, Loader2 } from "lucide-react";
@@ -10,26 +10,21 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { ILanguage } from "@/models/Language";
 import { Menu, Transition } from "@headlessui/react";
 import { setLocaleCookie } from "@/app/actions/language";
+import { DEFAULT_LOCALE } from "@/lib/i18n/config";
 
-// This list must be kept in sync with middleware.ts
-const DEFAULT_LOCALE = "tr";
+interface LanguageDropdownProps {
+  languages: ILanguage[] | undefined;
+  isLoading: boolean;
+}
 
-const fetchActiveLanguages = async (): Promise<ILanguage[]> => {
-  const { data } = await axios.get("/api/admin/languages");
-  return data.filter((lang: ILanguage) => lang.isActive);
-};
-
-export default function LanguageDropdown() {
-  const [isPending, startTransition] = useTransition();
+export default function LanguageDropdown({
+  languages,
+  isLoading,
+}: LanguageDropdownProps) {
+  const [isPending, startTransition] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const { locale: currentLocale } = useTranslation();
-
-  const { data: languages, isLoading } = useQuery<ILanguage[]>({
-    queryKey: ["activeLanguages"],
-    queryFn: fetchActiveLanguages,
-    staleTime: 1000 * 60 * 60,
-  });
 
   const selectedLanguage = languages?.find(
     (lang) => lang.code === currentLocale
@@ -41,24 +36,17 @@ export default function LanguageDropdown() {
     const isSwitchingFromDefault = currentLocale === DEFAULT_LOCALE;
 
     if (isSwitchingToDefault) {
-      // e.g., from /en/some-page to /some-page
       newPath = pathname.replace(`/${currentLocale}`, "");
     } else if (isSwitchingFromDefault) {
-      // e.g., from /some-page to /en/some-page
       newPath = `/${newLocale}${pathname}`;
     } else {
-      // e.g., from /en/some-page to /de/some-page
       newPath = pathname.replace(`/${currentLocale}`, `/${newLocale}`);
     }
-
-    // Ensure the path is valid (handles homepage case)
     if (newPath === "") newPath = "/";
 
-    startTransition(() => {
-      // Set cookie for middleware to detect on next visit
-      setLocaleCookie(newLocale).then(() => {
-        router.push(newPath);
-      });
+    startTransition(true);
+    setLocaleCookie(newLocale).then(() => {
+      router.push(newPath);
     });
   };
 
@@ -96,7 +84,7 @@ export default function LanguageDropdown() {
   };
 
   return (
-    <Menu as="div" className="relative inline-block text-left">
+    <Menu as="div" className="relative inline-block text-left w-full md:w-auto">
       <div>
         <Menu.Button
           disabled={isLoading || isPending}

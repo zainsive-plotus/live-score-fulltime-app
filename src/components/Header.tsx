@@ -2,30 +2,33 @@
 
 "use client";
 
-import { useState, useEffect, useRef, Suspense } from "react";
+import { useState, useEffect, Suspense, Fragment } from "react";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 import {
-  FaBasketballBall,
-  FaTrophy,
-  FaUsers,
-  FaNewspaper,
-} from "react-icons/fa";
-import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
-import { IPost } from "@/models/Post";
-
-import { IoMdFootball } from "react-icons/io";
-import { IoTennisball } from "react-icons/io5";
+  Users,
+  Newspaper,
+  PlayCircle,
+  BrainCircuit,
+  BookOpen,
+  Repeat,
+  Menu,
+  X,
+  Search,
+  ChevronDown,
+  ListOrdered,
+  CalendarDays,
+} from "lucide-react";
+import { Dialog, Transition } from "@headlessui/react";
 import LanguageDropdown from "./LanguageDropdown";
 import { useTranslation } from "@/hooks/useTranslation";
 import StyledLink from "./StyledLink";
-import NavDropdown from "./NavDropdown";
-import NotificationDropdown from "./NotificationDropdown";
-// ***** ICON IMPORT ADDED HERE *****
-import { ArrowRight, Bell, Menu, X, ListOrdered } from "lucide-react";
 import Ticker from "./Ticker";
 import { useScrollDirection } from "@/hooks/useScrollDirection";
+import HeaderSearchModal from "./HeaderSearchModal";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import { ILanguage } from "@/models/Language";
 
 type NavIcon = React.ElementType;
 
@@ -44,295 +47,297 @@ interface NavItem {
   subLinks?: SubLink[];
 }
 
-const fetchLatestPost = async (): Promise<IPost | null> => {
-  try {
-    const { data } = await axios.get("/api/posts?status=published&limit=1");
-    return data.posts[0] || null; // API returns { posts: [...] }
-  } catch {
-    return null;
-  }
+const fetchActiveLanguages = async (): Promise<ILanguage[]> => {
+  const { data } = await axios.get("/api/admin/languages?active=true");
+  return data;
 };
 
 export default function Header() {
   const { t } = useTranslation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const [hasUnread, setHasUnread] = useState(false);
-  const notificationRef = useRef<HTMLDivElement>(null);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
   const pathname = usePathname();
 
-  const { isSticky, isVisible } = useScrollDirection({ threshold: 200 });
+  const { isSticky, isVisible } = useScrollDirection({ threshold: 50 });
 
-  const { data: latestPost } = useQuery<IPost | null>({
-    queryKey: ["latestPostForIndicator"],
-    queryFn: fetchLatestPost,
-    staleTime: 1000 * 60,
+  // Fetch languages here, in the parent component.
+  const { data: languages, isLoading: isLoadingLanguages } = useQuery<
+    ILanguage[]
+  >({
+    queryKey: ["activeLanguages"],
+    queryFn: fetchActiveLanguages,
+    staleTime: 1000 * 60 * 60,
   });
 
   useEffect(() => {
-    if (latestPost) {
-      const lastReadPostId = localStorage.getItem("lastReadPostId");
-      if (latestPost._id !== lastReadPostId) {
-        setHasUnread(true);
-      }
+    if (isMobileMenuOpen || isSearchOpen) {
+      setIsMobileMenuOpen(false);
+      setIsSearchOpen(false);
     }
-  }, [latestPost]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        notificationRef.current &&
-        !notificationRef.current.contains(event.target as Node)
-      ) {
-        setIsNotificationOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const handleNotificationToggle = () => {
-    setIsNotificationOpen((prev) => !prev);
-    if (hasUnread && latestPost) {
-      localStorage.setItem("lastReadPostId", latestPost._id as string);
-      setHasUnread(false);
-    }
-  };
+  }, [pathname]);
 
   const navItems: NavItem[] = [
+    { title: t("fixtures"), href: "/", icon: CalendarDays },
+    { title: t("teams"), href: "/football/teams", icon: Users },
+    { title: t("highlights"), href: "/highlights", icon: PlayCircle },
+    { title: t("predictions"), href: "/predictions", icon: BrainCircuit },
+    { title: t("standings"), href: "/football/standings", icon: ListOrdered },
     {
-      title: t("football"),
-      href: "/football",
-      icon: IoMdFootball,
+      title: t("news_and_stories"),
+      href: "/news",
+      icon: Newspaper,
       isDropdown: true,
       subLinks: [
         {
-          name: t("leagues"),
-          href: "/football/leagues",
-          description: t("leagues_description"),
-          icon: FaTrophy,
-        },
-        // ***** NEW MENU ITEM ADDED HERE *****
-        {
-          name: t("standings"),
-          href: "/football/standings",
-          description: t("standings_description"), // Remember to add this key to your translations
-          icon: ListOrdered,
+          name: t("latest_news"),
+          href: "/news/category/recent",
+          description: t("latest_news_desc"),
+          icon: Newspaper,
         },
         {
-          name: t("teams"),
-          href: "/football/teams",
-          description: t("teams_description"),
-          icon: FaUsers,
+          name: t("transfer_news"),
+          href: "/news/category/transfer",
+          description: t("transfer_news_desc"),
+          icon: Repeat,
         },
         {
-          name: t("football_news"),
-          href: "/football/news",
-          description: t("football_news_description"),
-          icon: FaNewspaper,
+          name: t("blogs"),
+          href: "/news/category/football",
+          description: t("blogs_desc"),
+          icon: BookOpen,
         },
       ],
     },
-    { title: t("basketball"), href: "#", icon: FaBasketballBall },
-    { title: t("tennis"), href: "#", icon: IoTennisball },
-    {
-      title: t("news"),
-      href: "/news",
-      icon: FaNewspaper,
-    },
   ];
 
-  const handleMobileLinkClick = () => {
-    setIsMobileMenuOpen(false);
-  };
+  const MobileFlyoutMenu = () => (
+    <Transition.Root show={isMobileMenuOpen} as={Fragment}>
+      <Dialog
+        as="div"
+        className="relative z-[100] lg:hidden"
+        onClose={setIsMobileMenuOpen}
+      >
+        <Transition.Child
+          as={Fragment}
+          enter="ease-in-out duration-300"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="ease-in-out duration-300"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
+          <div className="fixed inset-0 bg-black" />
+        </Transition.Child>
+        <Transition.Child
+          as={Fragment}
+          enter="transform transition ease-in-out duration-300"
+          enterFrom="-translate-x-full"
+          enterTo="translate-x-0"
+          leave="transform transition ease-in-out duration-300"
+          leaveFrom="translate-x-0"
+          leaveTo="-translate-x-full"
+        >
+          <Dialog.Panel className="fixed inset-y-0 left-0 w-full max-w-xs bg-brand-dark flex flex-col">
+            <div className="flex items-center justify-between px-4 h-20 border-b border-gray-800 flex-shrink-0">
+              <StyledLink href="/">
+                <Image
+                  src={"/fanskor.webp"}
+                  alt="fanskor-logo"
+                  width={150}
+                  height={50}
+                />
+              </StyledLink>
+              <button
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="p-2"
+                aria-label="Close mobile menu"
+              >
+                <X size={28} />
+              </button>
+            </div>
+
+            <div className="p-4 border-b border-gray-800">
+              <LanguageDropdown
+                languages={languages}
+                isLoading={isLoadingLanguages}
+              />
+            </div>
+
+            <nav className="flex-1 overflow-y-auto custom-scrollbar p-4">
+              <ul className="space-y-1">
+                {navItems.map((item) => {
+                  const isActive =
+                    (pathname === item.href && item.href === "/") ||
+                    (item.href !== "/" && pathname.startsWith(item.href));
+                  return (
+                    <li key={item.title}>
+                      <StyledLink
+                        href={item.href}
+                        className={`flex items-center gap-4 w-full rounded-lg p-3 text-lg font-semibold transition-colors ${
+                          isActive
+                            ? "bg-[var(--brand-accent)] text-white"
+                            : "text-brand-light hover:bg-brand-secondary"
+                        }`}
+                      >
+                        <item.icon size={22} /> {item.title}
+                      </StyledLink>
+                    </li>
+                  );
+                })}
+              </ul>
+            </nav>
+
+            <div className="p-4 mt-auto border-t border-gray-800">
+              <div className="flex justify-center gap-x-6 text-xs text-text-muted">
+                <StyledLink href="/privacy-policy" className="hover:text-white">
+                  Privacy
+                </StyledLink>
+                <StyledLink
+                  href="/terms-and-conditions"
+                  className="hover:text-white"
+                >
+                  Terms
+                </StyledLink>
+                <StyledLink href="/contact-us" className="hover:text-white">
+                  Contact
+                </StyledLink>
+              </div>
+            </div>
+          </Dialog.Panel>
+        </Transition.Child>
+      </Dialog>
+    </Transition.Root>
+  );
 
   return (
     <div
       className={`
         ${isSticky ? "sticky" : "relative"}
-        top-0 z-50 w-full bg-brand-secondary shadow-xl shadow-black/20
-        border-b border-gray-700/50
+        top-0 z-50 w-full bg-brand-secondary
         transition-transform duration-300 ease-in-out
         ${isVisible ? "translate-y-0" : "-translate-y-full"}
       `}
     >
-      {}
-      {}
-      <header className="relative w-full z-10">
-        {}
-        <div className="container mx-auto flex h-24 items-center justify-between px-4 lg:px-6">
-          <StyledLink href="/" className="flex items-center flex-shrink-0">
-            <Image
-              src={"/fanskor.webp"}
-              alt="fanskor-logo"
-              width={180}
-              height={60}
-            />
-          </StyledLink>
-          <nav className="hidden lg:flex items-center flex-grow justify-center gap-12 px-8">
-            {navItems.map((item) => (
-              <li key={item.title} className="list-none">
-                {item.isDropdown && item.subLinks ? (
-                  <NavDropdown
-                    title={item.title}
-                    icon={item.icon}
-                    subLinks={item.subLinks}
-                  />
-                ) : (
-                  <StyledLink
-                    href={item.href}
-                    className={`relative flex items-center gap-2 py-2 text-base font-semibold transition-colors group ${
-                      pathname.startsWith(item.href)
-                        ? "text-white"
-                        : "text-[var(--text-secondary)] hover:text-white"
-                    } ${
-                      pathname.startsWith(item.href)
-                        ? "after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-[var(--brand-accent)] after:rounded-t-sm"
-                        : "after:absolute after:bottom-0 after:left-1/2 after:w-0 after:h-0.5 after:bg-[var(--brand-accent)] after:rounded-t-sm group-hover:after:w-full group-hover:after:left-0 after:transition-all after:duration-300"
-                    }`}
-                  >
-                    <item.icon size={20} />
-                    {item.title}
-                  </StyledLink>
-                )}
-              </li>
-            ))}
-          </nav>
-
-          <div
-            className="hidden lg:flex items-center gap-6 flex-shrink-0"
-            ref={notificationRef}
-          >
-            <div className="relative">
-              <button
-                onClick={handleNotificationToggle}
-                className="text-brand-light hover:text-white transition-colors p-2"
-              >
-                <Bell
-                  size={24}
-                  className={`text-[var(--brand-accent)] ${
-                    hasUnread ? "animate-ring" : ""
-                  }`}
-                />
-                {hasUnread && (
-                  <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-brand-dark" />
-                )}
-              </button>
-              {isNotificationOpen && (
-                <NotificationDropdown
-                  onClose={() => setIsNotificationOpen(false)}
-                />
-              )}
-            </div>
-            <LanguageDropdown />
-          </div>
-
-          <div
-            className="flex lg:hidden items-center gap-2 flex-shrink-0"
-            ref={notificationRef}
-          >
-            <div className="relative">
-              <button
-                onClick={handleNotificationToggle}
-                className="text-brand-light hover:text-white transition-colors p-2"
-              >
-                <Bell
-                  size={24}
-                  className={`text-[var(--brand-accent)] ${
-                    hasUnread ? "animate-ring" : ""
-                  }`}
-                />
-                {hasUnread && (
-                  <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-brand-dark" />
-                )}
-              </button>
-              {isNotificationOpen && (
-                <NotificationDropdown
-                  onClose={() => setIsNotificationOpen(false)}
-                />
-              )}
-            </div>
-            <button
-              className="text-brand-light hover:text-white transition-colors p-2"
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              aria-label="Toggle mobile menu"
-            >
-              {isMobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {isMobileMenuOpen && (
-        <div className="fixed inset-0 bg-black/95 z-[999] flex flex-col transform translate-x-0 animate-slide-in-right">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800/50 flex-shrink-0">
-            <StyledLink href="/" className="flex items-center gap-3 group">
+      <header className="relative w-full z-40 border-b border-gray-700/50">
+        <div className="container mx-auto flex h-20 items-center justify-between px-4 lg:px-6">
+          <div className="flex items-center gap-x-6">
+            <StyledLink href="/" className="flex-shrink-0">
               <Image
                 src={"/fanskor.webp"}
                 alt="fanskor-logo"
-                width={150}
-                height={50}
+                width={160}
+                height={54}
+                priority
               />
             </StyledLink>
-            <button
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="text-brand-light hover:text-white transition-colors p-2"
-              aria-label="Close mobile menu"
-            >
-              <X size={32} />
-            </button>
-          </div>
-          <div className="mt-8 pb-4 border-b border-gray-800/50 flex flex-col gap-4 px-6 flex-shrink-0">
-            <LanguageDropdown />
-          </div>
-          <nav className="flex-1 overflow-y-auto custom-scrollbar p-6 pt-4">
-            <ul className="space-y-4">
+            <nav className="hidden lg:flex items-center gap-x-2">
               {navItems.map((item) => (
-                <li key={item.title}>
-                  {item.isDropdown ? (
-                    <div className="space-y-3">
-                      <button className="w-full text-left px-4 py-3 text-lg font-bold uppercase text-[var(--text-muted)] tracking-wider border-b border-gray-800/50 flex items-center gap-3">
-                        <item.icon size={24} />
-                        {item.title}
-                      </button>
-                      <ul className="space-y-2 pl-4 border-l-2 border-gray-700/50">
-                        {item.subLinks!.map((subLink) => (
-                          <li key={subLink.name}>
-                            <StyledLink
-                              href={subLink.href}
-                              onClick={handleMobileLinkClick}
-                              className="flex justify-between items-center w-full rounded-lg p-3 text-lg font-medium text-brand-light hover:bg-brand-secondary"
-                            >
-                              <span className="flex items-center gap-3">
-                                {subLink.icon && <subLink.icon size={24} />}{" "}
-                                {subLink.name}
-                              </span>
-                              <ArrowRight
-                                size={24}
-                                className="text-[var(--brand-accent)]"
-                              />
-                            </StyledLink>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : (
-                    <StyledLink
-                      href={item.href}
-                      onClick={handleMobileLinkClick}
-                      className="block w-full rounded-lg p-4 text-xl font-bold text-brand-light hover:bg-brand-secondary flex items-center gap-4"
+                <li
+                  key={item.title}
+                  className="list-none relative"
+                  onMouseEnter={() =>
+                    item.isDropdown && setOpenMenu(item.title)
+                  }
+                  onMouseLeave={() => item.isDropdown && setOpenMenu(null)}
+                >
+                  <StyledLink
+                    href={item.href}
+                    className={`relative flex items-center gap-2 px-4 py-2 text-base font-semibold transition-colors group rounded-md ${
+                      (pathname === item.href && item.href === "/") ||
+                      (item.href !== "/" && pathname.startsWith(item.href))
+                        ? "text-white bg-white/5"
+                        : "text-text-secondary hover:text-white hover:bg-white/5"
+                    }`}
+                  >
+                    <item.icon size={18} />
+                    {item.title}
+                    {item.isDropdown && (
+                      <ChevronDown
+                        size={16}
+                        className={`transition-transform duration-300 ${
+                          openMenu === item.title ? "rotate-180" : ""
+                        }`}
+                      />
+                    )}
+                    {((pathname === item.href && item.href === "/") ||
+                      (item.href !== "/" &&
+                        pathname.startsWith(item.href))) && (
+                      <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-[var(--brand-accent)] rounded-full"></span>
+                    )}
+                  </StyledLink>
+                  {item.isDropdown && (
+                    <Transition
+                      show={openMenu === item.title}
+                      as={Fragment}
+                      enter="transition ease-out duration-200"
+                      enterFrom="opacity-0 translate-y-2"
+                      enterTo="opacity-100 translate-y-0"
+                      leave="transition ease-in duration-150"
+                      leaveFrom="opacity-100 translate-y-0"
+                      leaveTo="opacity-0 translate-y-2"
                     >
-                      <item.icon size={28} />
-                      {item.title}
-                    </StyledLink>
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 pt-4 w-auto">
+                        <div className="bg-brand-secondary rounded-xl shadow-2xl border border-gray-700/50 p-4">
+                          <div className="grid grid-flow-col auto-cols-max gap-4">
+                            {(item.subLinks || []).map((subLink) => (
+                              <StyledLink
+                                key={subLink.name}
+                                href={subLink.href}
+                                className="group flex items-start gap-4 p-3 rounded-lg hover:bg-black/20 transition-colors w-72"
+                              >
+                                <div className="flex-shrink-0 bg-black/20 p-3 rounded-lg text-[var(--brand-accent)]">
+                                  {subLink.icon && <subLink.icon size={24} />}
+                                </div>
+                                <div>
+                                  <p className="font-bold text-white group-hover:text-[var(--brand-accent)] transition-colors">
+                                    {subLink.name}
+                                  </p>
+                                  <p className="text-sm text-text-muted mt-1">
+                                    {subLink.description}
+                                  </p>
+                                </div>
+                              </StyledLink>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </Transition>
                   )}
                 </li>
               ))}
-            </ul>
-          </nav>
+            </nav>
+          </div>
+          <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
+            <button
+              onClick={() => setIsSearchOpen(true)}
+              className="p-2 text-text-muted hover:text-white transition-colors"
+            >
+              <Search size={22} />
+            </button>
+            <div className="hidden md:block">
+              <LanguageDropdown
+                languages={languages}
+                isLoading={isLoadingLanguages}
+              />
+            </div>
+            <div className="flex lg:hidden">
+              <button
+                onClick={() => setIsMobileMenuOpen(true)}
+                aria-label="Open menu"
+                className="p-2"
+              >
+                <Menu size={26} />
+              </button>
+            </div>
+          </div>
         </div>
-      )}
-
+      </header>
+      <HeaderSearchModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+      />
+      <MobileFlyoutMenu />
       <Suspense fallback={null}>
         <Ticker />
       </Suspense>
