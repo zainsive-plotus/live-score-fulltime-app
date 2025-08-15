@@ -16,7 +16,6 @@ import { I18nProviderClient } from "@/lib/i18n/client";
 import { TimeZoneProvider } from "@/context/TimeZoneContext";
 import { i18nCache } from "@/lib/i18n/i18n.cache";
 import { generateHreflangTags } from "@/lib/hreflang";
-import { newRelicBrowserAgent } from "@/lib/new-relic";
 import Script from "next/script";
 import { inter } from "../fonts"; // <-- 1. IMPORT THE FONT
 
