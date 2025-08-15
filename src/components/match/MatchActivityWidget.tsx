@@ -171,12 +171,10 @@ export default function MatchActivityWidget({
   fixtureId,
   isLive,
   homeTeamId,
-  activitySeoDescription,
 }: {
   fixtureId: string;
   isLive: boolean;
   homeTeamId: number;
-  activitySeoDescription: string;
 }) {
   const { t } = useTranslation();
 
@@ -231,9 +229,6 @@ export default function MatchActivityWidget({
         <h2 className="text-2xl font-bold text-white mb-4">
           {t("match_timeline")}
         </h2>
-        <p className="italic text-brand-muted leading-relaxed mb-8 text-sm">
-          {activitySeoDescription}
-        </p>
 
         {isError || timelineItems.length <= 2 ? (
           <div className="text-center py-10 text-brand-muted">

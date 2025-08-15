@@ -8,6 +8,7 @@ import {
   RecentNewsWidgetSkeleton,
 } from "@/components/skeletons/WidgetSkeletons";
 import { PredictionWidgetSkeleton } from "@/components/match/MatchPredictionWidget";
+import MatchAboutWidget from "@/components/match/MatchAboutWidget"; // ADD: Import the new widget
 
 const LiveOddsWidget = dynamic(
   () => import("@/components/match/LiveOddsWidget"),
@@ -19,9 +20,6 @@ const LinkedNewsWidget = dynamic(
 );
 const MatchHighlightsWidget = dynamic(
   () => import("@/components/match/MatchHighlightsWidget")
-);
-const TeamStandingsWidget = dynamic(
-  () => import("@/components/match/TeamStandingsWidget")
 );
 const MatchPredictionWidget = dynamic(
   () => import("@/components/match/MatchPredictionWidget"),
@@ -35,25 +33,23 @@ const AdSlotWidget = dynamic(() => import("@/components/AdSlotWidget"), {
 interface SidebarContentProps {
   fixtureData: any;
   isLive: boolean;
-  standingsSeoDescription: string;
+  aboutMatchTitle: string; // ADD: New prop for the title
+  aboutMatchSeoText: string; // ADD: New prop for the SEO text
 }
 
 export default function SidebarContent({
   fixtureData,
   isLive,
-  standingsSeoDescription,
+  aboutMatchTitle,
+  aboutMatchSeoText,
 }: SidebarContentProps) {
   const { fixture, league, teams } = fixtureData;
 
   return (
-    // This component is now just a layout wrapper for the individual widgets
     <>
       {isLive && <LiveOddsWidget fixtureId={fixture.id.toString()} />}
 
-      {/* --- THIS IS THE FIX --- */}
-      {/* LinkedNewsWidget now only needs the fixtureId to fetch its own data */}
       <LinkedNewsWidget fixtureId={fixture.id} />
-      {/* --- END OF FIX --- */}
 
       <MatchHighlightsWidget
         leagueName={league.name}
@@ -61,15 +57,10 @@ export default function SidebarContent({
         awayTeamName={teams.away.name}
       />
 
-      <TeamStandingsWidget
-        leagueId={league.id}
-        season={league.season}
-        homeTeamId={teams.home.id}
-        awayTeamId={teams.away.id}
-        standingsSeoDescription={standingsSeoDescription}
-      />
-
       <MatchPredictionWidget fixtureId={fixture.id.toString()} />
+
+      {/* ADD: The new MatchAboutWidget */}
+      <MatchAboutWidget title={aboutMatchTitle} seoText={aboutMatchSeoText} />
 
       <AdSlotWidget location="match_sidebar" />
     </>

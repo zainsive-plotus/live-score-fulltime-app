@@ -3,7 +3,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getFixture, getStatistics } from "@/lib/data/match"; // Only fast queries
+import { getFixture, getStatistics } from "@/lib/data/match";
 import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
 import Header from "@/components/Header";
@@ -19,6 +19,8 @@ import {
   RecentNewsWidgetSkeleton,
 } from "@/components/skeletons/WidgetSkeletons";
 import MatchFormationWidget from "@/components/match/MatchFormationWidget";
+import StandingsWidget from "@/components/StandingsWidget";
+import AdSlotWidget from "@/components/AdSlotWidget";
 
 const getFixtureIdFromSlug = (slug: string): string | null => {
   if (!slug) return null;
@@ -27,7 +29,6 @@ const getFixtureIdFromSlug = (slug: string): string | null => {
   return /^\d+$/.test(lastPart) ? lastPart : null;
 };
 
-// Metadata generation remains on the server for SEO
 export async function generateMetadata({
   params,
 }: {
@@ -51,7 +52,6 @@ export async function generateMetadata({
 
   const fixtureData = await getFixture(fixtureId);
 
-  // 2. If data fetch fails, return metadata with the correct canonical and a "noindex" tag.
   if (!fixtureData) {
     return {
       title: t("not_found_title"),
@@ -60,7 +60,6 @@ export async function generateMetadata({
     };
   }
 
-  // 3. If data fetch succeeds, return the full, rich metadata.
   const { teams, league } = fixtureData;
   const pageTitle = t("match_page_title", {
     homeTeam: teams.home.name,
@@ -80,7 +79,6 @@ export async function generateMetadata({
   };
 }
 
-// Skeletons for Suspense Boundaries
 const TeamFormContentSkeleton = () => (
   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
     <div className="bg-brand-secondary rounded-lg h-[400px] animate-pulse p-4"></div>
@@ -96,6 +94,9 @@ const StatsContentSkeleton = () => (
 const FormationSkeleton = () => (
   <div className="bg-brand-secondary rounded-lg p-4 md:p-6 animate-pulse h-[600px]"></div>
 );
+const StandingsWidgetSkeleton = () => (
+  <div className="bg-brand-secondary rounded-lg h-96 animate-pulse p-6"></div>
+);
 const SidebarSkeleton = () => (
   <div className="space-y-6">
     <RecentNewsWidgetSkeleton />
@@ -105,7 +106,6 @@ const SidebarSkeleton = () => (
   </div>
 );
 
-// This is now a Server Component
 export default async function MatchDetailPage({
   params,
 }: {
@@ -116,14 +116,12 @@ export default async function MatchDetailPage({
   const fixtureId = getFixtureIdFromSlug(slug[0]);
   if (!fixtureId) notFound();
 
-  // The page now fetches ONLY the most essential data on the server.
   const fixtureData = await getFixture(fixtureId);
   if (!fixtureData) notFound();
 
-  // We can pre-fetch stats as it's usually fast and part of the core view
   const statistics = await getStatistics(fixtureId);
 
-  const { teams, fixture: fixtureDetails } = fixtureData;
+  const { teams, fixture: fixtureDetails, league } = fixtureData;
 
   const isLive = ["1H", "HT", "2H", "ET", "BT", "P", "LIVE"].includes(
     fixtureDetails.status?.short
@@ -138,16 +136,36 @@ export default async function MatchDetailPage({
     homeTeam: teams.home.name,
     awayTeam: teams.away.name,
   });
-  const standingsSeoDescription = t("match_page_standings_seo_text", {
+
+  // ADD: Generate the title and SEO text on the server
+  const aboutMatchTitle = t("about_the_match_title", {
     homeTeam: teams.home.name,
     awayTeam: teams.away.name,
+  });
+  const aboutMatchSeoText = t("match_page_about_seo_text", {
+    homeTeam: teams.home.name,
+    awayTeam: teams.away.name,
+    leagueName: league.name,
   });
 
   return (
     <div className="bg-brand-dark min-h-screen">
       <Header />
-      <div className="container mx-auto p-4 md:p-6 lg:grid lg:grid-cols-3 lg:gap-8 lg:items-start">
-        <main className="lg:col-span-2 space-y-6">
+      <div className="container mx-auto p-4 md:p-6 lg:grid lg:grid-cols-[320px_1fr_320px] lg:gap-8 lg:items-start">
+        <aside className="hidden lg:block lg:sticky lg:top-6 space-y-6">
+          <Suspense fallback={<StandingsWidgetSkeleton />}>
+            <StandingsWidget
+              leagueId={league.id}
+              season={league.season}
+              homeTeamId={teams.home.id}
+              awayTeamId={teams.away.id}
+              variant="compact"
+            />
+          </Suspense>
+          <AdSlotWidget location="match_sidebar_left" />
+        </aside>
+
+        <main className="space-y-6 min-w-0">
           <MatchHeader fixture={fixtureData} />
 
           <Suspense fallback={<TeamFormContentSkeleton />}>
@@ -191,12 +209,14 @@ export default async function MatchDetailPage({
           />
         </main>
 
-        <aside className="lg:col-span-1 space-y-6 lg:sticky lg:top-6 mt-8 lg:mt-0">
+        <aside className="space-y-6 lg:sticky lg:top-6 mt-8 lg:mt-0">
           <Suspense fallback={<SidebarSkeleton />}>
+            {/* CHANGE: Pass the new props to the sidebar content */}
             <SidebarContent
               fixtureData={fixtureData}
               isLive={isLive}
-              standingsSeoDescription={standingsSeoDescription}
+              aboutMatchTitle={aboutMatchTitle}
+              aboutMatchSeoText={aboutMatchSeoText}
             />
           </Suspense>
         </aside>

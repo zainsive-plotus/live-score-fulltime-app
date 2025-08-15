@@ -37,7 +37,7 @@ export async function generateMetadata({
   return {
     metadataBase: new URL(METADATA_BASE_URL),
     alternates: hreflangAlternates,
-    title: { default: title, template: `%s | Fan Skor` },
+    title: title,
     description: description,
     icons: {
       icon: [{ url: "/favicon.ico", type: "image/png" }],

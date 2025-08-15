@@ -7,10 +7,9 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { proxyImageUrl } from "@/lib/image-proxy";
 import StyledLink from "@/components/StyledLink";
-import { Info, ListOrdered, Loader2 } from "lucide-react";
+import { Info, ListOrdered, Loader2, Trophy } from "lucide-react";
 import { generateTeamSlug } from "@/lib/generate-team-slug";
 import { useTranslation } from "@/hooks/useTranslation";
-import Slider from "react-slick";
 
 type StandingsView = "all" | "home" | "away";
 
@@ -42,18 +41,20 @@ interface LeagueStandingsWidgetProps {
   isLoading: boolean;
   leagueId?: number;
   leagueSlug?: string;
+  homeTeamId?: number;
+  awayTeamId?: number;
+  hideSeasonDropdown?: boolean;
 }
 
 const getRankIndicatorClass = (description: string | null): string => {
-  if (!description) return "bg-gray-700/50 border-gray-600/50";
+  if (!description) return "bg-gray-700/50";
   const desc = description.toLowerCase();
-  if (desc.includes("champions league"))
-    return "bg-blue-500/20 border-blue-500";
-  if (desc.includes("promotion")) return "bg-green-500/20 border-green-500";
-  if (desc.includes("europa league"))
-    return "bg-orange-500/20 border-orange-500";
-  if (desc.includes("relegation")) return "bg-red-600/20 border-red-600";
-  return "bg-gray-700/50 border-gray-600/50";
+  if (desc.includes("champions league") || desc.includes("promotion"))
+    return "bg-blue-500/20";
+  if (desc.includes("europa league") || desc.includes("qualification"))
+    return "bg-orange-500/20";
+  if (desc.includes("relegation")) return "bg-red-600/20";
+  return "bg-gray-700/50";
 };
 
 const StandingsTable = memo(
@@ -61,15 +62,17 @@ const StandingsTable = memo(
     group,
     view,
     t,
+    homeTeamId,
+    awayTeamId,
   }: {
     group: TeamStanding[];
     view: StandingsView;
     t: (key: string) => string;
+    homeTeamId?: number;
+    awayTeamId?: number;
   }) => {
     const processedStandings = useMemo(() => {
-      if (view === "all") {
-        return group;
-      }
+      if (view === "all") return group;
       return [...group]
         .map((item) => {
           const stats = item[view];
@@ -82,10 +85,7 @@ const StandingsTable = memo(
           if (b.goalsDiff !== a.goalsDiff) return b.goalsDiff - a.goalsDiff;
           return a.team.name.localeCompare(b.team.name);
         })
-        .map((item, index) => ({
-          ...item,
-          rank: index + 1,
-        }));
+        .map((item, index) => ({ ...item, rank: index + 1 }));
     }, [group, view]);
 
     return (
@@ -101,15 +101,6 @@ const StandingsTable = memo(
                 {t("table_header_played_short")}
               </th>
               <th className="p-2 text-center font-semibold">
-                {t("wins_short")}
-              </th>
-              <th className="p-2 text-center font-semibold">
-                {t("draws_short")}
-              </th>
-              <th className="p-2 text-center font-semibold">
-                {t("losses_short")}
-              </th>
-              <th className="p-2 text-center font-semibold">
                 {t("table_header_goaldiff_short")}
               </th>
               <th className="p-2 text-center font-bold">
@@ -120,13 +111,20 @@ const StandingsTable = memo(
           <tbody className="text-brand-light">
             {processedStandings.map((item) => {
               const stats = view === "all" ? item.all : item.stats;
+              const isMatchTeam =
+                item.team.id === homeTeamId || item.team.id === awayTeamId;
+
+              const rowClasses = isMatchTeam
+                ? "bg-[#ED5C19]/20 border-l-[#ED5C19]"
+                : "border-l-transparent hover:bg-[#ED5C19]/10";
+
               return (
                 <tr
                   key={item.team.id}
-                  className="hover:bg-[var(--color-primary)]/50 transition-colors"
+                  className={`transition-colors border-l-4 ${rowClasses}`}
                 >
                   <td
-                    className={`p-2 border-t border-gray-700/50 text-center border-l-4 ${getRankIndicatorClass(
+                    className={`p-2 border-t border-gray-700/50 text-center ${getRankIndicatorClass(
                       item.description
                     )}`}
                   >
@@ -143,22 +141,17 @@ const StandingsTable = memo(
                         width={20}
                         height={20}
                       />
-                      <span className="font-semibold group-hover:text-[var(--brand-accent)] transition-colors whitespace-nowrap truncate">
+                      <span
+                        className={`font-semibold group-hover:text-brand-purple transition-colors whitespace-nowrap truncate ${
+                          isMatchTeam ? "text-white" : ""
+                        }`}
+                      >
                         {item.team.name}
                       </span>
                     </StyledLink>
                   </td>
                   <td className="p-2 text-center text-text-muted border-t border-gray-700/50">
                     {stats.played}
-                  </td>
-                  <td className="p-2 text-center text-green-400 border-t border-gray-700/50">
-                    {stats.win}
-                  </td>
-                  <td className="p-2 text-center text-yellow-400 border-t border-gray-700/50">
-                    {stats.draw}
-                  </td>
-                  <td className="p-2 text-center text-red-400 border-t border-gray-700/50">
-                    {stats.lose}
                   </td>
                   <td className="p-2 text-center text-text-muted border-t border-gray-700/50">
                     {item.goalsDiff}
@@ -185,6 +178,9 @@ export default function LeagueStandingsWidget({
   isLoading,
   leagueId,
   leagueSlug,
+  homeTeamId,
+  awayTeamId,
+  hideSeasonDropdown = false,
 }: LeagueStandingsWidgetProps) {
   const { t } = useTranslation();
   const [view, setView] = useState<StandingsView>("all");
@@ -197,57 +193,39 @@ export default function LeagueStandingsWidget({
     }
   };
 
-  const sliderSettings = {
-    dots: true,
-    infinite: false,
-    speed: 500,
-    slidesToShow: 1,
-    slidesToScroll: 1,
-    arrows: false,
-    appendDots: (dots: any) => (
-      <div>
-        <ul className="m-0 pt-3">{dots}</ul>
-      </div>
-    ),
-  };
-
   return (
     <div className="bg-brand-secondary rounded-lg">
-      <div className="p-4 border-b border-gray-700/50 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <ListOrdered size={22} /> {t("standings")}
-        </h2>
-
-        {leagueSeasons.length > 1 && (
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-brand-muted">
-              {t("season")}:
-            </span>
-            <select
-              value={currentSeason}
-              onChange={
-                onSeasonChange
-                  ? (e) => onSeasonChange(Number(e.target.value))
-                  : handleSeasonNavigation
-              }
-              className="p-2 rounded bg-gray-800 text-white border border-gray-600 text-sm focus:outline-none focus:ring-1 focus:ring-brand-purple"
-              disabled={isLoading}
-            >
-              {leagueSeasons.map((season) => (
-                <option key={season} value={season}>
-                  {season} - {season + 1}
-                </option>
-              ))}
-            </select>
-            {isLoading && onSeasonChange && (
-              <Loader2 className="animate-spin text-brand-muted" />
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="p-2 bg-brand-dark/30">
-        <div className="flex items-center gap-1 bg-[var(--color-primary)] p-1 rounded-lg w-full max-w-xs mx-auto">
+      <div className="p-4 border-b border-gray-700/50 flex flex-col gap-4">
+        <div className="flex justify-between items-start">
+          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            <Trophy size={22} className="text-yellow-400" />
+            {t("standings")}
+          </h2>
+          {!hideSeasonDropdown && leagueSeasons.length > 1 && (
+            <div className="flex items-center gap-2">
+              <select
+                value={currentSeason}
+                onChange={
+                  onSeasonChange
+                    ? (e) => onSeasonChange(Number(e.target.value))
+                    : handleSeasonNavigation
+                }
+                className="p-2 rounded bg-gray-800 text-white border border-gray-600 text-xs focus:outline-none focus:ring-1 focus:ring-brand-purple"
+                disabled={isLoading}
+              >
+                {leagueSeasons.map((season) => (
+                  <option key={season} value={season}>
+                    {season}/{season + 1}
+                  </option>
+                ))}
+              </select>
+              {isLoading && onSeasonChange && (
+                <Loader2 className="animate-spin text-brand-muted" />
+              )}
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-1 bg-[var(--color-primary)] p-1 rounded-lg w-full">
           <button
             onClick={() => setView("all")}
             className={`flex-1 py-1.5 text-sm font-semibold rounded-md transition-colors ${
@@ -294,19 +272,26 @@ export default function LeagueStandingsWidget({
               {t("standings_not_available")}
             </p>
           </div>
-        ) : initialStandings.length > 1 ? (
-          <Slider {...sliderSettings} className="p-4">
+        ) : (
+          // CHANGE: Replaced Slider with a simple map function
+          <div className="p-4 space-y-8">
             {initialStandings.map((group, index) => (
               <div key={index}>
-                <h3 className="text-center font-bold text-brand-light mb-3">
-                  {group[0].group}
-                </h3>
-                <StandingsTable group={group} view={view} t={t} />
+                {initialStandings.length > 1 && (
+                  <h3 className="text-center font-bold text-brand-light mb-3">
+                    {group[0].group}
+                  </h3>
+                )}
+                <StandingsTable
+                  group={group}
+                  view={view}
+                  t={t}
+                  homeTeamId={homeTeamId}
+                  awayTeamId={awayTeamId}
+                />
               </div>
             ))}
-          </Slider>
-        ) : (
-          <StandingsTable group={initialStandings[0]} view={view} t={t} />
+          </div>
         )}
       </div>
     </div>

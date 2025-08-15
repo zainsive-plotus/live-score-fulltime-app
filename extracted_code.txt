@@ -1958,6 +1958,203 @@ export default async function GdprPage({
   );
 }
 
+// ===== src/app/[locale]/highlights/HighlightsPageClient.tsx =====
+
+"use client";
+
+import { Fragment, useEffect } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import axios from "axios";
+import { useInView } from "react-intersection-observer";
+import { Loader2, VideoOff } from "lucide-react";
+import HighlightCard, {
+  HighlightCardSkeleton,
+} from "@/components/HighlightCard";
+import { useTranslation } from "@/hooks/useTranslation";
+
+interface Highlight {
+  id: string;
+  title: string;
+  thumbnailUrl: string;
+  embedUrl: string;
+  source: "Highlightly" | "YouTube";
+  publishedAt: string;
+}
+
+interface HighlightsApiResponse {
+  highlights: Highlight[];
+  nextPage: number | null;
+}
+
+const fetchHighlights = async ({
+  pageParam = 1,
+}): Promise<HighlightsApiResponse> => {
+  const { data } = await axios.get(
+    `/api/highlights/aggregate?page=${pageParam}`
+  );
+  return data;
+};
+
+export default function HighlightsPageClient() {
+  const { t } = useTranslation();
+  const { ref, inView } = useInView();
+
+  const {
+    data,
+    isLoading,
+    isError,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ["aggregatedHighlights"],
+    queryFn: fetchHighlights,
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => lastPage.nextPage,
+  });
+
+  useEffect(() => {
+    if (inView && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {Array.from({ length: 12 }).map((_, i) => (
+          <HighlightCardSkeleton key={i} />
+        ))}
+      </div>
+    );
+  }
+
+  if (
+    isError ||
+    !data?.pages[0]?.highlights ||
+    data.pages[0].highlights.length === 0
+  ) {
+    return (
+      <div className="text-center py-20 bg-brand-secondary rounded-lg">
+        <VideoOff size={48} className="mx-auto text-brand-muted mb-4" />
+        <p className="text-xl font-bold text-white">
+          {t("no_highlights_found_title")}
+        </p>
+        <p className="text-brand-muted mt-2">
+          {t("no_highlights_found_subtitle")}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {data.pages.map((page, i) => (
+          <Fragment key={i}>
+            {page.highlights.map((highlight) => (
+              <HighlightCard key={highlight.id} highlight={highlight} />
+            ))}
+          </Fragment>
+        ))}
+      </div>
+
+      <div ref={ref} className="h-20 flex items-center justify-center">
+        {isFetchingNextPage ? (
+          <div className="flex items-center gap-2 text-brand-muted">
+            <Loader2 size={24} className="animate-spin" />
+            <span>{t("loading_more")}...</span>
+          </div>
+        ) : !hasNextPage ? (
+          <p className="text-brand-muted">{t("no_more_highlights")}</p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+// ===== src/app/[locale]/highlights/page.tsx =====
+
+import type { Metadata } from "next";
+import { Suspense } from "react";
+import { PlayCircle } from "lucide-react";
+import Header from "@/components/Header";
+import Sidebar from "@/components/Sidebar";
+import { getI18n } from "@/lib/i18n/server";
+import { generateHreflangTags } from "@/lib/hreflang";
+import HighlightsPageClient from "./HighlightsPageClient";
+import { HighlightCardSkeleton } from "@/components/HighlightCard";
+
+const PAGE_PATH = "/highlights";
+
+export async function generateMetadata({
+  params: { locale },
+}: {
+  params: { locale: string };
+}): Promise<Metadata> {
+  const t = await getI18n(locale);
+  const pageTitle = t("highlights_page_meta_title");
+  const pageDescription = t("highlights_page_meta_description");
+  const hreflangAlternates = await generateHreflangTags(PAGE_PATH, "", locale);
+
+  return {
+    title: pageTitle,
+    description: pageDescription,
+    alternates: hreflangAlternates,
+    openGraph: {
+      title: pageTitle,
+      description: pageDescription,
+      url: `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/${locale}${PAGE_PATH}`,
+      siteName: "Fan Skor",
+      type: "website",
+    },
+  };
+}
+
+const PageSkeleton = () => (
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    {Array.from({ length: 12 }).map((_, i) => (
+      <HighlightCardSkeleton key={i} />
+    ))}
+  </div>
+);
+
+export default async function HighlightsPage({
+  params: { locale },
+}: {
+  params: { locale: string };
+}) {
+  const t = await getI18n(locale);
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Header />
+      <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr] lg:gap-8 lg:items-start">
+        <Sidebar />
+        <main className="min-w-0 p-4 lg:p-0 lg:py-6">
+          <div className="flex items-center gap-4 mb-8">
+            <div className="p-3 bg-[var(--brand-accent)]/10 rounded-lg">
+              <PlayCircle className="w-8 h-8 text-[var(--brand-accent)]" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-extrabold text-white">
+                {t("highlights_page_title")}
+              </h1>
+              <p className="text-brand-muted">
+                {t("highlights_page_subtitle")}
+              </p>
+            </div>
+          </div>
+
+          <Suspense fallback={<PageSkeleton />}>
+            <HighlightsPageClient />
+          </Suspense>
+        </main>
+      </div>
+    </div>
+  );
+}
+
 // ===== src/app/[locale]/layout.tsx =====
 
 import type { Metadata } from "next";
@@ -2052,6 +2249,11 @@ export default async function LocaleLayout({
         {process.env.NEXT_PUBLIC_NODE_ENV === "production" && (
           <Script src="./scripts/relic.js" />
         )}
+        <script
+          src="https://analytics.ahrefs.com/analytics.js"
+          data-key="bUq3rBCRyMMiFSPFiUUAxg"
+          async
+        ></script>
       </head>
       <body suppressHydrationWarning={true}>
         <Suspense fallback={<Loading />}>
@@ -3169,6 +3371,215 @@ export default async function HomePage({
             homepageAboutSeoText={homepageAboutSeoText}
           />
         </main>
+      </div>
+    </div>
+  );
+}
+
+// ===== src/app/[locale]/predictions/PredictionsPageClient.tsx =====
+
+"use client";
+
+import { Fragment, useEffect } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import axios from "axios";
+import { useInView } from "react-intersection-observer";
+import { Loader2, ShieldQuestion } from "lucide-react";
+import PredictionCard, {
+  PredictionCardSkeleton,
+} from "@/components/predictions/PredictionCard";
+import { useTranslation } from "@/hooks/useTranslation";
+
+interface EnrichedFixture {
+  fixture: any;
+  prediction: {
+    home: number;
+    draw: number;
+    away: number;
+  };
+}
+
+interface PredictionsApiResponse {
+  fixtures: EnrichedFixture[];
+  nextPage: number | null;
+}
+
+const fetchPredictions = async ({
+  pageParam = 1,
+}): Promise<PredictionsApiResponse> => {
+  const { data } = await axios.get(
+    `/api/predictions/upcoming?page=${pageParam}`
+  );
+
+  return data;
+};
+
+export default function PredictionsPageClient() {
+  const { t } = useTranslation();
+  const { ref, inView } = useInView({
+    threshold: 0.5,
+  });
+
+  const {
+    data,
+    isLoading,
+    isError,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ["upcomingPredictions"],
+    queryFn: fetchPredictions,
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => lastPage.nextPage,
+  });
+
+  useEffect(() => {
+    if (inView && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {Array.from({ length: 12 }).map((_, i) => (
+          <PredictionCardSkeleton key={i} />
+        ))}
+      </div>
+    );
+  }
+
+  if (
+    isError ||
+    !data?.pages[0]?.fixtures ||
+    data.pages[0].fixtures.length === 0
+  ) {
+    return (
+      <div className="text-center py-20 bg-brand-secondary rounded-lg">
+        <ShieldQuestion size={48} className="mx-auto text-brand-muted mb-4" />
+        <p className="text-xl font-bold text-white">
+          {t("no_predictions_found_title")}
+        </p>
+        <p className="text-brand-muted mt-2">
+          {t("no_predictions_found_subtitle")}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {data.pages.map((page, i) => (
+          <Fragment key={i}>
+            {page.fixtures.map((fixture) => (
+              <PredictionCard key={fixture.fixture.id} fixture={fixture} />
+            ))}
+          </Fragment>
+        ))}
+      </div>
+
+      <div ref={ref} className="h-20 flex items-center justify-center">
+        {isFetchingNextPage && (
+          <div className="flex items-center gap-2 text-brand-muted">
+            <Loader2 size={24} className="animate-spin" />
+            <span>{t("loading_more")}...</span>
+          </div>
+        )}
+        {!isFetchingNextPage &&
+          !hasNextPage &&
+          data.pages[0].fixtures.length > 0 && (
+            <p className="text-brand-muted">{t("no_more_predictions")}</p>
+          )}
+      </div>
+    </div>
+  );
+}
+
+// ===== src/app/[locale]/predictions/page.tsx =====
+
+import type { Metadata } from "next";
+import { Suspense } from "react";
+import { BrainCircuit } from "lucide-react";
+import Header from "@/components/Header";
+import Sidebar from "@/components/Sidebar";
+import { getI18n } from "@/lib/i18n/server";
+import { generateHreflangTags } from "@/lib/hreflang";
+import PredictionsPageClient from "./PredictionsPageClient";
+import { PredictionCardSkeleton } from "@/components/predictions/PredictionCard";
+import AdSlotWidget from "@/components/AdSlotWidget";
+import RecentNewsWidget from "@/components/RecentNewsWidget";
+
+const PAGE_PATH = "/predictions";
+
+export async function generateMetadata({
+  params: { locale },
+}: {
+  params: { locale: string };
+}): Promise<Metadata> {
+  const t = await getI18n(locale);
+  const pageTitle = t("predictions_page_meta_title");
+  const pageDescription = t("predictions_page_meta_description");
+  const hreflangAlternates = await generateHreflangTags(PAGE_PATH, "", locale);
+
+  return {
+    title: pageTitle,
+    description: pageDescription,
+    alternates: hreflangAlternates,
+    openGraph: {
+      title: pageTitle,
+      description: pageDescription,
+      url: `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/${locale}${PAGE_PATH}`,
+      siteName: "Fan Skor",
+      type: "website",
+    },
+  };
+}
+
+const PageSkeleton = () => (
+  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+    {Array.from({ length: 12 }).map((_, i) => (
+      <PredictionCardSkeleton key={i} />
+    ))}
+  </div>
+);
+
+export default async function PredictionsPage({
+  params: { locale },
+}: {
+  params: { locale: string };
+}) {
+  const t = await getI18n(locale);
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Header />
+      <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr_288px] lg:gap-8 lg:items-start p-4 lg:p-0 lg:py-6">
+        <Sidebar />
+        <main className="min-w-0">
+          <div className="flex items-center gap-4 mb-8">
+            <div className="p-3 bg-indigo-500/10 rounded-lg">
+              <BrainCircuit className="w-8 h-8 text-indigo-400" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-extrabold text-white">
+                {t("predictions_page_title")}
+              </h1>
+              <p className="text-brand-muted">
+                {t("predictions_page_subtitle")}
+              </p>
+            </div>
+          </div>
+
+          <Suspense fallback={<PageSkeleton />}>
+            <PredictionsPageClient />
+          </Suspense>
+        </main>
+        <aside className="hidden lg:block lg:col-span-1 space-y-8 min-w-0">
+          <RecentNewsWidget />
+          <AdSlotWidget location="homepage_right_sidebar" />
+        </aside>
       </div>
     </div>
   );
@@ -13810,6 +14221,80 @@ export async function GET(request: Request) {
   }
 }
 
+// ===== src/app/api/highlights/aggregate/route.ts =====
+
+import { NextResponse } from "next/server";
+import { getLatestPopularHighlights } from "@/lib/data/highlightly";
+
+interface Highlight {
+  id: string;
+  title: string;
+  thumbnailUrl: string;
+  embedUrl: string;
+  source: "Highlightly";
+  publishedAt: string;
+}
+
+const fetchHighlights = async (): Promise<Highlight[]> => {
+  try {
+    const highlights = await getLatestPopularHighlights();
+    if (!highlights || highlights.length === 0) {
+      return [];
+    }
+
+    return highlights.map((item: any) => ({
+      id: `hl-${item.id}`,
+      title: item.title,
+      thumbnailUrl: item.thumbnail,
+      embedUrl: item.embedUrl,
+      source: "Highlightly",
+      publishedAt: item.match.date,
+    }));
+  } catch (error) {
+    console.error(
+      "[Aggregate Highlights] Error fetching from Highlightly service:",
+      error
+    );
+    return [];
+  }
+};
+
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "12");
+
+    const allHighlights = await fetchHighlights();
+
+    const sortedHighlights = allHighlights.sort(
+      (a, b) =>
+        new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+    );
+
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedHighlights = sortedHighlights.slice(startIndex, endIndex);
+
+    const hasNextPage = endIndex < sortedHighlights.length;
+
+    return NextResponse.json({
+      highlights: paginatedHighlights,
+      nextPage: hasNextPage ? page + 1 : null,
+      total: sortedHighlights.length,
+    });
+  } catch (error) {
+    console.error(
+      "[Highlights Aggregate API] A critical error occurred:",
+      error
+    );
+    return NextResponse.json(
+      { error: "Failed to aggregate highlights." },
+      { status: 500 }
+    );
+  }
+}
+
 // ===== src/app/api/highlights/latest/route.ts =====
 
 import { NextResponse } from "next/server";
@@ -15036,6 +15521,188 @@ export async function GET(request: Request) {
   }
 }
 
+// ===== src/app/api/predictions/upcoming/route.ts =====
+
+import { NextResponse } from "next/server";
+import axios from "axios";
+import { format } from "date-fns";
+import { getH2H, getTeamStats, getStandings } from "@/lib/data/match";
+import { calculateCustomPrediction } from "@/lib/prediction-engine";
+import redis from "@/lib/redis";
+
+const apiRequest = async (endpoint: string, params: object) => {
+  const options = {
+    method: "GET",
+    url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/${endpoint}`,
+    params,
+    headers: { "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
+  };
+  try {
+    const response = await axios.request(options);
+    return response.data.response;
+  } catch (error) {
+
+    return [];
+  }
+};
+
+const getFormFromFixtures = (fixtures: any[], teamId: number): string => {
+  if (!fixtures || fixtures.length === 0) return "";
+  return fixtures
+    .map((match: any) => {
+      if (match.teams.home.winner)
+        return match.teams.home.id === teamId ? "W" : "L";
+      if (match.teams.away.winner)
+        return match.teams.away.id === teamId ? "W" : "L";
+      return "D";
+    })
+    .join("");
+};
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const page = parseInt(searchParams.get("page") || "1");
+  const limit = parseInt(searchParams.get("limit") || "12");
+
+  const todayString = format(new Date(), "yyyy-MM-dd");
+  const cacheKey = `predictions:upcoming:all-leagues:v3:${todayString}`;
+
+  try {
+    const cachedData = await redis.get(cacheKey);
+    if (cachedData) {
+      console.log(
+        `[API Predictions] Serving all of today's predictions from cache.`
+      );
+      const allEnrichedFixtures = JSON.parse(cachedData);
+
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedFixtures = allEnrichedFixtures.slice(startIndex, endIndex);
+      const hasNextPage = endIndex < allEnrichedFixtures.length;
+
+      return NextResponse.json({
+        fixtures: paginatedFixtures,
+        nextPage: hasNextPage ? page + 1 : null,
+      });
+    }
+
+    console.log(
+      `[API Predictions] Cache miss. Fetching and calculating all predictions for ${todayString}.`
+    );
+
+    const allFixturesToday = await apiRequest("fixtures", {
+      date: todayString,
+    });
+
+    const upcomingFixtures = allFixturesToday.filter(
+      (f: any) => f.fixture.status.short === "NS"
+    );
+
+    upcomingFixtures.sort(
+      (a: any, b: any) => a.fixture.timestamp - b.fixture.timestamp
+    );
+
+    const enrichedFixturesPromises = upcomingFixtures.map(
+      async (fixture: any) => {
+        const { league, teams } = fixture;
+        const { home, away } = teams;
+
+        try {
+          const [
+            h2h,
+            homeTeamStats,
+            awayTeamStats,
+            standingsResponse,
+            homeLast10,
+            awayLast10,
+          ] = await Promise.all([
+            getH2H(home.id, away.id),
+            getTeamStats(league.id, league.season, home.id),
+            getTeamStats(league.id, league.season, away.id),
+            getStandings(league.id, league.season),
+            apiRequest("fixtures", { team: home.id, last: 10 }),
+            apiRequest("fixtures", { team: away.id, last: 10 }),
+          ]);
+
+          const flatStandings =
+            standingsResponse?.[0]?.league?.standings?.flat() || [];
+          const homeTeamRank = flatStandings.find(
+            (s: any) => s.team.id === home.id
+          )?.rank;
+          const awayTeamRank = flatStandings.find(
+            (s: any) => s.team.id === away.id
+          )?.rank;
+
+          const prediction = calculateCustomPrediction(
+            h2h,
+            homeTeamStats,
+            awayTeamStats,
+            home.id,
+            homeTeamRank,
+            awayTeamRank,
+            null,
+            fixture.fixture.status.short
+          );
+
+          return {
+            ...fixture,
+            prediction,
+            h2h,
+            form: {
+
+              home: getFormFromFixtures(homeLast10, home.id),
+              away: getFormFromFixtures(awayLast10, away.id),
+            },
+          };
+        } catch (enrichError) {
+          console.error(
+            `[API Predictions] Failed to enrich fixture ${fixture.fixture.id}:`,
+            enrichError
+          );
+          return null;
+        }
+      }
+    );
+
+    const allEnrichedFixtures = (
+      await Promise.all(enrichedFixturesPromises)
+    ).filter(Boolean);
+
+    if (allEnrichedFixtures.length > 0) {
+      const now = new Date();
+      const endOfDay = new Date(now);
+      endOfDay.setHours(23, 59, 59, 999);
+      const ttl = Math.floor((endOfDay.getTime() - now.getTime()) / 1000);
+
+      await redis.set(
+        cacheKey,
+        JSON.stringify(allEnrichedFixtures),
+        "EX",
+        ttl > 0 ? ttl : 60
+      );
+      console.log(
+        `[API Predictions] Cached ${allEnrichedFixtures.length} predictions for today. TTL: ${ttl}s.`
+      );
+    }
+
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedFixtures = allEnrichedFixtures.slice(startIndex, endIndex);
+    const hasNextPage = endIndex < allEnrichedFixtures.length;
+
+    return NextResponse.json({
+      fixtures: paginatedFixtures,
+      nextPage: hasNextPage ? page + 1 : null,
+    });
+  } catch (error) {
+
+    return NextResponse.json(
+      { error: "Failed to fetch upcoming predictions." },
+      { status: 500 }
+    );
+  }
+}
+
 // ===== src/app/api/recent-news/route.ts =====
 
 import { NextResponse } from "next/server";
@@ -15197,6 +15864,76 @@ export async function GET(request: Request) {
     console.error(
       `[API Search] Critical error for query "${query}":`,
       error.message
+    );
+    return NextResponse.json(
+      { error: "Failed to fetch search results." },
+      { status: 500 }
+    );
+  }
+}
+
+// ===== src/app/api/search/global/route.ts =====
+
+import { NextResponse } from "next/server";
+import axios from "axios";
+import { generateLeagueSlug } from "@/lib/generate-league-slug";
+import { generateTeamSlug } from "@/lib/generate-team-slug";
+
+const apiRequest = async (endpoint: string, params: object): Promise<any[]> => {
+  const options = {
+    method: "GET",
+    url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/${endpoint}`,
+    params,
+    headers: { "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
+    timeout: 5000,
+  };
+  try {
+    const response = await axios.request(options);
+    return response.data.response;
+  } catch (error) {
+
+    return [];
+  }
+};
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const query = searchParams.get("q");
+
+  if (!query || query.length < 3) {
+    return NextResponse.json(
+      { error: "A search query of at least 3 characters is required." },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const [teamResults, leagueResults] = await Promise.all([
+      apiRequest("teams", { search: query }),
+      apiRequest("leagues", { search: query }),
+    ]);
+
+    const teams = teamResults.slice(0, 5).map((t: any) => ({
+      id: t.team.id,
+      name: t.team.name,
+      logo: t.team.logo,
+      country: t.team.country,
+      href: generateTeamSlug(t.team.name, t.team.id),
+    }));
+
+    const leagues = leagueResults.slice(0, 5).map((l: any) => ({
+      id: l.league.id,
+      name: l.league.name,
+      logo: l.league.logo,
+      country: l.country.name,
+      href: generateLeagueSlug(l.league.name, l.league.id),
+    }));
+
+    return NextResponse.json({ teams, leagues });
+  } catch (error) {
+    console.error(
+      `[Global Search API] Critical error for query "${query}":`,
+      error
     );
     return NextResponse.json(
       { error: "Failed to fetch search results." },
@@ -18642,7 +19379,8 @@ export default function Footer() {
               height={40}
             />
           </div>
-          <div className="flex items-center gap-6 md:gap-8">
+          {}
+          <div className="flex items-center justify-center flex-wrap gap-x-6 gap-y-4 md:gap-8">
             <Image
               src="/images/logos/18plus.svg"
               alt="18+ Responsible Gaming"
@@ -18671,7 +19409,7 @@ export default function Footer() {
         </div>
 
         <div className="flex flex-col md:flex-row justify-between items-center text-sm text-brand-muted">
-          <p className="mb-4 md:mb-0">
+          <p className="mb-4 md:mb-0 text-center md:text-left">
             © {new Date().getFullYear()} Fan skor -{t("footer_rights_reserved")}
           </p>
           <div className="flex flex-wrap justify-center gap-x-4 gap-y-2">
@@ -18840,30 +19578,33 @@ export default function FooterContent() {
 
 "use client";
 
-import { useState, useEffect, useRef, Suspense } from "react";
+import { useState, useEffect, Suspense, Fragment } from "react";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 import {
-  FaBasketballBall,
-  FaTrophy,
-  FaUsers,
-  FaNewspaper,
-} from "react-icons/fa";
-import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
-import { IPost } from "@/models/Post";
-
-import { IoMdFootball } from "react-icons/io";
-import { IoTennisball } from "react-icons/io5";
+  Users,
+  Newspaper,
+  PlayCircle,
+  BrainCircuit,
+  BookOpen,
+  Repeat,
+  Menu,
+  X,
+  Search,
+  ChevronDown,
+  ListOrdered,
+  CalendarDays,
+} from "lucide-react";
+import { Dialog, Transition } from "@headlessui/react";
 import LanguageDropdown from "./LanguageDropdown";
 import { useTranslation } from "@/hooks/useTranslation";
 import StyledLink from "./StyledLink";
-import NavDropdown from "./NavDropdown";
-import NotificationDropdown from "./NotificationDropdown";
-
-import { ArrowRight, Bell, Menu, X, ListOrdered } from "lucide-react";
 import Ticker from "./Ticker";
 import { useScrollDirection } from "@/hooks/useScrollDirection";
+import HeaderSearchModal from "./HeaderSearchModal";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import { ILanguage } from "@/models/Language";
 
 type NavIcon = React.ElementType;
 
@@ -18882,295 +19623,296 @@ interface NavItem {
   subLinks?: SubLink[];
 }
 
-const fetchLatestPost = async (): Promise<IPost | null> => {
-  try {
-    const { data } = await axios.get("/api/posts?status=published&limit=1");
-    return data.posts[0] || null;
-  } catch {
-    return null;
-  }
+const fetchActiveLanguages = async (): Promise<ILanguage[]> => {
+  const { data } = await axios.get("/api/admin/languages?active=true");
+  return data;
 };
 
 export default function Header() {
   const { t } = useTranslation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const [hasUnread, setHasUnread] = useState(false);
-  const notificationRef = useRef<HTMLDivElement>(null);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
   const pathname = usePathname();
 
-  const { isSticky, isVisible } = useScrollDirection({ threshold: 200 });
+  const { isSticky, isVisible } = useScrollDirection({ threshold: 50 });
 
-  const { data: latestPost } = useQuery<IPost | null>({
-    queryKey: ["latestPostForIndicator"],
-    queryFn: fetchLatestPost,
-    staleTime: 1000 * 60,
+  const { data: languages, isLoading: isLoadingLanguages } = useQuery<
+    ILanguage[]
+  >({
+    queryKey: ["activeLanguages"],
+    queryFn: fetchActiveLanguages,
+    staleTime: 1000 * 60 * 60,
   });
 
   useEffect(() => {
-    if (latestPost) {
-      const lastReadPostId = localStorage.getItem("lastReadPostId");
-      if (latestPost._id !== lastReadPostId) {
-        setHasUnread(true);
-      }
+    if (isMobileMenuOpen || isSearchOpen) {
+      setIsMobileMenuOpen(false);
+      setIsSearchOpen(false);
     }
-  }, [latestPost]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        notificationRef.current &&
-        !notificationRef.current.contains(event.target as Node)
-      ) {
-        setIsNotificationOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const handleNotificationToggle = () => {
-    setIsNotificationOpen((prev) => !prev);
-    if (hasUnread && latestPost) {
-      localStorage.setItem("lastReadPostId", latestPost._id as string);
-      setHasUnread(false);
-    }
-  };
+  }, [pathname]);
 
   const navItems: NavItem[] = [
+    { title: t("fixtures"), href: "/", icon: CalendarDays },
+    { title: t("teams"), href: "/football/teams", icon: Users },
+    { title: t("highlights"), href: "/highlights", icon: PlayCircle },
+    { title: t("predictions"), href: "/predictions", icon: BrainCircuit },
+    { title: t("standings"), href: "/football/standings", icon: ListOrdered },
     {
-      title: t("football"),
-      href: "/football",
-      icon: IoMdFootball,
+      title: t("news_and_stories"),
+      href: "/news",
+      icon: Newspaper,
       isDropdown: true,
       subLinks: [
         {
-          name: t("leagues"),
-          href: "/football/leagues",
-          description: t("leagues_description"),
-          icon: FaTrophy,
-        },
-
-        {
-          name: t("standings"),
-          href: "/football/standings",
-          description: t("standings_description"),
-          icon: ListOrdered,
+          name: t("latest_news"),
+          href: "/news/category/recent",
+          description: t("latest_news_desc"),
+          icon: Newspaper,
         },
         {
-          name: t("teams"),
-          href: "/football/teams",
-          description: t("teams_description"),
-          icon: FaUsers,
+          name: t("transfer_news"),
+          href: "/news/category/transfer",
+          description: t("transfer_news_desc"),
+          icon: Repeat,
         },
         {
-          name: t("football_news"),
-          href: "/football/news",
-          description: t("football_news_description"),
-          icon: FaNewspaper,
+          name: t("blogs"),
+          href: "/news/category/football",
+          description: t("blogs_desc"),
+          icon: BookOpen,
         },
       ],
     },
-    { title: t("basketball"), href: "#", icon: FaBasketballBall },
-    { title: t("tennis"), href: "#", icon: IoTennisball },
-    {
-      title: t("news"),
-      href: "/news",
-      icon: FaNewspaper,
-    },
   ];
 
-  const handleMobileLinkClick = () => {
-    setIsMobileMenuOpen(false);
-  };
+  const MobileFlyoutMenu = () => (
+    <Transition.Root show={isMobileMenuOpen} as={Fragment}>
+      <Dialog
+        as="div"
+        className="relative z-[100] lg:hidden"
+        onClose={setIsMobileMenuOpen}
+      >
+        <Transition.Child
+          as={Fragment}
+          enter="ease-in-out duration-300"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="ease-in-out duration-300"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
+          <div className="fixed inset-0 bg-black" />
+        </Transition.Child>
+        <Transition.Child
+          as={Fragment}
+          enter="transform transition ease-in-out duration-300"
+          enterFrom="-translate-x-full"
+          enterTo="translate-x-0"
+          leave="transform transition ease-in-out duration-300"
+          leaveFrom="translate-x-0"
+          leaveTo="-translate-x-full"
+        >
+          <Dialog.Panel className="fixed inset-y-0 left-0 w-full max-w-xs bg-brand-dark flex flex-col">
+            <div className="flex items-center justify-between px-4 h-20 border-b border-gray-800 flex-shrink-0">
+              <StyledLink href="/">
+                <Image
+                  src={"/fanskor.webp"}
+                  alt="fanskor-logo"
+                  width={150}
+                  height={50}
+                />
+              </StyledLink>
+              <button
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="p-2"
+                aria-label="Close mobile menu"
+              >
+                <X size={28} />
+              </button>
+            </div>
+
+            <div className="p-4 border-b border-gray-800">
+              <LanguageDropdown
+                languages={languages}
+                isLoading={isLoadingLanguages}
+              />
+            </div>
+
+            <nav className="flex-1 overflow-y-auto custom-scrollbar p-4">
+              <ul className="space-y-1">
+                {navItems.map((item) => {
+                  const isActive =
+                    (pathname === item.href && item.href === "/") ||
+                    (item.href !== "/" && pathname.startsWith(item.href));
+                  return (
+                    <li key={item.title}>
+                      <StyledLink
+                        href={item.href}
+                        className={`flex items-center gap-4 w-full rounded-lg p-3 text-lg font-semibold transition-colors ${
+                          isActive
+                            ? "bg-[var(--brand-accent)] text-white"
+                            : "text-brand-light hover:bg-brand-secondary"
+                        }`}
+                      >
+                        <item.icon size={22} /> {item.title}
+                      </StyledLink>
+                    </li>
+                  );
+                })}
+              </ul>
+            </nav>
+
+            <div className="p-4 mt-auto border-t border-gray-800">
+              <div className="flex justify-center gap-x-6 text-xs text-text-muted">
+                <StyledLink href="/privacy-policy" className="hover:text-white">
+                  Privacy
+                </StyledLink>
+                <StyledLink
+                  href="/terms-and-conditions"
+                  className="hover:text-white"
+                >
+                  Terms
+                </StyledLink>
+                <StyledLink href="/contact-us" className="hover:text-white">
+                  Contact
+                </StyledLink>
+              </div>
+            </div>
+          </Dialog.Panel>
+        </Transition.Child>
+      </Dialog>
+    </Transition.Root>
+  );
 
   return (
     <div
       className={`
         ${isSticky ? "sticky" : "relative"}
-        top-0 z-50 w-full bg-brand-secondary shadow-xl shadow-black/20
-        border-b border-gray-700/50
+        top-0 z-50 w-full bg-brand-secondary
         transition-transform duration-300 ease-in-out
         ${isVisible ? "translate-y-0" : "-translate-y-full"}
       `}
     >
-      {}
-      {}
-      <header className="relative w-full z-10">
-        {}
-        <div className="container mx-auto flex h-24 items-center justify-between px-4 lg:px-6">
-          <StyledLink href="/" className="flex items-center flex-shrink-0">
-            <Image
-              src={"/fanskor.webp"}
-              alt="fanskor-logo"
-              width={180}
-              height={60}
-            />
-          </StyledLink>
-          <nav className="hidden lg:flex items-center flex-grow justify-center gap-12 px-8">
-            {navItems.map((item) => (
-              <li key={item.title} className="list-none">
-                {item.isDropdown && item.subLinks ? (
-                  <NavDropdown
-                    title={item.title}
-                    icon={item.icon}
-                    subLinks={item.subLinks}
-                  />
-                ) : (
-                  <StyledLink
-                    href={item.href}
-                    className={`relative flex items-center gap-2 py-2 text-base font-semibold transition-colors group ${
-                      pathname.startsWith(item.href)
-                        ? "text-white"
-                        : "text-[var(--text-secondary)] hover:text-white"
-                    } ${
-                      pathname.startsWith(item.href)
-                        ? "after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-[var(--brand-accent)] after:rounded-t-sm"
-                        : "after:absolute after:bottom-0 after:left-1/2 after:w-0 after:h-0.5 after:bg-[var(--brand-accent)] after:rounded-t-sm group-hover:after:w-full group-hover:after:left-0 after:transition-all after:duration-300"
-                    }`}
-                  >
-                    <item.icon size={20} />
-                    {item.title}
-                  </StyledLink>
-                )}
-              </li>
-            ))}
-          </nav>
-
-          <div
-            className="hidden lg:flex items-center gap-6 flex-shrink-0"
-            ref={notificationRef}
-          >
-            <div className="relative">
-              <button
-                onClick={handleNotificationToggle}
-                className="text-brand-light hover:text-white transition-colors p-2"
-              >
-                <Bell
-                  size={24}
-                  className={`text-[var(--brand-accent)] ${
-                    hasUnread ? "animate-ring" : ""
-                  }`}
-                />
-                {hasUnread && (
-                  <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-brand-dark" />
-                )}
-              </button>
-              {isNotificationOpen && (
-                <NotificationDropdown
-                  onClose={() => setIsNotificationOpen(false)}
-                />
-              )}
-            </div>
-            <LanguageDropdown />
-          </div>
-
-          <div
-            className="flex lg:hidden items-center gap-2 flex-shrink-0"
-            ref={notificationRef}
-          >
-            <div className="relative">
-              <button
-                onClick={handleNotificationToggle}
-                className="text-brand-light hover:text-white transition-colors p-2"
-              >
-                <Bell
-                  size={24}
-                  className={`text-[var(--brand-accent)] ${
-                    hasUnread ? "animate-ring" : ""
-                  }`}
-                />
-                {hasUnread && (
-                  <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-brand-dark" />
-                )}
-              </button>
-              {isNotificationOpen && (
-                <NotificationDropdown
-                  onClose={() => setIsNotificationOpen(false)}
-                />
-              )}
-            </div>
-            <button
-              className="text-brand-light hover:text-white transition-colors p-2"
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              aria-label="Toggle mobile menu"
-            >
-              {isMobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {isMobileMenuOpen && (
-        <div className="fixed inset-0 bg-black/95 z-[999] flex flex-col transform translate-x-0 animate-slide-in-right">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800/50 flex-shrink-0">
-            <StyledLink href="/" className="flex items-center gap-3 group">
+      <header className="relative w-full z-40 border-b border-gray-700/50">
+        <div className="container mx-auto flex h-20 items-center justify-between px-4 lg:px-6">
+          <div className="flex items-center gap-x-6">
+            <StyledLink href="/" className="flex-shrink-0">
               <Image
                 src={"/fanskor.webp"}
                 alt="fanskor-logo"
-                width={150}
-                height={50}
+                width={160}
+                height={54}
+                priority
               />
             </StyledLink>
-            <button
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="text-brand-light hover:text-white transition-colors p-2"
-              aria-label="Close mobile menu"
-            >
-              <X size={32} />
-            </button>
-          </div>
-          <div className="mt-8 pb-4 border-b border-gray-800/50 flex flex-col gap-4 px-6 flex-shrink-0">
-            <LanguageDropdown />
-          </div>
-          <nav className="flex-1 overflow-y-auto custom-scrollbar p-6 pt-4">
-            <ul className="space-y-4">
+            <nav className="hidden lg:flex items-center gap-x-2">
               {navItems.map((item) => (
-                <li key={item.title}>
-                  {item.isDropdown ? (
-                    <div className="space-y-3">
-                      <button className="w-full text-left px-4 py-3 text-lg font-bold uppercase text-[var(--text-muted)] tracking-wider border-b border-gray-800/50 flex items-center gap-3">
-                        <item.icon size={24} />
-                        {item.title}
-                      </button>
-                      <ul className="space-y-2 pl-4 border-l-2 border-gray-700/50">
-                        {item.subLinks!.map((subLink) => (
-                          <li key={subLink.name}>
-                            <StyledLink
-                              href={subLink.href}
-                              onClick={handleMobileLinkClick}
-                              className="flex justify-between items-center w-full rounded-lg p-3 text-lg font-medium text-brand-light hover:bg-brand-secondary"
-                            >
-                              <span className="flex items-center gap-3">
-                                {subLink.icon && <subLink.icon size={24} />}{" "}
-                                {subLink.name}
-                              </span>
-                              <ArrowRight
-                                size={24}
-                                className="text-[var(--brand-accent)]"
-                              />
-                            </StyledLink>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : (
-                    <StyledLink
-                      href={item.href}
-                      onClick={handleMobileLinkClick}
-                      className="block w-full rounded-lg p-4 text-xl font-bold text-brand-light hover:bg-brand-secondary flex items-center gap-4"
+                <li
+                  key={item.title}
+                  className="list-none relative"
+                  onMouseEnter={() =>
+                    item.isDropdown && setOpenMenu(item.title)
+                  }
+                  onMouseLeave={() => item.isDropdown && setOpenMenu(null)}
+                >
+                  <StyledLink
+                    href={item.href}
+                    className={`relative flex items-center gap-2 px-4 py-2 text-base font-semibold transition-colors group rounded-md ${
+                      (pathname === item.href && item.href === "/") ||
+                      (item.href !== "/" && pathname.startsWith(item.href))
+                        ? "text-white bg-white/5"
+                        : "text-text-secondary hover:text-white hover:bg-white/5"
+                    }`}
+                  >
+                    <item.icon size={18} />
+                    {item.title}
+                    {item.isDropdown && (
+                      <ChevronDown
+                        size={16}
+                        className={`transition-transform duration-300 ${
+                          openMenu === item.title ? "rotate-180" : ""
+                        }`}
+                      />
+                    )}
+                    {((pathname === item.href && item.href === "/") ||
+                      (item.href !== "/" &&
+                        pathname.startsWith(item.href))) && (
+                      <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-[var(--brand-accent)] rounded-full"></span>
+                    )}
+                  </StyledLink>
+                  {item.isDropdown && (
+                    <Transition
+                      show={openMenu === item.title}
+                      as={Fragment}
+                      enter="transition ease-out duration-200"
+                      enterFrom="opacity-0 translate-y-2"
+                      enterTo="opacity-100 translate-y-0"
+                      leave="transition ease-in duration-150"
+                      leaveFrom="opacity-100 translate-y-0"
+                      leaveTo="opacity-0 translate-y-2"
                     >
-                      <item.icon size={28} />
-                      {item.title}
-                    </StyledLink>
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 pt-4 w-auto">
+                        <div className="bg-brand-secondary rounded-xl shadow-2xl border border-gray-700/50 p-4">
+                          <div className="grid grid-flow-col auto-cols-max gap-4">
+                            {(item.subLinks || []).map((subLink) => (
+                              <StyledLink
+                                key={subLink.name}
+                                href={subLink.href}
+                                className="group flex items-start gap-4 p-3 rounded-lg hover:bg-black/20 transition-colors w-72"
+                              >
+                                <div className="flex-shrink-0 bg-black/20 p-3 rounded-lg text-[var(--brand-accent)]">
+                                  {subLink.icon && <subLink.icon size={24} />}
+                                </div>
+                                <div>
+                                  <p className="font-bold text-white group-hover:text-[var(--brand-accent)] transition-colors">
+                                    {subLink.name}
+                                  </p>
+                                  <p className="text-sm text-text-muted mt-1">
+                                    {subLink.description}
+                                  </p>
+                                </div>
+                              </StyledLink>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </Transition>
                   )}
                 </li>
               ))}
-            </ul>
-          </nav>
+            </nav>
+          </div>
+          <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
+            <button
+              onClick={() => setIsSearchOpen(true)}
+              className="p-2 text-text-muted hover:text-white transition-colors"
+            >
+              <Search size={22} />
+            </button>
+            <div className="hidden md:block">
+              <LanguageDropdown
+                languages={languages}
+                isLoading={isLoadingLanguages}
+              />
+            </div>
+            <div className="flex lg:hidden">
+              <button
+                onClick={() => setIsMobileMenuOpen(true)}
+                aria-label="Open menu"
+                className="p-2"
+              >
+                <Menu size={26} />
+              </button>
+            </div>
+          </div>
         </div>
-      )}
-
+      </header>
+      <HeaderSearchModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+      />
+      <MobileFlyoutMenu />
       <Suspense fallback={null}>
         <Ticker />
       </Suspense>
@@ -19178,34 +19920,422 @@ export default function Header() {
   );
 }
 
+// ===== src/components/HeaderSearchModal.tsx =====
+
+"use client";
+
+import { useState, useEffect, Fragment } from "react";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import { Search, Loader2, Trophy, Users, X, ChevronDown } from "lucide-react";
+import { Transition, Popover } from "@headlessui/react";
+import Image from "next/image";
+
+import { useDebounce } from "@/hooks/useDebounce";
+import { useTranslation } from "@/hooks/useTranslation";
+import StyledLink from "./StyledLink";
+import { proxyImageUrl } from "@/lib/image-proxy";
+
+interface SearchResult {
+  teams: any[];
+  leagues: any[];
+}
+type SearchCategory = "all" | "league" | "team";
+
+const POPULAR_SEARCHES = [
+  {
+    id: 39,
+    name: "Premier League",
+    meta: "LEAGUE, ENGLAND",
+    logo: "https://media-4.api-sports.io/football/leagues/39.png",
+    href: "/football/league/premier-league-39",
+  },
+  {
+    id: 2,
+    name: "UEFA Champions League",
+    meta: "LEAGUE, WORLD",
+    logo: "https://media-4.api-sports.io/football/leagues/2.png",
+    href: "/football/league/uefa-champions-league-2",
+  },
+  {
+    id: 33,
+    name: "Manchester United",
+    meta: "TEAM, ENGLAND",
+    logo: "https://media-4.api-sports.io/football/teams/33.png",
+    href: "/football/team/manchester-united-33",
+  },
+  {
+    id: 140,
+    name: "La Liga",
+    meta: "LEAGUE, SPAIN",
+    logo: "https://media-4.api-sports.io/football/leagues/140.png",
+    href: "/football/league/la-liga-140",
+  },
+  {
+    id: 529,
+    name: "Barcelona",
+    meta: "TEAM, SPAIN",
+    logo: "https://media-4.api-sports.io/football/teams/529.png",
+    href: "/football/team/barcelona-529",
+  },
+];
+
+const fetchSearchResults = async (query: string): Promise<SearchResult> => {
+  const { data } = await axios.get(`/api/search/global?q=${query}`);
+  return data;
+};
+
+const SearchResultItem = ({
+  href,
+  logo,
+  name,
+  meta,
+  onClose,
+}: {
+  href: string;
+  logo: string;
+  name: string;
+  meta: string;
+  onClose: () => void;
+}) => (
+  <StyledLink
+    href={href}
+    onClick={onClose}
+    className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-white/5 transition-colors"
+  >
+    <Image
+      src={proxyImageUrl(logo)}
+      alt={name}
+      width={32}
+      height={32}
+      className="bg-white/10 rounded-full p-0.5"
+    />
+    <div>
+      <p className="font-semibold text-white text-sm">{name}</p>
+      <p className="text-xs text-text-muted">{meta}</p>
+    </div>
+  </StyledLink>
+);
+
+const SearchResultSkeleton = () => (
+  <div className="flex items-center gap-3 p-2.5 animate-pulse">
+    <div className="w-8 h-8 rounded-full bg-gray-700"></div>
+    <div className="flex-1 space-y-1.5">
+      <div className="h-4 w-3/4 bg-gray-600 rounded"></div>
+      <div className="h-3 w-1/2 bg-gray-600 rounded"></div>
+    </div>
+  </div>
+);
+
+export default function HeaderSearchModal({
+  isOpen,
+  onClose,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState<SearchCategory>("all");
+  const debouncedQuery = useDebounce(query, 300);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["globalSearch", debouncedQuery],
+    queryFn: () => fetchSearchResults(debouncedQuery),
+    enabled: debouncedQuery.length >= 3,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setQuery("");
+      setCategory("all");
+    }
+  }, [isOpen]);
+
+  const filteredData = {
+    leagues:
+      category === "all" || category === "league" ? data?.leagues || [] : [],
+    teams: category === "all" || category === "team" ? data?.teams || [] : [],
+  };
+
+  const hasResults =
+    filteredData.teams.length > 0 || filteredData.leagues.length > 0;
+
+  const categoryOptions: { key: SearchCategory; label: string }[] = [
+    { key: "all", label: t("all") },
+    { key: "league", label: t("leagues") },
+    { key: "team", label: t("teams") },
+  ];
+
+  return (
+    <Transition show={isOpen} as={Fragment}>
+      <div className="fixed inset-0 z-[100] bg-black/50 flex items-start justify-center pt-24 p-4">
+        <Transition.Child
+          as={Fragment}
+          enter="ease-out duration-200"
+          enterFrom="opacity-0 scale-95"
+          enterTo="opacity-100 scale-100"
+          leave="ease-in duration-150"
+          leaveFrom="opacity-100 scale-100"
+          leaveTo="opacity-0 scale-95"
+        >
+          <div className="bg-brand-secondary rounded-xl shadow-2xl border border-gray-700 flex flex-col w-full max-w-xl">
+            {}
+            <div className="flex justify-between items-center p-3 pl-4 border-b border-gray-700/50">
+              <h2 className="text-lg font-bold text-white">{t("search")}</h2>
+              <button
+                onClick={onClose}
+                className="p-2 text-text-muted hover:text-white rounded-full hover:bg-white/10"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {}
+            <div className="flex items-center gap-2 p-3">
+              <div className="relative flex-grow">
+                <Search
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted"
+                  size={18}
+                />
+                <input
+                  type="search"
+                  autoFocus
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={t("search_type_here")}
+                  className="w-full bg-brand-dark border border-gray-600 rounded-md py-2 pl-11 pr-4 text-base text-white placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-[var(--brand-accent)]"
+                />
+              </div>
+
+              <Popover className="relative">
+                <Popover.Button className="flex items-center gap-2 w-32 justify-between px-3 py-2 bg-brand-dark border border-gray-600 rounded-md text-white text-sm font-semibold">
+                  <span>
+                    {categoryOptions.find((c) => c.key === category)?.label}
+                  </span>
+                  <ChevronDown size={16} />
+                </Popover.Button>
+                <Transition
+                  as={Fragment}
+                  enter="transition ease-out duration-100"
+                  enterFrom="opacity-0 scale-95"
+                  enterTo="opacity-100 scale-100"
+                  leave="transition ease-in duration-75"
+                  leaveFrom="opacity-100 scale-100"
+                  leaveTo="opacity-0 scale-95"
+                >
+                  <Popover.Panel className="absolute right-0 mt-1 w-36 origin-top-right rounded-md bg-brand-dark shadow-lg ring-1 ring-black/5 focus:outline-none">
+                    <div className="p-1">
+                      {categoryOptions.map((opt) => (
+                        <Popover.Button
+                          as="button"
+                          key={opt.key}
+                          onClick={() => setCategory(opt.key)}
+                          className="w-full text-left px-3 py-2 text-sm rounded hover:bg-brand-secondary"
+                        >
+                          {opt.label}
+                        </Popover.Button>
+                      ))}
+                    </div>
+                  </Popover.Panel>
+                </Transition>
+              </Popover>
+            </div>
+
+            {}
+            <div className="max-h-[50vh] min-h-[18rem] overflow-y-auto custom-scrollbar p-2">
+              {debouncedQuery.length < 3 && (
+                <div className="p-4">
+                  <h3 className="text-xs font-bold uppercase text-text-muted px-2 py-2">
+                    {t("most_popular_searches")}
+                  </h3>
+                  {POPULAR_SEARCHES.map((item) => (
+                    <SearchResultItem
+                      key={item.id}
+                      {...item}
+                      meta={item.meta}
+                      onClose={onClose}
+                    />
+                  ))}
+                </div>
+              )}
+              {debouncedQuery.length >= 3 && isLoading && (
+                <div className="p-2 space-y-1">
+                  <SearchResultSkeleton />
+                  <SearchResultSkeleton />
+                  <SearchResultSkeleton />
+                </div>
+              )}
+              {debouncedQuery.length >= 3 && !isLoading && !hasResults && (
+                <div className="p-10 text-center text-text-muted text-sm">
+                  <p>
+                    {t("no_search_results_subtitle", {
+                      searchTerm: debouncedQuery,
+                    })}
+                  </p>
+                </div>
+              )}
+              {debouncedQuery.length >= 3 && hasResults && (
+                <div className="space-y-2">
+                  {filteredData.leagues.length > 0 && (
+                    <section>
+                      <h3 className="text-xs font-bold uppercase text-text-muted px-2 py-2 flex items-center gap-2">
+                        <Trophy size={14} /> {t("leagues")}
+                      </h3>
+                      {filteredData.leagues.map((league) => (
+                        <SearchResultItem
+                          key={`l-${league.id}`}
+                          {...league}
+                          meta={league.country}
+                          onClose={onClose}
+                        />
+                      ))}
+                    </section>
+                  )}
+                  {filteredData.teams.length > 0 && (
+                    <section>
+                      <h3 className="text-xs font-bold uppercase text-text-muted px-2 py-2 flex items-center gap-2">
+                        <Users size={14} /> {t("teams")}
+                      </h3>
+                      {filteredData.teams.map((team) => (
+                        <SearchResultItem
+                          key={`t-${team.id}`}
+                          {...team}
+                          meta={team.country}
+                          onClose={onClose}
+                        />
+                      ))}
+                    </section>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </Transition.Child>
+      </div>
+    </Transition>
+  );
+}
+
 // ===== src/components/HighlightCard.tsx =====
+
+"use client";
+
+import { useState } from "react";
+import Image from "next/image";
+import { PlayCircle, Youtube, Film } from "lucide-react";
 
 interface Highlight {
   id: string;
-  embedUrl: string;
   title: string;
+  thumbnailUrl: string;
+  embedUrl: string;
+  source: "Highlightly" | "YouTube";
+  publishedAt: string;
 }
 
-interface HighlightSlideProps {
-  highlight: Highlight;
-}
-
-export default function HighlightSlide({ highlight }: HighlightSlideProps) {
-  return (
-
-    <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
-      <iframe
-        src={highlight.embedUrl}
-        title={highlight.title}
-        frameBorder="0"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowFullScreen
-        className="absolute top-0 left-0 w-full h-full"
-        loading="lazy"
-      ></iframe>
+const HighlightCardSkeleton = () => (
+  <div className="bg-brand-secondary rounded-lg animate-pulse">
+    <div className="aspect-video w-full bg-gray-700/50 rounded-t-lg"></div>
+    <div className="p-4 space-y-3">
+      <div className="h-4 w-1/4 bg-gray-600 rounded"></div>
+      <div className="h-5 w-full bg-gray-600 rounded"></div>
+      <div className="h-5 w-4/5 bg-gray-600 rounded"></div>
     </div>
+  </div>
+);
+
+export default function HighlightCard({ highlight }: { highlight: Highlight }) {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const SourceIcon = highlight.source === "YouTube" ? Youtube : Film;
+  const sourceColor =
+    highlight.source === "YouTube" ? "text-red-500" : "text-blue-400";
+
+  return (
+    <>
+      <div
+        className="bg-brand-secondary rounded-lg overflow-hidden group cursor-pointer transition-all duration-300 hover:shadow-xl hover:shadow-[var(--brand-accent)]/20 hover:-translate-y-1"
+        onClick={() => setIsModalOpen(true)}
+      >
+        <div className="relative aspect-video w-full">
+          <Image
+            src={highlight.thumbnailUrl}
+            alt={highlight.title}
+            layout="fill"
+            objectFit="cover"
+            className="transition-transform duration-500 group-hover:scale-105"
+          />
+          <div className="absolute inset-0 bg-black/40 group-hover:bg-black/60 transition-opacity flex items-center justify-center">
+            <PlayCircle
+              size={64}
+              className="text-white/80 group-hover:text-white group-hover:scale-110 transition-transform duration-300"
+              strokeWidth={1.5}
+            />
+          </div>
+        </div>
+        <div className="p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <SourceIcon size={16} className={sourceColor} />
+            <span className={`text-xs font-bold uppercase ${sourceColor}`}>
+              {highlight.source}
+            </span>
+          </div>
+          <h3 className="font-bold text-white leading-tight line-clamp-2">
+            {highlight.title}
+          </h3>
+        </div>
+      </div>
+
+      {}
+      {isModalOpen && (
+        <div
+          className="fixed inset-0 z-[101] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setIsModalOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-4xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="aspect-video w-full bg-black rounded-lg overflow-hidden">
+              <iframe
+                src={`${highlight.embedUrl}?autoplay=1`}
+                title={highlight.title}
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="w-full h-full"
+              ></iframe>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
+
+export { HighlightCardSkeleton };
 
 // ===== src/components/HighlightSlide.tsx =====
 
@@ -19249,9 +20379,7 @@ export default function HighlightSlide({ highlight }: HighlightSlideProps) {
 
 "use client";
 
-import { useState, useTransition, Fragment } from "react";
-import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
+import { useState, Fragment } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import { ChevronDown, Loader2 } from "lucide-react";
@@ -19259,25 +20387,21 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { ILanguage } from "@/models/Language";
 import { Menu, Transition } from "@headlessui/react";
 import { setLocaleCookie } from "@/app/actions/language";
+import { DEFAULT_LOCALE } from "@/lib/i18n/config";
 
-const DEFAULT_LOCALE = "tr";
+interface LanguageDropdownProps {
+  languages: ILanguage[] | undefined;
+  isLoading: boolean;
+}
 
-const fetchActiveLanguages = async (): Promise<ILanguage[]> => {
-  const { data } = await axios.get("/api/admin/languages");
-  return data.filter((lang: ILanguage) => lang.isActive);
-};
-
-export default function LanguageDropdown() {
-  const [isPending, startTransition] = useTransition();
+export default function LanguageDropdown({
+  languages,
+  isLoading,
+}: LanguageDropdownProps) {
+  const [isPending, startTransition] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const { locale: currentLocale } = useTranslation();
-
-  const { data: languages, isLoading } = useQuery<ILanguage[]>({
-    queryKey: ["activeLanguages"],
-    queryFn: fetchActiveLanguages,
-    staleTime: 1000 * 60 * 60,
-  });
 
   const selectedLanguage = languages?.find(
     (lang) => lang.code === currentLocale
@@ -19289,23 +20413,17 @@ export default function LanguageDropdown() {
     const isSwitchingFromDefault = currentLocale === DEFAULT_LOCALE;
 
     if (isSwitchingToDefault) {
-
       newPath = pathname.replace(`/${currentLocale}`, "");
     } else if (isSwitchingFromDefault) {
-
       newPath = `/${newLocale}${pathname}`;
     } else {
-
       newPath = pathname.replace(`/${currentLocale}`, `/${newLocale}`);
     }
-
     if (newPath === "") newPath = "/";
 
-    startTransition(() => {
-
-      setLocaleCookie(newLocale).then(() => {
-        router.push(newPath);
-      });
+    startTransition(true);
+    setLocaleCookie(newLocale).then(() => {
+      router.push(newPath);
     });
   };
 
@@ -19343,7 +20461,7 @@ export default function LanguageDropdown() {
   };
 
   return (
-    <Menu as="div" className="relative inline-block text-left">
+    <Menu as="div" className="relative inline-block text-left w-full md:w-auto">
       <div>
         <Menu.Button
           disabled={isLoading || isPending}
@@ -20395,6 +21513,8 @@ import { Globe, Search, XCircle, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 import { proxyImageUrl } from "@/lib/image-proxy";
 import { useTranslation } from "@/hooks/useTranslation";
+import StyledLink from "./StyledLink";
+import { generateLeagueSlug } from "@/lib/generate-league-slug";
 
 function useDebounce(value: string, delay: number) {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -20433,33 +21553,49 @@ const searchFixtures = async (query: string): Promise<any[]> => {
 const LeagueGroupHeader = ({
   league,
 }: {
-  league: { name: string; logo: string; country: string; flag: string | null };
-}) => (
-  <div
-    className="flex items-center gap-3 p-3 sticky top-0 z-10"
-    style={{ backgroundColor: "var(--color-primary)" }}
-  >
-    <div className="w-[28px] h-[28px] flex items-center justify-center">
-      {league.country === "World" ? (
-        <Globe size={24} className="text-text-muted" />
-      ) : (
-        league.flag && (
-          <Image
-            src={proxyImageUrl(league.flag)}
-            alt={league.country}
-            width={28}
-            height={28}
-            className="rounded-full object-contain"
-          />
-        )
-      )}
+  league: {
+    id: number;
+    name: string;
+    logo: string;
+    country: string;
+    flag: string | null;
+  };
+}) => {
+  const leagueHref = generateLeagueSlug(league.name, league.id);
+
+  return (
+    <div
+      className="flex items-center gap-3 p-3 sticky top-0 z-10"
+      style={{ backgroundColor: "var(--color-primary)" }}
+    >
+      <div className="w-[28px] h-[28px] flex items-center justify-center flex-shrink-0">
+        {league.country === "World" ? (
+          <Globe size={24} className="text-text-muted" />
+        ) : (
+          league.flag && (
+            <Image
+              src={proxyImageUrl(league.flag)}
+              alt={league.country}
+              width={28}
+              height={28}
+              className="rounded-full object-contain"
+            />
+          )
+        )}
+      </div>
+      <div className="min-w-0">
+        <p className="font-bold text-sm text-white truncate">
+          {league.country}
+        </p>
+        <StyledLink href={leagueHref} className="group">
+          <p className="text-sm text-[var(--brand-accent)] font-bold truncate group-hover:underline">
+            {league.name}
+          </p>
+        </StyledLink>
+      </div>
     </div>
-    <div>
-      <p className="font-bold text-base text-white">{league.country}</p>
-      <p className="text-sm text-text-muted">{league.name}</p>
-    </div>
-  </div>
-);
+  );
+};
 
 const TabButton = ({
   label,
@@ -32028,6 +33164,213 @@ const WinProbability = memo(function WinProbability({ home, draw, away }: { home
 });
 export default WinProbability;
 
+// ===== src/components/predictions/PredictionCard.tsx =====
+
+"use client";
+
+import Image from "next/image";
+import { format } from "date-fns";
+import { Clock } from "lucide-react";
+import StyledLink from "@/components/StyledLink";
+import { proxyImageUrl } from "@/lib/image-proxy";
+import { generateMatchSlug } from "@/lib/generate-match-slug";
+import { useTranslation } from "@/hooks/useTranslation";
+import { useMemo } from "react";
+
+interface PredictionCardProps {
+  fixture: any;
+}
+
+const FormGuideCircles = ({ formString }: { formString: string | null }) => {
+  if (!formString || formString.length === 0)
+    return (
+      <div className="h-5 w-full flex items-center justify-end">
+        <span className="text-xs text-text-muted">-</span>
+      </div>
+    );
+  return (
+    <div className="flex items-center justify-end gap-1.5">
+      {formString
+        .slice(-5)
+        .split("")
+        .map((result, index) => {
+          const classes = {
+            W: "bg-green-500",
+            D: "bg-gray-500",
+            L: "bg-red-500",
+          };
+          const title =
+            result === "W" ? "Win" : result === "D" ? "Draw" : "Loss";
+          return (
+            <div
+              key={index}
+              title={title}
+              className={`flex items-center justify-center w-5 h-5 rounded-full ${
+                classes[result as keyof typeof classes]
+              }`}
+            >
+              <span className="text-white text-[10px] font-bold">{result}</span>
+            </div>
+          );
+        })}
+    </div>
+  );
+};
+
+export const PredictionCardSkeleton = () => (
+  <div className="bg-brand-secondary rounded-lg flex flex-col h-full border border-transparent animate-pulse p-3 space-y-2.5">
+    <div className="flex justify-between items-center">
+      <div className="h-4 w-2/3 bg-gray-700 rounded"></div>
+    </div>
+    <div className="h-8 w-full rounded bg-gray-600/50"></div>
+    <div className="h-8 w-full rounded bg-gray-600/50"></div>
+    <div className="h-2 w-full rounded-full bg-gray-700 mt-1"></div>
+    <div className="h-8 w-full rounded-md bg-gray-700 mt-1"></div>
+  </div>
+);
+
+export default function PredictionCard({ fixture }: PredictionCardProps) {
+  const { t } = useTranslation();
+  const { teams, league, prediction, h2h, form } = fixture;
+  const matchSlug = generateMatchSlug(
+    teams.home,
+    teams.away,
+    fixture.fixture.id
+  );
+
+  const highestPredictionValue = useMemo(() => {
+    if (!prediction) return 0;
+    return Math.max(prediction.home, prediction.draw, prediction.away);
+  }, [prediction]);
+
+  const h2hStats = useMemo(() => {
+    if (!h2h || h2h.length === 0) return { home: 0, draw: 0, away: 0 };
+    return h2h.slice(0, 5).reduce(
+      (acc: any, match: any) => {
+        if (match.teams.home.id === teams.home.id) {
+          if (match.teams.home.winner) acc.home++;
+          else if (match.teams.away.winner) acc.away++;
+          else acc.draw++;
+        } else {
+          if (match.teams.home.winner) acc.away++;
+          else if (match.teams.away.winner) acc.home++;
+          else acc.draw++;
+        }
+        return acc;
+      },
+      { home: 0, draw: 0, away: 0 }
+    );
+  }, [h2h, teams]);
+
+  const homeColor =
+    prediction.home === highestPredictionValue
+      ? "text-[var(--brand-accent)]"
+      : "text-white";
+  const awayColor =
+    prediction.away === highestPredictionValue
+      ? "text-[var(--brand-accent)]"
+      : "text-white";
+  const drawColor =
+    prediction.draw === highestPredictionValue
+      ? "text-[var(--brand-accent)]"
+      : "text-white";
+
+  return (
+    <StyledLink
+      href={matchSlug}
+      className="block bg-brand-secondary rounded-xl h-full border border-gray-800/80 transition-all duration-300 hover:shadow-2xl hover:border-[var(--brand-accent)]/50 hover:-translate-y-1 group"
+    >
+      <div className="p-3 flex-grow flex flex-col gap-3">
+        {}
+        <div className="flex items-center justify-between gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <Image
+              src={proxyImageUrl(league.logo)}
+              alt={league.name}
+              width={16}
+              height={16}
+            />
+            <p className="text-xs font-semibold text-text-muted truncate">
+              {league.name}
+            </p>
+          </div>
+          <div className="text-xs font-semibold text-brand-muted flex items-center gap-1.5 flex-shrink-0">
+            <Clock size={12} />
+            <span>{format(new Date(fixture.fixture.date), "HH:mm")}</span>
+          </div>
+        </div>
+
+        {}
+        <div className="space-y-2">
+          <div className="grid grid-cols-[1fr,auto] items-center gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <Image
+                src={proxyImageUrl(teams.home.logo)}
+                alt={teams.home.name}
+                width={24}
+                height={24}
+              />
+              <span className="font-bold text-sm text-white truncate">
+                {teams.home.name}
+              </span>
+            </div>
+            <FormGuideCircles formString={form.home} />
+          </div>
+          <div className="grid grid-cols-[1fr,auto] items-center gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <Image
+                src={proxyImageUrl(teams.away.logo)}
+                alt={teams.away.name}
+                width={24}
+                height={24}
+              />
+              <span className="font-bold text-sm text-white truncate">
+                {teams.away.name}
+              </span>
+            </div>
+            <FormGuideCircles formString={form.away} />
+          </div>
+        </div>
+
+        {}
+        <div className="space-y-2 pt-2">
+          <div className="flex justify-between items-center text-center text-xs font-bold">
+            <span className={`w-1/3 ${homeColor}`}>{prediction.home}%</span>
+            <span className={`w-1/3 ${drawColor}`}>
+              {t("draw")} {prediction.draw}%
+            </span>
+            <span className={`w-1/3 ${awayColor}`}>{prediction.away}%</span>
+          </div>
+          <div className="flex w-full h-2 rounded-full overflow-hidden bg-brand-dark/50">
+            <div
+              className="bg-[var(--brand-accent)]"
+              style={{ width: `${prediction.home}%` }}
+            ></div>
+            <div
+              className="bg-gray-500"
+              style={{ width: `${prediction.draw}%` }}
+            ></div>
+            <div
+              className="bg-blue-500"
+              style={{ width: `${prediction.away}%` }}
+            ></div>
+          </div>
+        </div>
+
+        {}
+        <div className="mt-auto pt-3 border-t border-gray-700/50 text-center">
+          <span className="text-xs font-semibold text-text-muted">
+            H2H (W-D-L):{" "}
+          </span>
+          <span className="font-mono text-sm text-white font-bold tracking-wider">
+            {h2hStats.home}-{h2hStats.draw}-{h2hStats.away}
+          </span>
+        </div>
+      </div>
+    </StyledLink>
+  );
+}
+
 // ===== src/components/skeletons/WidgetSkeletons.tsx =====
 
 "use client";
@@ -33231,33 +34574,15 @@ import redis from "@/lib/redis";
 const API_BASE_URL = "https://sports.highlightly.net/";
 const API_KEY = process.env.NEXT_PUBLIC_HIGHLIGHTLY_API_KEY;
 
-const CACHE_KEY = "highlights:latest-popular";
-const CACHE_TTL_SECONDS = 60 * 60 * 12;
-
-async function isValidEmbed(url: string): Promise<boolean> {
-  try {
-    const response = await axios.get(url, {
-      timeout: 4000,
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        "Accept-Language": "en-US,en;q=0.9",
-      },
-    });
-    const content = response.data.toString().toLowerCase();
-    const isUnavailable =
-      content.includes("video unavailable") ||
-      content.includes("not made this video available") ||
-      content.includes("geo-restricted") ||
-      content.includes("video is not available in your country");
-    return !isUnavailable;
-  } catch (error) {
-    return false;
-  }
-}
+const CACHE_KEY = "highlights:latest-v6";
+const CACHE_TTL_SUCCESS = 60 * 15;
+const CACHE_TTL_RATELIMIT = 60 * 5;
 
 async function request(endpoint: string, params?: object) {
   if (!API_KEY) {
+    console.error(
+      "[Highlightly Service] FATAL: HIGHLIGHTLY_API key is not configured."
+    );
     throw new Error("Highlightly API Key is not configured.");
   }
   try {
@@ -33267,18 +34592,32 @@ async function request(endpoint: string, params?: object) {
         "x-rapidapi-key": API_KEY,
         "x-rapidapi-host": "sports.highlightly.net",
       },
-      timeout: 20000,
+      timeout: 15000,
     });
+    console.log(
+      `[Highlightly Service] API SUCCESS: Fetched ${
+        response.data?.data?.length || 0
+      } items from /${endpoint}`
+    );
     return response.data;
   } catch (error: any) {
-    if (error.response && error.response.status === 404) {
-      return null;
+
+    if (axios.isAxiosError(error) && error.response?.status === 429) {
+      console.warn(
+        "[Highlightly Service] WARN: Received 429 Rate Limit error from API."
+      );
+
+      const rateLimitError = new Error("Rate limited by Highlightly API");
+      rateLimitError.name = "RateLimitError";
+      throw rateLimitError;
     }
     console.error(
-      `[Highlightly Service] Error fetching from '${endpoint}':`,
+      `[Highlightly Service] ERROR: Failed to fetch from '${endpoint}':`,
       error.message
     );
-    throw new Error(`Failed to fetch data from the highlights provider.`);
+    throw new Error(
+      `Failed to fetch data from the highlights provider: ${error.message}`
+    );
   }
 }
 
@@ -33287,54 +34626,76 @@ export async function getMatchHighlights(params: object) {
   return data;
 }
 
-export async function getHighlightlyEntities(type: "leagues" | "teams") {
-  const data = await request(type);
-  return data[type] || data || [];
-}
-
 export async function getLatestPopularHighlights() {
-
   const cachedData = await redis.get(CACHE_KEY);
   if (cachedData) {
-    return JSON.parse(cachedData);
-  }
+    const parsedData = JSON.parse(cachedData);
 
-  const POPULAR_LEAGUE_IDS = [
-    2486, 3337, 33973, 52695, 61205, 67162, 75672, 80778, 34824, 68013,
-    8443, 13549, 11847, 14400, 15251, 10996, 39079, 41632, 56950, 69715,
-  ];
-  const allHighlights = [];
-
-  for (const leagueId of POPULAR_LEAGUE_IDS) {
-    const params = { leagueId, season: new Date().getFullYear(), limit: 10 };
-    const result = await request("football/highlights", params);
-    if (result && result.data && Array.isArray(result.data)) {
-      allHighlights.push(...result.data);
+    if (parsedData.isRateLimited) {
+      console.log(
+        "[Highlightly Service] Serving RATE_LIMITED status from cache."
+      );
+      return [];
     }
-    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    return parsedData;
   }
 
-  const uniqueHighlights = Array.from(
-    new Map(allHighlights.map((item: any) => [item.id, item])).values()
+  console.log(
+    "[Highlightly Service] Cache miss. Fetching latest highlights from Highlightly API's 'latest' endpoint."
   );
 
-  const validationPromises = uniqueHighlights.map((highlight: any) =>
-    isValidEmbed(highlight.embedUrl)
-  );
-  const validationResults = await Promise.all(validationPromises);
-  const validHighlights = uniqueHighlights.filter((_, index) => validationResults[index]);
+  try {
+    const result = await request("football/highlights", {
+      limit: 40,
+    });
 
-  const sortedAndFiltered = validHighlights
-    .sort((a: any, b: any) => new Date(b.match.date).getTime() - new Date(a.match.date).getTime())
-    .filter((i: any) => i.type !== "UNVERIFIED")
-    .slice(0, 8);
+    if (!result || !result.data || !Array.isArray(result.data)) {
+      console.warn(
+        "[Highlightly Service] No highlights data array returned from the API."
+      );
+      return [];
+    }
 
-  if (sortedAndFiltered.length > 0) {
-    await redis.set(CACHE_KEY, JSON.stringify(sortedAndFiltered), "EX", CACHE_TTL_SECONDS);
+    const uniqueHighlights = Array.from(
+      new Map(result.data.map((item: any) => [item.embedUrl, item])).values()
+    );
+
+    if (uniqueHighlights.length > 0) {
+      await redis.set(
+        CACHE_KEY,
+        JSON.stringify(uniqueHighlights),
+        "EX",
+        CACHE_TTL_SUCCESS
+      );
+      console.log(
+        `[Highlightly Service] Cached ${uniqueHighlights.length} new highlights.`
+      );
+    }
+
+    return uniqueHighlights;
+  } catch (error: any) {
+
+    if (error.name === "RateLimitError") {
+      console.log(
+        `[Highlightly Service] Caching RATE_LIMITED status for ${CACHE_TTL_RATELIMIT} seconds.`
+      );
+
+      await redis.set(
+        CACHE_KEY,
+        JSON.stringify({ isRateLimited: true }),
+        "EX",
+        CACHE_TTL_RATELIMIT
+      );
+    } else {
+      console.error(
+        "[Highlightly Service] An unexpected error occurred during fetch. Returning empty array.",
+        error
+      );
+    }
+
+    return [];
   }
-
-  return sortedAndFiltered;
-
 }
 
 // ===== src/lib/data/league.ts =====

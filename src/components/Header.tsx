@@ -8,8 +8,6 @@ import Image from "next/image";
 import {
   Users,
   Newspaper,
-  PlayCircle,
-  BrainCircuit,
   BookOpen,
   Repeat,
   Menu,
@@ -17,7 +15,10 @@ import {
   Search,
   ChevronDown,
   ListOrdered,
-  CalendarDays,
+  Shield,
+  Trophy,
+  TrendingUp,
+  Radio,
 } from "lucide-react";
 import { Dialog, Transition } from "@headlessui/react";
 import LanguageDropdown from "./LanguageDropdown";
@@ -78,15 +79,15 @@ export default function Header() {
   }, [pathname]);
 
   const navItems: NavItem[] = [
-    { title: t("fixtures"), href: "/", icon: CalendarDays },
+    { title: t("fixtures"), href: "/", icon: Shield },
     { title: t("teams"), href: "/football/teams", icon: Users },
-    { title: t("highlights"), href: "/highlights", icon: PlayCircle },
-    { title: t("predictions"), href: "/predictions", icon: BrainCircuit },
+    { title: t("highlights"), href: "/highlights", icon: Trophy },
+    { title: t("predictions"), href: "/predictions", icon: TrendingUp },
     { title: t("standings"), href: "/football/standings", icon: ListOrdered },
     {
       title: t("news_and_stories"),
       href: "/news",
-      icon: Newspaper,
+      icon: Radio,
       isDropdown: true,
       subLinks: [
         {

@@ -141,7 +141,7 @@ export default function DesktopMatchListItem({
               alt={teams.home.name}
               width={20}
               height={20}
-              unoptimized={true} 
+              unoptimized={true}
             />
             <span className="font-semibold text-base text-text-primary">
               {teams.home.name}

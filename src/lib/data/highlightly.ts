@@ -3,7 +3,7 @@
 import axios from "axios";
 import redis from "@/lib/redis";
 
-const API_BASE_URL = "https://sports.highlightly.net/";
+const API_BASE_URL = "https://soccer.highlightly.net/highlights";
 const API_KEY = process.env.NEXT_PUBLIC_HIGHLIGHTLY_API_KEY;
 
 const CACHE_KEY = "highlights:latest-v6"; // Incremented cache key
@@ -18,11 +18,11 @@ async function request(endpoint: string, params?: object) {
     throw new Error("Highlightly API Key is not configured.");
   }
   try {
-    const response = await axios.get(`${API_BASE_URL}/${endpoint}`, {
+    const response = await axios.get(`${API_BASE_URL}`, {
       params,
       headers: {
         "x-rapidapi-key": API_KEY,
-        "x-rapidapi-host": "sports.highlightly.net",
+        "x-rapidapi-host": "football-highlights-api.p.rapidapi.com",
       },
       timeout: 15000,
     });
@@ -31,6 +31,10 @@ async function request(endpoint: string, params?: object) {
         response.data?.data?.length || 0
       } items from /${endpoint}`
     );
+
+    console.log(JSON.stringify(params));
+    console.log(JSON.stringify(response.data));
+
     return response.data;
   } catch (error: any) {
     // This is the critical part: we now specifically check for the 429 error

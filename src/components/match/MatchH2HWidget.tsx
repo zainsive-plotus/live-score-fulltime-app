@@ -58,7 +58,6 @@ const H2HSkeleton = () => (
 export default function MatchH2HWidget({
   teams,
   currentFixtureId,
-  h2hSeoDescription,
 }: MatchH2HWidgetProps) {
   const [showAll, setShowAll] = useState(false);
   const { t } = useTranslation();
@@ -115,9 +114,6 @@ export default function MatchH2HWidget({
         <h2 className="text-2xl font-bold text-white mb-4">
           {t("head_to_head")}
         </h2>
-        <p className="italic text-[#a3a3a3] leading-relaxed mb-6">
-          {h2hSeoDescription}
-        </p>
 
         {isError || filteredH2H.length === 0 ? (
           <div className="text-center py-10 text-brand-muted">
