@@ -1,12 +1,9 @@
 // ===== src/components/FooterContent.tsx =====
 
-"use client";
-
-import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
 import Link from "next/link";
-import { IPost } from "@/models/Post";
-import { useTranslation } from "@/hooks/useTranslation";
+// import { IPost } from "@/models/Post";
+import { getI18n } from "@/lib/i18n/server";
+// import { getNews } from "@/lib/data/news";
 
 const FooterLink = ({
   href,
@@ -36,13 +33,8 @@ const FooterColumn = ({
   </div>
 );
 
-const fetchRecentPosts = async (): Promise<IPost[]> => {
-  const { data } = await axios.get("/api/posts?status=published&limit=5");
-  return data.posts; // API returns { posts: [...] }
-};
-
+// Mock data, as the original was static
 const fetchRecentFootballScores = async () => {
-  // This is mock data, so it's very fast, but we keep it here for consistency
   return [
     { id: 1, home: "RB Salzburg", away: "Real Madrid", href: "#" },
     { id: 2, home: "Juventus", away: "Man City", href: "#" },
@@ -52,20 +44,12 @@ const fetchRecentFootballScores = async () => {
   ];
 };
 
-export default function FooterContent() {
-  const { t } = useTranslation();
+export default async function FooterContent({ locale }: { locale: string }) {
+  const t = await getI18n(locale);
 
-  const { data: recentPosts } = useQuery({
-    queryKey: ["recentPostsFooter"],
-    queryFn: fetchRecentPosts,
-    staleTime: 1000 * 60 * 10,
-  });
-
-  const { data: footballScores } = useQuery({
-    queryKey: ["recentScoresFooter"],
-    queryFn: fetchRecentFootballScores,
-    staleTime: 1000 * 60 * 5,
-  });
+  // Fetch data on the server
+  // const { posts: recentPosts } = await getNews({ locale, limit: 5 });
+  const footballScores = await fetchRecentFootballScores();
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
@@ -79,19 +63,19 @@ export default function FooterContent() {
           </p>
         </div>
         <div>
-          <p className="font-bold text-white uppercase tracking-wider mb-4">
+          {/* <p className="font-bold text-white uppercase tracking-wider mb-4">
             {t("news")}
-          </p>
+          </p> */}
           <div className="text-sm text-brand-muted space-y-2">
-            {recentPosts?.map((post) => (
+            {/* {recentPosts?.map((post) => (
               <Link
                 key={post._id as string}
-                href={`/news/${post.slug}`} // Note: This should ideally include locale
+                href={`/${post.language}/news/${post.slug}`}
                 className="block truncate hover:text-white transition-colors"
               >
                 {post.title}
               </Link>
-            ))}
+            ))} */}
           </div>
         </div>
       </div>

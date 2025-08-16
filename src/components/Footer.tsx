@@ -1,42 +1,31 @@
 // ===== src/components/Footer.tsx =====
 
-"use client";
-
-import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
-import { useTranslation } from "@/hooks/useTranslation";
+import { getI18n } from "@/lib/i18n/server";
+import { headers } from "next/headers";
+import FooterContent from "./FooterContent";
+import { SUPPORTED_LOCALES, DEFAULT_LOCALE } from "@/lib/i18n/config";
 
-const FooterContentSkeleton = () => (
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12 animate-pulse">
-    {Array.from({ length: 4 }).map((_, i) => (
-      <div key={i} className="space-y-4">
-        <div className="h-5 w-1/2 bg-gray-700 rounded"></div>
-        <div className="space-y-3">
-          <div className="h-4 w-3/4 bg-gray-600 rounded"></div>
-          <div className="h-4 w-full bg-gray-600 rounded"></div>
-          <div className="h-4 w-2/3 bg-gray-600 rounded"></div>
-        </div>
-      </div>
-    ))}
-  </div>
-);
+// Helper to get locale from pathname on the server
+const getLocaleFromPathname = (pathname: string) => {
+  const firstSegment = pathname.split("/")[1];
+  if (SUPPORTED_LOCALES.includes(firstSegment)) {
+    return firstSegment;
+  }
+  return DEFAULT_LOCALE;
+};
 
-const FooterContent = dynamic(() => import("./FooterContent"), {
-  loading: () => <FooterContentSkeleton />,
-  ssr: false,
-});
-
-export default function Footer() {
-  const { t } = useTranslation();
+export default async function Footer() {
+  const pathname = headers().get("x-next-pathname") || "/";
+  const locale = getLocaleFromPathname(pathname);
+  const t = await getI18n(locale);
 
   return (
     <footer className="bg-brand-secondary text-white py-12">
       <div className="container mx-auto px-4">
-        {}
-        <FooterContent />
+        <FooterContent locale={locale} />
 
-        {}
         <div className="flex flex-col md:flex-row justify-between items-center border-t border-gray-700/50 pt-8 mb-8">
           <div className="mb-6 md:mb-0">
             <Image
@@ -46,7 +35,6 @@ export default function Footer() {
               height={40}
             />
           </div>
-          {/* CORRECTED: Added flex-wrap, justify-center, and specific gaps for responsiveness */}
           <div className="flex items-center justify-center flex-wrap gap-x-6 gap-y-4 md:gap-8">
             <Image
               src="/images/logos/18plus.svg"
@@ -77,7 +65,8 @@ export default function Footer() {
 
         <div className="flex flex-col md:flex-row justify-between items-center text-sm text-brand-muted">
           <p className="mb-4 md:mb-0 text-center md:text-left">
-            © {new Date().getFullYear()} Fan skor -{t("footer_rights_reserved")}
+            © {new Date().getFullYear()} Fan skor -{" "}
+            {t("footer_rights_reserved")}
           </p>
           <div className="flex flex-wrap justify-center gap-x-4 gap-y-2">
             <Link href="/privacy-policy" className="hover:text-white">
