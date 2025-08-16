@@ -32,16 +32,20 @@ export default async function AdminLayout({
   // We return the providers and divs directly, without the <html> and <body> tags.
   // The RootLayout at src/app/layout.tsx already provides those.
   return (
-    <NextAuthProvider>
-      <Providers>
-        <div className="flex min-h-screen bg-brand-dark">
-          {" "}
-          {/* Moved bg color here */}
-          <AdminSidebar />
-          <main className="flex-1 p-8">{children}</main>
-        </div>
-      </Providers>
-    </NextAuthProvider>
+    <html>
+      <body>
+        <NextAuthProvider>
+          <Providers>
+            <div className="flex min-h-screen bg-brand-dark">
+              {" "}
+              {/* Moved bg color here */}
+              <AdminSidebar />
+              <main className="flex-1 p-8">{children}</main>
+            </div>
+          </Providers>
+        </NextAuthProvider>
+      </body>
+    </html>
   );
   // --- END OF FIX ---
 }
