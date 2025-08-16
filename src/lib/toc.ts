@@ -20,30 +20,28 @@ export function generateTableOfContents(htmlContent: string): {
   const $ = cheerio.load(htmlContent);
   const toc: TocEntry[] = [];
 
-  // Find all h2 and h3 tags
   $("h2, h3").each((index, element) => {
     const el = $(element);
     const text = el.text();
     const level = el.is("h2") ? "h2" : "h3";
 
-    // Create a unique, URL-friendly ID from the heading text
-    const baseId = slugify(text, { lower: true, strict: true });
+    // CHANGE: Add a reliable prefix to all generated IDs.
+    // This prevents IDs from starting with numbers or special characters that can break CSS selectors.
+    const baseId = `toc-${slugify(text, { lower: true, strict: true })}`;
     let id = baseId;
     let counter = 1;
-    // Ensure the ID is unique on the page
-    while ($(`#${id}`).length > 0) {
+
+    // This loop now checks against a valid selector format.
+    while ($(`[id="${id}"]`).length > 0) {
       id = `${baseId}-${counter}`;
       counter++;
     }
 
-    // Add the id attribute to the heading tag in the HTML
     el.attr("id", id);
 
-    // Add the heading to our table of contents list
     toc.push({ level, id, text });
   });
 
-  // Return the modified HTML and the list of headings
   return {
     processedHtml: $.html(),
     toc,
