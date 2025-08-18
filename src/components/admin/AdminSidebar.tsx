@@ -25,7 +25,8 @@ import {
   Languages,
   Megaphone,
   FileJson,
-  Trophy, // <-- IMPORT THE NEW ICON
+  Trophy,
+  Users as TeamsIcon, // ADD: Alias Users to avoid naming conflict
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 
@@ -91,12 +92,12 @@ export default function AdminSidebar() {
     setIsLocalizationOpen(isLocalizationSectionActive);
   }, [isLocalizationSectionActive]);
 
-  // --- THIS IS THE FIX ---
-  // Add the new "Leagues" link to the navItems array
   const navItems = [
     { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
     { name: "News", href: "/admin/news", icon: Newspaper },
-    { name: "Leagues", href: "/admin/leagues", icon: Trophy }, // <-- ADD THIS LINE
+    { name: "Leagues", href: "/admin/leagues", icon: Trophy },
+    // ADD: New navigation item for Teams
+    { name: "Teams", href: "/admin/teams", icon: TeamsIcon },
     {
       name: "Ticker Messages",
       href: "/admin/ticker-messages",
@@ -106,7 +107,6 @@ export default function AdminSidebar() {
     { name: "File Manager", href: "/admin/file-manager", icon: FileText },
     { name: "Banners", href: "/admin/banners", icon: ImageIcon },
   ];
-  // --- END OF FIX ---
 
   const localizationSubNav = [
     { name: "Languages", href: "/admin/languages", icon: Languages },

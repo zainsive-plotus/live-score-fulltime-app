@@ -1,3 +1,5 @@
+// ===== src/app/[locale]/football/teams/page.tsx =====
+
 import type { Metadata } from "next";
 import axios from "axios";
 import Header from "@/components/Header";
@@ -10,35 +12,44 @@ import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
 
 const PAGE_PATH = "/football/teams";
+const ITEMS_PER_PAGE = 21;
 
-const fetchPopularTeams = async () => {
+// CHANGE: This function now fetches the first page of data from your new DB-backed API
+const fetchInitialTeams = async () => {
   const publicAppUrl = process.env.NEXT_PUBLIC_PUBLIC_APP_URL;
   if (!publicAppUrl) {
     console.error(
       "[Teams Page Server] NEXT_PUBLIC_PUBLIC_APP_URL is not defined."
     );
-    return [];
+    return {
+      teams: [],
+      pagination: { currentPage: 1, totalPages: 0, totalCount: 0 },
+    };
   }
-  const apiUrl = `${publicAppUrl}/api/directory/teams`;
+
+  const apiUrl = `${publicAppUrl}/api/teams/paginated?page=1&limit=${ITEMS_PER_PAGE}`;
+
   try {
     const { data } = await axios.get(apiUrl, { timeout: 15000 });
-
     return data;
   } catch (error: any) {
     console.error(
-      `[Teams Page Server] Failed to fetch popular teams (${apiUrl}):`,
+      `[Teams Page Server] Failed to fetch initial teams (${apiUrl}):`,
       error.message
     );
-    return [];
+    return {
+      teams: [],
+      pagination: { currentPage: 1, totalPages: 0, totalCount: 0 },
+    };
   }
 };
 
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ locale: string }>;
+  params: { locale: string };
 }): Promise<Metadata> {
-  const { locale } = await params;
+  const { locale } = params;
 
   const t = await getI18n(locale);
   const hreflangAlternates = await generateHreflangTags(PAGE_PATH, "", locale);
@@ -56,11 +67,11 @@ export async function generateMetadata({
 export default async function TeamsPage({
   params,
 }: {
-  params: Promise<{ locale: string }>;
+  params: { locale: string };
 }) {
-  const { locale } = await params;
+  const { locale } = params;
 
-  const initialTeams = await fetchPopularTeams();
+  const initialData = await fetchInitialTeams();
   const t = await getI18n(locale);
 
   const seoDescription = t("teams_page_seo_text");
@@ -91,7 +102,8 @@ export default async function TeamsPage({
             </p>
           </div>
 
-          <TeamListClient initialTeams={initialTeams} />
+          {/* CHANGE: Pass the initial server-fetched data to the client component */}
+          <TeamListClient initialData={initialData} />
         </main>
 
         <aside className="hidden lg:block lg:col-span-1 space-y-8 min-w-0">
