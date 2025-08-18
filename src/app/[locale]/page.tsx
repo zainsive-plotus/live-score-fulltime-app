@@ -34,8 +34,8 @@ export async function generateMetadata({
   return {
     metadataBase: new URL(METADATA_BASE_URL),
     alternates: hreflangAlternates,
-    title: title,
-    description: description,
+    // title: title,
+    // description: description,
     icons: {
       icon: [{ url: "/favicon.ico", type: "image/png" }],
       apple: [{ url: "/favicon.ico" }],
@@ -79,26 +79,35 @@ export default async function HomePage({
   const { locale } = await params;
 
   const t = await getI18n(locale);
+
+  const title = t("homepage_meta_title");
+  const description = t("homepage_meta_description");
+
   const homepageAboutSeoText =
     initialHomepageText || t("homepage_about_seo_text");
   const sidebarAboutSeoText = initialSidebarText || t("sidebar_about_seo_text");
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr] lg:items-start lg:py-8">
-        {/* ***** FIX IS HERE: Lazy-load the entire Sidebar ***** */}
-        <Suspense fallback={<SidebarSkeleton />}>
-          <Sidebar />
-        </Suspense>
+    <>
+      {" "}
+      <title>{title}</title>
+      <meta name="description" content={description} />
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr] lg:items-start lg:py-8">
+          {/* ***** FIX IS HERE: Lazy-load the entire Sidebar ***** */}
+          <Suspense fallback={<SidebarSkeleton />}>
+            <Sidebar />
+          </Suspense>
 
-        <main className="min-w-0">
-          <MainContent
-            sidebarAboutSeoText={sidebarAboutSeoText}
-            homepageAboutSeoText={homepageAboutSeoText}
-          />
-        </main>
+          <main className="min-w-0">
+            <MainContent
+              sidebarAboutSeoText={sidebarAboutSeoText}
+              homepageAboutSeoText={homepageAboutSeoText}
+            />
+          </main>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

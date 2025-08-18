@@ -15,6 +15,7 @@ import TeamInfoWidget from "@/components/team/TeamInfoWidget";
 import TeamTrophiesWidget from "@/components/team/TeamTrophiesWidget";
 import AdSlotWidget from "@/components/AdSlotWidget";
 import RecentNewsWidget from "@/components/RecentNewsWidget";
+import TeamSeoWidget from "@/components/team/TeamSeoWidget";
 
 const getTeamIdFromSlug = (slug: string): string | null => {
   if (!slug) return null;
@@ -84,6 +85,9 @@ export default async function TeamPage({
   const { teamInfo, squad, fixtures } = teamData;
   const { team, venue } = teamInfo;
 
+  const seoWidgetTitle = t("team_seo_widget_title", { teamName: team.name });
+  const seoWidgetText = t("team_page_seo_text", { teamName: team.name });
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -103,6 +107,7 @@ export default async function TeamPage({
         <aside className="hidden lg:block lg:col-span-1 space-y-8 min-w-0">
           <TeamInfoWidget venue={venue} />
           <TeamTrophiesWidget teamId={team.id} />
+          <TeamSeoWidget title={seoWidgetTitle} seoText={seoWidgetText} />
           <RecentNewsWidget />
           <AdSlotWidget location="match_sidebar" />
         </aside>

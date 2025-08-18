@@ -16,6 +16,7 @@ import { TimeZoneProvider } from "@/context/TimeZoneContext";
 import { i18nCache } from "@/lib/i18n/i18n.cache";
 import Script from "next/script";
 import { inter } from "../fonts"; // <-- 1. IMPORT THE FONT
+import { getI18n } from "@/lib/i18n/server";
 
 export default async function LocaleLayout({
   children,
