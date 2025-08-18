@@ -26,7 +26,8 @@ import {
   Megaphone,
   FileJson,
   Trophy,
-  Users as TeamsIcon, // ADD: Alias Users to avoid naming conflict
+  Users as TeamsIcon,
+  BrainCircuit, // ADD: Import new icon
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 
@@ -64,7 +65,8 @@ export default function AdminSidebar() {
     pathname.startsWith("/admin/auto-news") ||
     pathname.startsWith("/admin/ai-journalists") ||
     pathname.startsWith("/admin/title-templates") ||
-    pathname.startsWith("/admin/curated-news");
+    pathname.startsWith("/admin/curated-news") ||
+    pathname.startsWith("/admin/predictions"); // ADD: Include new page
 
   const isPagesSectionActive =
     pathname.startsWith("/admin/faqs") || pathname.startsWith("/admin/pages");
@@ -96,7 +98,6 @@ export default function AdminSidebar() {
     { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
     { name: "News", href: "/admin/news", icon: Newspaper },
     { name: "Leagues", href: "/admin/leagues", icon: Trophy },
-    // ADD: New navigation item for Teams
     { name: "Teams", href: "/admin/teams", icon: TeamsIcon },
     {
       name: "Ticker Messages",
@@ -118,6 +119,8 @@ export default function AdminSidebar() {
     { name: "Curated News", href: "/admin/curated-news", icon: Bot },
     { name: "AI Journalists", href: "/admin/ai-journalists", icon: User },
     { name: "Title Templates", href: "/admin/title-templates", icon: Type },
+    // ADD: New sub-navigation item for Predictions
+    { name: "Predictions", href: "/admin/predictions", icon: BrainCircuit },
   ];
 
   const pagesSubNav = [

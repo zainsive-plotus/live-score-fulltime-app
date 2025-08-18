@@ -14,6 +14,8 @@ import {
   RecentNewsWidgetSkeleton,
 } from "./skeletons/WidgetSkeletons";
 
+import PredictionSidebarWidget from "./PredictionSidebarWidget";
+
 // --- SKELETON COMPONENTS ---
 const MatchListSkeleton = () => (
   <div className="bg-brand-secondary rounded-lg p-4 h-[600px] animate-pulse">
@@ -106,6 +108,7 @@ export const MainContent: React.FC<MainContentProps> = ({
 
       <div className="lg:col-span-1 flex flex-col gap-6">
         {/* <LatestHighlightsWidget /> */}
+        <PredictionSidebarWidget />
         <AdSlotWidget location="homepage_right_sidebar" />
         <StandingsDisplay />
         <div className="space-y-8 gap-8">

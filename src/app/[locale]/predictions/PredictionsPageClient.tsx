@@ -12,12 +12,20 @@ import PredictionCard, {
 } from "@/components/predictions/PredictionCard";
 import { useTranslation } from "@/hooks/useTranslation";
 
+// CHANGE: The expected structure from the API is now the enriched fixture from our database
 interface EnrichedFixture {
   fixture: any;
+  teams: any;
+  league: any;
   prediction: {
     home: number;
     draw: number;
     away: number;
+  };
+  h2h: any[];
+  form: {
+    home: string | null;
+    away: string | null;
   };
 }
 
@@ -32,9 +40,6 @@ const fetchPredictions = async ({
   const { data } = await axios.get(
     `/api/predictions/upcoming?page=${pageParam}`
   );
-
-  console.log(data);
-
   return data;
 };
 
@@ -97,8 +102,11 @@ export default function PredictionsPageClient() {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {data.pages.map((page, i) => (
           <Fragment key={i}>
-            {page.fixtures.map((fixture) => (
-              <PredictionCard key={fixture.fixture.id} fixture={fixture} />
+            {page.fixtures.map((enrichedFixture) => (
+              <PredictionCard
+                key={enrichedFixture.fixture.id}
+                fixture={enrichedFixture}
+              />
             ))}
           </Fragment>
         ))}
