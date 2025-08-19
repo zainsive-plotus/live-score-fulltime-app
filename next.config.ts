@@ -1,3 +1,5 @@
+// ===== next.config.js =====
+
 import type { NextConfig } from "next";
 const { fontFamily } = require("tailwindcss/defaultTheme");
 
@@ -22,17 +24,19 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
+    // CHANGE: This is the correct way to allow images from any source.
+    // The `remotePatterns` array is used with a wildcard hostname.
+    // The deprecated `domains` array has been completely removed.
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "**",
-        port: "",
-        pathname: "/**", // Allow any image path from this bucket
+        hostname: "**", // Allows any hostname under HTTPS
+      },
+      {
+        protocol: "http",
+        hostname: "**", // Allows any hostname under HTTP
       },
     ],
-
-    domains: ["*"],
-
     dangerouslyAllowSVG: true,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },

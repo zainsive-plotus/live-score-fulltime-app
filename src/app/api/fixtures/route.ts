@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server";
 import axios from "axios";
 import { format, addDays } from "date-fns";
+import { leagueIdToPriorityMap } from "@/config/topLeaguesConfig"; // ADD: Import the priority map
 
 const STATUS_MAP: Record<string, string[]> = {
   all: [],
@@ -46,10 +47,6 @@ export async function GET(request: Request) {
             )
           : allFixtures;
 
-      matchesToGroup.sort(
-        (a: any, b: any) => a.fixture.timestamp - b.fixture.timestamp
-      );
-
       const groupedMatches = matchesToGroup.reduce((acc: any, match: any) => {
         const groupKey = match.league.id;
         if (!acc[groupKey]) {
@@ -70,8 +67,23 @@ export async function GET(request: Request) {
 
       const leagueEntries = Object.values(groupedMatches);
 
-      // ***** FIX IS HERE: Conditional Pagination *****
-      // If limit and page are provided, paginate. Otherwise, return everything.
+      // CHANGE: Add sorting logic based on the priority map
+      leagueEntries.sort((a: any, b: any) => {
+        const priorityA =
+          leagueIdToPriorityMap.get(a.leagueInfo.id.toString()) || 999;
+        const priorityB =
+          leagueIdToPriorityMap.get(b.leagueInfo.id.toString()) || 999;
+
+        if (priorityA !== priorityB) {
+          return priorityA - priorityB;
+        }
+        // If priorities are the same, sort by country and then league name
+        if (a.leagueInfo.country !== b.leagueInfo.country) {
+          return a.leagueInfo.country.localeCompare(b.leagueInfo.country);
+        }
+        return a.leagueInfo.name.localeCompare(b.leagueInfo.name);
+      });
+
       if (limit > 0 && page > 0) {
         const totalLeagues = leagueEntries.length;
         const totalPages = Math.ceil(totalLeagues / limit);
@@ -84,12 +96,11 @@ export async function GET(request: Request) {
           pagination: { currentPage: page, totalPages, totalLeagues },
         });
       } else {
-        // Return all groups if no pagination is requested
         return NextResponse.json({ leagueGroups: leagueEntries });
       }
     }
 
-    // ... (rest of the non-paginated, non-grouped logic remains the same)
+    // ... (rest of the file for non-grouped fetches remains unchanged)
     let matchesData: any[] = [];
 
     if (leagueId && season) {
@@ -147,7 +158,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(matchesData);
   } catch (error) {
-    console.error("[API/fixtures] Error fetching fixture data:", error);
+    console.error("[API/fixtures] Failed to fetch fixture data:", error);
     return NextResponse.json(
       { error: "Failed to fetch fixture data." },
       { status: 500 }

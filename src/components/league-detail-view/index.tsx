@@ -1,28 +1,66 @@
+// ===== src/components/league-detail-view/index.tsx =====
+
+"use client"; // ADD: This component now needs to be a client component to use hooks
+
 import Image from "next/image";
-import { Shield, Users, Trophy, Flag } from "lucide-react";
+import { Shield, Users, Trophy, Flag, ArrowLeft } from "lucide-react"; // ADD: Import ArrowLeft
 import LeagueStatCard from "./LeagueStatCard";
 import LeagueFixturesWidget from "./LeagueFixturesWidget";
 import LeagueStandingsWidget from "./LeagueStandingsWidget";
 import LeagueTopScorersWidget from "./LeagueTopScorersWidget";
 import LeagueTeamsList from "./LeagueTeamsList";
 import { proxyImageUrl } from "@/lib/image-proxy";
-import { generateLeagueSlug } from "@/lib/generate-league-slug"; // Import slug generator
+import { generateLeagueSlug } from "@/lib/generate-league-slug";
+import { useLeagueContext } from "@/context/LeagueContext"; // ADD: Import the context
+import { useTranslation } from "@/hooks/useTranslation"; // ADD: Import translation hook
 
 export default function LeagueDetailView({ leagueData }: { leagueData: any }) {
-  const { league, country, seasons } = leagueData;
+  const { setSelectedLeague } = useLeagueContext(); // ADD: Get the setter from context
+  const { t } = useTranslation(); // ADD: Get the translation function
+
+  const isFromSidebar = !!leagueData.logoUrl;
+
+  const league = isFromSidebar
+    ? {
+        id: leagueData.id,
+        name: leagueData.name,
+        logo: leagueData.logoUrl,
+        type: leagueData.type,
+      }
+    : leagueData.league;
+
+  const country = isFromSidebar
+    ? {
+        name: leagueData.countryName,
+        flag: leagueData.countryFlagUrl,
+      }
+    : leagueData.country;
+
+  const seasons = leagueData.seasons || [];
+  const standings = leagueData.standings || [];
+
   const currentSeason =
-    seasons.find((s: any) => s.current === true)?.year ||
+    seasons?.find((s: any) => s.current === true)?.year ||
     new Date().getFullYear();
 
-  // Add href to the league object for the standings widget link
   const leagueWithHref = {
     ...league,
     href: generateLeagueSlug(league.name, league.id),
   };
 
+  const hasFullData = seasons && seasons.length > 0;
+
   return (
     <div className="flex flex-col gap-8">
-      {/* 1. HERO HEADER (Unchanged) */}
+      {/* ADD: Back to Match List Button */}
+      <button
+        onClick={() => setSelectedLeague(null)}
+        className="flex items-center gap-2 text-sm font-semibold text-brand-muted hover:text-white transition-colors self-start"
+      >
+        <ArrowLeft size={16} />
+        {t("back_to_match_list")}
+      </button>
+
       <div className="flex flex-col items-center text-center gap-4 p-4 bg-brand-secondary rounded-xl">
         <Image
           src={proxyImageUrl(league.logo)}
@@ -33,7 +71,7 @@ export default function LeagueDetailView({ leagueData }: { leagueData: any }) {
         />
         <h1 className="text-4xl font-extrabold text-white">{league.name}</h1>
         <div className="flex items-center gap-2 text-brand-muted">
-          {country.flag && (
+          {country?.flag && (
             <Image
               src={proxyImageUrl(country.flag)}
               alt={country.name}
@@ -41,14 +79,13 @@ export default function LeagueDetailView({ leagueData }: { leagueData: any }) {
               height={20}
             />
           )}
-          <span>{country.name}</span>
+          <span>{country?.name}</span>
         </div>
       </div>
 
-      {/* 2. "AT A GLANCE" STAT CARDS (Unchanged) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <LeagueStatCard icon={<Shield />} label="Type" value={league.type} />
-        <LeagueStatCard icon={<Flag />} label="Country" value={country.name} />
+        <LeagueStatCard icon={<Flag />} label="Country" value={country?.name} />
         <LeagueStatCard
           icon={<Trophy />}
           label="Current Season"
@@ -57,34 +94,37 @@ export default function LeagueDetailView({ leagueData }: { leagueData: any }) {
         <LeagueStatCard
           icon={<Users />}
           label="Teams"
-          value={league.standings?.[0]?.length || "N/A"}
+          value={standings?.[0]?.length || "N/A"}
         />
       </div>
 
-      {/* 3. FIXTURES WIDGET (Primary Content) */}
       <LeagueFixturesWidget leagueId={league.id} season={currentSeason} />
 
-      {/* --- THIS IS THE NEW 2-COLUMN LAYOUT --- */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-        {/* Left Column: Standings */}
-        {league.type === "League" && (
+        {league.type === "League" && standings.length > 0 && (
           <LeagueStandingsWidget
-            standings={league.standings}
-            league={leagueWithHref}
+            initialStandings={standings}
+            leagueSeasons={seasons.map((s: any) => s.year)}
+            currentSeason={currentSeason}
+            isLoading={false}
+            leagueId={league.id}
+            leagueSlug={leagueWithHref.href.split("/").pop()}
           />
         )}
 
-        {/* Right Column: Top Scorers */}
-        <LeagueTopScorersWidget leagueId={league.id} season={currentSeason} />
+        {hasFullData && (
+          <LeagueTopScorersWidget leagueId={league.id} season={currentSeason} />
+        )}
       </div>
 
-      {/* 5. FULL TEAMS LIST (remains at the bottom) */}
-      <LeagueTeamsList
-        leagueId={league.id}
-        season={currentSeason}
-        countryName={country.name}
-        countryFlag={country.flag}
-      />
+      {hasFullData && (
+        <LeagueTeamsList
+          leagueId={league.id}
+          season={currentSeason}
+          countryName={country.name}
+          countryFlag={country.flag}
+        />
+      )}
     </div>
   );
 }

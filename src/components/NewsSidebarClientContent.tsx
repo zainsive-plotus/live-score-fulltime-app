@@ -27,7 +27,7 @@ export default function NewsSidebarClientContent() {
     <>
       <AdSlotWidget location="news_sidebar" />
       <RecentNewsWidget />
-      <CasinoPartnerWidget />
+      {/* <CasinoPartnerWidget /> */}
       <AdSlotWidget location="news_sidebar_bottom" />
     </>
   );
