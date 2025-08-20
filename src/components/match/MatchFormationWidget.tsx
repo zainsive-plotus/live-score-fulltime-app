@@ -15,150 +15,97 @@ const fetchLineups = async (fixtureId: string) => {
   return data;
 };
 
-// Helper to calculate player positions based on formation string
-const mapFormationToPositions = (formation: string, startXI: any[]) => {
+const mapFormationToPositions = (
+  formation: string,
+  startXI: any[],
+  isHomeTeam: boolean
+) => {
   if (
     !formation ||
     !startXI ||
     !Array.isArray(startXI) ||
     startXI.length < 11
   ) {
-    return (startXI || []).map((p, i) => ({
-      ...p.player,
-      pos: { x: (i % 4) * 25 + 12.5, y: Math.floor(i / 4) * 25 + 15 },
-    }));
+    return [];
   }
-
   const formationParts = formation
     .split("-")
     .map(Number)
     .filter((n) => !isNaN(n));
-  if (formationParts.reduce((a, b) => a + b, 0) !== 10) {
-    return startXI.map((p, i) => ({
-      ...p.player,
-      pos: { x: (i % 4) * 25 + 12.5, y: Math.floor(i / 4) * 25 + 15 },
-    }));
-  }
+  if (formationParts.reduce((a, b) => a + b, 0) !== 10) return [];
 
   const players = [...startXI];
   const positionedPlayers = [];
 
   const goalkeeper = players.find((p) => p.player.pos === "G");
   if (goalkeeper) {
-    positionedPlayers.push({ ...goalkeeper.player, pos: { x: 50, y: 95 } });
+    positionedPlayers.push({
+      ...goalkeeper.player,
+      pos: { x: 50, y: isHomeTeam ? 95 : 5 },
+    });
   }
 
-  const outfieldPlayers = players.filter((p) => p.player.pos !== "G").reverse();
+  const outfieldPlayers = players.filter((p) => p.player.pos !== "G");
+
+  if (!isHomeTeam) outfieldPlayers.reverse();
+
   const totalRows = formationParts.length;
   let playerIndex = 0;
 
   formationParts.forEach((playersInRow, rowIndex) => {
-    const y = 85 - ((rowIndex + 1) / (totalRows + 1)) * 75;
-    playersToPosition(playersInRow).forEach((player, i) => {
-      if (!player) return;
-      const x = (100 / (playersInRow + 1)) * (i + 1);
-      positionedPlayers.push({ ...player.player, pos: { x, y } });
-    });
-  });
+    const y = isHomeTeam
+      ? 90 - ((rowIndex + 1) / (totalRows + 1)) * 40
+      : 10 + ((rowIndex + 1) / (totalRows + 1)) * 40;
 
-  function playersToPosition(num: number) {
-    const arr = [];
-    for (let i = 0; i < num; i++) {
-      arr.push(outfieldPlayers.shift());
+    for (let i = 0; i < playersInRow; i++) {
+      if (playerIndex < outfieldPlayers.length) {
+        const x = (100 / (playersInRow + 1)) * (i + 1);
+        positionedPlayers.push({
+          ...outfieldPlayers[playerIndex].player,
+          pos: { x, y },
+        });
+        playerIndex++;
+      }
     }
-    return arr;
-  }
+  });
 
   return positionedPlayers;
 };
 
 const Player = memo(
-  ({ player, colorClass }: { player: any; colorClass: string }) => (
-    <div
-      className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 group cursor-pointer"
-      style={{ top: `${player.pos.y}%`, left: `${player.pos.x}%` }}
-      title={player.name}
-    >
-      <div className="relative">
-        <Image
-          src={proxyImageUrl(player.photo)}
-          alt={player.name}
-          width={40}
-          height={40}
-          className="rounded-full bg-black/20 w-10 h-10 object-cover"
-        />
-        <div
-          className={`absolute -bottom-1 -right-1 w-5 h-5 flex items-center justify-center rounded-full font-bold text-white text-[10px] shadow-md border-2 border-brand-dark ${colorClass}`}
-        >
-          {player.number}
+  ({ player, colorClass }: { player: any; colorClass: string }) => {
+    // FIX: Construct the full, absolute URL for the player photo
+    const playerPhotoUrl = `https://media.api-sports.io/football/players/${player.id}.png`;
+
+    return (
+      <div
+        className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 group cursor-pointer"
+        style={{ top: `${player.pos.y}%`, left: `${player.pos.x}%` }}
+        title={player.name}
+      >
+        <div className="relative">
+          <Image
+            src={proxyImageUrl(playerPhotoUrl)} // Use the newly constructed full URL
+            alt={player.name}
+            width={40}
+            height={40}
+            unoptimized={true}
+            className="rounded-full bg-black/20 w-10 h-10 object-cover"
+          />
+          <div
+            className={`absolute -bottom-1 -right-1 w-5 h-5 flex items-center justify-center rounded-full font-bold text-white text-[10px] shadow-md border-2 border-brand-dark ${colorClass}`}
+          >
+            {player.number}
+          </div>
         </div>
+        <span className="text-xs font-semibold text-white bg-black/60 px-2 py-0.5 rounded-md whitespace-nowrap shadow-lg">
+          {player.name.split(" ").slice(-1)[0]}
+        </span>
       </div>
-      <span className="text-xs font-semibold text-white bg-black/60 px-2 py-0.5 rounded-md whitespace-nowrap shadow-lg">
-        {player.name.split(" ").slice(-1)[0]}
-      </span>
-    </div>
-  )
+    );
+  }
 );
 Player.displayName = "Player";
-
-const FootballPitch = ({
-  team,
-  players,
-  colorClass,
-  t,
-}: {
-  team: any;
-  players: any[];
-  colorClass: string;
-  t: (key: string) => string;
-}) => (
-  <div>
-    <div className="flex items-center justify-between mb-3 px-2">
-      <h3 className="font-bold text-xl text-white">{team.team.name}</h3>
-      <div className="flex items-center gap-2 text-sm font-semibold text-brand-muted bg-brand-dark/50 px-3 py-1.5 rounded-lg">
-        <Shirt size={16} />
-        {team.formation}
-      </div>
-    </div>
-    <div
-      className="relative aspect-[7/10] w-full rounded-lg overflow-hidden border-2 border-white/10"
-      style={{
-        background: "radial-gradient(circle, #057F3A 0%, #034F24 100%)",
-      }}
-    >
-      <div className="absolute inset-0 z-0 opacity-50">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[30%] aspect-square rounded-full border-2 border-white/20"></div>
-        <div className="absolute top-1/2 left-0 w-full h-0.5 bg-white/20"></div>
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-px h-full bg-white/20"></div>
-        <div className="absolute top-0 left-[20%] w-[60%] h-[15%] rounded-b-xl border-b-2 border-l-2 border-r-2 border-white/20"></div>
-        <div className="absolute bottom-0 left-[20%] w-[60%] h-[15%] rounded-t-xl border-t-2 border-l-2 border-r-2 border-white/20"></div>
-      </div>
-      <div className="absolute inset-0 z-10">
-        {players.map((player) => (
-          <Player key={player.id} player={player} colorClass={colorClass} />
-        ))}
-      </div>
-    </div>
-    <div className="bg-brand-dark/30 p-3 rounded-b-lg space-y-3">
-      <div>
-        <h4 className="flex items-center gap-2 font-bold text-sm mb-2 text-brand-muted">
-          <Users size={16} /> {t("substitutes")}
-        </h4>
-        <p className="text-xs text-brand-light leading-relaxed">
-          {team.substitutes.map((p: any) => p.player.name).join(", ")}
-        </p>
-      </div>
-      <div>
-        <h4 className="flex items-center gap-2 font-bold text-sm mb-2 text-brand-muted">
-          <UserSquare size={16} /> {t("coach")}
-        </h4>
-        <p className="text-sm font-semibold text-brand-light">
-          {team.coach.name}
-        </p>
-      </div>
-    </div>
-  </div>
-);
 
 const FormationSkeleton = () => (
   <div className="bg-brand-secondary rounded-lg p-4 md:p-6 animate-pulse">
@@ -192,30 +139,29 @@ export default memo(function MatchFormationWidget({
     return <FormationSkeleton />;
   }
 
-  // --- THIS IS THE FIX ---
-  // If the essential data isn't present, return null to hide the widget.
   if (
     isError ||
     !lineups ||
     lineups.length < 2 ||
-    !lineups[0].formation || // Check specifically for formation string
+    !lineups[0].formation ||
     !lineups[1].formation ||
     !lineups[0].startXI ||
     !lineups[1].startXI
   ) {
     return null;
   }
-  // --- END OF FIX ---
 
   const homeLineup = lineups[0];
   const awayLineup = lineups[1];
   const homePositionedPlayers = mapFormationToPositions(
     homeLineup.formation,
-    homeLineup.startXI
+    homeLineup.startXI,
+    true
   );
   const awayPositionedPlayers = mapFormationToPositions(
     awayLineup.formation,
-    awayLineup.startXI
+    awayLineup.startXI,
+    false
   );
 
   return (
@@ -223,19 +169,108 @@ export default memo(function MatchFormationWidget({
       <h2 className="text-2xl font-bold text-white mb-6 text-center">
         {t("formations")}
       </h2>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <FootballPitch
-          team={homeLineup}
-          players={homePositionedPlayers}
-          colorClass="bg-[var(--brand-accent)]"
-          t={t}
-        />
-        <FootballPitch
-          team={awayLineup}
-          players={awayPositionedPlayers}
-          colorClass="bg-blue-600"
-          t={t}
-        />
+
+      <div className="flex justify-between items-center mb-4 px-4">
+        <div className="flex items-center gap-3">
+          <Image
+            src={proxyImageUrl(homeLineup.team.logo)}
+            alt={homeLineup.team.name}
+            width={40}
+            height={40}
+            unoptimized={true}
+          />
+          <div className="text-left">
+            <h3 className="font-bold text-lg text-white">
+              {homeLineup.team.name}
+            </h3>
+            <p className="text-sm font-semibold text-brand-muted">
+              {homeLineup.formation}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="text-right">
+            <h3 className="font-bold text-lg text-white">
+              {awayLineup.team.name}
+            </h3>
+            <p className="text-sm font-semibold text-brand-muted">
+              {awayLineup.formation}
+            </p>
+          </div>
+          <Image
+            src={proxyImageUrl(awayLineup.team.logo)}
+            alt={awayLineup.team.name}
+            width={40}
+            height={40}
+          />
+        </div>
+      </div>
+
+      <div className="w-full max-w-lg mx-auto">
+        <div
+          className="relative aspect-[7/10] w-full rounded-lg overflow-hidden border-2 border-white/10"
+          style={{
+            background: "radial-gradient(circle, #057F3A 0%, #034F24 100%)",
+          }}
+        >
+          <div className="absolute inset-0 z-0 opacity-50">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[30%] aspect-square rounded-full border-2 border-white/20"></div>
+            <div className="absolute top-1/2 left-0 w-full h-0.5 bg-white/20"></div>
+            <div className="absolute top-0 left-[20%] w-[60%] h-[15%] rounded-b-xl border-b-2 border-l-2 border-r-2 border-white/20"></div>
+            <div className="absolute bottom-0 left-[20%] w-[60%] h-[15%] rounded-t-xl border-t-2 border-l-2 border-r-2 border-white/20"></div>
+          </div>
+          <div className="absolute inset-0 z-10">
+            {homePositionedPlayers.map((player) => (
+              <Player
+                key={`home-${player.id}`}
+                player={player}
+                colorClass="bg-[var(--brand-accent)]"
+              />
+            ))}
+            {awayPositionedPlayers.map((player) => (
+              <Player
+                key={`away-${player.id}`}
+                player={player}
+                colorClass="bg-blue-600"
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+        <div className="bg-brand-dark/30 p-3 rounded-lg space-y-2">
+          <h4 className="flex items-center gap-2 font-bold text-sm text-brand-muted">
+            <Users size={16} /> {t("substitutes")} ({homeLineup.team.name})
+          </h4>
+          <p className="text-xs text-brand-light leading-relaxed">
+            {homeLineup.substitutes.map((p: any) => p.player.name).join(", ")}
+          </p>
+        </div>
+        <div className="bg-brand-dark/30 p-3 rounded-lg space-y-2">
+          <h4 className="flex items-center gap-2 font-bold text-sm text-brand-muted">
+            <Users size={16} /> {t("substitutes")} ({awayLineup.team.name})
+          </h4>
+          <p className="text-xs text-brand-light leading-relaxed">
+            {awayLineup.substitutes.map((p: any) => p.player.name).join(", ")}
+          </p>
+        </div>
+        <div className="bg-brand-dark/30 p-3 rounded-lg">
+          <h4 className="flex items-center gap-2 font-bold text-sm text-brand-muted">
+            <UserSquare size={16} /> {t("coach")}
+          </h4>
+          <p className="text-sm font-semibold text-brand-light mt-1">
+            {homeLineup.coach.name}
+          </p>
+        </div>
+        <div className="bg-brand-dark/30 p-3 rounded-lg">
+          <h4 className="flex items-center gap-2 font-bold text-sm text-brand-muted">
+            <UserSquare size={16} /> {t("coach")}
+          </h4>
+          <p className="text-sm font-semibold text-brand-light mt-1">
+            {awayLineup.coach.name}
+          </p>
+        </div>
       </div>
     </div>
   );
