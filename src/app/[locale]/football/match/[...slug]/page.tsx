@@ -29,6 +29,7 @@ const getFixtureIdFromSlug = (slug: string): string | null => {
   return /^\d+$/.test(lastPart) ? lastPart : null;
 };
 
+// ... (generateMetadata function remains the same)
 export async function generateMetadata({
   params,
 }: {
@@ -136,8 +137,6 @@ export default async function MatchDetailPage({
     homeTeam: teams.home.name,
     awayTeam: teams.away.name,
   });
-
-  // ADD: Generate the title and SEO text on the server
   const aboutMatchTitle = t("about_the_match_title", {
     homeTeam: teams.home.name,
     awayTeam: teams.away.name,
@@ -149,78 +148,99 @@ export default async function MatchDetailPage({
   });
 
   return (
-    <div className="bg-brand-dark min-h-screen">
-      <Header />
-      <div className="container mx-auto p-4 md:p-6 lg:grid lg:grid-cols-[320px_1fr_320px] lg:gap-8 lg:items-start">
-        <aside className="hidden lg:block lg:sticky lg:top-6 space-y-6">
-          <Suspense fallback={<StandingsWidgetSkeleton />}>
-            <StandingsWidget
-              leagueId={league.id}
-              season={league.season}
-              homeTeamId={teams.home.id}
-              awayTeamId={teams.away.id}
-              variant="compact"
-            />
-          </Suspense>
-          <AdSlotWidget location="match_sidebar_left" />
-        </aside>
+    <>
+      <title>
+        {t("match_page_title", {
+          homeTeam: teams.home.name,
+          awayTeam: teams.away.name,
+          leagueName: league.name,
+        })}
+      </title>
+      <meta
+        name="description"
+        content={t("match_page_description", {
+          homeTeam: teams.home.name,
+          awayTeam: teams.away.name,
+          leagueName: league.name,
+        })}
+      />
 
-        <main className="space-y-6 min-w-0">
-          <MatchHeader fixture={fixtureData} />
-
-          <Suspense fallback={<TeamFormContentSkeleton />}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <TeamFormWidget
-                team={teams.home}
-                location="Home"
-                fixtureData={fixtureData}
+      <div className="bg-brand-dark min-h-screen">
+        <Header />
+        {/* CHANGE: Responsive grid layout */}
+        <div className="container mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-[320px_1fr_320px] gap-8">
+          {/* CHANGE: Left sidebar stacks below main on mobile, but appears first on desktop */}
+          <aside className="lg:sticky lg:top-6 space-y-6 lg:order-1">
+            <Suspense fallback={<StandingsWidgetSkeleton />}>
+              <StandingsWidget
+                leagueId={league.id}
+                season={league.season}
+                homeTeamId={teams.home.id}
+                awayTeamId={teams.away.id}
+                variant="compact"
               />
-              <TeamFormWidget
-                team={teams.away}
-                location="Away"
-                fixtureData={fixtureData}
+            </Suspense>
+            <AdSlotWidget location="match_sidebar_left" />
+          </aside>
+
+          {/* CHANGE: Main content is always first on mobile */}
+          <main className="space-y-6 min-w-0 order-first lg:order-2">
+            <MatchHeader fixture={fixtureData} />
+
+            <Suspense fallback={<TeamFormContentSkeleton />}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <TeamFormWidget
+                  team={teams.home}
+                  location="Home"
+                  fixtureData={fixtureData}
+                />
+                <TeamFormWidget
+                  team={teams.away}
+                  location="Away"
+                  fixtureData={fixtureData}
+                />
+              </div>
+            </Suspense>
+
+            <Suspense fallback={<FormationSkeleton />}>
+              <MatchFormationWidget fixtureId={fixtureId} />
+            </Suspense>
+
+            <MatchLineupsWidget lineups={fixtureData.lineups} />
+
+            <Suspense fallback={<H2HContentSkeleton />}>
+              <MatchH2HWidget
+                teams={teams}
+                currentFixtureId={fixtureId}
+                h2hSeoDescription={h2hSeoDescription}
               />
-            </div>
-          </Suspense>
+            </Suspense>
 
-          <Suspense fallback={<FormationSkeleton />}>
-            <MatchFormationWidget fixtureId={fixtureId} />
-          </Suspense>
+            {(isLive || isFinished) && (
+              <MatchStatsWidget statistics={statistics || []} teams={teams} />
+            )}
 
-          <MatchLineupsWidget lineups={fixtureData.lineups} />
-
-          <Suspense fallback={<H2HContentSkeleton />}>
-            <MatchH2HWidget
-              teams={teams}
-              currentFixtureId={fixtureId}
-              h2hSeoDescription={h2hSeoDescription}
-            />
-          </Suspense>
-
-          {(isLive || isFinished) && (
-            <MatchStatsWidget statistics={statistics || []} teams={teams} />
-          )}
-
-          <MatchActivityWidget
-            fixtureId={fixtureId}
-            isLive={isLive}
-            homeTeamId={teams.home.id}
-            activitySeoDescription={activitySeoDescription}
-          />
-        </main>
-
-        <aside className="space-y-6 lg:sticky lg:top-6 mt-8 lg:mt-0">
-          <Suspense fallback={<SidebarSkeleton />}>
-            {/* CHANGE: Pass the new props to the sidebar content */}
-            <SidebarContent
-              fixtureData={fixtureData}
+            <MatchActivityWidget
+              fixtureId={fixtureId}
               isLive={isLive}
-              aboutMatchTitle={aboutMatchTitle}
-              aboutMatchSeoText={aboutMatchSeoText}
+              homeTeamId={teams.home.id}
+              activitySeoDescription={activitySeoDescription}
             />
-          </Suspense>
-        </aside>
+          </main>
+
+          {/* CHANGE: Right sidebar stacks last on mobile, but appears third on desktop */}
+          <aside className="space-y-6 lg:sticky lg:top-6 lg:order-3">
+            <Suspense fallback={<SidebarSkeleton />}>
+              <SidebarContent
+                fixtureData={fixtureData}
+                isLive={isLive}
+                aboutMatchTitle={aboutMatchTitle}
+                aboutMatchSeoText={aboutMatchSeoText}
+              />
+            </Suspense>
+          </aside>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

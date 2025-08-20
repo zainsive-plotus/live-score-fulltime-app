@@ -8,7 +8,7 @@ import {
   RecentNewsWidgetSkeleton,
 } from "@/components/skeletons/WidgetSkeletons";
 import { PredictionWidgetSkeleton } from "@/components/match/MatchPredictionWidget";
-import MatchAboutWidget from "@/components/match/MatchAboutWidget"; // ADD: Import the new widget
+import MatchAboutWidget from "@/components/match/MatchAboutWidget";
 
 const LiveOddsWidget = dynamic(
   () => import("@/components/match/LiveOddsWidget"),
@@ -21,6 +21,7 @@ const LinkedNewsWidget = dynamic(
 const MatchHighlightsWidget = dynamic(
   () => import("@/components/match/MatchHighlightsWidget")
 );
+// REMOVE: Redundant import of TeamStandingsWidget removed
 const MatchPredictionWidget = dynamic(
   () => import("@/components/match/MatchPredictionWidget"),
   { loading: () => <PredictionWidgetSkeleton />, ssr: false }
@@ -33,8 +34,8 @@ const AdSlotWidget = dynamic(() => import("@/components/AdSlotWidget"), {
 interface SidebarContentProps {
   fixtureData: any;
   isLive: boolean;
-  aboutMatchTitle: string; // ADD: New prop for the title
-  aboutMatchSeoText: string; // ADD: New prop for the SEO text
+  aboutMatchTitle: string;
+  aboutMatchSeoText: string;
 }
 
 export default function SidebarContent({
@@ -59,7 +60,6 @@ export default function SidebarContent({
 
       <MatchPredictionWidget fixtureId={fixture.id.toString()} />
 
-      {/* ADD: The new MatchAboutWidget */}
       <MatchAboutWidget title={aboutMatchTitle} seoText={aboutMatchSeoText} />
 
       <AdSlotWidget location="match_sidebar" />
