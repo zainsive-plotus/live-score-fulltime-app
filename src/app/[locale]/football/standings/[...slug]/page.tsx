@@ -12,6 +12,8 @@ import RecentNewsWidget from "@/components/RecentNewsWidget";
 import LeagueDetailWidget from "@/components/directory/LeagueDetailWidget";
 import { generateStandingsSlug } from "@/lib/generate-standings-slug";
 import StandingsPageClient from "./StandingsPageClient"; // <-- Import the new Client Component
+import Script from "next/script"; // ADD: Import Script
+import { WithContext, SportsEvent, BreadcrumbList } from "schema-dts"; // ADD: Import schema types
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
@@ -84,7 +86,8 @@ export default async function LeagueStandingsPage({
 }: {
   params: { slug: string[]; locale: string };
 }) {
-  const { slug } = params;
+  const { slug, locale } = params;
+  const t = await getI18n(locale);
   const leagueId = getLeagueIdFromSlug(slug[0]);
 
   if (!leagueId) {
@@ -98,27 +101,81 @@ export default async function LeagueStandingsPage({
     notFound();
   }
 
+  const { league, standings } = initialData;
+
+  // ADD: Define JSON-LD schema for this page
+  const jsonLd: WithContext<SportsEvent | BreadcrumbList>[] = [
+    {
+      "@context": "https://schema.org",
+      "@type": "SportsEvent",
+      name: `${league.name} ${league.season}`,
+      sport: "Soccer",
+      location: {
+        "@type": "Country",
+        name: league.country,
+      },
+      competitor:
+        standings?.[0]?.map((teamStanding: any) => ({
+          "@type": "SportsTeam",
+          name: teamStanding.team.name,
+        })) || [],
+      description: t("standings_detail_page_description", {
+        leagueName: league.name,
+      }),
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        {
+          "@type": "ListItem",
+          position: 1,
+          name: t("homepage"),
+          item: `${BASE_URL}/${locale}`,
+        },
+        {
+          "@type": "ListItem",
+          position: 2,
+          name: t("standings_hub_title"),
+          item: `${BASE_URL}/${locale}/football/standings`,
+        },
+        {
+          "@type": "ListItem",
+          position: 3,
+          name: league.name,
+        },
+      ],
+    },
+  ];
+
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr_288px] lg:gap-8 lg:items-start p-4 lg:p-0 lg:py-6">
-        <Sidebar />
+    <>
+      <Script
+        id="standings-detail-jsonld"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr_288px] lg:gap-8 lg:items-start p-4 lg:p-0 lg:py-6">
+          <Sidebar />
 
-        {/* Render the Client Component and pass initial data as props */}
-        <StandingsPageClient initialData={initialData} leagueId={leagueId} />
+          {/* Render the Client Component and pass initial data as props */}
+          <StandingsPageClient initialData={initialData} leagueId={leagueId} />
 
-        <aside className="hidden lg:block lg:col-span-1 space-y-8 min-w-0">
-          {/* These can be client components, which is fine */}
-          <LeagueDetailWidget
-            league={initialData.league}
-            leagueStats={initialData.leagueStats}
-            topScorer={initialData.topScorer}
-          />
-          <RecentNewsWidget />
-          <AdSlotWidget location="homepage_right_sidebar" />
-        </aside>
+          <aside className="hidden lg:block lg:col-span-1 space-y-8 min-w-0">
+            {/* These can be client components, which is fine */}
+            <LeagueDetailWidget
+              league={initialData.league}
+              leagueStats={initialData.leagueStats}
+              topScorer={initialData.topScorer}
+            />
+            <RecentNewsWidget />
+            <AdSlotWidget location="homepage_right_sidebar" />
+          </aside>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

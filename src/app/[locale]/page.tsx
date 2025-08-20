@@ -8,6 +8,11 @@ import { SidebarSkeleton } from "@/components/LayoutSkeletons";
 import { getI18n } from "@/lib/i18n/server";
 import { Metadata } from "next";
 import { generateHreflangTags } from "@/lib/hreflang";
+import { WithContext, WebSite, Organization } from "schema-dts"; // ADD: Import schema types
+import Script from "next/script";
+
+const BASE_URL =
+  process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
 interface HomePageProps {
   params: {
@@ -71,6 +76,27 @@ export async function generateMetadata({
   };
 }
 
+const jsonLd: WithContext<WebSite | Organization>[] = [
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "Fan Skor",
+    url: BASE_URL,
+    potentialAction: {
+      "@type": "SearchAction",
+      target: `${BASE_URL}/search?q={search_term_string}`,
+      "query-input": "required name=search_term_string",
+    },
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "Fan Skor",
+    url: BASE_URL,
+    logo: `${BASE_URL}/fanskor-transparent.webp`,
+  },
+];
+
 export default async function HomePage({
   params,
   homepageAboutSeoText: initialHomepageText,
@@ -89,7 +115,11 @@ export default async function HomePage({
 
   return (
     <>
-      {" "}
+      <Script
+        id="homepage-jsonld"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <title>{title}</title>
       <meta name="description" content={description} />
       <div className="min-h-screen flex flex-col">
