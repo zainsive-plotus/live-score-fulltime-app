@@ -1,5 +1,7 @@
 // ===== tailwind.config.js =====
 
+const { fontFamily } = require("tailwindcss/defaultTheme");
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
@@ -8,38 +10,38 @@ module.exports = {
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
+    // CHANGE: This section overrides the default container widths
+    container: {
+      center: true, // This keeps the container centered on the page
+      padding: {
+        DEFAULT: "1rem", // Default padding for mobile
+        sm: "2rem",
+      },
+      screens: {
+        // These are ~80% of Tailwind's default values
+        sm: "512px",
+        md: "614px",
+        lg: "819px",
+        xl: "1024px",
+        "2xl": "1229px",
+      },
+    },
     extend: {
+      fontFamily: {
+        sans: ["Inter", ...fontFamily.sans],
+      },
+      // You can keep your other theme extensions here
       colors: {
-        background: "var(--color-background)",
         "brand-dark": "#1F1D2B",
         "brand-secondary": "#252837",
         "brand-purple": "#8B5CF6",
-        "brand-highlight": "#3B82F6",
+        "brand-accent": "#ED5C19",
         "brand-live": "#EF4444",
-        "text-primary": "var(--text-primary)",
-        "text-secondary": "var(--text-secondary)",
-        "text-muted": "var(--text-muted)",
+        "text-primary": "#FFFFFF",
+        "text-secondary": "#E0E0E0",
+        "text-muted": "#9E9E9E",
       },
-      fontFamily: {
-        sans: ["Inter", "sans-serif"],
-      },
-      // ADD THIS SECTION FOR THE ANIMATION
-      keyframes: {
-        ring: {
-          "0%, 100%": { transform: "rotate(0)" },
-          "10%": { transform: "rotate(14deg)" },
-          "20%": { transform: "rotate(-8deg)" },
-          "30%": { transform: "rotate(14deg)" },
-          "40%": { transform: "rotate(-4deg)" },
-          "50%": { transform: "rotate(10.0deg)" },
-          "60%": { transform: "rotate(0)" },
-        },
-      },
-      animation: {
-        ring: "ring 2s ease-in-out infinite",
-      },
-      // END OF ADDED SECTION
     },
   },
-  plugins: [require("@tailwindcss/typography")],
+  plugins: [],
 };
