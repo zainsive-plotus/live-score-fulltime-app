@@ -116,17 +116,16 @@ const SidebarSkeleton = () => (
   </div>
 );
 
-// CHANGE: generateStaticParams now uses the direct data fetcher, not an API call
 export async function generateStaticParams() {
   try {
+    // Adjusted to fetch matches for the next 3 days as requested.
     const fromDate = format(new Date(), "yyyy-MM-dd");
-    const toDate = format(addDays(new Date(), 7), "yyyy-MM-dd");
+    const toDate = format(addDays(new Date(), 3), "yyyy-MM-dd");
 
     console.log(
       `[generateStaticParams/Match] Fetching matches from ${fromDate} to ${toDate} to pre-build pages.`
     );
 
-    // Directly call the server-side function
     const fixtures = await getFixturesByDateRange(fromDate, toDate);
 
     if (!fixtures || fixtures.length === 0) {
@@ -153,11 +152,24 @@ export async function generateStaticParams() {
       `[generateStaticParams/Match] Found ${fixtures.length} matches. Generating ${params.length} pages across all locales.`
     );
     return params;
-  } catch (error) {
+  } catch (error: any) {
+    // Enhanced error logging to provide more context during builds.
     console.error(
-      "[generateStaticParams/Match] Failed to fetch fixtures for pre-building:",
-      error
+      "[generateStaticParams/Match] Failed to fetch fixtures for pre-building."
     );
+
+    if (axios.isAxiosError(error)) {
+      console.error("Axios Error Details:", {
+        message: error.message,
+        code: error.code,
+        status: error.response?.status,
+        data: error.response?.data,
+      });
+    } else {
+      console.error("Generic Error:", error.message);
+    }
+
+    // Returning an empty array prevents the build from crashing but also from generating pages.
     return [];
   }
 }
