@@ -18,7 +18,7 @@ interface CachedLocaleData {
   translations: Record<string, any>;
 }
 
-const isProduction = process.env.NODE_ENV === "production";
+const isProduction = process.env.NEXT_PUBLIC_NODE_ENV === "production";
 
 export class I18nCache {
   private static instance: I18nCache;
