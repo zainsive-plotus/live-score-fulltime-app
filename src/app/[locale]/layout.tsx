@@ -15,8 +15,16 @@ import { I18nProviderClient } from "@/lib/i18n/client";
 import { TimeZoneProvider } from "@/context/TimeZoneContext";
 import { i18nCache } from "@/lib/i18n/i18n.cache";
 import Script from "next/script";
-import { inter } from "../fonts"; // <-- 1. IMPORT THE FONT
-import { getI18n } from "@/lib/i18n/server";
+import { inter } from "../fonts";
+
+import { SUPPORTED_LOCALES } from "@/lib/i18n/config"; // ADD: Import your locales
+
+// ADD: generateStaticParams to pre-build for all supported locales
+export async function generateStaticParams() {
+  return SUPPORTED_LOCALES.map((locale) => ({
+    locale,
+  }));
+}
 
 export default async function LocaleLayout({
   children,

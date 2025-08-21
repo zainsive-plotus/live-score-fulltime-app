@@ -11,9 +11,10 @@ import AdSlotWidget from "@/components/AdSlotWidget";
 import RecentNewsWidget from "@/components/RecentNewsWidget";
 import LeagueDetailWidget from "@/components/directory/LeagueDetailWidget";
 import { generateStandingsSlug } from "@/lib/generate-standings-slug";
-import StandingsPageClient from "./StandingsPageClient"; // <-- Import the new Client Component
-import Script from "next/script"; // ADD: Import Script
-import { WithContext, SportsEvent, BreadcrumbList } from "schema-dts"; // ADD: Import schema types
+import StandingsPageClient from "./StandingsPageClient";
+import Script from "next/script";
+import { WithContext, SportsEvent, BreadcrumbList } from "schema-dts";
+import { getLeaguesForStandingsSitemap } from "@/lib/data/directory"; // ADD: Import direct data fetcher
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
@@ -25,10 +26,8 @@ const getLeagueIdFromSlug = (slug: string): string | null => {
   return /^\d+$/.test(lastPart) ? lastPart : null;
 };
 
-// This function fetches data for the CURRENT season for metadata generation
-async function getInitialStandingsData(leagueId: string) {
+async function getInitialStandingsData(leagueId: string, season: string) {
   try {
-    const season = new Date().getFullYear().toString();
     const { data } = await axios.get(
       `${BASE_URL}/api/standings?league=${leagueId}&season=${season}`
     );
@@ -38,11 +37,12 @@ async function getInitialStandingsData(leagueId: string) {
   }
 }
 
-// generateMetadata STAYS HERE in the Server Component
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: { slug: string[]; locale: string };
+  searchParams: { [key: string]: string | string[] | undefined };
 }): Promise<Metadata> {
   const { slug, locale } = params;
   const t = await getI18n(locale);
@@ -52,7 +52,9 @@ export async function generateMetadata({
     return { title: t("not_found_title") };
   }
 
-  const initialData = await getInitialStandingsData(leagueId);
+  const season =
+    (searchParams?.season as string) || new Date().getFullYear().toString();
+  const initialData = await getInitialStandingsData(leagueId, season);
 
   if (!initialData || !initialData.league) {
     return { title: t("not_found_title") };
@@ -80,11 +82,12 @@ export async function generateMetadata({
   };
 }
 
-// The default export is now the Server Component Page
 export default async function LeagueStandingsPage({
   params,
+  searchParams,
 }: {
   params: { slug: string[]; locale: string };
+  searchParams: { [key: string]: string | string[] | undefined };
 }) {
   const { slug, locale } = params;
   const t = await getI18n(locale);
@@ -94,8 +97,9 @@ export default async function LeagueStandingsPage({
     notFound();
   }
 
-  // Fetch initial data on the server
-  const initialData = await getInitialStandingsData(leagueId);
+  const season =
+    (searchParams?.season as string) || new Date().getFullYear().toString();
+  const initialData = await getInitialStandingsData(leagueId, season);
 
   if (!initialData || !initialData.league) {
     notFound();
@@ -103,7 +107,6 @@ export default async function LeagueStandingsPage({
 
   const { league, standings } = initialData;
 
-  // ADD: Define JSON-LD schema for this page
   const jsonLd: WithContext<SportsEvent | BreadcrumbList>[] = [
     {
       "@context": "https://schema.org",
@@ -160,11 +163,9 @@ export default async function LeagueStandingsPage({
         <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr_288px] lg:gap-8 lg:items-start p-4 lg:p-0 lg:py-6">
           <Sidebar />
 
-          {/* Render the Client Component and pass initial data as props */}
           <StandingsPageClient initialData={initialData} leagueId={leagueId} />
 
           <aside className="hidden lg:block lg:col-span-1 space-y-8 min-w-0">
-            {/* These can be client components, which is fine */}
             <LeagueDetailWidget
               league={initialData.league}
               leagueStats={initialData.leagueStats}
@@ -179,12 +180,10 @@ export default async function LeagueStandingsPage({
   );
 }
 
-// generateStaticParams STAYS HERE in the Server Component
+// CHANGE: This function now uses the direct data fetcher
 export async function generateStaticParams() {
   try {
-    const { data: leagues } = await axios.get(
-      `${BASE_URL}/api/directory/standings-leagues`
-    );
+    const leagues = await getLeaguesForStandingsSitemap();
     if (!leagues) return [];
 
     return leagues.map((league: any) => ({

@@ -3,7 +3,8 @@
 import { NextResponse } from "next/server";
 import axios from "axios";
 import { format, addDays } from "date-fns";
-import { leagueIdToPriorityMap } from "@/config/topLeaguesConfig"; // ADD: Import the priority map
+import { leagueIdToPriorityMap } from "@/config/topLeaguesConfig";
+import { getFixturesByDateRange } from "@/lib/data/fixtures"; // ADD: Import the new shared function
 
 const STATUS_MAP: Record<string, string[]> = {
   all: [],
@@ -17,6 +18,8 @@ export async function GET(request: Request) {
   const leagueId = searchParams.get("league");
   const date = searchParams.get("date");
   const season = searchParams.get("season");
+  const from = searchParams.get("from");
+  const to = searchParams.get("to");
 
   const groupByLeague = searchParams.get("groupByLeague") === "true";
   const status = searchParams.get("status") || "all";
@@ -33,6 +36,12 @@ export async function GET(request: Request) {
   });
 
   try {
+    if (from && to) {
+      // CHANGE: Use the shared function to get data
+      const fixtures = await getFixturesByDateRange(from, to);
+      return NextResponse.json(fixtures);
+    }
+
     if (groupByLeague) {
       const fetchDate = date || format(new Date(), "yyyy-MM-dd");
       const allFixtures = (
@@ -67,7 +76,6 @@ export async function GET(request: Request) {
 
       const leagueEntries = Object.values(groupedMatches);
 
-      // CHANGE: Add sorting logic based on the priority map
       leagueEntries.sort((a: any, b: any) => {
         const priorityA =
           leagueIdToPriorityMap.get(a.leagueInfo.id.toString()) || 999;
@@ -77,7 +85,6 @@ export async function GET(request: Request) {
         if (priorityA !== priorityB) {
           return priorityA - priorityB;
         }
-        // If priorities are the same, sort by country and then league name
         if (a.leagueInfo.country !== b.leagueInfo.country) {
           return a.leagueInfo.country.localeCompare(b.leagueInfo.country);
         }
@@ -100,7 +107,6 @@ export async function GET(request: Request) {
       }
     }
 
-    // ... (rest of the file for non-grouped fetches remains unchanged)
     let matchesData: any[] = [];
 
     if (leagueId && season) {

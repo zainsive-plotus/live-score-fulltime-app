@@ -21,6 +21,18 @@ import {
 import MatchFormationWidget from "@/components/match/MatchFormationWidget";
 import StandingsWidget from "@/components/StandingsWidget";
 import AdSlotWidget from "@/components/AdSlotWidget";
+import { generateMatchSlug } from "@/lib/generate-match-slug";
+import { format, addDays } from "date-fns";
+import axios from "axios";
+import { getFixturesByDateRange } from "@/lib/data/fixtures";
+import { SUPPORTED_LOCALES } from "@/lib/i18n/config";
+
+// ADD: Revalidation config for Incremental Static Regeneration (ISR)
+// This tells Next.js to re-generate the page in the background at most once every hour (3600 seconds)
+export const revalidate = 3600;
+
+const BASE_URL =
+  process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
 const getFixtureIdFromSlug = (slug: string): string | null => {
   if (!slug) return null;
@@ -89,9 +101,6 @@ const TeamFormContentSkeleton = () => (
 const H2HContentSkeleton = () => (
   <div className="bg-brand-secondary rounded-lg h-[450px] animate-pulse p-6"></div>
 );
-const StatsContentSkeleton = () => (
-  <div className="bg-brand-secondary rounded-lg h-80 animate-pulse p-6"></div>
-);
 const FormationSkeleton = () => (
   <div className="bg-brand-secondary rounded-lg p-4 md:p-6 animate-pulse h-[600px]"></div>
 );
@@ -106,6 +115,52 @@ const SidebarSkeleton = () => (
     <AdSlotWidgetSkeleton />
   </div>
 );
+
+// CHANGE: generateStaticParams now uses the direct data fetcher, not an API call
+export async function generateStaticParams() {
+  try {
+    const fromDate = format(new Date(), "yyyy-MM-dd");
+    const toDate = format(addDays(new Date(), 7), "yyyy-MM-dd");
+
+    console.log(
+      `[generateStaticParams/Match] Fetching matches from ${fromDate} to ${toDate} to pre-build pages.`
+    );
+
+    // Directly call the server-side function
+    const fixtures = await getFixturesByDateRange(fromDate, toDate);
+
+    if (!fixtures || fixtures.length === 0) {
+      console.warn(
+        "[generateStaticParams/Match] No upcoming fixtures found to pre-build."
+      );
+      return [];
+    }
+
+    const params = fixtures.flatMap((fixture: any) =>
+      SUPPORTED_LOCALES.map((locale) => ({
+        locale,
+        slug: generateMatchSlug(
+          fixture.teams.home,
+          fixture.teams.away,
+          fixture.fixture.id
+        )
+          .replace(`/football/match/`, "")
+          .split("/"),
+      }))
+    );
+
+    console.log(
+      `[generateStaticParams/Match] Found ${fixtures.length} matches. Generating ${params.length} pages across all locales.`
+    );
+    return params;
+  } catch (error) {
+    console.error(
+      "[generateStaticParams/Match] Failed to fetch fixtures for pre-building:",
+      error
+    );
+    return [];
+  }
+}
 
 export default async function MatchDetailPage({
   params,
