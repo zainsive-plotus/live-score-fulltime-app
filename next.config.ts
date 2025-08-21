@@ -4,6 +4,7 @@ import type { NextConfig } from "next";
 const { fontFamily } = require("tailwindcss/defaultTheme");
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   trailingSlash: false,
   theme: {
     extend: {

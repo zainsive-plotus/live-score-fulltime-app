@@ -1,4 +1,4 @@
-// ===== src/app/[locale]/football/match/[...slug]/page.tsx =====
+// src/app/[locale]/football/match/[...slug]/page.tsx
 
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
@@ -23,16 +23,76 @@ import StandingsWidget from "@/components/StandingsWidget";
 import AdSlotWidget from "@/components/AdSlotWidget";
 import { generateMatchSlug } from "@/lib/generate-match-slug";
 import { format, addDays } from "date-fns";
-import axios from "axios";
 import { getFixturesByDateRange } from "@/lib/data/fixtures";
 import { SUPPORTED_LOCALES } from "@/lib/i18n/config";
+import redis from "@/lib/redis"; // Import Redis client
 
-// ADD: Revalidation config for Incremental Static Regeneration (ISR)
-// This tells Next.js to re-generate the page in the background at most once every hour (3600 seconds)
+// Revalidate pages every hour to catch updates (e.g., scores, stats)
 export const revalidate = 3600;
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
+
+// This function pre-builds pages for the next 3 days of matches.
+export async function generateStaticParams() {
+  try {
+    const fromDate = format(new Date(), "yyyy-MM-dd");
+    const toDate = format(addDays(new Date(), 3), "yyyy-MM-dd");
+
+    console.log(
+      `[generateStaticParams/Match] Fetching all matches from ${fromDate} to ${toDate}...`
+    );
+    const fixtures = await getFixturesByDateRange(fromDate, toDate);
+
+    if (!fixtures || fixtures.length === 0) {
+      console.warn(
+        "[generateStaticParams/Match] No upcoming fixtures found to pre-build."
+      );
+      return [];
+    }
+    console.log(
+      `[generateStaticParams/Match] Found ${fixtures.length} matches. Pre-hydrating cache...`
+    );
+
+    // Pre-hydrate the cache with full fixture data for each match.
+    // This prevents thousands of API calls during the page rendering step.
+    const pipeline = (redis as any).pipeline();
+    fixtures.forEach((fixture: any) => {
+      const cacheKey = `fixture:${fixture.fixture.id}`;
+      // Cache for 24 hours, long enough to outlast the build.
+      pipeline.set(cacheKey, JSON.stringify(fixture), "EX", 86400);
+    });
+    await pipeline.exec();
+    console.log(
+      `[generateStaticParams/Match] Redis cache pre-hydrated successfully.`
+    );
+
+    // Generate the slug parameters for Next.js
+    const params = fixtures.flatMap((fixture: any) =>
+      SUPPORTED_LOCALES.map((locale) => ({
+        locale,
+        slug: generateMatchSlug(
+          fixture.teams.home,
+          fixture.teams.away,
+          fixture.fixture.id
+        )
+          .replace(`/football/match/`, "")
+          .split("/"),
+      }))
+    );
+
+    console.log(
+      `[generateStaticParams/Match] Returning ${params.length} paths for Next.js to build.`
+    );
+    return params;
+  } catch (error: any) {
+    console.error(
+      "[generateStaticParams/Match] A critical error occurred:",
+      error.message
+    );
+    return [];
+  }
+}
 
 const getFixtureIdFromSlug = (slug: string): string | null => {
   if (!slug) return null;
@@ -115,64 +175,6 @@ const SidebarSkeleton = () => (
     <AdSlotWidgetSkeleton />
   </div>
 );
-
-export async function generateStaticParams() {
-  try {
-    // Adjusted to fetch matches for the next 3 days as requested.
-    const fromDate = format(new Date(), "yyyy-MM-dd");
-    const toDate = format(addDays(new Date(), 3), "yyyy-MM-dd");
-
-    console.log(
-      `[generateStaticParams/Match] Fetching matches from ${fromDate} to ${toDate} to pre-build pages.`
-    );
-
-    const fixtures = await getFixturesByDateRange(fromDate, toDate);
-
-    if (!fixtures || fixtures.length === 0) {
-      console.warn(
-        "[generateStaticParams/Match] No upcoming fixtures found to pre-build."
-      );
-      return [];
-    }
-
-    const params = fixtures.flatMap((fixture: any) =>
-      SUPPORTED_LOCALES.map((locale) => ({
-        locale,
-        slug: generateMatchSlug(
-          fixture.teams.home,
-          fixture.teams.away,
-          fixture.fixture.id
-        )
-          .replace(`/football/match/`, "")
-          .split("/"),
-      }))
-    );
-
-    console.log(
-      `[generateStaticParams/Match] Found ${fixtures.length} matches. Generating ${params.length} pages across all locales.`
-    );
-    return params;
-  } catch (error: any) {
-    // Enhanced error logging to provide more context during builds.
-    console.error(
-      "[generateStaticParams/Match] Failed to fetch fixtures for pre-building."
-    );
-
-    if (axios.isAxiosError(error)) {
-      console.error("Axios Error Details:", {
-        message: error.message,
-        code: error.code,
-        status: error.response?.status,
-        data: error.response?.data,
-      });
-    } else {
-      console.error("Generic Error:", error.message);
-    }
-
-    // Returning an empty array prevents the build from crashing but also from generating pages.
-    return [];
-  }
-}
 
 export default async function MatchDetailPage({
   params,

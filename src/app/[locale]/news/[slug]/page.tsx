@@ -1,4 +1,4 @@
-// ===== src/app/[locale]/news/[slug]/page.tsx =====
+// src/app/[locale]/news/[slug]/page.tsx
 
 import { notFound, redirect } from "next/navigation";
 import dbConnect from "@/lib/dbConnect";
@@ -18,6 +18,9 @@ import TableOfContents from "@/components/TableOfContents";
 import { WithContext, NewsArticle, BreadcrumbList } from "schema-dts";
 import StyledLink from "@/components/StyledLink";
 import { ExternalLink } from "lucide-react";
+
+// Revalidate news articles every hour (3600 seconds) to keep them fresh.
+export const revalidate = 3600;
 
 const DEFAULT_LOCALE = "tr";
 const BASE_URL =
@@ -73,21 +76,17 @@ export async function generateMetadata({
   const post = await getPostAndHandleRedirects(slug, locale);
 
   if (!post) {
-    return { title: "Not Found" };
+    return { title: "Not Found", robots: { index: false, follow: false } };
   }
 
-  // --- THIS IS THE FIX ---
-  // 1. Get all available translations for this post.
   const allTranslations = await post.getTranslations();
 
-  // 2. Pass this detailed translation info to our enhanced hreflang generator.
   const hreflangAlternates = await generateHreflangTags(
     "/news",
     slug,
     locale,
     allTranslations
   );
-  // --- END OF FIX ---
 
   const description =
     post.metaDescription ||
@@ -104,7 +103,7 @@ export async function generateMetadata({
     openGraph: {
       title: post.metaTitle || post.title,
       description: description,
-      url: hreflangAlternates.canonical, // Use the correct canonical URL
+      url: hreflangAlternates.canonical,
       type: "article",
       publishedTime: new Date(post.createdAt).toISOString(),
       modifiedTime: new Date(post.updatedAt).toISOString(),
@@ -119,6 +118,18 @@ export async function generateMetadata({
       ],
     },
   };
+}
+
+export async function generateStaticParams() {
+  await dbConnect();
+  const posts = await Post.find({ status: "published" })
+    .select("slug language")
+    .lean();
+
+  return posts.map((post) => ({
+    slug: post.slug,
+    locale: post.language,
+  }));
 }
 
 export default async function GeneralNewsArticlePage({
@@ -169,6 +180,7 @@ export default async function GeneralNewsArticlePage({
         },
       },
       description: description,
+      articleBody: post.content.replace(/<[^>]*>?/gm, ""), // The full content, stripped of HTML tags
     },
     {
       "@context": "https://schema.org",
@@ -262,16 +274,4 @@ export default async function GeneralNewsArticlePage({
       </div>
     </>
   );
-}
-
-export async function generateStaticParams() {
-  await dbConnect();
-  const posts = await Post.find({ status: "published" })
-    .select("slug language")
-    .lean();
-
-  return posts.map((post) => ({
-    slug: post.slug,
-    locale: post.language,
-  }));
 }
