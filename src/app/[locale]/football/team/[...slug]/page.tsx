@@ -24,8 +24,8 @@ import { WithContext, SportsTeam, BreadcrumbList } from "schema-dts";
 // // Revalidate team pages once a day (86400 seconds) to keep data fresh.
 // export const revalidate = 86400;
 
-// const BASE_URL =
-//   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
+const BASE_URL =
+  process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
 // // This function now pre-builds only a subset of important team pages.
 // // Other team pages will be generated on-demand when first visited.

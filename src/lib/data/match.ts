@@ -21,9 +21,9 @@ const apiRequest = async <T>(
   try {
     const options = {
       method: "GET",
-      url: `${process.env.API_FOOTBALL_HOST}/${endpoint}`,
+      url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/${endpoint}`,
       params,
-      headers: { "x-apisports-key": process.env.API_FOOTBALL_KEY },
+      headers: { "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
       timeout: 8000,
     };
     const response = await axios.request(options);

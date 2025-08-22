@@ -19,7 +19,8 @@ import { WithContext, NewsArticle, BreadcrumbList } from "schema-dts";
 import StyledLink from "@/components/StyledLink";
 import { ExternalLink } from "lucide-react";
 
-// Revalidate news articles every hour (3600 seconds) to keep them fresh.
+// This enables Incremental Static Regeneration (ISR).
+// Pages are built statically and will revalidate at most once per hour.
 export const revalidate = 3600;
 
 const DEFAULT_LOCALE = "tr";
@@ -80,18 +81,15 @@ export async function generateMetadata({
   }
 
   const allTranslations = await post.getTranslations();
-
   const hreflangAlternates = await generateHreflangTags(
     "/news",
     slug,
     locale,
     allTranslations
   );
-
   const description =
     post.metaDescription ||
     post.content.replace(/<[^>]*>?/gm, "").substring(0, 160);
-
   const imageUrl = post.featuredImage
     ? proxyImageUrl(post.featuredImage)
     : `${BASE_URL}/og-image.jpg`;
@@ -108,23 +106,23 @@ export async function generateMetadata({
       publishedTime: new Date(post.createdAt).toISOString(),
       modifiedTime: new Date(post.updatedAt).toISOString(),
       authors: [post.author || "Fan Skor"],
-      images: [
-        {
-          url: imageUrl,
-          width: 1200,
-          height: 630,
-          alt: post.title,
-        },
-      ],
+      images: [{ url: imageUrl, width: 1200, height: 630, alt: post.title }],
     },
   };
 }
 
+// This function tells Next.js to pre-build all published posts.
 export async function generateStaticParams() {
+  console.log(
+    "[generateStaticParams/News] Fetching all published posts to pre-build..."
+  );
   await dbConnect();
   const posts = await Post.find({ status: "published" })
     .select("slug language")
     .lean();
+  console.log(
+    `[generateStaticParams/News] Found ${posts.length} posts to generate.`
+  );
 
   return posts.map((post) => ({
     slug: post.slug,
@@ -146,7 +144,6 @@ export default async function GeneralNewsArticlePage({
 
   const t = await getI18n(locale);
   const { processedHtml, toc } = generateTableOfContents(post.content);
-
   const allTranslations = await post.getTranslations();
   const hreflangAlternates = await generateHreflangTags(
     "/news",
@@ -154,7 +151,6 @@ export default async function GeneralNewsArticlePage({
     locale,
     allTranslations
   );
-
   const postUrl = hreflangAlternates.canonical;
   const description =
     post.metaDescription ||
@@ -180,7 +176,7 @@ export default async function GeneralNewsArticlePage({
         },
       },
       description: description,
-      articleBody: post.content.replace(/<[^>]*>?/gm, ""), // The full content, stripped of HTML tags
+      articleBody: post.content.replace(/<[^>]*>?/gm, ""),
     },
     {
       "@context": "https://schema.org",
@@ -202,11 +198,6 @@ export default async function GeneralNewsArticlePage({
       ],
     },
   ];
-
-  function getPath(path: string, locale: string) {
-    if (locale === DEFAULT_LOCALE) return path;
-    return `/${locale}${path}`;
-  }
 
   return (
     <>
@@ -232,7 +223,6 @@ export default async function GeneralNewsArticlePage({
                   />
                 </div>
               )}
-
               <div className="p-4 sm:p-6 md:p-8">
                 <h1 className="text-3xl md:text-5xl font-extrabold text-white leading-tight mb-4">
                   {post.title}
