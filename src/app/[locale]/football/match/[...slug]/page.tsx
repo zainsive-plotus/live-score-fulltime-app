@@ -194,9 +194,11 @@ export default async function MatchDetailPage({
   const { teams, fixture: fixtureDetails, league } = fixtureData;
 
   const isLive = ["1H", "HT", "2H", "ET", "BT", "P", "LIVE"].includes(
-    fixtureDetails.status?.short
+    fixtureDetails?.status?.short
   );
-  const isFinished = ["FT", "AET", "PEN"].includes(fixtureDetails.status.short);
+  const isFinished = ["FT", "AET", "PEN"].includes(
+    fixtureDetails?.status?.short
+  );
 
   const h2hSeoDescription = t("match_page_h2h_seo_text", {
     homeTeam: teams.home.name,
