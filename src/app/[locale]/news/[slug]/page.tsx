@@ -112,23 +112,23 @@ export async function generateMetadata({
 }
 
 // This function tells Next.js to pre-build all published posts.
-export async function generateStaticParams() {
-  console.log(
-    "[generateStaticParams/News] Fetching all published posts to pre-build..."
-  );
-  await dbConnect();
-  const posts = await Post.find({ status: "published" })
-    .select("slug language")
-    .lean();
-  console.log(
-    `[generateStaticParams/News] Found ${posts.length} posts to generate.`
-  );
+// export async function generateStaticParams() {
+//   console.log(
+//     "[generateStaticParams/News] Fetching all published posts to pre-build..."
+//   );
+//   await dbConnect();
+//   const posts = await Post.find({ status: "published" })
+//     .select("slug language")
+//     .lean();
+//   console.log(
+//     `[generateStaticParams/News] Found ${posts.length} posts to generate.`
+//   );
 
-  return posts.map((post) => ({
-    slug: post.slug,
-    locale: post.language,
-  }));
-}
+//   return posts.map((post) => ({
+//     slug: post.slug,
+//     locale: post.language,
+//   }));
+// }
 
 export default async function GeneralNewsArticlePage({
   params,

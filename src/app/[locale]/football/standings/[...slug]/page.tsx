@@ -180,20 +180,20 @@ export default async function LeagueStandingsPage({
   );
 }
 
-// CHANGE: This function now uses the direct data fetcher
-export async function generateStaticParams() {
-  try {
-    const leagues = await getLeaguesForStandingsSitemap();
-    if (!leagues) return [];
+// // CHANGE: This function now uses the direct data fetcher
+// export async function generateStaticParams() {
+//   try {
+//     const leagues = await getLeaguesForStandingsSitemap();
+//     if (!leagues) return [];
 
-    return leagues.map((league: any) => ({
-      slug: [generateStandingsSlug(league.name, league.id)],
-    }));
-  } catch (error) {
-    console.error(
-      "[generateStaticParams] Failed to fetch leagues for standings pages:",
-      error
-    );
-    return [];
-  }
-}
+//     return leagues.map((league: any) => ({
+//       slug: [generateStandingsSlug(league.name, league.id)],
+//     }));
+//   } catch (error) {
+//     console.error(
+//       "[generateStaticParams] Failed to fetch leagues for standings pages:",
+//       error
+//     );
+//     return [];
+//   }
+// }

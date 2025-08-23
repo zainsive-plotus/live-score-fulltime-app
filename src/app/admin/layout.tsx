@@ -8,6 +8,9 @@ import NextAuthProvider from "../NextAuthProvider";
 import Providers from "../providers";
 import "../globals.css";
 
+// *** THE DEFINITIVE FIX: Add this line to force dynamic rendering for all admin pages ***
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "FanSkor Admin Panel",
   description: "Management dashboard for FanSkor.",
@@ -28,24 +31,14 @@ export default async function AdminLayout({
     redirect("/login?error=Forbidden");
   }
 
-  // --- START OF FIX ---
-  // We return the providers and divs directly, without the <html> and <body> tags.
-  // The RootLayout at src/app/layout.tsx already provides those.
   return (
-    <html>
-      <body>
-        <NextAuthProvider>
-          <Providers>
-            <div className="flex min-h-screen bg-brand-dark">
-              {" "}
-              {/* Moved bg color here */}
-              <AdminSidebar />
-              <main className="flex-1 p-8">{children}</main>
-            </div>
-          </Providers>
-        </NextAuthProvider>
-      </body>
-    </html>
+    <NextAuthProvider>
+      <Providers>
+        <div className="flex min-h-screen bg-brand-dark">
+          <AdminSidebar />
+          <main className="flex-1 p-8">{children}</main>
+        </div>
+      </Providers>
+    </NextAuthProvider>
   );
-  // --- END OF FIX ---
 }

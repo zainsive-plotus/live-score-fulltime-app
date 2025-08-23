@@ -127,8 +127,8 @@ export default async function NewsCategoryPage({
   );
 }
 
-export async function generateStaticParams() {
-  return VALID_CATEGORIES.map((category) => ({
-    category: category,
-  }));
-}
+// export async function generateStaticParams() {
+//   return VALID_CATEGORIES.map((category) => ({
+//     category: category,
+//   }));
+// }
