@@ -15,11 +15,14 @@ const LoginFormSkeleton = () => (
 
 export default function LoginPage() {
   return (
-    // Reverted background to use the consistent brand-dark color
-    <div className="flex items-center justify-center min-h-screen bg-brand-dark">
-      <Suspense fallback={<LoginFormSkeleton />}>
-        <LoginForm />
-      </Suspense>
-    </div>
+    <html>
+      <body>
+        <div className="flex items-center justify-center min-h-screen bg-brand-dark">
+          <Suspense fallback={<LoginFormSkeleton />}>
+            <LoginForm />
+          </Suspense>
+        </div>
+      </body>
+    </html>
   );
 }

@@ -1,44 +1,17 @@
-// ===== src/app/admin/layout.tsx =====
-
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { redirect } from "next/navigation";
-import AdminSidebar from "@/components/admin/AdminSidebar";
 import NextAuthProvider from "../NextAuthProvider";
 import Providers from "../providers";
 import "../globals.css";
 
-// *** THE DEFINITIVE FIX: Add this line to force dynamic rendering for all admin pages ***
-export const dynamic = "force-dynamic";
-
-export const metadata = {
-  title: "FanSkor Admin Panel",
-  description: "Management dashboard for FanSkor.",
-  robots: {
-    index: false,
-    follow: false,
-  },
-};
-
-export default async function AdminLayout({
+// This is the root layout for ALL /admin routes.
+// It provides context but does NOT perform authentication checks.
+export default function AdminRootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getServerSession(authOptions);
-
-  if (!session || session.user.role !== "admin") {
-    redirect("/login?error=Forbidden");
-  }
-
   return (
     <NextAuthProvider>
-      <Providers>
-        <div className="flex min-h-screen bg-brand-dark">
-          <AdminSidebar />
-          <main className="flex-1 p-8">{children}</main>
-        </div>
-      </Providers>
+      <Providers>{children}</Providers>
     </NextAuthProvider>
   );
 }

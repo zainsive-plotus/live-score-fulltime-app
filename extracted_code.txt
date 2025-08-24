@@ -857,8 +857,7 @@ import MatchFormationWidget from "@/components/match/MatchFormationWidget";
 import StandingsWidget from "@/components/StandingsWidget";
 import AdSlotWidget from "@/components/AdSlotWidget";
 import { generateMatchSlug } from "@/lib/generate-match-slug";
-import { format, addDays } from "date-fns";
-import axios from "axios";
+import { format, addDays, subDays } from "date-fns";
 import { getFixturesByDateRange } from "@/lib/data/fixtures";
 import { SUPPORTED_LOCALES } from "@/lib/i18n/config";
 
@@ -867,6 +866,34 @@ export const revalidate = 3600;
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
+export async function generateStaticParams() {
+  const fromDate = format(subDays(new Date(), 2), "yyyy-MM-dd");
+  const toDate = format(addDays(new Date(), 2), "yyyy-MM-dd");
+  console.log(
+    "[generateStaticParams/Match] Fetching all matches for all locales..."
+  );
+
+  const matches = await getFixturesByDateRange(fromDate, toDate);
+  console.log(
+    `[generateStaticParams/Match] Found ${matches.length} matches to generate.`
+  );
+
+  const paths = matches.flatMap((match: any) =>
+    SUPPORTED_LOCALES.map((locale) => ({
+      locale: locale,
+      slug: [
+        generateMatchSlug(match.teams.home, match.teams.away, match.fixture.id)
+          .split("/")
+          .pop(),
+      ],
+    }))
+  );
+
+  console.log(
+    `[generateStaticParams/Match] Returning ${paths.length} total paths for Next.js to build.`
+  );
+  return paths;
+}
 const getFixtureIdFromSlug = (slug: string): string | null => {
   if (!slug) return null;
   const parts = slug?.split("-");
@@ -948,50 +975,6 @@ const SidebarSkeleton = () => (
   </div>
 );
 
-export async function generateStaticParams() {
-  try {
-    const fromDate = format(new Date(), "yyyy-MM-dd");
-    const toDate = format(addDays(new Date(), 7), "yyyy-MM-dd");
-
-    console.log(
-      `[generateStaticParams/Match] Fetching matches from ${fromDate} to ${toDate} to pre-build pages.`
-    );
-
-    const fixtures = await getFixturesByDateRange(fromDate, toDate);
-
-    if (!fixtures || fixtures.length === 0) {
-      console.warn(
-        "[generateStaticParams/Match] No upcoming fixtures found to pre-build."
-      );
-      return [];
-    }
-
-    const params = fixtures.flatMap((fixture: any) =>
-      SUPPORTED_LOCALES.map((locale) => ({
-        locale,
-        slug: generateMatchSlug(
-          fixture.teams.home,
-          fixture.teams.away,
-          fixture.fixture.id
-        )
-          .replace(`/football/match/`, "")
-          .split("/"),
-      }))
-    );
-
-    console.log(
-      `[generateStaticParams/Match] Found ${fixtures.length} matches. Generating ${params.length} pages across all locales.`
-    );
-    return params;
-  } catch (error) {
-    console.error(
-      "[generateStaticParams/Match] Failed to fetch fixtures for pre-building:",
-      error
-    );
-    return [];
-  }
-}
-
 export default async function MatchDetailPage({
   params,
 }: {
@@ -1010,9 +993,11 @@ export default async function MatchDetailPage({
   const { teams, fixture: fixtureDetails, league } = fixtureData;
 
   const isLive = ["1H", "HT", "2H", "ET", "BT", "P", "LIVE"].includes(
-    fixtureDetails.status?.short
+    fixtureDetails?.status?.short
   );
-  const isFinished = ["FT", "AET", "PEN"].includes(fixtureDetails.status.short);
+  const isFinished = ["FT", "AET", "PEN"].includes(
+    fixtureDetails?.status?.short
+  );
 
   const h2hSeoDescription = t("match_page_h2h_seo_text", {
     homeTeam: teams.home.name,
@@ -1683,23 +1668,6 @@ export default async function LeagueStandingsPage({
   );
 }
 
-export async function generateStaticParams() {
-  try {
-    const leagues = await getLeaguesForStandingsSitemap();
-    if (!leagues) return [];
-
-    return leagues.map((league: any) => ({
-      slug: [generateStandingsSlug(league.name, league.id)],
-    }));
-  } catch (error) {
-    console.error(
-      "[generateStaticParams] Failed to fetch leagues for standings pages:",
-      error
-    );
-    return [];
-  }
-}
-
 // ===== src/app/[locale]/football/standings/page.tsx =====
 
 import type { Metadata } from "next";
@@ -1847,14 +1815,16 @@ export default async function FootballStandingsHubPage({
 
 // ===== src/app/[locale]/football/team/[...slug]/page.tsx =====
 
-import Header from "@/components/Header";
-import Sidebar from "@/components/Sidebar";
-import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import dbConnect from "@/lib/dbConnect";
+import Team from "@/models/Team";
+import { generateTeamSlug } from "@/lib/generate-team-slug";
 import { fetchTeamDetails } from "@/lib/data/team";
 import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
-
+import Header from "@/components/Header";
+import Sidebar from "@/components/Sidebar";
 import TeamHeader from "@/components/team/TeamHeader";
 import TeamSquadWidget from "@/components/team/TeamSquadWidget";
 import TeamFixturesWidget from "@/components/team/TeamFixturesWidget";
@@ -1863,6 +1833,11 @@ import TeamTrophiesWidget from "@/components/team/TeamTrophiesWidget";
 import AdSlotWidget from "@/components/AdSlotWidget";
 import RecentNewsWidget from "@/components/RecentNewsWidget";
 import TeamSeoWidget from "@/components/team/TeamSeoWidget";
+import Script from "next/script";
+import { WithContext, SportsTeam, BreadcrumbList } from "schema-dts";
+
+const BASE_URL =
+  process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
 const getTeamIdFromSlug = (slug: string): string | null => {
   if (!slug) return null;
@@ -1878,14 +1853,13 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug, locale } = params;
   const t = await getI18n(locale);
+  const teamId = getTeamIdFromSlug(slug[0]);
 
   const hreflangAlternates = await generateHreflangTags(
     "/football/team",
     slug.join("/"),
     locale
   );
-
-  const teamId = getTeamIdFromSlug(slug[0]);
 
   if (!teamId) {
     return {
@@ -1895,10 +1869,15 @@ export async function generateMetadata({
   }
 
   const teamData = await fetchTeamDetails(teamId);
-  if (!teamData) return { title: t("not_found_title") };
+  if (!teamData) {
+    return {
+      title: t("not_found_title"),
+      alternates: hreflangAlternates,
+      robots: { index: false, follow: false },
+    };
+  }
 
   const { team } = teamData.teamInfo;
-
   const pageTitle = t("team_page_meta_title", { teamName: team.name });
   const pageDescription = t("team_page_meta_description", {
     teamName: team.name,
@@ -1931,31 +1910,78 @@ export default async function TeamPage({
   const seoWidgetTitle = t("team_seo_widget_title", { teamName: team.name });
   const seoWidgetText = t("team_page_seo_text", { teamName: team.name });
 
+  const jsonLd: WithContext<SportsTeam | BreadcrumbList>[] = [
+    {
+      "@context": "https://schema.org",
+      "@type": "SportsTeam",
+      name: team.name,
+      sport: "Soccer",
+      logo: team.logo,
+      url: `${BASE_URL}/${locale}/football/team/${slug[0]}`,
+      location: {
+        "@type": "Place",
+        address: {
+          "@type": "PostalAddress",
+          addressLocality: venue.city,
+          addressCountry: team.country,
+        },
+      },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        {
+          "@type": "ListItem",
+          position: 1,
+          name: t("homepage"),
+          item: `${BASE_URL}/${locale}`,
+        },
+        {
+          "@type": "ListItem",
+          position: 2,
+          name: t("football_teams_title"),
+          item: `${BASE_URL}/${locale}/football/teams`,
+        },
+        {
+          "@type": "ListItem",
+          position: 3,
+          name: team.name,
+        },
+      ],
+    },
+  ];
+
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr_288px] lg:gap-8 lg:items-start p-4 lg:p-0 lg:py-6">
-        <Sidebar />
-
-        <main className="min-w-0 space-y-8">
-          <TeamHeader
-            team={team}
-            countryFlag={teamInfo.team.country && fixtures?.[0]?.league?.flag}
-            foundedText={t("founded_in", { year: team.founded })}
-          />
-          <TeamFixturesWidget fixtures={fixtures} />
-          <TeamSquadWidget squad={squad} />
-        </main>
-
-        <aside className="hidden lg:block lg:col-span-1 space-y-8 min-w-0">
-          <TeamInfoWidget venue={venue} />
-          <TeamTrophiesWidget teamId={team.id} />
-          <TeamSeoWidget title={seoWidgetTitle} seoText={seoWidgetText} />
-          <RecentNewsWidget />
-          <AdSlotWidget location="match_sidebar" />
-        </aside>
+    <>
+      <Script
+        id="team-page-jsonld"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr_288px] lg:gap-8 lg:items-start p-4 lg:p-0 lg:py-6">
+          <Sidebar />
+          <main className="min-w-0 space-y-8">
+            <TeamHeader
+              team={team}
+              countryFlag={teamInfo.team.country && fixtures?.[0]?.league?.flag}
+              foundedText={t("founded_in", { year: team.founded })}
+            />
+            <TeamFixturesWidget fixtures={fixtures} />
+            <TeamSquadWidget squad={squad} />
+          </main>
+          <aside className="hidden lg:block lg:col-span-1 space-y-8 min-w-0">
+            <TeamInfoWidget venue={venue} />
+            <TeamTrophiesWidget teamId={team.id} />
+            <TeamSeoWidget title={seoWidgetTitle} seoText={seoWidgetText} />
+            <RecentNewsWidget />
+            <AdSlotWidget location="match_sidebar" />
+          </aside>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -2847,6 +2873,8 @@ import { WithContext, NewsArticle, BreadcrumbList } from "schema-dts";
 import StyledLink from "@/components/StyledLink";
 import { ExternalLink } from "lucide-react";
 
+export const revalidate = 3600;
+
 const DEFAULT_LOCALE = "tr";
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
@@ -2901,22 +2929,19 @@ export async function generateMetadata({
   const post = await getPostAndHandleRedirects(slug, locale);
 
   if (!post) {
-    return { title: "Not Found" };
+    return { title: "Not Found", robots: { index: false, follow: false } };
   }
 
   const allTranslations = await post.getTranslations();
-
   const hreflangAlternates = await generateHreflangTags(
     "/news",
     slug,
     locale,
     allTranslations
   );
-
   const description =
     post.metaDescription ||
     post.content.replace(/<[^>]*>?/gm, "").substring(0, 160);
-
   const imageUrl = post.featuredImage
     ? proxyImageUrl(post.featuredImage)
     : `${BASE_URL}/og-image.jpg`;
@@ -2933,14 +2958,7 @@ export async function generateMetadata({
       publishedTime: new Date(post.createdAt).toISOString(),
       modifiedTime: new Date(post.updatedAt).toISOString(),
       authors: [post.author || "Fan Skor"],
-      images: [
-        {
-          url: imageUrl,
-          width: 1200,
-          height: 630,
-          alt: post.title,
-        },
-      ],
+      images: [{ url: imageUrl, width: 1200, height: 630, alt: post.title }],
     },
   };
 }
@@ -2959,7 +2977,6 @@ export default async function GeneralNewsArticlePage({
 
   const t = await getI18n(locale);
   const { processedHtml, toc } = generateTableOfContents(post.content);
-
   const allTranslations = await post.getTranslations();
   const hreflangAlternates = await generateHreflangTags(
     "/news",
@@ -2967,7 +2984,6 @@ export default async function GeneralNewsArticlePage({
     locale,
     allTranslations
   );
-
   const postUrl = hreflangAlternates.canonical;
   const description =
     post.metaDescription ||
@@ -2993,6 +3009,7 @@ export default async function GeneralNewsArticlePage({
         },
       },
       description: description,
+      articleBody: post.content.replace(/<[^>]*>?/gm, ""),
     },
     {
       "@context": "https://schema.org",
@@ -3014,11 +3031,6 @@ export default async function GeneralNewsArticlePage({
       ],
     },
   ];
-
-  function getPath(path: string, locale: string) {
-    if (locale === DEFAULT_LOCALE) return path;
-    return `/${locale}${path}`;
-  }
 
   return (
     <>
@@ -3044,7 +3056,6 @@ export default async function GeneralNewsArticlePage({
                   />
                 </div>
               )}
-
               <div className="p-4 sm:p-6 md:p-8">
                 <h1 className="text-3xl md:text-5xl font-extrabold text-white leading-tight mb-4">
                   {post.title}
@@ -3086,18 +3097,6 @@ export default async function GeneralNewsArticlePage({
       </div>
     </>
   );
-}
-
-export async function generateStaticParams() {
-  await dbConnect();
-  const posts = await Post.find({ status: "published" })
-    .select("slug language")
-    .lean();
-
-  return posts.map((post) => ({
-    slug: post.slug,
-    locale: post.language,
-  }));
 }
 
 // ===== src/app/[locale]/news/category/[category]/NewsArchiveClient.tsx =====
@@ -3419,12 +3418,6 @@ export default async function NewsCategoryPage({
       </div>
     </div>
   );
-}
-
-export async function generateStaticParams() {
-  return VALID_CATEGORIES.map((category) => ({
-    category: category,
-  }));
 }
 
 // ===== src/app/[locale]/news/page.tsx =====
@@ -7626,6 +7619,8 @@ import NextAuthProvider from "../NextAuthProvider";
 import Providers from "../providers";
 import "../globals.css";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "FanSkor Admin Panel",
   description: "Management dashboard for FanSkor.",
@@ -7647,22 +7642,15 @@ export default async function AdminLayout({
   }
 
   return (
-    <html>
-      <body>
-        <NextAuthProvider>
-          <Providers>
-            <div className="flex min-h-screen bg-brand-dark">
-              {" "}
-              {}
-              <AdminSidebar />
-              <main className="flex-1 p-8">{children}</main>
-            </div>
-          </Providers>
-        </NextAuthProvider>
-      </body>
-    </html>
+    <NextAuthProvider>
+      <Providers>
+        <div className="flex min-h-screen bg-brand-dark">
+          <AdminSidebar />
+          <main className="flex-1 p-8">{children}</main>
+        </div>
+      </Providers>
+    </NextAuthProvider>
   );
-
 }
 
 // ===== src/app/admin/leagues/page.tsx =====
@@ -37094,11 +37082,13 @@ import { getNews } from "@/lib/data/news";
 import { getMatchHighlights as fetchHighlights } from "@/lib/data/highlightly";
 
 const STALE_CACHE_TTL_SECONDS = 60 * 60 * 24 * 7;
+const LIVE_CACHE_TTL_SECONDS = 60;
 
 const apiRequest = async <T>(
   endpoint: string,
   params: object,
-  cacheKey: string
+  cacheKey: string,
+  ttl: number
 ): Promise<T | null> => {
   try {
     const options = {
@@ -37112,17 +37102,10 @@ const apiRequest = async <T>(
     const data = response.data.response;
 
     if (data && (!Array.isArray(data) || data.length > 0)) {
-      await redis.set(
-        cacheKey,
-        JSON.stringify(data),
-        "EX",
-        STALE_CACHE_TTL_SECONDS
-      );
+      await redis.set(cacheKey, JSON.stringify(data), "EX", ttl);
     }
-
     return data;
   } catch (error: any) {
-
     console.error(
       `[data/match.ts] API request for ${endpoint} with key ${cacheKey} failed: ${error.message}. Attempting to serve from cache.`
     );
@@ -37135,7 +37118,6 @@ const apiRequest = async <T>(
         );
         return JSON.parse(cachedData);
       } else {
-
         console.error(
           `[data/match.ts] ✗ No stale data available in cache for key: ${cacheKey}.`
         );
@@ -37153,60 +37135,93 @@ const apiRequest = async <T>(
 
 export const getFixture = cache(async (fixtureId: string) => {
   const cacheKey = `fixture:${fixtureId}`;
+
+  try {
+    const cachedData = await redis.get(cacheKey);
+    if (cachedData) {
+
+      return JSON.parse(cachedData);
+    }
+  } catch (e) {
+
+  }
+
   const fixtureResponse = await apiRequest<any[]>(
     "fixtures",
     { id: fixtureId },
-    cacheKey
+    cacheKey,
+    STALE_CACHE_TTL_SECONDS
   );
+
   if (!fixtureResponse || fixtureResponse.length === 0) return null;
   return fixtureResponse[0];
 });
 
 export const getStatistics = cache(async (fixtureId: string) => {
   const cacheKey = `statistics:${fixtureId}`;
+  const cachedData = await redis.get(cacheKey);
+  if (cachedData) return JSON.parse(cachedData);
+
   return await apiRequest<any[]>(
     "fixtures/statistics",
     { fixture: fixtureId },
-    cacheKey
+    cacheKey,
+    LIVE_CACHE_TTL_SECONDS
   );
 });
 
 export const getH2H = cache(async (homeTeamId: number, awayTeamId: number) => {
   const sortedIds = [homeTeamId, awayTeamId].sort();
   const cacheKey = `h2h:${sortedIds[0]}-${sortedIds[1]}`;
+  const cachedData = await redis.get(cacheKey);
+  if (cachedData) return JSON.parse(cachedData);
+
   return await apiRequest<any[]>(
     "fixtures/headtohead",
     { h2h: `${homeTeamId}-${awayTeamId}` },
-    cacheKey
+    cacheKey,
+    STALE_CACHE_TTL_SECONDS
   );
 });
 
 export const getTeamStats = cache(
   async (leagueId: number, season: number, teamId: number) => {
     const cacheKey = `team-stats:${teamId}:${leagueId}:${season}`;
+    const cachedData = await redis.get(cacheKey);
+    if (cachedData) return JSON.parse(cachedData);
+
     return await apiRequest<any>(
       "teams/statistics",
       { league: leagueId, season: season, team: teamId },
-      cacheKey
+      cacheKey,
+      STALE_CACHE_TTL_SECONDS
     );
   }
 );
 
 export const getStandings = cache(async (leagueId: number, season: number) => {
   const cacheKey = `standings:${leagueId}:${season}`;
+  const cachedData = await redis.get(cacheKey);
+  if (cachedData) return JSON.parse(cachedData);
+
   return await apiRequest<any[]>(
     "standings",
     { league: leagueId, season: season },
-    cacheKey
+    cacheKey,
+    STALE_CACHE_TTL_SECONDS
   );
 });
 
 export const getBookmakerOdds = cache(async (fixtureId: string) => {
   const cacheKey = `odds:${fixtureId}`;
+  const cachedData = await redis.get(cacheKey);
+  if (cachedData) return JSON.parse(cachedData);
+
   const response = await apiRequest<any[]>(
     "odds",
     { fixture: fixtureId, bet: "1" },
-    cacheKey
+    cacheKey,
+    STALE_CACHE_TTL_SECONDS
   );
   return response ?? [];
 });
@@ -37880,7 +37895,7 @@ interface CachedLocaleData {
   translations: Record<string, any>;
 }
 
-const isProduction = process.env.NODE_ENV === "production";
+const isProduction = process.env.NEXT_PUBLIC_NODE_ENV === "production";
 
 export class I18nCache {
   private static instance: I18nCache;
@@ -37897,11 +37912,29 @@ export class I18nCache {
     return I18nCache.instance;
   }
 
-  public async initialize(): Promise<void> {
+  private async connectWithRetry(
+    fn: () => Promise<any>,
+    retries = 3,
+    delay = 1000
+  ) {
+    for (let i = 1; i <= retries; i++) {
+      try {
+        return await fn();
+      } catch (error: any) {
+        console.warn(
+          `[I18N_CACHE] DB Operation failed (Attempt ${i}/${retries}): ${error.message}`
+        );
+        if (i === retries) {
 
-    if (this.isInitialized) {
-      return;
+          throw error;
+        }
+        await new Promise((res) => setTimeout(res, delay * i));
+      }
     }
+  }
+
+  public async initialize(): Promise<void> {
+    if (this.isInitialized) return;
 
     if (isProduction) {
       try {
@@ -37914,7 +37947,6 @@ export class I18nCache {
         if (cachedLocalesStr && cachedDefaultLocale) {
           const locales: string[] = JSON.parse(cachedLocalesStr);
           const newCache = new Map<string, CachedLocaleData>();
-
           for (const locale of locales) {
             const translationsStr = await redis.get(
               `${CACHE_KEYS.TRANSLATIONS_PREFIX}${locale}`
@@ -37927,7 +37959,6 @@ export class I18nCache {
               );
             }
           }
-
           this.cache = newCache;
           this.defaultLocale = cachedDefaultLocale;
           this.isInitialized = true;
@@ -37938,7 +37969,7 @@ export class I18nCache {
         }
 
         console.log(
-          "[I18N_CACHE] [PROD] Redis cache miss. Loading from database..."
+          "[I18N_CACHE] [PROD] Redis cache miss. Loading from database with retry logic..."
         );
         await this.loadDataFromDB();
         return;
@@ -37953,13 +37984,13 @@ export class I18nCache {
     }
 
     console.log(
-      "[I18N_CACHE] [DEV] Bypassing cache, loading directly from database..."
+      "[I18N_CACHE] [DEV] Bypassing cache, loading directly from database with retry logic..."
     );
     await this.loadDataFromDB();
   }
 
   private async loadDataFromDB(): Promise<void> {
-    try {
+    const loadOperation = async () => {
       await dbConnect();
 
       const [activeLanguages, allTranslations] = await Promise.all([
@@ -37971,7 +38002,6 @@ export class I18nCache {
       let foundDefault = false;
 
       if (activeLanguages.length === 0) {
-
         this.isInitialized = !isProduction;
         return;
       }
@@ -38003,14 +38033,13 @@ export class I18nCache {
 
       if (isProduction) {
         const redisPipeline = redis.pipeline();
-        redisPipeline.set(
+        redisPipeline.hset(
           CACHE_KEYS.LOCALES,
           JSON.stringify(Array.from(newCache.keys()))
         );
-        redisPipeline.set(CACHE_KEYS.DEFAULT_LOCALE, this.defaultLocale);
-
+        redisPipeline.hset(CACHE_KEYS.DEFAULT_LOCALE, this.defaultLocale);
         for (const [locale, data] of newCache.entries()) {
-          redisPipeline.set(
+          redisPipeline.hset(
             `${CACHE_KEYS.TRANSLATIONS_PREFIX}${locale}`,
             JSON.stringify(data),
             "EX",
@@ -38024,22 +38053,28 @@ export class I18nCache {
       }
 
       this.cache = newCache;
-
-      this.isInitialized = isProduction;
+      this.isInitialized = true;
       console.log(
         `[I18N_CACHE] Successfully loaded translations for ${this.cache.size} locales from DB.`
       );
+    };
+
+    try {
+      await this.connectWithRetry(loadOperation);
     } catch (error) {
       console.error(
-        "[I18N_CACHE] CRITICAL: Failed to load i18n data from database.",
+        "[I18N_CACHE] CRITICAL: Failed to load i18n data from database after multiple retries.",
         error
       );
+
+      if (process.env.npm_lifecycle_script?.includes("build")) {
+        throw error;
+      }
       this.isInitialized = false;
     }
   }
 
   public async reload(): Promise<void> {
-
     if (isProduction) {
       const locales = await this.getLocales();
       const keysToDel = [
@@ -38051,7 +38086,6 @@ export class I18nCache {
         await redis.del(...keysToDel);
       }
     }
-
     this.isInitialized = false;
     this.cache.clear();
     await this.initialize();
@@ -38464,7 +38498,7 @@ export default mockRedisClient;
 
 // ===== src/lib/redis.ts =====
 
-import 'dotenv/config';
+import "dotenv/config";
 import Redis from "ioredis";
 import "server-only";
 import mockRedisClient from "./redis.mock";
@@ -38475,10 +38509,18 @@ declare global {
 
 let redisClient: Redis | typeof mockRedisClient;
 
-if (process.env.NODE_ENV === 'production') {
-
-  if (!process.env.NEXT_PUBLIC_REDIS_HOST || !process.env.NEXT_PUBLIC_REDIS_PORT || !process.env.NEXT_PUBLIC_REDIS_PASSWORD) {
-    throw new Error("Production Redis connection details (REDIS_HOST, REDIS_PORT, REDIS_PASSWORD) are not defined.");
+if (
+  process.env.NEXT_PUBLIC_NODE_ENV === "production" &&
+  !process.env.NEXT_PUBLIC_CI
+) {
+  if (
+    !process.env.NEXT_PUBLIC_REDIS_HOST ||
+    !process.env.NEXT_PUBLIC_REDIS_PORT ||
+    !process.env.NEXT_PUBLIC_REDIS_PASSWORD
+  ) {
+    throw new Error(
+      "Production Redis connection details (REDIS_HOST, REDIS_PORT, REDIS_PASSWORD) are not defined for the running application."
+    );
   }
 
   if (!global.redis) {
@@ -38489,19 +38531,25 @@ if (process.env.NODE_ENV === 'production') {
       enableOfflineQueue: false,
     });
 
-    global.redis.on('connect', () => {
+    global.redis.on("connect", () => {
 
     });
 
-    global.redis.on('error', (err) => {
-
+    global.redis.on("error", (err) => {
+      console.error(
+        "[Redis] Production runtime connection Error:",
+        err.message
+      );
     });
   }
-
   redisClient = global.redis;
-
 } else {
 
+  if (process.env.CI) {
+    console.log(
+      "[Redis] Using MOCK Redis client for build process (CI environment)."
+    );
+  }
   redisClient = mockRedisClient;
 }
 
