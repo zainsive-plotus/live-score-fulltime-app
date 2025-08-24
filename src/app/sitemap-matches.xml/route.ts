@@ -1,3 +1,5 @@
+// ===== src/app/sitemap-matches.xml/route.ts =====
+
 import axios from "axios";
 import slugify from "slugify";
 import { format, subDays, addDays } from "date-fns";
@@ -32,24 +34,18 @@ const generateMatchSlug = (
   )}-${fixtureId}`;
 };
 
+// ** FIX 1: Cleaned up XML generation to remove unnecessary whitespace. **
 const generateXml = (entries: SitemapEntry[]) =>
-  `<?xml version="1.0" encoding="UTF-8"?>
-     <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-       ${entries
-         .map(
-           (entry) => `
-         <url>
-           <loc>${entry.url}</loc>
-           <lastmod>${new Date(
-             entry.lastModified || new Date()
-           ).toISOString()}</lastmod>
-           <changefreq>${entry.changeFrequency}</changefreq>
-           <priority>${entry.priority}</priority>
-         </url>
-       `
-         )
-         .join("")}
-     </urlset>`;
+  `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${entries
+    .map(
+      (entry) =>
+        `<url><loc>${entry.url}</loc><lastmod>${new Date(
+          entry.lastModified || new Date()
+        ).toISOString()}</lastmod><changefreq>${
+          entry.changeFrequency
+        }</changefreq><priority>${entry.priority}</priority></url>`
+    )
+    .join("")}</urlset>`;
 
 export async function GET() {
   try {
@@ -61,7 +57,16 @@ export async function GET() {
       `${BASE_URL}/api/fixtures?from=${fromDate}&to=${toDate}`
     );
 
-    const sitemapEntries: SitemapEntry[] = matches.flatMap((match: any) =>
+    // ** FIX 2: Add a defensive filter to ensure all match objects are valid before processing. **
+    const validMatches = matches.filter(
+      (match: any) =>
+        match &&
+        match.fixture?.id &&
+        match.teams?.home?.name &&
+        match.teams?.away?.name
+    );
+
+    const sitemapEntries: SitemapEntry[] = validMatches.flatMap((match: any) =>
       SUPPORTED_LOCALES.map((locale) => ({
         url: `${BASE_URL}${getPath(
           generateMatchSlug(
