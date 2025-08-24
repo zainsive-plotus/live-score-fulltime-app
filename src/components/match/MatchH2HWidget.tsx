@@ -19,7 +19,6 @@ interface MatchH2HWidgetProps {
     away: { id: number; name: string; logo: string };
   };
   currentFixtureId: string;
-  h2hSeoDescription: string;
 }
 
 const fetchH2HData = async (homeTeamId: number, awayTeamId: number) => {

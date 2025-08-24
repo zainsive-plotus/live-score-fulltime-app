@@ -32,9 +32,6 @@ async function request(endpoint: string, params?: object) {
       } items from /${endpoint}`
     );
 
-    console.log(JSON.stringify(params));
-    console.log(JSON.stringify(response.data));
-
     return response.data;
   } catch (error: any) {
     // This is the critical part: we now specifically check for the 429 error
@@ -85,8 +82,8 @@ export async function getLatestPopularHighlights() {
   try {
     const result = await request("football/highlights", {
       limit: 40,
+      season: 2025,
     });
-
     if (!result || !result.data || !Array.isArray(result.data)) {
       console.warn(
         "[Highlightly Service] No highlights data array returned from the API."
@@ -94,23 +91,24 @@ export async function getLatestPopularHighlights() {
       return [];
     }
 
-    const uniqueHighlights = Array.from(
-      new Map(result.data.map((item: any) => [item.embedUrl, item])).values()
-    );
+    // const uniqueHighlights = Array.from(
+    //   new Map(result.data.map((item: any) => [item.embedUrl, item])).values()
+    // );
 
-    if (uniqueHighlights.length > 0) {
+    const highlights = result.data;
+    if (highlights.length > 0) {
       await redis.set(
         CACHE_KEY,
-        JSON.stringify(uniqueHighlights),
+        JSON.stringify(highlights),
         "EX",
         CACHE_TTL_SUCCESS // Use the longer TTL for successful fetches
       );
       console.log(
-        `[Highlightly Service] Cached ${uniqueHighlights.length} new highlights.`
+        `[Highlightly Service] Cached ${highlights.length} new highlights.`
       );
     }
 
-    return uniqueHighlights;
+    return highlights;
   } catch (error: any) {
     // Here we catch the specific RateLimitError
     if (error.name === "RateLimitError") {

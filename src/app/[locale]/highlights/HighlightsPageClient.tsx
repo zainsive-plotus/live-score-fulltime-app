@@ -1,5 +1,3 @@
-// ===== src/app/[locale]/highlights/HighlightsPageClient.tsx =====
-
 "use client";
 
 import { Fragment, useEffect } from "react";
@@ -12,13 +10,21 @@ import HighlightCard, {
 } from "@/components/HighlightCard";
 import { useTranslation } from "@/hooks/useTranslation";
 
+// The rich data structure for a highlight remains
 interface Highlight {
-  id: string;
+  id: number;
+  imgUrl: string | null;
   title: string;
-  thumbnailUrl: string;
-  embedUrl: string;
-  source: "Highlightly" | "YouTube";
-  publishedAt: string;
+  description?: string;
+  url: string;
+  source: string;
+  match?: {
+    date?: string;
+    country?: { name?: string; logo?: string };
+    awayTeam?: { name?: string; logo?: string };
+    homeTeam?: { name?: string; logo?: string };
+    league?: { name?: string; logo?: string };
+  };
 }
 
 interface HighlightsApiResponse {
@@ -54,14 +60,16 @@ export default function HighlightsPageClient() {
   });
 
   useEffect(() => {
+    // Reverted to simpler infinite scroll logic
     if (inView && hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   if (isLoading) {
+    // The main grid below now has 3 columns on lg screens and 4 on xl
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
         {Array.from({ length: 12 }).map((_, i) => (
           <HighlightCardSkeleton key={i} />
         ))}
@@ -89,7 +97,8 @@ export default function HighlightsPageClient() {
 
   return (
     <div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      {/* The responsive grid will now respect the new layout */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
         {data.pages.map((page, i) => (
           <Fragment key={i}>
             {page.highlights.map((highlight) => (

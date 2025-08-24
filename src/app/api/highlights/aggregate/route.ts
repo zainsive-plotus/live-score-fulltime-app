@@ -21,14 +21,7 @@ const fetchHighlights = async (): Promise<Highlight[]> => {
     }
 
     // Transform the data to match our consistent Highlight interface
-    return highlights.map((item: any) => ({
-      id: `hl-${item.id}`,
-      title: item.title,
-      thumbnailUrl: item.thumbnail,
-      embedUrl: item.embedUrl,
-      source: "Highlightly",
-      publishedAt: item.match.date,
-    }));
+    return highlights;
   } catch (error) {
     console.error(
       "[Aggregate Highlights] Error fetching from Highlightly service:",

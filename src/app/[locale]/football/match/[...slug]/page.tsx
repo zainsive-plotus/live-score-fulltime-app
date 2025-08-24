@@ -10,7 +10,6 @@ import Header from "@/components/Header";
 import { MatchHeader } from "@/components/match/MatchHeader";
 import TeamFormWidget from "@/components/match/TeamFormWidget";
 import MatchH2HWidget from "@/components/match/MatchH2HWidget";
-import MatchLineupsWidget from "@/components/match/MatchFormationWidget";
 import MatchStatsWidget from "@/components/match/MatchStatsWidget";
 import MatchActivityWidget from "@/components/match/MatchActivityWidget";
 import SidebarContent from "./SidebarContent";
@@ -34,65 +33,65 @@ const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
 // // This function pre-builds pages for the next 3 days of matches.
-export async function generateStaticParams() {
-  try {
-    const fromDate = format(new Date(), "yyyy-MM-dd");
-    const toDate = format(addDays(new Date(), 2), "yyyy-MM-dd");
+// export async function generateStaticParams() {
+//   try {
+//     const fromDate = format(new Date(), "yyyy-MM-dd");
+//     const toDate = format(addDays(new Date(), 2), "yyyy-MM-dd");
 
-    console.log(
-      `[generateStaticParams/Match] Fetching all matches from ${fromDate} to ${toDate}...`
-    );
-    const fixtures = await getFixturesByDateRange(fromDate, toDate);
+//     console.log(
+//       `[generateStaticParams/Match] Fetching all matches from ${fromDate} to ${toDate}...`
+//     );
+//     const fixtures = await getFixturesByDateRange(fromDate, toDate);
 
-    if (!fixtures || fixtures.length === 0) {
-      console.warn(
-        "[generateStaticParams/Match] No upcoming fixtures found to pre-build."
-      );
-      return [];
-    }
-    console.log(
-      `[generateStaticParams/Match] Found ${fixtures.length} matches. Pre-hydrating cache...`
-    );
+//     if (!fixtures || fixtures.length === 0) {
+//       console.warn(
+//         "[generateStaticParams/Match] No upcoming fixtures found to pre-build."
+//       );
+//       return [];
+//     }
+//     console.log(
+//       `[generateStaticParams/Match] Found ${fixtures.length} matches. Pre-hydrating cache...`
+//     );
 
-    // Pre-hydrate the cache with full fixture data for each match.
-    // This prevents thousands of API calls during the page rendering step.
-    const pipeline = (redis as any).pipeline();
-    fixtures.forEach((fixture: any) => {
-      const cacheKey = `fixture:${fixture.fixture.id}`;
-      // Cache for 24 hours, long enough to outlast the build.
-      pipeline.set(cacheKey, JSON.stringify(fixture), "EX", 86400);
-    });
-    await pipeline.exec();
-    console.log(
-      `[generateStaticParams/Match] Redis cache pre-hydrated successfully.`
-    );
+//     // Pre-hydrate the cache with full fixture data for each match.
+//     // This prevents thousands of API calls during the page rendering step.
+//     const pipeline = (redis as any).pipeline();
+//     fixtures.forEach((fixture: any) => {
+//       const cacheKey = `fixture:${fixture.fixture.id}`;
+//       // Cache for 24 hours, long enough to outlast the build.
+//       pipeline.set(cacheKey, JSON.stringify(fixture), "EX", 86400);
+//     });
+//     await pipeline.exec();
+//     console.log(
+//       `[generateStaticParams/Match] Redis cache pre-hydrated successfully.`
+//     );
 
-    // Generate the slug parameters for Next.js
-    const params = fixtures.flatMap((fixture: any) =>
-      SUPPORTED_LOCALES.map((locale) => ({
-        locale,
-        slug: generateMatchSlug(
-          fixture.teams.home,
-          fixture.teams.away,
-          fixture.fixture.id
-        )
-          .replace(`/football/match/`, "")
-          .split("/"),
-      }))
-    );
+//     // Generate the slug parameters for Next.js
+//     const params = fixtures.flatMap((fixture: any) =>
+//       SUPPORTED_LOCALES.map((locale) => ({
+//         locale,
+//         slug: generateMatchSlug(
+//           fixture.teams.home,
+//           fixture.teams.away,
+//           fixture.fixture.id
+//         )
+//           .replace(`/football/match/`, "")
+//           .split("/"),
+//       }))
+//     );
 
-    console.log(
-      `[generateStaticParams/Match] Returning ${params.length} paths for Next.js to build.`
-    );
-    return params;
-  } catch (error: any) {
-    console.error(
-      "[generateStaticParams/Match] A critical error occurred:",
-      error.message
-    );
-    return [];
-  }
-}
+//     console.log(
+//       `[generateStaticParams/Match] Returning ${params.length} paths for Next.js to build.`
+//     );
+//     return params;
+//   } catch (error: any) {
+//     console.error(
+//       "[generateStaticParams/Match] A critical error occurred:",
+//       error.message
+//     );
+//     return [];
+//   }
+// }
 
 const getFixtureIdFromSlug = (slug: string): string | null => {
   if (!slug) return null;
@@ -200,14 +199,6 @@ export default async function MatchDetailPage({
     fixtureDetails?.status?.short
   );
 
-  const h2hSeoDescription = t("match_page_h2h_seo_text", {
-    homeTeam: teams.home.name,
-    awayTeam: teams.away.name,
-  });
-  const activitySeoDescription = t("match_page_activity_seo_text", {
-    homeTeam: teams.home.name,
-    awayTeam: teams.away.name,
-  });
   const aboutMatchTitle = t("about_the_match_title", {
     homeTeam: teams.home.name,
     awayTeam: teams.away.name,
@@ -277,14 +268,8 @@ export default async function MatchDetailPage({
               <MatchFormationWidget fixtureId={fixtureId} />
             </Suspense>
 
-            <MatchLineupsWidget lineups={fixtureData.lineups} />
-
             <Suspense fallback={<H2HContentSkeleton />}>
-              <MatchH2HWidget
-                teams={teams}
-                currentFixtureId={fixtureId}
-                h2hSeoDescription={h2hSeoDescription}
-              />
+              <MatchH2HWidget teams={teams} currentFixtureId={fixtureId} />
             </Suspense>
 
             {(isLive || isFinished) && (
@@ -295,7 +280,6 @@ export default async function MatchDetailPage({
               fixtureId={fixtureId}
               isLive={isLive}
               homeTeamId={teams.home.id}
-              activitySeoDescription={activitySeoDescription}
             />
           </main>
 

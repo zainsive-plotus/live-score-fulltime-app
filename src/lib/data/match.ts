@@ -73,7 +73,8 @@ export const getFixture = cache(async (fixtureId: string) => {
     const cachedData = await redis.get(cacheKey);
     if (cachedData) {
       // During the build, this will hit the pre-hydrated cache from generateStaticParams.
-      return JSON.parse(cachedData);
+      const data = JSON.parse(cachedData);
+      return data[0] ?? data;
     }
   } catch (e) {
     console.error(`[data/match.ts] Redis GET failed for key ${cacheKey}:`, e);

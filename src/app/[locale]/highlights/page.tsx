@@ -1,5 +1,3 @@
-// ===== src/app/[locale]/highlights/page.tsx =====
-
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { PlayCircle } from "lucide-react";
@@ -9,6 +7,8 @@ import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
 import HighlightsPageClient from "./HighlightsPageClient";
 import { HighlightCardSkeleton } from "@/components/HighlightCard";
+import RecentNewsWidget from "@/components/RecentNewsWidget";
+import AdSlotWidget from "@/components/AdSlotWidget";
 
 const PAGE_PATH = "/highlights";
 
@@ -37,7 +37,7 @@ export async function generateMetadata({
 }
 
 const PageSkeleton = () => (
-  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
     {Array.from({ length: 12 }).map((_, i) => (
       <HighlightCardSkeleton key={i} />
     ))}
@@ -54,9 +54,10 @@ export default async function HighlightsPage({
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr] lg:gap-8 lg:items-start">
+      {/* CHANGE: Updated grid layout to three columns */}
+      <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr_288px] lg:gap-8 lg:items-start p-4 lg:p-0 lg:py-6">
         <Sidebar />
-        <main className="min-w-0 p-4 lg:p-0 lg:py-6">
+        <main className="min-w-0">
           <div className="flex items-center gap-4 mb-8">
             <div className="p-3 bg-[var(--brand-accent)]/10 rounded-lg">
               <PlayCircle className="w-8 h-8 text-[var(--brand-accent)]" />
@@ -75,6 +76,12 @@ export default async function HighlightsPage({
             <HighlightsPageClient />
           </Suspense>
         </main>
+
+        {/* CHANGE: Added the right sidebar */}
+        <aside className="hidden lg:block lg:col-span-1 space-y-8 min-w-0">
+          <RecentNewsWidget />
+          <AdSlotWidget location="homepage_right_sidebar" />
+        </aside>
       </div>
     </div>
   );
