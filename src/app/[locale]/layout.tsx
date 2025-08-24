@@ -40,9 +40,9 @@ export default async function LocaleLayout({
     // <-- 2. APPLY THE FONT VARIABLE TO THE HTML TAG
     <html lang={locale} className={inter.variable}>
       <head>
-        {process.env.NEXT_PUBLIC_NODE_ENV === "production" && (
+        {/* {process.env.NEXT_PUBLIC_NODE_ENV === "production" && (
           <Script src="./scripts/relic.js" />
-        )}
+        )} */}
         <script
           src="https://analytics.ahrefs.com/analytics.js"
           data-key="bUq3rBCRyMMiFSPFiUUAxg"

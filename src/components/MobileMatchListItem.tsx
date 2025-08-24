@@ -1,9 +1,10 @@
+// ===== src/components/MobileMatchListItem.tsx =====
+
 "use client";
 
 import { useState, useMemo } from "react";
 import Image from "next/image";
 import Link from "@/components/StyledLink";
-import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import {
@@ -16,7 +17,7 @@ import {
 } from "lucide-react";
 import { generateMatchSlug } from "@/lib/generate-match-slug";
 import { proxyImageUrl } from "@/lib/image-proxy";
-import { useTranslation } from "@/hooks/useTranslation"; // <-- Import hook
+import { useTranslation } from "@/hooks/useTranslation";
 import ZonedDate from "./ZonedDate";
 
 type Odds = { home: string; draw: string; away: string } | undefined | null;
@@ -77,7 +78,7 @@ const TeamRow = ({
 
 export default function MobileMatchListItem({ match }: { match: any }) {
   const { fixture, teams, goals } = match;
-  const { t } = useTranslation(); // <-- Use hook
+  const { t } = useTranslation();
   const slug = generateMatchSlug(teams.home, teams.away, fixture.id);
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -154,7 +155,7 @@ export default function MobileMatchListItem({ match }: { match: any }) {
       className="rounded-lg overflow-hidden"
       style={{ backgroundColor: "var(--color-secondary)" }}
     >
-      <Link href={`/football/match/${slug}`}>
+      <Link href={slug}>
         <div className="flex items-center gap-2 p-3">
           <div className="w-12 flex-shrink-0 text-center text-xs font-bold">
             {isLive ? (
@@ -234,7 +235,7 @@ export default function MobileMatchListItem({ match }: { match: any }) {
         style={{ backgroundColor: "var(--color-primary)" }}
       >
         <Link
-          href={`/football/match/${slug}`}
+          href={slug}
           className="flex items-center gap-1.5 text-xs text-text-muted font-semibold hover:text-white transition-colors px-2 py-1"
         >
           <BarChart2 size={14} />

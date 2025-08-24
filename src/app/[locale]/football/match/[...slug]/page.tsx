@@ -105,9 +105,9 @@ const getFixtureIdFromSlug = (slug: string): string | null => {
 export async function generateMetadata({
   params,
 }: {
-  params: { slug: string[]; locale: string };
+  params: Promise<{ slug: string[]; locale: string }>;
 }): Promise<Metadata> {
-  const { slug, locale } = params;
+  const { slug, locale } = await params;
   const t = await getI18n(locale);
   const fixtureId = getFixtureIdFromSlug(slug[0]);
   const hreflangAlternates = await generateHreflangTags(
@@ -179,9 +179,9 @@ const SidebarSkeleton = () => (
 export default async function MatchDetailPage({
   params,
 }: {
-  params: { slug: string[]; locale: string };
+  params: Promise<{ slug: string[]; locale: string }>;
 }) {
-  const { slug, locale } = params;
+  const { slug, locale } = await params;
   const t = await getI18n(locale);
   const fixtureId = getFixtureIdFromSlug(slug[0]);
   if (!fixtureId) notFound();

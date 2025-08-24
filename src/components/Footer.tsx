@@ -17,7 +17,7 @@ const getLocaleFromPathname = (pathname: string) => {
 };
 
 export default async function Footer() {
-  const pathname = headers().get("x-next-pathname") || "/";
+  const pathname = (await headers()).get("x-next-pathname") || "/";
   const locale = getLocaleFromPathname(pathname);
   const t = await getI18n(locale);
 
