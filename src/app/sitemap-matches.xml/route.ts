@@ -50,8 +50,8 @@ const generateXml = (entries: SitemapEntry[]) =>
 export async function GET() {
   try {
     const today = new Date();
-    const fromDate = format(subDays(today, 30), "yyyy-MM-dd");
-    const toDate = format(addDays(today, 30), "yyyy-MM-dd");
+    const fromDate = format(subDays(today, 7), "yyyy-MM-dd");
+    const toDate = format(addDays(today, 14), "yyyy-MM-dd");
 
     const { data: matches } = await axios.get(
       `${BASE_URL}/api/fixtures?from=${fromDate}&to=${toDate}`
