@@ -2,19 +2,19 @@
 
 "use client";
 
-import { useEffect, useState, Dispatch, SetStateAction } from "react";
+import { useEffect, useState, useMemo, Dispatch, SetStateAction } from "react";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import Image from "next/image";
-import { League } from "@/types/api-football";
 import MatchListItem, { MatchListItemSkeleton } from "./MatchListItem";
 import MatchDateNavigator from "./MatchDateNavigator";
-import { Globe, Search, XCircle, ChevronDown } from "lucide-react"; // Added ChevronDown
+import { Globe, Search, XCircle, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 import { proxyImageUrl } from "@/lib/image-proxy";
 import { useTranslation } from "@/hooks/useTranslation";
 import StyledLink from "./StyledLink";
 import { generateLeagueSlug } from "@/lib/generate-league-slug";
+import { leagueIdToPriorityMap } from "@/config/topLeaguesConfig";
 
 function useDebounce(value: string, delay: number) {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -31,15 +31,51 @@ function useDebounce(value: string, delay: number) {
 
 type StatusFilter = "all" | "live" | "finished" | "scheduled";
 
+// ** THE FIX IS HERE: Updated fetcher to use the correct endpoint for live matches **
 const fetchAllFixturesByGroup = async (date: Date, status: StatusFilter) => {
-  const dateString = format(date, "yyyy-MM-dd");
-  const params = new URLSearchParams({
-    date: dateString,
-    status,
-    groupByLeague: "true",
-  });
-  const { data } = await axios.get(`/api/fixtures?${params.toString()}`);
-  return data;
+  if (status === "live") {
+    // For live status, fetch from the dedicated live endpoint and group manually
+    const { data: liveMatches } = await axios.get("/api/global-live");
+    if (!liveMatches || liveMatches.length === 0) {
+      return { leagueGroups: [] };
+    }
+
+    const groupedMatches = liveMatches.reduce((acc: any, match: any) => {
+      const groupKey = match.league.id;
+      if (!acc[groupKey]) {
+        acc[groupKey] = {
+          leagueInfo: { ...match.league },
+          matches: [],
+        };
+      }
+      acc[groupKey].matches.push(match);
+      return acc;
+    }, {});
+
+    const leagueGroups = Object.values(groupedMatches);
+
+    // Sort the groups by priority, just like the backend does
+    leagueGroups.sort((a: any, b: any) => {
+      const priorityA =
+        leagueIdToPriorityMap.get(a.leagueInfo.id.toString()) || 999;
+      const priorityB =
+        leagueIdToPriorityMap.get(b.leagueInfo.id.toString()) || 999;
+      if (priorityA !== priorityB) return priorityA - priorityB;
+      return a.leagueInfo.name.localeCompare(b.leagueInfo.name);
+    });
+
+    return { leagueGroups };
+  } else {
+    // For all other statuses, use the date-based endpoint
+    const dateString = format(date, "yyyy-MM-dd");
+    const params = new URLSearchParams({
+      date: dateString,
+      status,
+      groupByLeague: "true",
+    });
+    const { data } = await axios.get(`/api/fixtures?${params.toString()}`);
+    return data;
+  }
 };
 
 const searchFixtures = async (query: string): Promise<any[]> => {
@@ -62,7 +98,6 @@ const LeagueGroupHeader = ({
   };
 }) => {
   const leagueHref = generateLeagueSlug(league.name, league.id);
-
   return (
     <div
       className="flex items-center gap-3 p-3 sticky top-0 z-10"
@@ -133,19 +168,13 @@ const TabButton = ({
   </button>
 );
 
-export default function MatchList({
-  setLiveLeagues,
-}: {
-  setLiveLeagues: Dispatch<SetStateAction<League[]>>;
-}) {
+export default function MatchList() {
   const [activeStatusFilter, setActiveStatusFilter] =
-    useState<StatusFilter>("all");
+    useState<StatusFilter>("live");
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
   const { t } = useTranslation();
-
-  // ***** NEW STATE to track expanded leagues *****
   const [expandedLeagues, setExpandedLeagues] = useState<Set<number>>(
     new Set()
   );
@@ -164,9 +193,18 @@ export default function MatchList({
     ],
     queryFn: () => fetchAllFixturesByGroup(selectedDate, activeStatusFilter),
     enabled: !debouncedSearchTerm,
+    refetchInterval: activeStatusFilter === "live" ? 30000 : false,
+    staleTime: 25000,
   });
 
-  // ***** NEW FUNCTION to toggle a league's expanded state *****
+  const liveMatchCount = useMemo(() => {
+    if (!fixtureData?.leagueGroups) return 0;
+    return fixtureData.leagueGroups.reduce(
+      (total: number, group: any) => total + group.matches.length,
+      0
+    );
+  }, [fixtureData]);
+
   const toggleLeagueExpansion = (leagueId: number) => {
     setExpandedLeagues((prev) => {
       const newSet = new Set(prev);
@@ -179,74 +217,8 @@ export default function MatchList({
     });
   };
 
-  const { data: globalLiveCount } = useQuery({
-    queryKey: ["globalLiveCount"],
-    queryFn: () => axios.get("/api/global-live").then((res) => res.data.length),
-    refetchInterval: 30000,
-    staleTime: 25000,
-  });
-
   const isCurrentlyLoading =
     isLoadingFixtures || (isLoadingSearch && debouncedSearchTerm.length >= 3);
-
-  if (debouncedSearchTerm) {
-    return (
-      <div className="space-y-4">
-        <div
-          className="flex flex-col gap-3 p-2 rounded-xl"
-          style={{ backgroundColor: "var(--color-primary)" }}
-        >
-          <h1 className="py-2 italic">{t("homepage_seo_text_title")}</h1>
-          <div className="relative">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
-              size={20}
-            />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder={t("search_fixtures_placeholder")}
-              className="w-full bg-[var(--color-secondary)] border border-gray-700/50 rounded-lg p-3 pl-11 text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
-            />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-white"
-              >
-                <XCircle size={18} />
-              </button>
-            )}
-          </div>
-        </div>
-        <div className="space-y-2">
-          {isLoadingSearch ? (
-            Array.from({ length: 5 }).map((_, i) => (
-              <MatchListItemSkeleton key={i} />
-            ))
-          ) : searchResults && searchResults.length > 0 ? (
-            searchResults.map((match: any) => (
-              <MatchListItem key={match.fixture.id} match={match} />
-            ))
-          ) : (
-            <div
-              className="text-center py-20 rounded-lg"
-              style={{ backgroundColor: "var(--color-primary)" }}
-            >
-              <p className="text-white font-semibold capitalize">
-                {t("no_matches_found_title")}
-              </p>
-              <p className="text-sm text-text-muted mt-1">
-                {t("no_search_results_subtitle", {
-                  searchTerm: debouncedSearchTerm,
-                })}
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4">
@@ -267,6 +239,14 @@ export default function MatchList({
             placeholder={t("search_fixtures_placeholder")}
             className="w-full bg-[var(--color-secondary)] border border-gray-700/50 rounded-lg p-3 pl-11 text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
           />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-white"
+            >
+              <XCircle size={18} />
+            </button>
+          )}
         </div>
         <>
           <div className="flex justify-center">
@@ -289,9 +269,9 @@ export default function MatchList({
                 key={tab.key}
                 label={tab.label}
                 isActive={activeStatusFilter === tab.key}
-                liveCount={tab.key === "live" ? globalLiveCount : undefined}
+                liveCount={tab.key === "live" ? liveMatchCount : undefined}
                 hasLiveIndicator={
-                  tab.key === "live" && (globalLiveCount ?? 0) > 0
+                  tab.key === "live" && (liveMatchCount ?? 0) > 0
                 }
                 onClick={() => setActiveStatusFilter(tab.key as StatusFilter)}
               />
@@ -299,16 +279,16 @@ export default function MatchList({
           </div>
         </>
       </div>
-
       <div className="space-y-4">
         {isCurrentlyLoading ? (
           <div
             style={{ backgroundColor: "var(--color-primary)" }}
             className="rounded-lg p-2 space-y-2"
           >
+            {" "}
             {Array.from({ length: 10 }).map((_, i) => (
               <MatchListItemSkeleton key={i} />
-            ))}
+            ))}{" "}
           </div>
         ) : fixtureData?.leagueGroups?.length > 0 ? (
           <>
@@ -317,7 +297,6 @@ export default function MatchList({
               const displayedMatches = isExpanded
                 ? matches
                 : matches.slice(0, 3);
-
               return (
                 <div
                   key={leagueInfo.id}
@@ -330,7 +309,6 @@ export default function MatchList({
                       <MatchListItem key={match.fixture.id} match={match} />
                     ))}
                   </div>
-                  {/* ***** RENDER 'LOAD MORE' BUTTON CONDITIONALLY ***** */}
                   {matches.length > 3 && (
                     <div className="p-2 pt-0 text-center">
                       <button
@@ -338,11 +316,12 @@ export default function MatchList({
                         className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-text-muted hover:text-white hover:bg-gray-700/50 transition-colors py-2 rounded-md"
                       >
                         <span>
+                          {" "}
                           {isExpanded
                             ? t("show_less")
                             : t("show_more_matches", {
                                 count: matches.length - 3,
-                              })}
+                              })}{" "}
                         </span>
                         <ChevronDown
                           size={16}

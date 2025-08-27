@@ -58,7 +58,7 @@ export default async function LocaleLayout({
                   <LeagueProvider>
                     <main>{children}</main>
                     <StickyFooterAd />
-                    <Footer />
+                    <Footer locale={locale} />
                   </LeagueProvider>
                 </TimeZoneProvider>
               </I18nProviderClient>

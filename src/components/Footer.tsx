@@ -1,38 +1,28 @@
-// ===== src/components/Footer.tsx =====
-
 import Image from "next/image";
-import Link from "next/link";
 import { getI18n } from "@/lib/i18n/server";
-import { headers } from "next/headers";
 import FooterContent from "./FooterContent";
-import { SUPPORTED_LOCALES, DEFAULT_LOCALE } from "@/lib/i18n/config";
+import FooterAboutSection from "./FooterAboutSection";
+import StyledLink from "./StyledLink";
 
-// Helper to get locale from pathname on the server
-const getLocaleFromPathname = (pathname: string) => {
-  const firstSegment = pathname.split("/")[1];
-  if (SUPPORTED_LOCALES.includes(firstSegment)) {
-    return firstSegment;
-  }
-  return DEFAULT_LOCALE;
-};
-
-export default async function Footer() {
-  const pathname = (await headers()).get("x-next-pathname") || "/";
-  const locale = getLocaleFromPathname(pathname);
+// ** THE FIX IS HERE: The component now receives the locale as a prop. **
+export default async function Footer({ locale }: { locale: string }) {
   const t = await getI18n(locale);
 
   return (
-    <footer className="bg-brand-secondary text-white py-12">
+    <footer className="bg-brand-secondary text-white">
+      {/* Pass the locale down to any other Server Components that need it */}
+      <FooterAboutSection locale={locale} />
+
       <div className="container mx-auto px-4">
         <FooterContent locale={locale} />
 
-        <div className="flex flex-col md:flex-row justify-between items-center border-t border-gray-700/50 pt-8 mb-8">
-          <div className="mb-6 md:mb-0">
+        <div className="flex flex-col md:flex-row justify-between items-center border-t border-gray-700/50 py-8 gap-8">
+          <div className="flex-shrink-0">
             <Image
               src="/fanskor-transparent.webp"
               alt="Fanskor logo"
-              width={280}
-              height={40}
+              width={200}
+              height={28}
             />
           </div>
           <div className="flex items-center justify-center flex-wrap gap-x-6 gap-y-4 md:gap-8">
@@ -63,21 +53,24 @@ export default async function Footer() {
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row justify-between items-center text-sm text-brand-muted">
+        <div className="flex flex-col md:flex-row justify-between items-center text-sm text-brand-muted border-t border-gray-700/50 pt-6 pb-12">
           <p className="mb-4 md:mb-0 text-center md:text-left">
             © {new Date().getFullYear()} Fan skor -{" "}
             {t("footer_rights_reserved")}
           </p>
           <div className="flex flex-wrap justify-center gap-x-4 gap-y-2">
-            <Link href="/privacy-policy" className="hover:text-white">
+            <StyledLink href="/privacy-policy" className="hover:text-white">
               {t("privacy_policy_title")}
-            </Link>
-            <Link href="/terms-and-conditions" className="hover:text-white">
+            </StyledLink>
+            <StyledLink
+              href="/terms-and-conditions"
+              className="hover:text-white"
+            >
               {t("terms_and_conditions_title")}
-            </Link>
-            <Link href="/gdpr" className="hover:text-white">
+            </StyledLink>
+            <StyledLink href="/gdpr" className="hover:text-white">
               {t("gdpr_title")}
-            </Link>
+            </StyledLink>
           </div>
         </div>
       </div>

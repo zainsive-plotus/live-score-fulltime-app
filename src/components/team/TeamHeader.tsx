@@ -5,15 +5,15 @@ import { Calendar } from "lucide-react";
 export default function TeamHeader({
   team,
   countryFlag,
-  foundedText, // <-- New prop for the translated string
+  foundedText,
 }: {
   team: any;
   countryFlag: string;
-  foundedText: string; // <-- Type for the new prop
+  foundedText: string;
 }) {
   return (
     <div className="bg-brand-secondary p-6 rounded-lg mb-8 flex flex-col md:flex-row items-center gap-6">
-      <div className="relative">
+      <div className="relative flex-shrink-0">
         <Image
           src={proxyImageUrl(team.logo)}
           alt={`${team.name} logo`}
@@ -22,7 +22,7 @@ export default function TeamHeader({
         />
         {countryFlag && (
           <Image
-            src={proxyImageUrl(countryFlag)} // <-- Proxy the flag URL
+            src={proxyImageUrl(countryFlag)}
             alt={team.country}
             width={32}
             height={32}
@@ -30,14 +30,13 @@ export default function TeamHeader({
           />
         )}
       </div>
-      <div>
-        <h1 className="text-4xl md:text-5xl font-extrabold text-white text-center md:text-left">
+      <div className="flex-1 text-center md:text-left">
+        <h1 className="text-4xl md:text-5xl font-extrabold text-white">
           {team.name}
         </h1>
         {team.founded && (
           <div className="flex items-center gap-2 text-brand-muted justify-center md:justify-start mt-2">
             <Calendar size={14} />
-            {/* Use the translated prop */}
             <span>{foundedText}</span>
           </div>
         )}

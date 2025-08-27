@@ -1,96 +1,172 @@
-// ===== src/lib/data/team.ts =====
-
 import axios from "axios";
 import redis from "@/lib/redis";
-import "server-only"; // Ensure this is only used on the server
+import "server-only";
+import { cache } from "react";
 
-const STALE_CACHE_TTL_SECONDS = 60 * 60 * 24 * 7; // Keep stale data for 7 days as a fallback
+const STATIC_CACHE_TTL = 60 * 60 * 24; // 24 hours
+const DYNAMIC_CACHE_TTL = 60 * 60 * 6; // 6 hours
 
-export async function fetchTeamDetails(teamId: string) {
-  const season = new Date().getFullYear().toString();
-  const cacheKey = `team-details:${teamId}:${season}`;
-
+const apiRequest = async <T>(
+  endpoint: string,
+  params: object,
+  cacheKey: string,
+  ttl: number
+): Promise<T | null> => {
   try {
-    const options = (endpoint: string, params: object) => ({
+    const cachedData = await redis.get(cacheKey);
+    if (cachedData) {
+      console.log(`[data/team] ✓ Cache HIT for key: ${cacheKey}`);
+      return JSON.parse(cachedData);
+    }
+    console.log(
+      `[data/team] Cache MISS for key: ${cacheKey}. Fetching from API...`
+    );
+
+    const options = {
       method: "GET",
       url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/${endpoint}`,
       params,
       headers: { "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
-      timeout: 8000, // Fail faster to allow cache fallback
-    });
-
-    // Use Promise.allSettled to prevent one failed sub-request from crashing the whole function
-    const results = await Promise.allSettled([
-      axios.request(options("teams", { id: teamId })),
-      axios.request(options("players/squads", { team: teamId })),
-      axios.request(options("fixtures", { team: teamId, last: 10 })),
-      axios.request(options("standings", { team: teamId, season: season })),
-    ]);
-
-    const teamInfoResponse =
-      results[0].status === "fulfilled" ? results[0].value : null;
-    const squadResponse =
-      results[1].status === "fulfilled" ? results[1].value : null;
-    const recentFixturesResponse =
-      results[2].status === "fulfilled" ? results[2].value : null;
-    const standingsResponse =
-      results[3].status === "fulfilled" ? results[3].value : null;
-
-    // The primary check: we must have basic team info to proceed.
-    if (
-      !teamInfoResponse ||
-      !teamInfoResponse.data.response ||
-      teamInfoResponse.data.response.length === 0
-    ) {
-      throw new Error(`No team info found for teamId: ${teamId}`);
-    }
-
-    const responseData = {
-      teamInfo: teamInfoResponse.data.response[0],
-      squad: squadResponse?.data.response[0]?.players ?? [],
-      fixtures: recentFixturesResponse?.data.response ?? [],
-      standings: standingsResponse?.data.response ?? [],
+      timeout: 8000,
     };
+    const response = await axios.request(options);
+    const data = response.data.response;
 
-    await redis.set(
-      cacheKey,
-      JSON.stringify(responseData),
-      "EX",
-      STALE_CACHE_TTL_SECONDS
-    );
-
-    return responseData;
+    if (data && (!Array.isArray(data) || data.length > 0)) {
+      await redis.set(cacheKey, JSON.stringify(data), "EX", ttl);
+    }
+    return data;
   } catch (error: any) {
-    // --- THIS IS THE FIX ---
-    // If any API call fails, we try to serve stale data from the cache.
     console.error(
-      `[data/team] API fetch failed for teamId ${teamId}:`,
+      `[data/team] API fetch failed for key ${cacheKey}:`,
       error.code || error.message
     );
-    console.log(
-      `[data/team] Attempting to serve stale data from cache for key: ${cacheKey}`
-    );
-
     try {
       const cachedData = await redis.get(cacheKey);
       if (cachedData) {
         console.log(
-          `[data/team] ✓ Successfully served stale data for teamId ${teamId}.`
+          `[data/team] ✓ Successfully served STALE data for key: ${cacheKey}`
         );
         return JSON.parse(cachedData);
-      } else {
-        console.error(
-          `[data/team] ✗ No stale data available in cache for teamId ${teamId}. Returning null.`
-        );
-        return null;
       }
     } catch (cacheError) {
       console.error(
-        `[data/team] ✗ CRITICAL: Failed to access Redis during fallback for teamId ${teamId}.`,
+        `[data/team] ✗ CRITICAL: Redis lookup failed during fallback for key ${cacheKey}.`,
         cacheError
+      );
+    }
+    return null;
+  }
+};
+
+export const getTeamInfo = cache(async (teamId: string) => {
+  const data = await apiRequest<any[]>(
+    "teams",
+    { id: teamId },
+    `team:info:${teamId}`,
+    STATIC_CACHE_TTL
+  );
+  return data?.[0] ?? null;
+});
+
+export const getTeamSquad = cache(async (teamId: string) => {
+  const data = await apiRequest<any[]>(
+    "players/squads",
+    { team: teamId },
+    `team:squad:${teamId}`,
+    STATIC_CACHE_TTL
+  );
+  return data?.[0]?.players ?? [];
+});
+
+export const getTeamFixtures = cache(async (teamId: string) => {
+  return await apiRequest<any[]>(
+    "fixtures",
+    { team: teamId, last: 20 },
+    `team:fixtures:${teamId}`,
+    DYNAMIC_CACHE_TTL
+  );
+});
+
+// ** THE FIX IS HERE: Rewritten to use the reliable /leagues?team={id} endpoint **
+export const getTeamStandings = cache(async (teamId: string) => {
+  const season = new Date().getFullYear().toString();
+  const cacheKey = `team:standings:v3:${teamId}:${season}`; // Incremented version key
+
+  console.log(cacheKey);
+
+  try {
+    const cachedData = await redis.get(cacheKey);
+    if (cachedData) {
+      console.log(`[data/team] ✓ Cache HIT for standings for team ${teamId}.`);
+      return JSON.parse(cachedData);
+    }
+
+    // Step 1: Fetch all leagues the team is associated with.
+    const teamLeaguesResponse = await apiRequest<any[]>(
+      "leagues",
+      { team: teamId },
+      `team:leagues:${teamId}`, // Cache this intermediate result
+      STATIC_CACHE_TTL
+    );
+    if (!teamLeaguesResponse || teamLeaguesResponse.length === 0) {
+      console.warn(
+        `[data/team] No leagues found for team ${teamId}. Cannot fetch standings.`
       );
       return null;
     }
-    // --- END OF FIX ---
+
+    // Step 2: Filter to find the primary domestic "League" for the current season.
+    const primaryLeagueInfo = teamLeaguesResponse
+      .filter(
+        (item) =>
+          item.league.type === "League" &&
+          item.seasons.some((s: any) => s.year.toString() === season)
+      )
+      // Sort by league ID as a fallback tie-breaker (lower IDs are often more primary)
+      .sort((a, b) => a.league.id - b.league.id)[0];
+
+    if (!primaryLeagueInfo) {
+      console.warn(
+        `[data/team] No primary "League" type competition found for team ${teamId} for the ${season} season.`
+      );
+      return null;
+    }
+
+    const { league } = primaryLeagueInfo;
+
+    // Step 3: Fetch standings for the discovered league.
+    console.log(
+      `[data/team] Found primary league ${league.name} (${league.id}) for team ${teamId}. Fetching standings...`
+    );
+    const standingsData = await apiRequest<any[]>(
+      "standings",
+      { league: league.id, season: season },
+      `standings:${league.id}:${season}`, // Use the standard league standings cache key
+      DYNAMIC_CACHE_TTL
+    );
+
+    // Step 4: Cache the final result specifically for this team and return.
+    await redis.set(
+      cacheKey,
+      JSON.stringify(standingsData),
+      "EX",
+      DYNAMIC_CACHE_TTL
+    );
+
+    return standingsData;
+  } catch (error) {
+    console.error(
+      `[data/team] CRITICAL: Failed to execute getTeamStandings for team ${teamId}`,
+      error
+    );
+    // Attempt to serve stale data on critical failure
+    try {
+      const cachedData = await redis.get(cacheKey);
+      if (cachedData) return JSON.parse(cachedData);
+    } catch (e) {
+      /* ignore */
+    }
+    return null;
   }
-}
+});

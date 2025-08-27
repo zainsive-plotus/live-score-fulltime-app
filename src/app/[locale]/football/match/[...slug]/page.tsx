@@ -20,11 +20,6 @@ import {
 import MatchFormationWidget from "@/components/match/MatchFormationWidget";
 import StandingsWidget from "@/components/StandingsWidget";
 import AdSlotWidget from "@/components/AdSlotWidget";
-import { generateMatchSlug } from "@/lib/generate-match-slug";
-import { format, addDays } from "date-fns";
-import { getFixturesByDateRange } from "@/lib/data/fixtures";
-import { SUPPORTED_LOCALES } from "@/lib/i18n/config";
-import redis from "@/lib/redis"; // Import Redis client
 
 // Revalidate pages every hour to catch updates (e.g., scores, stats)
 export const revalidate = 3600;
@@ -227,7 +222,10 @@ export default async function MatchDetailPage({
         })}
       />
 
-      <div className="bg-brand-dark min-h-screen">
+      <div
+        className="bg-brand-dark min-h-screen"
+        suppressHydrationWarning={true}
+      >
         <Header />
         {/* CHANGE: Responsive grid layout */}
         <div className="container mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-[320px_1fr_320px] gap-8">

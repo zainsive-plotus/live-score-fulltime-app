@@ -86,14 +86,6 @@ export const MainContent: React.FC<MainContentProps> = ({
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 p-4 lg:p-0 lg:pl-8">
       <div className="lg:col-span-2 flex flex-col gap-8">
         <MatchList />
-        <div className="bg-brand-secondary rounded-lg shadow-lg p-6">
-          <h2 className="text-2xl font-bold text-white mb-4">
-            {t("about_fanskor_title")}
-          </h2>
-          <p className="text-brand-light text-base leading-relaxed">
-            {homepageAboutSeoText}
-          </p>
-        </div>
       </div>
 
       <div className="lg:col-span-1 flex flex-col gap-6">

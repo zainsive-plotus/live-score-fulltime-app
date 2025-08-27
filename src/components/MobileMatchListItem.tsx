@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import Link from "@/components/StyledLink";
 import { useQuery } from "@tanstack/react-query";
@@ -76,7 +76,18 @@ const TeamRow = ({
   </div>
 );
 
-export default function MobileMatchListItem({ match }: { match: any }) {
+const fetchLiveMatchData = async (fixtureId: number) => {
+  const { data } = await axios.get(`/api/match-details?fixture=${fixtureId}`);
+  return data?.fixture || null;
+};
+
+export default function MobileMatchListItem({
+  match: initialMatch,
+}: {
+  match: any;
+}) {
+  const [match, setMatch] = useState(initialMatch);
+
   const { fixture, teams, goals } = match;
   const { t } = useTranslation();
   const slug = generateMatchSlug(teams.home, teams.away, fixture.id);
@@ -149,6 +160,21 @@ export default function MobileMatchListItem({ match }: { match: any }) {
       </div>
     );
   };
+
+  // API Polling
+  const { data: newMatchData } = useQuery({
+    queryKey: ["liveMatchData", fixture.id],
+    queryFn: () => fetchLiveMatchData(fixture.id),
+    enabled: isLive && !isFinished,
+    refetchInterval: 30000,
+    staleTime: 4000,
+  });
+
+  useEffect(() => {
+    if (newMatchData) {
+      setMatch(newMatchData);
+    }
+  }, [newMatchData]);
 
   return (
     <div

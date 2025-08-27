@@ -1,13 +1,18 @@
-// src/app/[locale]/football/team/[...slug]/page.tsx
+// ===== src/app/[locale]/football/team/[...slug]/page.tsx =====
 
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import dbConnect from "@/lib/dbConnect"; // We will use this for the build
-import Team from "@/models/Team"; // We will use this for the build
-import { generateTeamSlug } from "@/lib/generate-team-slug";
-import { fetchTeamDetails } from "@/lib/data/team";
+import { Suspense } from "react";
 import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
+import {
+  getTeamInfo,
+  getTeamSquad,
+  getTeamFixtures,
+  getTeamStandings,
+} from "@/lib/data/team";
+
+// Component Imports
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import TeamHeader from "@/components/team/TeamHeader";
@@ -15,64 +20,16 @@ import TeamSquadWidget from "@/components/team/TeamSquadWidget";
 import TeamFixturesWidget from "@/components/team/TeamFixturesWidget";
 import TeamInfoWidget from "@/components/team/TeamInfoWidget";
 import TeamTrophiesWidget from "@/components/team/TeamTrophiesWidget";
+import TeamFormWidgetSidebar from "@/components/team/TeamFormWidgetSidebar";
 import AdSlotWidget from "@/components/AdSlotWidget";
 import RecentNewsWidget from "@/components/RecentNewsWidget";
 import TeamSeoWidget from "@/components/team/TeamSeoWidget";
+import LeagueStandingsWidget from "@/components/league-detail-view/LeagueStandingsWidget";
 import Script from "next/script";
 import { WithContext, SportsTeam, BreadcrumbList } from "schema-dts";
 
-// // Revalidate team pages once a day (86400 seconds) to keep data fresh.
-// export const revalidate = 86400;
-
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
-
-// // This function now pre-builds only a subset of important team pages.
-// // Other team pages will be generated on-demand when first visited.
-// export async function generateStaticParams() {
-//   try {
-//     console.log(
-//       "[generateStaticParams/Team] Connecting to DB to fetch popular teams..."
-//     );
-//     await dbConnect();
-
-//     // Define the most popular countries to pre-build teams from.
-//     const popularCountries = [
-//       "England",
-//       "Spain",
-//       "Italy",
-//       "Germany",
-//       "France",
-//       "Turkey",
-//     ];
-
-//     // Fetch only teams from these popular countries directly from your database.
-//     const popularTeams = await Team.find({ country: { $in: popularCountries } })
-//       .select("name teamId")
-//       .lean(); // .lean() makes it super fast
-
-//     console.log(
-//       `[generateStaticParams/Team] Found ${popularTeams.length} popular teams to pre-build.`
-//     );
-
-//     const params = popularTeams.map((team) => {
-//       const fullPath = generateTeamSlug(team.name, team.teamId);
-//       const slugPart = fullPath.split("/").pop() || "";
-
-//       return {
-//         slug: [slugPart],
-//       };
-//     });
-
-//     return params;
-//   } catch (error) {
-//     console.error(
-//       "[generateStaticParams/Team] Failed to fetch popular teams for pre-building:",
-//       error
-//     );
-//     return [];
-//   }
-// }
 
 const getTeamIdFromSlug = (slug: string): string | null => {
   if (!slug) return null;
@@ -81,6 +38,7 @@ const getTeamIdFromSlug = (slug: string): string | null => {
   return /^\d+$/.test(lastPart) ? lastPart : null;
 };
 
+// --- Metadata Generation ---
 export async function generateMetadata({
   params,
 }: {
@@ -89,31 +47,24 @@ export async function generateMetadata({
   const { slug, locale } = params;
   const t = await getI18n(locale);
   const teamId = getTeamIdFromSlug(slug[0]);
-
   const hreflangAlternates = await generateHreflangTags(
     "/football/team",
     slug.join("/"),
     locale
   );
 
-  if (!teamId) {
-    return {
-      title: t("not_found_title"),
-      alternates: hreflangAlternates,
-    };
-  }
+  if (!teamId)
+    return { title: t("not_found_title"), alternates: hreflangAlternates };
 
-  // This part runs for each page generation. It will still make API calls.
-  const teamData = await fetchTeamDetails(teamId);
-  if (!teamData) {
+  const teamInfo = await getTeamInfo(teamId);
+  if (!teamInfo)
     return {
       title: t("not_found_title"),
       alternates: hreflangAlternates,
       robots: { index: false, follow: false },
     };
-  }
 
-  const { team } = teamData.teamInfo;
+  const { team } = teamInfo;
   const pageTitle = t("team_page_meta_title", { teamName: team.name });
   const pageDescription = t("team_page_meta_description", {
     teamName: team.name,
@@ -126,25 +77,114 @@ export async function generateMetadata({
   };
 }
 
+// --- Skeletons ---
+const StandingsWidgetSkeleton = () => (
+  <div className="bg-brand-secondary rounded-lg h-96 animate-pulse p-6"></div>
+);
+const TeamFixturesSkeleton = () => (
+  <div className="h-96 bg-brand-secondary rounded-xl animate-pulse"></div>
+);
+const TeamSquadSkeleton = () => (
+  <div className="h-96 bg-brand-secondary rounded-lg animate-pulse"></div>
+);
+const SidebarItemSkeleton = () => (
+  <div className="h-40 bg-brand-secondary rounded-lg animate-pulse"></div>
+);
+
+// --- Data Fetching Wrapper Components for Suspense ---
+async function MainContent({
+  teamId,
+  locale,
+}: {
+  teamId: string;
+  locale: string;
+}) {
+  const t = await getI18n(locale);
+  const teamInfo = await getTeamInfo(teamId);
+  if (!teamInfo) notFound();
+
+  const { team } = teamInfo;
+  const standingsData = getTeamStandings(teamId);
+  console.log(standingsData);
+
+  const squadData = getTeamSquad(teamId);
+
+  const primaryLeagueStandings = (await standingsData)?.[0]?.league?.standings;
+  const primaryLeagueInfo = (await standingsData)?.[0]?.league;
+
+  const seoWidgetTitle = t("team_seo_widget_title", { teamName: team.name });
+  const seoWidgetText = t("team_page_seo_text", { teamName: team.name });
+
+  return (
+    <main className="min-w-0 space-y-8">
+      {primaryLeagueStandings && primaryLeagueInfo && (
+        <Suspense fallback={<StandingsWidgetSkeleton />}>
+          {/* <LeagueStandingsWidget
+            initialStandings={[primaryLeagueStandings]}
+            leagueSeasons={[primaryLeagueInfo.season]}
+            currentSeason={primaryLeagueInfo.season}
+            isLoading={false}
+            leagueId={primaryLeagueInfo.id}
+            homeTeamId={team.id}
+            hideSeasonDropdown={true}
+          /> */}
+        </Suspense>
+      )}
+
+      <Suspense fallback={<TeamFixturesSkeleton />}>
+        <TeamFixturesWidget teamId={team.id} />
+      </Suspense>
+
+      <Suspense fallback={<TeamSquadSkeleton />}>
+        <TeamSquadWidget squad={await squadData} />
+      </Suspense>
+
+      <TeamSeoWidget title={seoWidgetTitle} seoText={seoWidgetText} />
+    </main>
+  );
+}
+
+async function SidebarContent({ teamId }: { teamId: string }) {
+  const teamInfo = await getTeamInfo(teamId);
+  const fixturesData = getTeamFixtures(teamId);
+  if (!teamInfo) return null;
+  const { team, venue } = teamInfo;
+
+  return (
+    <aside className="hidden lg:block lg:col-span-1 space-y-8 min-w-0">
+      <TeamInfoWidget venue={venue} />
+      <Suspense fallback={<SidebarItemSkeleton />}>
+        <TeamFormWidgetSidebar
+          teamId={team.id}
+          fixtures={(await fixturesData) ?? []}
+        />
+      </Suspense>
+      <TeamTrophiesWidget teamId={team.id} />
+      <RecentNewsWidget />
+      <AdSlotWidget location="match_sidebar" />
+    </aside>
+  );
+}
+
+// --- Main Page Component ---
 export default async function TeamPage({
   params,
 }: {
   params: { slug: string[]; locale: string };
 }) {
   const { locale, slug } = params;
-  const t = await getI18n(locale);
-
   const teamId = getTeamIdFromSlug(slug[0]);
   if (!teamId) notFound();
 
-  const teamData = await fetchTeamDetails(teamId);
-  if (!teamData) notFound();
+  // Await only the most critical data for SEO and JSON-LD here.
+  // The rest will be streamed in via Suspense.
+  const teamInfo = await getTeamInfo(teamId);
+  if (!teamInfo) notFound();
 
-  const { teamInfo, squad, fixtures } = teamData;
+  const t = await getI18n(locale);
   const { team, venue } = teamInfo;
-
-  const seoWidgetTitle = t("team_seo_widget_title", { teamName: team.name });
-  const seoWidgetText = t("team_page_seo_text", { teamName: team.name });
+  // We need fixtures here for the country flag in the header.
+  const fixtures = await getTeamFixtures(teamId);
 
   const jsonLd: WithContext<SportsTeam | BreadcrumbList>[] = [
     {
@@ -179,11 +219,7 @@ export default async function TeamPage({
           name: t("football_teams_title"),
           item: `${BASE_URL}/${locale}/football/teams`,
         },
-        {
-          "@type": "ListItem",
-          position: 3,
-          name: team.name,
-        },
+        { "@type": "ListItem", position: 3, name: team.name },
       ],
     },
   ];
@@ -199,22 +235,15 @@ export default async function TeamPage({
         <Header />
         <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr_288px] lg:gap-8 lg:items-start p-4 lg:p-0 lg:py-6">
           <Sidebar />
-          <main className="min-w-0 space-y-8">
+          <div className="min-w-0 space-y-8">
             <TeamHeader
               team={team}
               countryFlag={teamInfo.team.country && fixtures?.[0]?.league?.flag}
               foundedText={t("founded_in", { year: team.founded })}
             />
-            <TeamFixturesWidget fixtures={fixtures} />
-            <TeamSquadWidget squad={squad} />
-          </main>
-          <aside className="hidden lg:block lg:col-span-1 space-y-8 min-w-0">
-            <TeamInfoWidget venue={venue} />
-            <TeamTrophiesWidget teamId={team.id} />
-            <TeamSeoWidget title={seoWidgetTitle} seoText={seoWidgetText} />
-            <RecentNewsWidget />
-            <AdSlotWidget location="match_sidebar" />
-          </aside>
+            <MainContent teamId={teamId} locale={locale} />
+          </div>
+          <SidebarContent teamId={teamId} />
         </div>
       </div>
     </>

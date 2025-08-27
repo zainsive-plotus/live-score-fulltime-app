@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import Link from "@/components/StyledLink";
 import { useQuery } from "@tanstack/react-query";
@@ -18,6 +18,11 @@ import { useTranslation } from "@/hooks/useTranslation";
 import ZonedDate from "./ZonedDate";
 
 type Odds = { home: string; draw: string; away: string } | undefined | null;
+
+const fetchLiveMatchData = async (fixtureId: number) => {
+  const { data } = await axios.get(`/api/match-details?fixture=${fixtureId}`);
+  return data?.fixture || null;
+};
 const fetchFanskorOdds = async (fixtureId: number): Promise<Odds | null> => {
   try {
     const { data } = await axios.post("/api/batch-predictions", {
@@ -39,15 +44,32 @@ interface DesktopMatchListItemProps {
 }
 
 export default function DesktopMatchListItem({
-  match,
+  match: initialMatch,
   isLive,
 }: DesktopMatchListItemProps) {
+  const [match, setMatch] = useState(initialMatch);
+
   const { fixture, teams, goals } = match;
   const { t } = useTranslation();
 
   // Reverted: Slug does NOT contain the locale. StyledLink will handle it.
   const slug = generateMatchSlug(teams.home, teams.away, fixture.id);
   const isFinished = ["FT", "AET", "PEN"].includes(fixture.status.short);
+
+  const { data: newMatchData } = useQuery({
+    queryKey: ["liveMatchData", fixture.id],
+    queryFn: () => fetchLiveMatchData(fixture.id),
+    enabled: isLive && !isFinished,
+    refetchInterval: 30000,
+    staleTime: 4000,
+  });
+
+  // ** THE FIX IS HERE: `useEffect` handles the side effect of updating state **
+  useEffect(() => {
+    if (newMatchData) {
+      setMatch(newMatchData);
+    }
+  }, [newMatchData]);
 
   const [showResult, setShowResult] = useState(false);
 

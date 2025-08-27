@@ -1,42 +1,66 @@
-// src/components/LiveMatchUpdater.tsx
 "use client";
 
-import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
-// --- IMPORT THE NEW COMPONENTS ---
-import SidebarMatchItem, { SidebarMatchItemSkeleton } from './SidebarMatchItem';
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import { format } from "date-fns";
+import SidebarMatchItem, { SidebarMatchItemSkeleton } from "./SidebarMatchItem";
+import { useTranslation } from "@/hooks/useTranslation";
+import { Info } from "lucide-react";
 
 interface MatchData {
-  fixture: { id: number; status: { elapsed: number; }; };
-  teams: { home: any; away: any; };
-  goals: { home: any; away: any; };
+  fixture: { id: number; status: { elapsed: number } };
+  teams: { home: any; away: any };
+  goals: { home: any; away: any };
 }
 
-const fetchGlobalLiveMatches = async (): Promise<MatchData[]> => {
-    const { data } = await axios.get('/api/global-live');
-    return data;
+// ** NEW: Fetch from the same reliable endpoint as MatchList **
+const fetchLiveMatchesForSidebar = async (): Promise<MatchData[]> => {
+  const dateString = format(new Date(), "yyyy-MM-dd");
+  // Get a flat list of live matches for today
+  const { data } = await axios.get(
+    `/api/fixtures?date=${dateString}&status=live`
+  );
+  return data;
 };
 
-export default function LiveMatchUpdater({ initialLiveMatches }: { initialLiveMatches: MatchData[] }) {
-  
+export default function LiveMatchUpdater({
+  initialLiveMatches,
+}: {
+  initialLiveMatches: MatchData[];
+}) {
+  const { t } = useTranslation();
+
   const { data: liveMatches, isLoading } = useQuery<MatchData[]>({
-    queryKey: ['globalLiveMatches'],
-    queryFn: fetchGlobalLiveMatches,
+    queryKey: ["sidebarLiveMatches"],
+    queryFn: fetchLiveMatchesForSidebar,
+    // Use the passed initial data only on first load
     initialData: initialLiveMatches,
-    refetchInterval: 30000,
+    refetchInterval: 30000, // Poll every 30 seconds
+    staleTime: 25000,
   });
 
-  // This check handles the initial server-side render where `isLoading` is false
-  // but we might not have data yet. `liveMatches` from `useQuery` will be defined
-  // because we provide `initialData`.
+  if (isLoading && !initialLiveMatches) {
+    return (
+      <div className="space-y-1">
+        <SidebarMatchItemSkeleton />
+        <SidebarMatchItemSkeleton />
+        <SidebarMatchItemSkeleton />
+      </div>
+    );
+  }
+
   if (!liveMatches || liveMatches.length === 0) {
-      return <p className="text-sm text-brand-muted text-center py-4">No matches are currently live.</p>;
+    return (
+      <div className="text-center py-4 px-2">
+        <Info size={24} className="mx-auto text-brand-muted mb-2" />
+        <p className="text-sm text-brand-muted">{t("no_matches_live")}</p>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-1">
-      {/* Show top 5 live matches using the new component */}
-      {liveMatches.slice(0, 5).map(match => (
+      {liveMatches.slice(0, 5).map((match) => (
         <SidebarMatchItem key={match.fixture.id} match={match} />
       ))}
     </div>

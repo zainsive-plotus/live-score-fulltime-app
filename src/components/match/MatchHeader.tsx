@@ -4,7 +4,7 @@
 
 import Image from "next/image";
 import { format } from "date-fns";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import {
@@ -279,10 +279,34 @@ const BookmakerOddsWidget = ({
   );
 };
 
+const fetchLiveFixtureData = async (
+  fixtureId: string
+): Promise<Fixture | null> => {
+  if (!fixtureId) return null;
+  const { data } = await axios.get(`/api/match-details?fixture=${fixtureId}`);
+  return data?.fixture || null;
+};
+
 // --- MAIN COMPONENT ---
-export const MatchHeader: React.FC<MatchHeaderProps> = ({ fixture }) => {
+export const MatchHeader: React.FC<MatchHeaderProps> = ({
+  fixture: initialFixture,
+}) => {
   const { t, locale } = useTranslation();
-  const { teams, league, fixture: fixtureDetails, goals, score } = fixture;
+  const [fixtureData, setFixtureData] = useState(initialFixture);
+
+  const { teams, league, fixture: fixtureDetails, goals, score } = fixtureData;
+
+  const isLiveOrRecent = useMemo(() => {
+    const status = fixtureDetails.status.short;
+    const isLive = ["1H", "HT", "2H", "ET", "P", "LIVE"].includes(status);
+    const isFinished = ["FT", "AET", "PEN"].includes(status);
+    // Only refetch for live matches or matches that just finished (within 2 hours)
+    const isRecent =
+      isFinished &&
+      new Date().getTime() - new Date(fixtureDetails.date).getTime() <
+        2 * 60 * 60 * 1000;
+    return isLive || isRecent;
+  }, [fixtureDetails.status.short, fixtureDetails.date]);
 
   const isLive = useMemo(
     () => ["1H", "HT", "2H", "ET", "P"].includes(fixtureDetails.status.short),
@@ -292,6 +316,21 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({ fixture }) => {
     () => ["FT", "AET", "PEN"].includes(fixtureDetails.status.short),
     [fixtureDetails.status.short]
   );
+
+  const { data: newMatchData } = useQuery({
+    queryKey: ["liveHeaderFixture", fixtureDetails.id],
+    queryFn: () => fetchLiveFixtureData(fixtureDetails.id.toString()),
+    enabled: isLive && !isFinished, // Only poll if the match is live and not finished
+    refetchInterval: 5000, // Refetch every 5 seconds
+    staleTime: 4000,
+  });
+
+  // ** THE FIX IS HERE: useEffect to update the state with fresh data **
+  useEffect(() => {
+    if (newMatchData) {
+      setFixtureData(newMatchData);
+    }
+  }, [newMatchData]);
 
   const { data: enrichmentData, isLoading: isLoadingEnrichment } = useQuery({
     queryKey: ["predictionData", fixtureDetails.id.toString()],
