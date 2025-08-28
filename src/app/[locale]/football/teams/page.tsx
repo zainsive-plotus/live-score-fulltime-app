@@ -1,5 +1,3 @@
-// ===== src/app/[locale]/football/teams/page.tsx =====
-
 import type { Metadata } from "next";
 import axios from "axios";
 import Header from "@/components/Header";
@@ -10,35 +8,24 @@ import AdSlotWidget from "@/components/AdSlotWidget";
 import { Users } from "lucide-react";
 import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
-import Script from "next/script"; // ADD: Import Script
-import { WithContext, CollectionPage, BreadcrumbList } from "schema-dts"; // ADD: Import schema types
+import Script from "next/script";
+import { WithContext, CollectionPage, BreadcrumbList } from "schema-dts";
+import TeamsSeoWidget from "@/components/directory/TeamsSeoWidget";
 
 const PAGE_PATH = "/football/teams";
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 const ITEMS_PER_PAGE = 21;
 
-// CHANGE: This function now fetches the first page of data from your new DB-backed API
+// This function now only fetches the first, pre-sorted page from our smart API
 const fetchInitialTeams = async () => {
-  const publicAppUrl = process.env.NEXT_PUBLIC_PUBLIC_APP_URL;
-  if (!publicAppUrl) {
-    console.error(
-      "[Teams Page Server] NEXT_PUBLIC_PUBLIC_APP_URL is not defined."
-    );
-    return {
-      teams: [],
-      pagination: { currentPage: 1, totalPages: 0, totalCount: 0 },
-    };
-  }
-
-  const apiUrl = `${publicAppUrl}/api/teams/paginated?page=1&limit=${ITEMS_PER_PAGE}`;
-
+  const apiUrl = `${BASE_URL}/api/teams/paginated?page=1&limit=${ITEMS_PER_PAGE}`;
   try {
     const { data } = await axios.get(apiUrl, { timeout: 15000 });
     return data;
   } catch (error: any) {
     console.error(
-      `[Teams Page Server] Failed to fetch initial teams (${apiUrl}):`,
+      `[Teams Page Server] Failed to fetch initial teams:`,
       error.message
     );
     return {
@@ -54,13 +41,10 @@ export async function generateMetadata({
   params: { locale: string };
 }): Promise<Metadata> {
   const { locale } = params;
-
   const t = await getI18n(locale);
   const hreflangAlternates = await generateHreflangTags(PAGE_PATH, "", locale);
-
   const pageTitle = t("teams_page_meta_title");
   const pageDescription = t("teams_page_meta_description");
-
   return {
     title: pageTitle,
     description: pageDescription,
@@ -74,13 +58,11 @@ export default async function TeamsPage({
   params: { locale: string };
 }) {
   const { locale } = params;
-
-  const initialData = await fetchInitialTeams();
   const t = await getI18n(locale);
 
-  const seoDescription = t("teams_page_seo_text");
+  // The logic is now much simpler here: just fetch the initial data.
+  const initialData = await fetchInitialTeams();
 
-  // ADD: Define JSON-LD schema for this page
   const jsonLd: WithContext<CollectionPage | BreadcrumbList>[] = [
     {
       "@context": "https://schema.org",
@@ -99,11 +81,7 @@ export default async function TeamsPage({
           name: t("homepage"),
           item: `${BASE_URL}/${locale}`,
         },
-        {
-          "@type": "ListItem",
-          position: 2,
-          name: t("football_teams_title"),
-        },
+        { "@type": "ListItem", position: 2, name: t("football_teams_title") },
       ],
     },
   ];
@@ -119,7 +97,6 @@ export default async function TeamsPage({
         <Header />
         <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr_288px] lg:gap-8 lg:items-start p-4 lg:p-0 lg:py-6">
           <Sidebar />
-
           <main className="min-w-0">
             <div className="bg-brand-secondary p-6 rounded-lg shadow-xl mb-8">
               <div className="flex items-center gap-4 mb-3">
@@ -135,15 +112,12 @@ export default async function TeamsPage({
                   </p>
                 </div>
               </div>
-              <p className="italic text-[#a3a3a3] leading-relaxed text-sm mt-4">
-                {seoDescription}
-              </p>
             </div>
 
-            {/* CHANGE: Pass the initial server-fetched data to the client component */}
             <TeamListClient initialData={initialData} />
-          </main>
 
+            <TeamsSeoWidget locale={locale} />
+          </main>
           <aside className="hidden lg:block lg:col-span-1 space-y-8 min-w-0">
             <RecentNewsWidget />
             <AdSlotWidget location="homepage_right_sidebar" />

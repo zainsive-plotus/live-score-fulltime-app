@@ -1,5 +1,3 @@
-// ===== src/components/TeamListClient.tsx =====
-
 "use client";
 
 import { useState } from "react";
@@ -29,11 +27,7 @@ interface TeamData {
 
 interface PaginatedTeamsResponse {
   teams: TeamData[];
-  pagination: {
-    currentPage: number;
-    totalPages: number;
-    totalCount: number;
-  };
+  pagination: { currentPage: number; totalPages: number; totalCount: number };
 }
 
 const fetchPaginatedTeams = async (
@@ -67,6 +61,7 @@ export default function TeamListClient({ initialData }: TeamListClientProps) {
     queryKey: ["paginatedTeams", currentPage, debouncedSearchTerm],
     queryFn: () => fetchPaginatedTeams(currentPage, debouncedSearchTerm),
     placeholderData: (previousData) => previousData,
+    // Use initialData only for the first page and when not searching
     initialData:
       currentPage === 1 && !debouncedSearchTerm ? initialData : undefined,
   });
