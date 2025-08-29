@@ -40,10 +40,12 @@ async function getInitialStandingsLeagues() {
 }
 
 export async function generateMetadata({
-  params: { locale },
+  params,
 }: {
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
+  const { locale } = await params;
+
   const t = await getI18n(locale);
   const hreflangAlternates = await generateHreflangTags(PAGE_PATH, "", locale);
   const pageTitle = t("standings_hub_page_title");
@@ -68,10 +70,11 @@ const StandingsPageSkeleton = () => (
 );
 
 export default async function FootballStandingsHubPage({
-  params: { locale },
+  params,
 }: {
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }) {
+  const { locale } = await params;
   const t = await getI18n(locale);
   const initialData = await getInitialStandingsLeagues();
 
