@@ -53,15 +53,9 @@ const NewsSection = dynamic(() => import("./NewsSection"), {
   loading: () => <RecentNewsWidgetSkeleton />,
 });
 
-interface MainContentProps {
-  sidebarAboutSeoText: string;
-  homepageAboutSeoText: string;
-}
+interface MainContentProps {}
 
-export const MainContent: React.FC<MainContentProps> = ({
-  sidebarAboutSeoText,
-  homepageAboutSeoText,
-}) => {
+export const MainContent: React.FC<MainContentProps> = ({}) => {
   const { selectedLeague } = useLeagueContext(); // CHANGE: Read selected league from context
   const { t } = useTranslation();
 
@@ -93,14 +87,14 @@ export const MainContent: React.FC<MainContentProps> = ({
         <PredictionSidebarWidget />
         <StandingsDisplay />
         <div className="space-y-8 gap-8">
-          <section className="bg-brand-secondary rounded-lg shadow-lg p-6">
+          {/* <section className="bg-brand-secondary rounded-lg shadow-lg p-6">
             <h2 className="text-2xl font-bold text-white mb-4">
               {t("about_fanskor_title")}
             </h2>
             <p className="text-brand-light text-base leading-relaxed">
               {sidebarAboutSeoText}
             </p>
-          </section>
+          </section> */}
           <NewsSection />
         </div>
       </div>

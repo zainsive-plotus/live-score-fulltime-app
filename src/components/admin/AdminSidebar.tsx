@@ -1,5 +1,3 @@
-// ===== src/components/admin/AdminSidebar.tsx =====
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -27,7 +25,7 @@ import {
   FileJson,
   Trophy,
   Users as TeamsIcon,
-  BrainCircuit, // ADD: Import new icon
+  BrainCircuit,
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 
@@ -66,7 +64,8 @@ export default function AdminSidebar() {
     pathname.startsWith("/admin/ai-journalists") ||
     pathname.startsWith("/admin/title-templates") ||
     pathname.startsWith("/admin/curated-news") ||
-    pathname.startsWith("/admin/predictions"); // ADD: Include new page
+    pathname.startsWith("/admin/predictions") ||
+    pathname.startsWith("/admin/seo-text"); // ** NEW: Added this path **
 
   const isPagesSectionActive =
     pathname.startsWith("/admin/faqs") || pathname.startsWith("/admin/pages");
@@ -77,7 +76,6 @@ export default function AdminSidebar() {
 
   const [isAiOpen, setIsAiOpen] = useState(isAiSectionActive);
   const [isPagesOpen, setIsPagesOpen] = useState(isPagesSectionActive);
-
   const [isLocalizationOpen, setIsLocalizationOpen] = useState(
     isLocalizationSectionActive
   );
@@ -105,7 +103,7 @@ export default function AdminSidebar() {
       icon: Megaphone,
     },
     { name: "Casino Partners", href: "/admin/casino-partners", icon: Crown },
-    { name: "File Manager", href: "/admin/file-manager", icon: FileText },
+    { name: "File Manager", href: "/admin/file-manager", icon: ImageIcon },
     { name: "Banners", href: "/admin/banners", icon: ImageIcon },
   ];
 
@@ -119,8 +117,9 @@ export default function AdminSidebar() {
     { name: "Curated News", href: "/admin/curated-news", icon: Bot },
     { name: "AI Journalists", href: "/admin/ai-journalists", icon: User },
     { name: "Title Templates", href: "/admin/title-templates", icon: Type },
-    // ADD: New sub-navigation item for Predictions
     { name: "Predictions", href: "/admin/predictions", icon: BrainCircuit },
+    // ** NEW: Added the SEO Text Runner link **
+    { name: "SEO Text Runner", href: "/admin/seo-text", icon: FileText },
   ];
 
   const pagesSubNav = [

@@ -1,10 +1,8 @@
-// ===== src/components/directory/FeaturedLeagueCard.tsx =====
-
 "use client";
 
 import Image from "next/image";
 import StyledLink from "@/components/StyledLink";
-import { proxyImageUrl } from "@/lib/image-proxy";
+import { proxyImageUrl } from "@/lib/image-proxy"; // Make sure proxy is imported
 import { ArrowRight } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
 
@@ -42,7 +40,7 @@ export default function FeaturedLeagueCard({
       className="block group h-full transition-transform duration-300 ease-in-out hover:-translate-y-1"
     >
       <div
-        className="bg-brand-secondary rounded-lg h-full p-6 flex flex-col justify-between 
+        className="bg-brand-secondary rounded-lg h-full p-6 flex flex-col justify-between
                    border border-gray-700/50 relative overflow-hidden
                    hover:border-brand-purple/50 hover:shadow-2xl hover:shadow-brand-purple/20"
       >
@@ -50,6 +48,7 @@ export default function FeaturedLeagueCard({
 
         <div className="relative">
           <div className="flex items-center gap-4">
+            {/* ** THE FIX IS HERE: Wrap the logoUrl with proxyImageUrl ** */}
             <Image
               src={proxyImageUrl(logoUrl)}
               alt={`${name} logo`}

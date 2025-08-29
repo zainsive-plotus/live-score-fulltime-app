@@ -109,9 +109,9 @@ export default async function HomePage({
   const title = t("homepage_meta_title");
   const description = t("homepage_meta_description");
 
-  const homepageAboutSeoText =
-    initialHomepageText || t("homepage_about_seo_text");
-  const sidebarAboutSeoText = initialSidebarText || t("sidebar_about_seo_text");
+  // const homepageAboutSeoText =
+  //   initialHomepageText || t("homepage_about_seo_text");
+  // const sidebarAboutSeoText = initialSidebarText || t("sidebar_about_seo_text");
 
   return (
     <>
@@ -132,8 +132,8 @@ export default async function HomePage({
 
           <main className="min-w-0">
             <MainContent
-              sidebarAboutSeoText={sidebarAboutSeoText}
-              homepageAboutSeoText={homepageAboutSeoText}
+            // sidebarAboutSeoText={sidebarAboutSeoText}
+            // homepageAboutSeoText={homepageAboutSeoText}
             />
           </main>
         </div>

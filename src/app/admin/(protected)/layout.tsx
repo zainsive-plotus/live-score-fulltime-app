@@ -21,7 +21,7 @@ export default async function ProtectedAdminLayout({
   // Authenticated admins see the full layout with the sidebar.
   return (
     <html>
-      <body>
+      <body suppressHydrationWarning={true}>
         <div className="flex min-h-screen bg-brand-dark">
           <AdminSidebar />
           <main className="flex-1 p-8">{children}</main>

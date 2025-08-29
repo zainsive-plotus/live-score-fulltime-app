@@ -1,5 +1,3 @@
-// ===== src/app/[locale]/football/standings/[...slug]/page.tsx =====
-
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Header from "@/components/Header";
@@ -10,11 +8,10 @@ import axios from "axios";
 import AdSlotWidget from "@/components/AdSlotWidget";
 import RecentNewsWidget from "@/components/RecentNewsWidget";
 import LeagueDetailWidget from "@/components/directory/LeagueDetailWidget";
-import { generateStandingsSlug } from "@/lib/generate-standings-slug";
 import StandingsPageClient from "./StandingsPageClient";
 import Script from "next/script";
 import { WithContext, SportsEvent, BreadcrumbList } from "schema-dts";
-import { getLeaguesForStandingsSitemap } from "@/lib/data/directory"; // ADD: Import direct data fetcher
+import LeagueStandingsSeoWidget from "@/components/league-detail-view/LeagueStandingsSeoWidget";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
@@ -107,16 +104,18 @@ export default async function LeagueStandingsPage({
 
   const { league, standings } = initialData;
 
+  // ** NEW: Fetch the specific SEO text for this page **
+  const seoText = t("standings_detail_seo_description", {
+    leagueName: league.name,
+  });
+
   const jsonLd: WithContext<SportsEvent | BreadcrumbList>[] = [
     {
       "@context": "https://schema.org",
       "@type": "SportsEvent",
       name: `${league.name} ${league.season}`,
       sport: "Soccer",
-      location: {
-        "@type": "Country",
-        name: league.country,
-      },
+      location: { "@type": "Country", name: league.country },
       competitor:
         standings?.[0]?.map((teamStanding: any) => ({
           "@type": "SportsTeam",
@@ -142,11 +141,7 @@ export default async function LeagueStandingsPage({
           name: t("standings_hub_title"),
           item: `${BASE_URL}/${locale}/football/standings`,
         },
-        {
-          "@type": "ListItem",
-          position: 3,
-          name: league.name,
-        },
+        { "@type": "ListItem", position: 3, name: league.name },
       ],
     },
   ];
@@ -163,7 +158,19 @@ export default async function LeagueStandingsPage({
         <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr_288px] lg:gap-8 lg:items-start p-4 lg:p-0 lg:py-6">
           <Sidebar />
 
-          <StandingsPageClient initialData={initialData} leagueId={leagueId} />
+          {/* ** NEW: Pass the seoText as a prop to the client component ** */}
+          <div>
+            <StandingsPageClient
+              initialData={initialData}
+              leagueId={leagueId}
+            />
+            <LeagueStandingsSeoWidget
+              locale={locale}
+              leagueId={league.id}
+              leagueName={league.name}
+              season={league.season}
+            />
+          </div>
 
           <aside className="hidden lg:block lg:col-span-1 space-y-8 min-w-0">
             <LeagueDetailWidget
@@ -179,21 +186,3 @@ export default async function LeagueStandingsPage({
     </>
   );
 }
-
-// // CHANGE: This function now uses the direct data fetcher
-// export async function generateStaticParams() {
-//   try {
-//     const leagues = await getLeaguesForStandingsSitemap();
-//     if (!leagues) return [];
-
-//     return leagues.map((league: any) => ({
-//       slug: [generateStandingsSlug(league.name, league.id)],
-//     }));
-//   } catch (error) {
-//     console.error(
-//       "[generateStaticParams] Failed to fetch leagues for standings pages:",
-//       error
-//     );
-//     return [];
-//   }
-// }

@@ -6,33 +6,36 @@ import Sidebar from "@/components/Sidebar";
 import { ListOrdered } from "lucide-react";
 import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
-import { League } from "@/types/api-football";
 import axios from "axios";
 import StandingsHubClient from "@/components/directory/StandingsHubClient";
 import { Suspense } from "react";
 import { FeaturedLeagueCardSkeleton } from "@/components/directory/FeaturedLeagueCard";
-// ***** Import widgets for the right sidebar *****
 import RecentNewsWidget from "@/components/RecentNewsWidget";
 import AdSlotWidget from "@/components/AdSlotWidget";
 import Script from "next/script";
-import { WithContext, CollectionPage, BreadcrumbList } from "schema-dts"; // ADD: Import schema types
+import { WithContext, CollectionPage, BreadcrumbList } from "schema-dts";
+import StandingsSeoWidget from "@/components/directory/StandingsSeoWidget";
 
 const PAGE_PATH = "/football/standings";
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
-async function getStandingsLeagues(): Promise<League[]> {
+// Fetch only the first page for the initial server render
+async function getInitialStandingsLeagues() {
   try {
     const { data } = await axios.get(
-      `${BASE_URL}/api/directory/standings-leagues`
+      `${BASE_URL}/api/directory/standings-leagues?page=1&limit=18`
     );
     return data;
   } catch (error) {
     console.error(
-      "[Standings Hub Page] Failed to fetch standings leagues:",
+      "[Standings Hub Page] Failed to fetch initial leagues:",
       error
     );
-    return [];
+    return {
+      leagues: [],
+      pagination: { currentPage: 1, totalPages: 0, totalCount: 0 },
+    };
   }
 }
 
@@ -43,7 +46,6 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const t = await getI18n(locale);
   const hreflangAlternates = await generateHreflangTags(PAGE_PATH, "", locale);
-
   const pageTitle = t("standings_hub_page_title");
   const pageDescription = t("standings_hub_page_description");
 
@@ -71,9 +73,8 @@ export default async function FootballStandingsHubPage({
   params: { locale: string };
 }) {
   const t = await getI18n(locale);
-  const leagues = await getStandingsLeagues();
+  const initialData = await getInitialStandingsLeagues();
 
-  // ADD: Define JSON-LD schema for this page
   const jsonLd: WithContext<CollectionPage | BreadcrumbList>[] = [
     {
       "@context": "https://schema.org",
@@ -92,18 +93,13 @@ export default async function FootballStandingsHubPage({
           name: t("homepage"),
           item: `${BASE_URL}/${locale}`,
         },
-        {
-          "@type": "ListItem",
-          position: 2,
-          name: t("standings_hub_title"),
-        },
+        { "@type": "ListItem", position: 2, name: t("standings_hub_title") },
       ],
     },
   ];
 
   return (
     <>
-      {" "}
       <Script
         id="standings-hub-jsonld"
         type="application/ld+json"
@@ -111,10 +107,9 @@ export default async function FootballStandingsHubPage({
       />
       <div className="min-h-screen flex flex-col">
         <Header />
-        {/* ***** UPDATED LAYOUT to three columns ***** */}
-        <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr_288px] lg:gap-8 lg:items-start">
+        <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr_288px] lg:gap-8 lg:items-start p-4 lg:p-0 lg:py-6">
           <Sidebar />
-          <main className="min-w-0 p-4 lg:p-0 lg:py-6">
+          <main className="min-w-0">
             <div className="flex items-center gap-4 mb-8">
               <div className="p-3 bg-brand-purple/10 rounded-lg">
                 <ListOrdered className="w-8 h-8 text-brand-purple" />
@@ -130,10 +125,14 @@ export default async function FootballStandingsHubPage({
             </div>
 
             <Suspense fallback={<StandingsPageSkeleton />}>
-              <StandingsHubClient leagues={leagues} />
+              <StandingsHubClient
+                initialLeagues={initialData.leagues}
+                initialPagination={initialData.pagination}
+              />
             </Suspense>
+
+            <StandingsSeoWidget locale={locale} />
           </main>
-          {/* ***** RIGHT SIDEBAR ADDED ***** */}
           <aside className="hidden lg:block lg:col-span-1 space-y-8 min-w-0">
             <RecentNewsWidget />
             <AdSlotWidget location="homepage_right_sidebar" />

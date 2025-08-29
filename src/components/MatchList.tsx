@@ -149,7 +149,7 @@ const TabButton = ({
     onClick={onClick}
     className={`relative flex-1 md:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2.5 rounded-lg text-xs md:text-sm font-bold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-brand-purple/50 ${
       isActive
-        ? "bg-brand-purple text-white shadow-lg"
+        ? "bg-[var(--color-primary)] text-white shadow-lg"
         : "bg-transparent text-text-muted hover:text-white"
     }`}
   >
@@ -270,9 +270,7 @@ export default function MatchList() {
                 label={tab.label}
                 isActive={activeStatusFilter === tab.key}
                 liveCount={tab.key === "live" ? liveMatchCount : undefined}
-                hasLiveIndicator={
-                  tab.key === "live" && (liveMatchCount ?? 0) > 0
-                }
+                hasLiveIndicator={tab.key === "live" && liveMatchCount > 0}
                 onClick={() => setActiveStatusFilter(tab.key as StatusFilter)}
               />
             ))}

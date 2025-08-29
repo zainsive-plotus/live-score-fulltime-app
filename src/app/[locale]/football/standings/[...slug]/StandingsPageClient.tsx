@@ -1,12 +1,9 @@
-// ===== src/app/[locale]/football/standings/[...slug]/StandingsPageClient.tsx =====
-
 "use client";
 
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
 import axios from "axios";
-import { format } from "date-fns";
 import { useTranslation } from "@/hooks/useTranslation";
 import LeagueStandingsWidget from "@/components/league-detail-view/LeagueStandingsWidget";
 import { ListOrdered } from "lucide-react";
@@ -40,7 +37,6 @@ const fetchStandingsData = async (
     league: leagueId,
     season: season.toString(),
   });
-  // Date logic removed for simplicity as per previous request
   const { data } = await axios.get(`/api/standings?${params.toString()}`);
   return data;
 };
@@ -65,18 +61,11 @@ export default function StandingsPageClient({
     setSelectedSeason(getSeasonFromUrl());
   }, [searchParams]);
 
-  // --- THIS IS THE FIX ---
-  // The query is now simplified. We let react-query handle the data fetching
-  // and use the `placeholderData` option to prevent flashes of missing content.
   const { data: standingsData, isFetching } = useQuery<StandingsData>({
     queryKey: ["standingsDetail", leagueId, selectedSeason],
     queryFn: () => fetchStandingsData(leagueId, selectedSeason),
-    // Use placeholderData to keep showing the old data while the new data loads.
-    // This is the correct way to prevent UI jumps.
     placeholderData: (previousData) => previousData,
-    // initialData and keepPreviousData are removed as they were causing the issue.
   });
-  // --- END OF FIX ---
 
   const handleSeasonChange = (season: number) => {
     setSelectedSeason(season);
@@ -93,9 +82,6 @@ export default function StandingsPageClient({
     leagueName: league?.name,
     season: selectedSeason,
   });
-  const seoDescription = t("standings_detail_seo_description", {
-    leagueName: league?.name,
-  });
 
   return (
     <main className="min-w-0 space-y-6">
@@ -108,7 +94,10 @@ export default function StandingsPageClient({
             <h1 className="text-3xl font-extrabold text-white">{seoTitle}</h1>
           </div>
         </div>
-        <p className="text-brand-muted leading-relaxed">{seoDescription}</p>
+        {/* We can keep a short description here */}
+        <p className="text-brand-muted leading-relaxed">
+          {t("standings_detail_page_description", { leagueName: league?.name })}
+        </p>
       </div>
 
       <LeagueStandingsWidget
