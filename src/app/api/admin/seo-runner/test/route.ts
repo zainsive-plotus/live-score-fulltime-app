@@ -1,3 +1,5 @@
+// ===== src/app/api/admin/seo-runner/test/route.ts =====
+
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
@@ -34,13 +36,15 @@ const populateTemplate = (
   return populated;
 };
 
+// MODIFIED: This function now fetches the complete list of standings-eligible leagues from our internal API.
 const getEntitiesForPageType = async (pageType: string) => {
   switch (pageType) {
     case "league-standings":
+      // Fetching all leagues (using a large limit) from our own optimized and cached endpoint.
       const { data } = await axios.get(
-        `${BASE_URL}/api/directory/standings-leagues`
+        `${BASE_URL}/api/directory/standings-leagues?limit=10000`
       );
-      return data.leagues; // The API returns a `leagues` property
+      return data.leagues || []; // Return the leagues array from the response
     default:
       throw new Error(`Unsupported pageType: ${pageType}`);
   }
@@ -75,7 +79,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // 1. Fetch all possible entities, but only take the first one for the test.
     const entities = await getEntitiesForPageType(pageType);
     if (!entities || entities.length === 0) {
       return NextResponse.json(
@@ -85,29 +88,25 @@ export async function POST(request: Request) {
     }
     const testEntity = entities[0];
 
-    // 2. Fetch the detailed data for that single entity.
     const dynamicData = await getDynamicDataForEntity(pageType, testEntity);
 
     const extractedVariables: Record<string, any> = {};
 
-    // 3. Evaluate the expressions in the sandbox to get the variables.
     for (const key in variableMappings) {
       const expression = variableMappings[key];
       const context = { apiResponse: dynamicData };
       extractedVariables[key] = evaluateExpression(expression, context);
     }
 
-    // 4. Populate the template with the extracted variables.
     const generatedHtml = populateTemplate(template, extractedVariables);
 
-    // 5. Return the result WITHOUT saving to the database.
     return NextResponse.json({
       generatedHtml,
       extractedVariables,
       testEntityName: testEntity.name || testEntity.team.name,
     });
   } catch (error: any) {
-    console.error("[SEO Runner Test Error]", error);
+    console.error("[SEO Runner Test] Error:", error);
     return NextResponse.json(
       { error: "An error occurred during the test run." },
       { status: 500 }

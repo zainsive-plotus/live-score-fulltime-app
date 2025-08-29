@@ -1,3 +1,5 @@
+// ===== src/app/api/admin/seo-runner/stream/route.ts =====
+
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
@@ -14,7 +16,9 @@ const openai = new OpenAI({ apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY });
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
-// --- Helper Functions ---
+// NEW: Constants for controlling the batch processing
+const BATCH_SIZE = 10; // Process 10 leagues at a time
+const BATCH_DELAY_MS = 1500; // Wait 1.5 seconds between batches
 
 const evaluateExpression = (expression: string, context: object): any => {
   try {
@@ -47,23 +51,39 @@ const getEntitiesForPageType = async (pageType: string) => {
   switch (pageType) {
     case "league-standings":
       const { data } = await axios.get(
-        `${BASE_URL}/api/directory/standings-leagues`
+        `${BASE_URL}/api/directory/standings-leagues?limit=10000`
       );
-      return data.leagues || data;
+      return data.leagues || [];
     default:
       throw new Error(`Unsupported pageType: ${pageType}`);
   }
 };
 
+// MODIFIED: Added more robust error handling
 const getDynamicDataForEntity = async (pageType: string, entity: any) => {
   switch (pageType) {
     case "league-standings":
-      const { data } = await axios.get(
-        `${BASE_URL}/api/standings?league=${
-          entity.id
-        }&season=${new Date().getFullYear()}`
-      );
-      return data;
+      try {
+        const { data } = await axios.get(
+          `${BASE_URL}/api/standings?league=${
+            entity.id
+          }&season=${new Date().getFullYear()}`
+        );
+        // Gracefully handle cases where the API returns an empty object or no league data
+        if (!data || !data.league) {
+          console.warn(
+            `[SEO Runner] No standings data found for league: ${entity.name} (ID: ${entity.id})`
+          );
+          return null;
+        }
+        return data;
+      } catch (error) {
+        console.error(
+          `[SEO Runner] Error fetching standings for league: ${entity.name} (ID: ${entity.id})`,
+          error
+        );
+        return null; // Return null to skip this entity gracefully
+      }
     default:
       return {};
   }
@@ -97,8 +117,6 @@ const translateHtmlContent = async (
   }
 };
 
-// --- Main Streaming Route ---
-
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") {
@@ -109,7 +127,6 @@ export async function POST(request: Request) {
     const { pageType, template, variableMappings } = await request.json();
     const sourceLanguage = DEFAULT_LOCALE;
 
-    // Create a stream for Server-Sent Events
     const stream = new ReadableStream({
       async start(controller) {
         const encoder = new TextEncoder();
@@ -123,7 +140,7 @@ export async function POST(request: Request) {
           await dbConnect();
           sendEvent("info", { message: "Database connection established." });
 
-          // 1. Save Master Template
+          // ... (template saving logic remains the same)
           const variableMappingsForDB = Object.entries(variableMappings).map(
             ([key, value]) => ({ variable: key, path: value as string })
           );
@@ -136,7 +153,6 @@ export async function POST(request: Request) {
             message: `Master template for '${pageType}' saved.`,
           });
 
-          // 2. Fetch Entities
           sendEvent("info", {
             message: "Fetching list of entities to process...",
           });
@@ -145,52 +161,87 @@ export async function POST(request: Request) {
             throw new Error(`No entities found for page type: ${pageType}`);
           }
           sendEvent("success", {
-            message: `Found ${entities.length} entities.`,
-          });
-          sendEvent("progress", {
-            total: entities.length,
-            current: 0,
-            stage: `Generating for ${sourceLanguage.toUpperCase()}`,
+            message: `Found ${entities.length} entities. Starting process in batches...`,
           });
 
-          // 3. Process Primary Language
           const generatedContentMap = new Map<string, string>();
-          for (let i = 0; i < entities.length; i++) {
-            const entity = entities[i];
-            const entityId = (entity.id || entity.team.id).toString();
-            const entityName = entity.name || entity.team.name;
+          let processedCount = 0;
 
-            sendEvent("info", {
-              message: `[${i + 1}/${
-                entities.length
-              }] Processing: ${entityName}`,
-            });
-            const dynamicData = await getDynamicDataForEntity(pageType, entity);
-            const variables: Record<string, any> = {};
-            for (const key in variableMappings) {
-              variables[key] = evaluateExpression(variableMappings[key], {
-                apiResponse: dynamicData,
-              });
-            }
-            const generatedSeoText = populateTemplate(template, variables);
-            generatedContentMap.set(entityId, generatedSeoText);
-
-            await SeoContent.updateOne(
-              { pageType, entityId, language: sourceLanguage },
-              { $set: { seoText: generatedSeoText } },
-              { upsert: true }
-            );
+          // NEW: Batch processing loop
+          for (let i = 0; i < entities.length; i += BATCH_SIZE) {
+            const batch = entities.slice(i, i + BATCH_SIZE);
             sendEvent("progress", {
               total: entities.length,
-              current: i + 1,
+              current: i,
+              stage: `Generating batch ${
+                i / BATCH_SIZE + 1
+              } for ${sourceLanguage.toUpperCase()}`,
+            });
+
+            // CHANGED: Using Promise.allSettled to handle individual failures
+            const processingResults = await Promise.allSettled(
+              batch.map(async (entity: any) => {
+                const entityId = (entity.id || entity.team.id).toString();
+                const entityName = entity.name || entity.team.name;
+
+                const dynamicData = await getDynamicDataForEntity(
+                  pageType,
+                  entity
+                );
+
+                // Gracefully skip if no data is returned
+                if (!dynamicData) {
+                  sendEvent("info", {
+                    message: `Skipping ${entityName}: No standings data found.`,
+                  });
+                  return null;
+                }
+
+                const variables: Record<string, any> = {};
+                for (const key in variableMappings) {
+                  variables[key] = evaluateExpression(variableMappings[key], {
+                    apiResponse: dynamicData,
+                  });
+                }
+                const generatedSeoText = populateTemplate(template, variables);
+                generatedContentMap.set(entityId, generatedSeoText);
+
+                return {
+                  updateOne: {
+                    filter: { pageType, entityId, language: sourceLanguage },
+                    update: { $set: { seoText: generatedSeoText } },
+                    upsert: true,
+                  },
+                };
+              })
+            );
+
+            const successfulOps = processingResults
+              .filter((result) => result.status === "fulfilled" && result.value)
+              .map((result) => (result as PromiseFulfilledResult<any>).value);
+
+            if (successfulOps.length > 0) {
+              await SeoContent.bulkWrite(successfulOps);
+            }
+
+            processedCount += batch.length;
+            sendEvent("progress", {
+              total: entities.length,
+              current: Math.min(processedCount, entities.length),
               stage: `Generating for ${sourceLanguage.toUpperCase()}`,
             });
+
+            // Add delay between batches
+            if (i + BATCH_SIZE < entities.length) {
+              await new Promise((res) => setTimeout(res, BATCH_DELAY_MS));
+            }
           }
+
           sendEvent("success", {
             message: `Primary language (${sourceLanguage}) generation complete.`,
           });
 
-          // 4. Process Translations
+          // ... (translation logic can remain the same, as it's less prone to rate limits from OpenAI)
           const allLanguages = await Language.find({ isActive: true }).lean();
           const sourceLangDoc = allLanguages.find(
             (l) => l.code === sourceLanguage
@@ -200,36 +251,61 @@ export async function POST(request: Request) {
           );
 
           if (sourceLangDoc && targetLanguages.length > 0) {
-            sendEvent("info", {
-              message: `Starting translation for ${targetLanguages.length} other languages.`,
-            });
+            // Translation logic also updated to use batches for robustness
             for (const targetLang of targetLanguages) {
               sendEvent("progress", {
-                total: entities.length,
+                total: generatedContentMap.size,
                 current: 0,
                 stage: `Translating to ${targetLang.code.toUpperCase()}`,
               });
-              let translatedCount = 0;
-              for (const [
-                entityId,
-                sourceHtml,
-              ] of generatedContentMap.entries()) {
-                const translatedHtml = await translateHtmlContent(
-                  sourceHtml,
-                  sourceLangDoc.name,
-                  targetLang.name
+              const translationEntries = Array.from(
+                generatedContentMap.entries()
+              );
+              for (let i = 0; i < translationEntries.length; i += BATCH_SIZE) {
+                const batch = translationEntries.slice(i, i + BATCH_SIZE);
+
+                const translationPromises = batch.map(
+                  async ([entityId, sourceHtml]) => {
+                    try {
+                      const translatedHtml = await translateHtmlContent(
+                        sourceHtml,
+                        sourceLangDoc.name,
+                        targetLang.name
+                      );
+                      return {
+                        updateOne: {
+                          filter: {
+                            pageType,
+                            entityId,
+                            language: targetLang.code,
+                          },
+                          update: { $set: { seoText: translatedHtml } },
+                          upsert: true,
+                        },
+                      };
+                    } catch (err: any) {
+                      sendEvent("error", {
+                        message: `Failed to translate entity ${entityId} to ${targetLang.name}: ${err.message}`,
+                      });
+                      return null;
+                    }
+                  }
                 );
-                await SeoContent.updateOne(
-                  { pageType, entityId, language: targetLang.code },
-                  { $set: { seoText: translatedHtml } },
-                  { upsert: true }
-                );
-                translatedCount++;
+
+                const translationBulkOps = (
+                  await Promise.all(translationPromises)
+                ).filter(Boolean);
+                if (translationBulkOps.length > 0) {
+                  await SeoContent.bulkWrite(translationBulkOps);
+                }
                 sendEvent("progress", {
-                  total: entities.length,
-                  current: translatedCount,
+                  current: Math.min(i + BATCH_SIZE, generatedContentMap.size),
+                  total: generatedContentMap.size,
                   stage: `Translating to ${targetLang.code.toUpperCase()}`,
                 });
+                if (i + BATCH_SIZE < translationEntries.length) {
+                  await new Promise((res) => setTimeout(res, BATCH_DELAY_MS));
+                }
               }
               sendEvent("success", {
                 message: `Translation for ${targetLang.name} complete.`,
@@ -240,7 +316,7 @@ export async function POST(request: Request) {
           sendEvent("done", { message: "All tasks completed successfully!" });
           controller.close();
         } catch (error: any) {
-          console.error("[SEO Runner Stream Error]", error);
+          console.error("[SEO Runner Stream] Error:", error.message);
           sendEvent("error", {
             message:
               error.message || "An unknown error occurred during processing.",

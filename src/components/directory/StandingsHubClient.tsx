@@ -1,6 +1,8 @@
+// ===== src/components/directory/StandingsHubClient.tsx =====
+
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { League } from "@/types/api-football";
@@ -23,16 +25,14 @@ interface PaginatedLeaguesResponse {
   };
 }
 
-// ** NEW: Fetcher for paginated and searched data **
 const fetchStandingsLeagues = async (
   page: number,
-  search: string
+  search: string // CHANGED: `search` parameter is now used
 ): Promise<PaginatedLeaguesResponse> => {
-  // Note: The backend API for standings doesn't support search yet.
-  // This is set up for future expansion. For now, search is client-side.
   const params = new URLSearchParams({
     page: page.toString(),
     limit: ITEMS_PER_PAGE.toString(),
+    search: search, // ADDED: Pass the search term to the API
   });
   const { data } = await axios.get(
     `/api/directory/standings-leagues?${params.toString()}`
@@ -52,25 +52,20 @@ export default function StandingsHubClient({
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
+  // This will now refetch with the search term, getting filtered data from the API
   const { data: leaguesResponse, isLoading } = useQuery({
-    queryKey: ["paginatedStandingsLeagues", currentPage],
+    queryKey: ["paginatedStandingsLeagues", currentPage, debouncedSearchTerm],
     queryFn: () => fetchStandingsLeagues(currentPage, debouncedSearchTerm),
     placeholderData: (previousData) => previousData,
-    initialData: { leagues: initialLeagues, pagination: initialPagination },
+    initialData:
+      currentPage === 1 && !debouncedSearchTerm
+        ? { leagues: initialLeagues, pagination: initialPagination }
+        : undefined,
     keepPreviousData: true,
   });
 
-  const filteredLeagues = useMemo(() => {
-    if (!leaguesResponse?.leagues) return [];
-    if (debouncedSearchTerm.length < 3) return leaguesResponse.leagues;
-    return leaguesResponse.leagues.filter(
-      (league) =>
-        league.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-        league.countryName
-          .toLowerCase()
-          .includes(debouncedSearchTerm.toLowerCase())
-    );
-  }, [leaguesResponse, debouncedSearchTerm]);
+  // REMOVED: The client-side filtering logic (`useMemo` hook) is no longer needed.
+  // The component will now directly render `leaguesResponse.leagues`.
 
   return (
     <div className="space-y-8">
@@ -85,7 +80,10 @@ export default function StandingsHubClient({
               type="text"
               placeholder={t("search_leagues_placeholder")}
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1); // Reset to page 1 on new search
+              }}
               className="w-full bg-[var(--color-primary)] border border-gray-700/50 rounded-lg p-3 pl-12 text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
             />
           </div>
@@ -97,16 +95,16 @@ export default function StandingsHubClient({
               <FeaturedLeagueCardSkeleton key={i} />
             ))}
           </div>
-        ) : filteredLeagues.length > 0 ? (
+        ) : leaguesResponse && leaguesResponse.leagues.length > 0 ? (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {filteredLeagues.map((league) => (
+              {/* CHANGED: Render directly from the API response */}
+              {leaguesResponse.leagues.map((league) => (
                 <FeaturedLeagueCard key={league.id} {...league} />
               ))}
             </div>
             {leaguesResponse?.pagination &&
-              leaguesResponse.pagination.totalPages > 1 &&
-              !debouncedSearchTerm && (
+              leaguesResponse.pagination.totalPages > 1 && (
                 <Pagination
                   currentPage={currentPage}
                   totalPages={leaguesResponse.pagination.totalPages}
