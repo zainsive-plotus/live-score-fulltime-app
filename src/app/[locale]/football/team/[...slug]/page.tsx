@@ -24,7 +24,7 @@ import TeamFormWidgetSidebar from "@/components/team/TeamFormWidgetSidebar";
 import AdSlotWidget from "@/components/AdSlotWidget";
 import RecentNewsWidget from "@/components/RecentNewsWidget";
 import TeamSeoWidget from "@/components/team/TeamSeoWidget";
-import LeagueStandingsWidget from "@/components/league-detail-view/LeagueStandingsWidget";
+// import LeagueStandingsWidget from "@/components/league-detail-view/LeagueStandingsWidget";
 import Script from "next/script";
 import { WithContext, SportsTeam, BreadcrumbList } from "schema-dts";
 
@@ -70,10 +70,36 @@ export async function generateMetadata({
     teamName: team.name,
   });
 
+  // Determine the image URL for Open Graph, with a fallback
+  const imageUrl = team.logo || `${BASE_URL}/og-image.jpg`;
+
   return {
-    title: pageTitle,
-    description: pageDescription,
+    // title: pageTitle,
+    // description: pageDescription,
     alternates: hreflangAlternates,
+
+    openGraph: {
+      title: pageTitle,
+      description: pageDescription,
+      url: hreflangAlternates.canonical, // Use the generated canonical URL
+      siteName: "Fan Skor",
+      type: "website",
+      images: [
+        {
+          url: imageUrl,
+          width: 256, // Specify dimensions, even if they are approximate
+          height: 256,
+          alt: `${team.name} logo`,
+        },
+      ],
+    },
+    // It's also good practice to add Twitter-specific tags
+    twitter: {
+      card: "summary",
+      title: pageTitle,
+      description: pageDescription,
+      images: [imageUrl],
+    },
   };
 }
 
@@ -105,7 +131,6 @@ async function MainContent({
 
   const { team } = teamInfo;
   const standingsData = getTeamStandings(teamId);
-  console.log(standingsData);
 
   const squadData = getTeamSquad(teamId);
 
@@ -224,6 +249,11 @@ export default async function TeamPage({
     },
   ];
 
+  const pageTitle = t("team_page_meta_title", { teamName: team.name });
+  const pageDescription = t("team_page_meta_description", {
+    teamName: team.name,
+  });
+
   return (
     <>
       <Script
@@ -231,6 +261,8 @@ export default async function TeamPage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+      <title>{pageTitle}</title>
+      <meta name="description" content={pageDescription} />
       <div className="min-h-screen flex flex-col">
         <Header />
         <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr_288px] lg:gap-8 lg:items-start p-4 lg:p-0 lg:py-6">
