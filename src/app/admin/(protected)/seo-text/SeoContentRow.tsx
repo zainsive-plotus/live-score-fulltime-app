@@ -1,3 +1,5 @@
+// ===== src/components/admin/seo-text/SeoContentRow.tsx =====
+
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -5,18 +7,11 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import { ISeoContent } from "@/models/SeoContent";
 import { ILanguage } from "@/models/Language";
-import {
-  Languages,
-  RefreshCw,
-  Loader2,
-  Edit,
-  Plus,
-  Trash2,
-} from "lucide-react";
-import Link from "next/link";
+import { Languages, RefreshCw, Loader2, Trash2 } from "lucide-react";
 import Image from "next/image";
 import { Popover, Transition } from "@headlessui/react";
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
+import { DEFAULT_LOCALE } from "@/lib/i18n/config"; // ADDED
 
 interface SeoContentRowProps {
   pageType: string;
@@ -25,6 +20,13 @@ interface SeoContentRowProps {
   allActiveLanguages: ILanguage[];
 }
 
+const createExcerpt = (html: string, length: number = 60) => {
+  if (!html) return "";
+  const text = html.replace(/<[^>]+>/g, " ");
+  if (text.length <= length) return text.trim();
+  return text.substring(0, length).trim() + "...";
+};
+
 export default function SeoContentRow({
   pageType,
   group,
@@ -32,6 +34,9 @@ export default function SeoContentRow({
   allActiveLanguages,
 }: SeoContentRowProps) {
   const queryClient = useQueryClient();
+  const [hoveredLang, setHoveredLang] = useState<string | null>(null);
+  const [regeneratingLang, setRegeneratingLang] = useState<string | null>(null);
+
   const existingTranslationsMap = new Map(group.map((p) => [p.language, p]));
   const translatedCount = existingTranslationsMap.size;
   const totalLanguages = allActiveLanguages.length;
@@ -48,7 +53,8 @@ export default function SeoContentRow({
       toast.error(err.response?.data?.error || "Deletion failed."),
   });
 
-  const regenerateMutation = useMutation({
+  // This mutation is now for the main button, specifically for the primary language
+  const regeneratePrimaryMutation = useMutation({
     mutationFn: (payload: {
       pageType: string;
       entityId: string;
@@ -60,6 +66,31 @@ export default function SeoContentRow({
     },
     onError: (err: any) =>
       toast.error(err.response?.data?.error || "Regeneration failed."),
+  });
+
+  // A separate mutation for individual re-translations to manage loading state
+  const regenerateSingleMutation = useMutation({
+    mutationFn: (payload: {
+      pageType: string;
+      entityId: string;
+      language: string;
+    }) => {
+      setRegeneratingLang(payload.language);
+      return axios.post(`/api/admin/seo-runner/regenerate`, payload);
+    },
+    onSuccess: (response, variables) => {
+      toast.success(response.data.message);
+      queryClient.invalidateQueries({ queryKey: ["seoContent", pageType] });
+    },
+    onError: (err: any, variables) => {
+      toast.error(
+        err.response?.data?.error ||
+          `Failed to regenerate for ${variables.language.toUpperCase()}.`
+      );
+    },
+    onSettled: () => {
+      setRegeneratingLang(null);
+    },
   });
 
   const translateAllMutation = useMutation({
@@ -79,31 +110,43 @@ export default function SeoContentRow({
         `Are you sure you want to delete all SEO content for "${entityName}" in all languages? This cannot be undone.`
       )
     ) {
-      deleteMutation.mutate({
+      deleteMutation.mutate({ pageType, entityId: primaryContent.entityId });
+    }
+  };
+
+  const handleRegeneratePrimary = () => {
+    if (
+      window.confirm(
+        `Are you sure you want to regenerate the SEO text for "${entityName}" in the primary language (${DEFAULT_LOCALE.toUpperCase()})? This will use the last saved master template.`
+      )
+    ) {
+      regeneratePrimaryMutation.mutate({
         pageType,
         entityId: primaryContent.entityId,
+        language: DEFAULT_LOCALE,
       });
     }
   };
 
-  const handleRegenerate = () => {
-    if (
-      window.confirm(
-        `Are you sure you want to regenerate the SEO text for "${entityName}" in the primary language? This will use the last saved master template.`
-      )
-    ) {
-      regenerateMutation.mutate({
+  const handleRegenerateSingle = (languageCode: string) => {
+    const isPrimary = languageCode === DEFAULT_LOCALE;
+    const message = isPrimary
+      ? `Are you sure you want to regenerate the primary content for "${entityName}"?`
+      : `Are you sure you want to re-translate the content for "${entityName}" into this language? This will overwrite the existing translation.`;
+    if (window.confirm(message)) {
+      regenerateSingleMutation.mutate({
         pageType,
         entityId: primaryContent.entityId,
-        language: primaryContent.language,
+        language: languageCode,
       });
     }
   };
 
   const handleTranslateAll = () => {
+    // MODIFIED: Updated confirmation message
     if (
       window.confirm(
-        `Are you sure you want to auto-translate SEO text for "${entityName}" into all missing languages?`
+        `Are you sure you want to translate SEO text for "${entityName}" into all languages? This will OVERWRITE any existing translations.`
       )
     ) {
       translateAllMutation.mutate({
@@ -114,7 +157,7 @@ export default function SeoContentRow({
   };
 
   const isBusy =
-    regenerateMutation.isPending ||
+    regeneratePrimaryMutation.isPending ||
     translateAllMutation.isPending ||
     deleteMutation.isPending;
 
@@ -140,7 +183,10 @@ export default function SeoContentRow({
             leaveFrom="opacity-100 translate-y-0"
             leaveTo="opacity-0 translate-y-1"
           >
-            <Popover.Panel className="absolute z-30 mt-2 w-72 origin-top-left rounded-md bg-brand-dark shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none border border-gray-700">
+            <Popover.Panel
+              style={{ backgroundColor: "#1f1d2b" }}
+              className="absolute z-30 mt-2 w-80 origin-top-left rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none border border-gray-700"
+            >
               <div className="p-2">
                 <div className="p-2 font-bold text-white">
                   Translations Status
@@ -148,32 +194,70 @@ export default function SeoContentRow({
                 <div className="max-h-60 overflow-y-auto custom-scrollbar space-y-1">
                   {allActiveLanguages.map((lang) => {
                     const translation = existingTranslationsMap.get(lang.code);
+                    const isPrimaryLanguage = lang.code === DEFAULT_LOCALE;
                     return (
                       <div
                         key={lang.code}
-                        className="flex items-center justify-between p-2 rounded-md hover:bg-brand-secondary"
+                        className="relative"
+                        onMouseEnter={() => setHoveredLang(lang.code)}
+                        onMouseLeave={() => setHoveredLang(null)}
                       >
-                        <div className="flex items-center gap-2">
-                          {lang.flagUrl && (
-                            <Image
-                              src={lang.flagUrl}
-                              alt={lang.name}
-                              width={20}
-                              height={15}
-                              className="rounded-sm"
-                            />
+                        <div className="flex items-center justify-between p-2 rounded-md hover:bg-brand-secondary">
+                          <div className="flex items-start gap-2 min-w-0">
+                            {lang.flagUrl && (
+                              <Image
+                                src={lang.flagUrl}
+                                alt={lang.name}
+                                width={20}
+                                height={15}
+                                className="rounded-sm mt-0.5 flex-shrink-0"
+                              />
+                            )}
+                            <div className="min-w-0">
+                              <span className="text-sm font-medium text-brand-light block">
+                                {lang.name}
+                              </span>
+                              {translation ? (
+                                <p className="text-xs text-gray-400 truncate">
+                                  {createExcerpt(translation.seoText)}
+                                </p>
+                              ) : (
+                                <span className="text-xs text-brand-muted">
+                                  Missing
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {/* MODIFIED: Regenerate/Re-translate button with clear labeling */}
+                          {translation && (
+                            <button
+                              onClick={() => handleRegenerateSingle(lang.code)}
+                              disabled={regeneratingLang === lang.code}
+                              className="p-1 text-blue-400 hover:text-blue-300 disabled:text-gray-500 disabled:cursor-wait flex-shrink-0"
+                              title={
+                                isPrimaryLanguage
+                                  ? `Regenerate for ${lang.name}`
+                                  : `Re-translate for ${lang.name}`
+                              }
+                            >
+                              {regeneratingLang === lang.code ? (
+                                <Loader2 size={14} className="animate-spin" />
+                              ) : (
+                                <RefreshCw size={14} />
+                              )}
+                            </button>
                           )}
-                          <span className="text-sm font-medium text-brand-light">
-                            {lang.name}
-                          </span>
                         </div>
-                        <span
-                          className={`text-xs font-semibold ${
-                            translation ? "text-green-400" : "text-brand-muted"
-                          }`}
-                        >
-                          {translation ? "Available" : "Missing"}
-                        </span>
+                        {translation && hoveredLang === lang.code && (
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-md bg-black border border-gray-700 p-3 rounded-lg shadow-2xl z-20">
+                            <div
+                              className="prose prose-sm prose-invert max-w-none text-text-secondary leading-relaxed"
+                              dangerouslySetInnerHTML={{
+                                __html: translation.seoText,
+                              }}
+                            />
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -186,22 +270,23 @@ export default function SeoContentRow({
       <td className="p-4 align-middle text-center">
         <div className="flex items-center justify-center gap-2">
           <button
-            onClick={handleRegenerate}
+            onClick={handleRegeneratePrimary}
             disabled={isBusy}
             className="p-2 text-brand-muted hover:text-white transition-colors disabled:opacity-50"
-            title="Regenerate for Primary Language"
+            title={`Regenerate for Primary Language (${DEFAULT_LOCALE.toUpperCase()})`}
           >
-            {regenerateMutation.isPending ? (
+            {regeneratePrimaryMutation.isPending ? (
               <Loader2 size={18} className="animate-spin" />
             ) : (
               <RefreshCw size={18} />
             )}
           </button>
+          {/* MODIFIED: Button is no longer disabled when all translations are complete */}
           <button
             onClick={handleTranslateAll}
-            disabled={isBusy || translatedCount === totalLanguages}
+            disabled={isBusy}
             className="p-2 text-brand-muted hover:text-white transition-colors disabled:opacity-50"
-            title="Auto-translate all missing languages"
+            title="Translate all missing or existing languages"
           >
             {translateAllMutation.isPending ? (
               <Loader2 size={18} className="animate-spin" />

@@ -1,105 +1,64 @@
+// ===== src/app/api/admin/seo-runner/translate-single/route.ts =====
+
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import dbConnect from "@/lib/dbConnect";
-import axios from "axios";
 import SeoContent from "@/models/SeoContent";
-import SeoTemplate from "@/models/SeoTemplate";
 import Language from "@/models/Language";
-import vm from "vm";
 import OpenAI from "openai";
 import { DEFAULT_LOCALE } from "@/lib/i18n/config";
 
-const openai = new OpenAI({
-  apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
-});
+const openai = new OpenAI({ apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY });
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
-
-// Helper Functions
-const evaluateExpression = (expression: string, context: object): any => {
-  try {
-    const sandbox = vm.createContext(context);
-    return vm.runInContext(expression, sandbox, { timeout: 1000 });
-  } catch (error: any) {
-    console.error(
-      `[VM Sandbox Error] Failed to execute expression "${expression}":`,
-      error.message
-    );
-    return `[ERROR: ${error.message}]`;
-  }
-};
-
-const populateTemplate = (
-  template: string,
-  variables: Record<string, string | number>
-) => {
-  let populated = template;
-  for (const key in variables) {
-    populated = populated.replace(
-      new RegExp(`{${key}}`, "g"),
-      String(variables[key] || "")
-    );
-  }
-  return populated;
-};
-
-const getEntitiesForPageType = async (pageType: string) => {
-  switch (pageType) {
-    case "league-standings":
-      const { data } = await axios.get(
-        `${BASE_URL}/api/directory/standings-leagues`
-      );
-      return data.leagues || data; // Handle both direct array and object with 'leagues' key
-    default:
-      throw new Error(`Unsupported pageType: ${pageType}`);
-  }
-};
-
-const getDynamicDataForEntity = async (pageType: string, entity: any) => {
-  switch (pageType) {
-    case "league-standings":
-      const { data } = await axios.get(
-        `${BASE_URL}/api/standings?league=${
-          entity.id
-        }&season=${new Date().getFullYear()}`
-      );
-      return data;
-    default:
-      return {};
-  }
-};
-
+// MODIFIED: Copied the robust translation function from the main runner
 const translateHtmlContent = async (
   html: string,
   sourceLangName: string,
-  targetLangName: string
+  targetLangName: string,
+  retries = 3
 ): Promise<string> => {
   const prompt = `Translate the following HTML content from ${sourceLangName} to ${targetLangName}. Preserve ALL HTML tags exactly as they are. Only translate the text content within the tags. Do not add any extra text, explanations, or markdown. Your response must be only the translated HTML. HTML to translate: \`\`\`html\n${html}\n\`\`\``;
-  try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.3,
-    });
-    const translatedHtml = response.choices[0]?.message?.content
-      ?.trim()
-      .replace(/^```(?:html)?\n?|```$/g, "")
-      .trim();
-    if (!translatedHtml)
-      throw new Error("OpenAI returned empty content for translation.");
-    return translatedHtml;
-  } catch (error) {
-    console.error(
-      `[AI Translate Error] Failed to translate to ${targetLangName}:`,
-      error
-    );
-    return `<!-- Translation to ${targetLangName} failed --> ${html}`;
+
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.3,
+      });
+      const translatedHtml = response.choices[0]?.message?.content
+        ?.trim()
+        .replace(/^```(?:html)?\n?|```$/g, "")
+        .trim();
+
+      if (translatedHtml && translatedHtml.length > 10) {
+        return translatedHtml;
+      }
+      throw new Error(
+        "OpenAI returned empty or invalid content for translation."
+      );
+    } catch (error: any) {
+      console.error(
+        `[AI Translate Error] Attempt ${
+          i + 1
+        }/${retries} failed for ${targetLangName}:`,
+        error.message
+      );
+      if (i === retries - 1) {
+        throw new Error(
+          `OpenAI failed to translate to ${targetLangName} after ${retries} attempts.`
+        );
+      }
+      await new Promise((res) => setTimeout(res, 1500 * (i + 1)));
+    }
   }
+
+  throw new Error(
+    `Translation to ${targetLangName} failed unexpectedly after all retries.`
+  );
 };
 
-// --- MAIN API ROUTE ---
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") {
@@ -107,111 +66,108 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { pageType, template, variableMappings, translate } =
-      await request.json();
-    const sourceLanguage = DEFAULT_LOCALE;
-
-    if (!pageType || !template) {
+    const { pageType, entityId } = await request.json();
+    if (!pageType || !entityId) {
       return NextResponse.json(
-        { error: "pageType and template are required." },
+        { error: "pageType and entityId are required." },
         { status: 400 }
       );
     }
 
     await dbConnect();
 
-    const variableMappingsForDB = Object.entries(variableMappings).map(
-      ([key, value]) => ({ variable: key, path: value as string })
-    );
-    await SeoTemplate.findOneAndUpdate(
-      { pageType, language: sourceLanguage },
-      { template, variableMappings: variableMappingsForDB },
-      { upsert: true, new: true, runValidators: true }
-    );
-
-    const entities = await getEntitiesForPageType(pageType);
-    if (!entities || entities.length === 0) {
+    const sourceContent = await SeoContent.findOne({
+      pageType,
+      entityId,
+      language: DEFAULT_LOCALE,
+    }).lean();
+    if (!sourceContent) {
       return NextResponse.json(
-        { error: `No entities found for page type: ${pageType}` },
+        {
+          error: `Primary language content for entity ${entityId} not found. Please generate it first.`,
+        },
         { status: 404 }
       );
     }
 
-    const primaryLanguageBulkOps = [];
-    const generatedContentMap = new Map<string, string>();
+    const allLanguages = await Language.find({ isActive: true }).lean();
+    const sourceLangDoc = allLanguages.find((l) => l.code === DEFAULT_LOCALE);
+    const targetLanguages = allLanguages.filter(
+      (l) => l.code !== DEFAULT_LOCALE
+    );
 
-    for (const entity of entities) {
-      const dynamicData = await getDynamicDataForEntity(pageType, entity);
-      const variables: Record<string, any> = {};
-      for (const key in variableMappings) {
-        variables[key] = evaluateExpression(variableMappings[key], {
-          apiResponse: dynamicData,
-        });
-      }
-      const generatedSeoText = populateTemplate(template, variables);
-      const entityId = (entity.id || entity.team.id).toString();
-
-      generatedContentMap.set(entityId, generatedSeoText);
-
-      primaryLanguageBulkOps.push({
-        updateOne: {
-          filter: { pageType, entityId, language: sourceLanguage },
-          update: { $set: { seoText: generatedSeoText } },
-          upsert: true,
+    if (!sourceLangDoc) {
+      return NextResponse.json(
+        {
+          error: `Default language '${DEFAULT_LOCALE}' not found in the database.`,
         },
-      });
-    }
-
-    if (primaryLanguageBulkOps.length > 0) {
-      await SeoContent.bulkWrite(primaryLanguageBulkOps);
-    }
-
-    let translatedLanguagesCount = 0;
-    if (translate) {
-      const allLanguages = await Language.find({ isActive: true }).lean();
-      const sourceLangDoc = allLanguages.find((l) => l.code === sourceLanguage);
-      const targetLanguages = allLanguages.filter(
-        (l) => l.code !== sourceLanguage
+        { status: 500 }
       );
+    }
 
-      if (sourceLangDoc && targetLanguages.length > 0) {
-        for (const targetLang of targetLanguages) {
-          console.log(
-            `[SEO Runner] Translating content to ${targetLang.name}...`
-          );
-          const translationBulkOps = [];
-          for (const [entityId, sourceHtml] of generatedContentMap.entries()) {
-            const translatedHtml = await translateHtmlContent(
-              sourceHtml,
-              sourceLangDoc.name,
-              targetLang.name
-            );
-            translationBulkOps.push({
-              updateOne: {
-                filter: { pageType, entityId, language: targetLang.code },
-                update: { $set: { seoText: translatedHtml } },
-                upsert: true,
-              },
-            });
-          }
-          if (translationBulkOps.length > 0) {
-            await SeoContent.bulkWrite(translationBulkOps);
-            translatedLanguagesCount++;
-          }
-        }
+    const bulkOps = [];
+    let translatedCount = 0;
+
+    // MODIFIED: Using Promise.allSettled for parallel processing and robust error handling
+    const translationPromises = targetLanguages.map(async (targetLang) => {
+      try {
+        const translatedHtml = await translateHtmlContent(
+          sourceContent.seoText,
+          sourceLangDoc.name,
+          targetLang.name
+        );
+
+        return {
+          status: "fulfilled",
+          value: {
+            updateOne: {
+              filter: { pageType, entityId, language: targetLang.code },
+              update: { $set: { seoText: translatedHtml } },
+              upsert: true,
+            },
+          },
+        };
+      } catch (error) {
+        return {
+          status: "rejected",
+          reason: `Translation to ${targetLang.name} failed.`,
+        };
+      }
+    });
+
+    const results = await Promise.allSettled(translationPromises);
+
+    for (const result of results) {
+      if (
+        result.status === "fulfilled" &&
+        result.value.status === "fulfilled"
+      ) {
+        bulkOps.push(result.value.value);
+        translatedCount++;
+      } else if (
+        result.status === "rejected" ||
+        (result.status === "fulfilled" && result.value.status === "rejected")
+      ) {
+        const reason =
+          result.status === "rejected" ? result.reason : result.value.reason;
+        console.error(
+          `[Translate Single] A translation promise was rejected:`,
+          reason
+        );
       }
     }
 
-    let message = `Successfully processed ${entities.length} pages for the primary language ('${sourceLanguage}').`;
-    if (translate && translatedLanguagesCount > 0) {
-      message += ` Auto-translated into ${translatedLanguagesCount} other language(s).`;
+    if (bulkOps.length > 0) {
+      await SeoContent.bulkWrite(bulkOps);
     }
 
-    return NextResponse.json({ message, processedCount: entities.length });
+    return NextResponse.json({
+      message: `Successfully processed ${translatedCount} of ${targetLanguages.length} possible translations for entity ${entityId}.`,
+    });
   } catch (error: any) {
-    console.error("[SEO Runner Error]", error);
+    console.error("[API/seo-runner/translate-single] Critical error:", error);
     return NextResponse.json(
-      { error: "An error occurred while running the SEO generator." },
+      { error: "An unexpected error occurred while translating content." },
       { status: 500 }
     );
   }
