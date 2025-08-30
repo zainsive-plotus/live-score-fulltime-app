@@ -97,11 +97,7 @@ const jsonLd: WithContext<WebSite | Organization>[] = [
   },
 ];
 
-export default async function HomePage({
-  params,
-  homepageAboutSeoText: initialHomepageText,
-  sidebarAboutSeoText: initialSidebarText,
-}: HomePageProps) {
+export default async function HomePage({ params }: HomePageProps) {
   const { locale } = await params;
 
   const t = await getI18n(locale);

@@ -43,6 +43,9 @@ export default async function LocaleLayout({
         {/* {process.env.NEXT_PUBLIC_NODE_ENV === "production" && (
           <Script src="./scripts/relic.js" />
         )} */}
+        {process.env.NEXT_PUBLIC_NODE_ENV === "production" && (
+          <Script src="./scripts/gTag_head.js" />
+        )}
         <script
           src="https://analytics.ahrefs.com/analytics.js"
           data-key="bUq3rBCRyMMiFSPFiUUAxg"
@@ -50,6 +53,14 @@ export default async function LocaleLayout({
         ></script>
       </head>
       <body suppressHydrationWarning={true}>
+        <noscript>
+          <iframe
+            src="https://www.googletagmanager.com/ns.html?id=GTM-KXMPVSDD"
+            height="0"
+            width="0"
+            style="display:none;visibility:hidden"
+          ></iframe>
+        </noscript>
         <Suspense fallback={<Loading />}>
           <NextAuthProvider>
             <Providers>
