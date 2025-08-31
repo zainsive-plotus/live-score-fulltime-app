@@ -27,9 +27,28 @@ import TeamSeoWidget from "@/components/team/TeamSeoWidget";
 // import LeagueStandingsWidget from "@/components/league-detail-view/LeagueStandingsWidget";
 import Script from "next/script";
 import { WithContext, SportsTeam, BreadcrumbList } from "schema-dts";
+import axios from "axios"; // ADDED
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
+
+async function getSeoContent(
+  teamId: string,
+  language: string
+): Promise<string | null> {
+  try {
+    const { data } = await axios.get(
+      `${BASE_URL}/api/seo-content/team-details?teamId=${teamId}&language=${language}`
+    );
+    return data.seoText || null;
+  } catch (error) {
+    // It's normal for content not to be found (404), so we return null gracefully.
+    console.log(
+      `[Team Page] No generated SEO content found for team ${teamId} in ${language}.`
+    );
+    return null;
+  }
+}
 
 const getTeamIdFromSlug = (slug: string): string | null => {
   if (!slug) return null;
@@ -121,9 +140,11 @@ const SidebarItemSkeleton = () => (
 async function MainContent({
   teamId,
   locale,
+  seoText,
 }: {
   teamId: string;
   locale: string;
+  seoText: string | null; // Can be null if not found
 }) {
   const t = await getI18n(locale);
   const teamInfo = await getTeamInfo(teamId);
@@ -138,7 +159,8 @@ async function MainContent({
   const primaryLeagueInfo = (await standingsData)?.[0]?.league;
 
   const seoWidgetTitle = t("team_seo_widget_title", { teamName: team.name });
-  const seoWidgetText = t("team_page_seo_text", { teamName: team.name });
+  const finalSeoText =
+    seoText || t("team_page_seo_text", { teamName: team.name });
 
   return (
     <main className="min-w-0 space-y-8">
@@ -164,7 +186,7 @@ async function MainContent({
         <TeamSquadWidget squad={await squadData} />
       </Suspense>
 
-      <TeamSeoWidget title={seoWidgetTitle} seoText={seoWidgetText} />
+      <TeamSeoWidget title={seoWidgetTitle} seoText={finalSeoText} />
     </main>
   );
 }
@@ -203,8 +225,11 @@ export default async function TeamPage({
 
   // Await only the most critical data for SEO and JSON-LD here.
   // The rest will be streamed in via Suspense.
-  const teamInfo = await getTeamInfo(teamId);
-  if (!teamInfo) notFound();
+  // MODIFIED: Fetch team info AND SEO content in parallel
+  const [teamInfo, seoText] = await Promise.all([
+    getTeamInfo(teamId),
+    getSeoContent(teamId, locale),
+  ]);
 
   const t = await getI18n(locale);
   const { team, venue } = teamInfo;
@@ -273,7 +298,7 @@ export default async function TeamPage({
               countryFlag={teamInfo.team.country && fixtures?.[0]?.league?.flag}
               foundedText={t("founded_in", { year: team.founded })}
             />
-            <MainContent teamId={teamId} locale={locale} />
+            <MainContent teamId={teamId} locale={locale} seoText={seoText} />
           </div>
           <SidebarContent teamId={teamId} />
         </div>

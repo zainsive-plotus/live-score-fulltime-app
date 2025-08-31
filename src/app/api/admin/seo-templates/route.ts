@@ -1,10 +1,12 @@
+// ===== src/app/api/admin/seo-templates/route.ts =====
+
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import dbConnect from "@/lib/dbConnect";
 import SeoTemplate from "@/models/SeoTemplate";
+import { DEFAULT_LOCALE } from "@/lib/i18n/config";
 
-// GET a specific template
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") {
@@ -26,7 +28,8 @@ export async function GET(request: Request) {
   const template = await SeoTemplate.findOne({ pageType, language }).lean();
 
   if (!template) {
-    // Return a default structure if no template exists yet, allows frontend to work seamlessly
+    // If no template is found, return a default empty structure.
+    // This prevents errors if a template for a language hasn't been created yet.
     return NextResponse.json({
       pageType,
       language,
@@ -38,7 +41,6 @@ export async function GET(request: Request) {
   return NextResponse.json(template);
 }
 
-// ** THE FIX IS HERE: Add the POST handler to save templates **
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") {
@@ -57,22 +59,48 @@ export async function POST(request: Request) {
 
     await dbConnect();
 
-    const variableMappingsForDB = Object.entries(variableMappings || {}).map(
-      ([key, value]) => ({
-        variable: key,
-        path: value as string,
-      })
-    );
+    // --- THIS IS THE ROBUST LOGIC FIX ---
+
+    // 1. Define the base update operation. It ALWAYS includes the template content.
+    const updateOperation: {
+      $set: { template: string; variableMappings?: any };
+      $setOnInsert: any;
+    } = {
+      $set: {
+        template: template,
+      },
+      // $setOnInsert ensures these fields are set only when a new document is created (upsert: true).
+      $setOnInsert: {
+        pageType,
+        language,
+      },
+    };
+
+    // 2. ONLY if the language is the default one, we add the `variableMappings`
+    //    field to the `$set` object. This is the crucial step.
+    if (language === DEFAULT_LOCALE) {
+      // The frontend now sends the correct array structure, so we can use it directly.
+      // We still check if it's an array for safety.
+      if (Array.isArray(variableMappings)) {
+        updateOperation.$set.variableMappings = variableMappings;
+      }
+    }
+    // For any other language, the `$set` object will ONLY contain the `template` key.
+    // Mongoose will therefore only update that one field and leave `variableMappings` untouched.
 
     const updatedTemplate = await SeoTemplate.findOneAndUpdate(
       { pageType, language },
-      { template, variableMappings: variableMappingsForDB },
+      updateOperation, // Use the precisely constructed operation
       { upsert: true, new: true, runValidators: true }
     );
 
     return NextResponse.json(updatedTemplate, { status: 200 });
-  } catch (error) {
-    console.error("[API/seo-templates POST] Error saving template:", error);
+  } catch (error: any) {
+    console.error("[API/seo-templates] POST Error:", error);
+    // This will now correctly catch the Mongoose validation error if the frontend sends the wrong shape
+    if (error.name === "ValidationError") {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     return NextResponse.json(
       { error: "Server error saving template." },
       { status: 500 }

@@ -1,3 +1,5 @@
+// ===== src/components/admin/seo-text/SeoContentManager.tsx =====
+
 "use client";
 
 import { useState, useEffect, Fragment, useRef } from "react";
@@ -14,6 +16,7 @@ import {
   Save,
   ChevronDown,
   CheckCircle,
+  Sparkles,
 } from "lucide-react";
 import RichTextEditor from "@/components/admin/RichTextEditor";
 import { ILanguage } from "@/models/Language";
@@ -26,11 +29,27 @@ import { Dialog, Transition } from "@headlessui/react";
 
 const PAGE_TYPES = [
   { value: "league-standings", label: "League Standings Detail" },
+  { value: "team-details", label: "Team Details" },
 ];
 
-const fetchTemplate = async (pageType: string): Promise<ISeoTemplate> => {
+const translateTemplate = async (payload: {
+  template: string;
+  sourceLang: string;
+  targetLangs: { code: string; name: string }[];
+}): Promise<{ translations: Record<string, string> }> => {
+  const { data } = await axios.post(
+    "/api/admin/seo-runner/translate-template",
+    payload
+  );
+  return data;
+};
+
+const fetchTemplate = async (
+  pageType: string,
+  language: string
+): Promise<ISeoTemplate> => {
   const { data } = await axios.get(
-    `/api/admin/seo-templates?pageType=${pageType}&language=${DEFAULT_LOCALE}`
+    `/api/admin/seo-templates?pageType=${pageType}&language=${language}`
   );
   return data;
 };
@@ -45,6 +64,7 @@ const fetchLanguages = async (): Promise<ILanguage[]> => {
   const { data } = await axios.get("/api/admin/languages?active=true");
   return data;
 };
+
 const LogViewerModal = ({
   logs,
   progress,
@@ -59,13 +79,11 @@ const LogViewerModal = ({
   isComplete: boolean;
 }) => {
   const logContainerRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     if (logContainerRef.current) {
       logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
     }
   }, [logs]);
-
   const getIcon = (type: string) => {
     switch (type) {
       case "success":
@@ -76,7 +94,6 @@ const LogViewerModal = ({
         return <Info className="text-blue-400" size={16} />;
     }
   };
-
   return (
     <Transition appear show={isOpen} as={Fragment}>
       <Dialog
@@ -174,27 +191,25 @@ export default function SeoContentManager({
   initialPageType,
   initialLanguages,
   initialMasterTemplate,
-  initialContentItems,
+  initialContentData,
 }: {
-  pageType: string;
+  initialPageType: string;
   initialLanguages: ILanguage[];
   initialMasterTemplate: ISeoTemplate | null;
-  initialContentItems: ISeoContent[];
+  initialContentData: {
+    contentGroups: ISeoContent[][];
+    pagination: { currentPage: number; totalPages: number; totalCount: number };
+  };
 }) {
   const queryClient = useQueryClient();
   const [selectedPageType, setSelectedPageType] = useState(initialPageType);
-  const [content, setContent] = useState(initialMasterTemplate?.template || "");
-  const [variableMappings, setVariableMappings] = useState<
-    { variable: string; expression: string }[]
-  >(
-    initialMasterTemplate?.variableMappings?.map((m) => ({
-      variable: m.variable,
-      expression: m.path,
-    })) || []
-  );
-  const [isEditorOpen, setIsEditorOpen] = useState(!initialMasterTemplate);
+  const [isEditorOpen, setIsEditorOpen] = useState(true);
   const [testResult, setTestResult] = useState<any>(null);
-
+  const [activeTemplateLang, setActiveTemplateLang] = useState<string>("en");
+  const [content, setContent] = useState("");
+  const [variableMappings, setVariableMappings] = useState<
+    { variable: string; path: string }[]
+  >([]);
   const [isRunnerModalOpen, setIsRunnerModalOpen] = useState(false);
   const [runnerLogs, setRunnerLogs] = useState<any[]>([]);
   const [runnerProgress, setRunnerProgress] = useState({
@@ -210,45 +225,80 @@ export default function SeoContentManager({
     queryFn: fetchLanguages,
     initialData: initialLanguages,
   });
-  const { data: contentItems, isLoading: isLoadingContent } = useQuery({
-    queryKey: ["seoContent", selectedPageType],
-    queryFn: () => fetchSeoContent(selectedPageType),
-    enabled: !!selectedPageType,
-    initialData: initialContentItems,
-  });
 
-  const { data: savedTemplate, isLoading: isLoadingTemplate } = useQuery({
-    queryKey: ["seoTemplate", selectedPageType, DEFAULT_LOCALE],
-    queryFn: () => fetchTemplate(selectedPageType),
-    enabled: !!selectedPageType,
+  const { data: currentTemplate, isLoading: isLoadingTemplate } = useQuery({
+    queryKey: ["seoTemplate", selectedPageType, activeTemplateLang],
+    queryFn: () => fetchTemplate(selectedPageType, activeTemplateLang),
+    enabled: !!selectedPageType && !!activeTemplateLang,
     refetchOnWindowFocus: false,
   });
 
+  const { data: trTemplate } = useQuery({
+    queryKey: ["seoTemplate", selectedPageType, DEFAULT_LOCALE],
+    queryFn: () => fetchTemplate(selectedPageType, DEFAULT_LOCALE),
+    enabled: !!selectedPageType,
+  });
+
   useEffect(() => {
-    if (savedTemplate) {
-      setContent(savedTemplate.template || "");
-      setVariableMappings(
-        savedTemplate.variableMappings?.map((m: any) => ({
-          variable: m.variable,
-          expression: m.path,
-        })) || []
-      );
+    if (currentTemplate) {
+      setContent(currentTemplate.template || "");
     } else {
       setContent("");
-      setVariableMappings([]);
     }
-  }, [savedTemplate]);
+    if (trTemplate) {
+      setVariableMappings(
+        trTemplate.variableMappings?.map((m: any) => ({
+          variable: m.variable,
+          path: m.path,
+        })) || []
+      );
+    }
+  }, [currentTemplate, trTemplate]);
 
   const saveTemplateMutation = useMutation({
-    mutationFn: (data: any) => axios.post(`/api/admin/seo-templates`, data),
+    mutationFn: (newTemplateData: any) =>
+      axios.post(`/api/admin/seo-templates`, newTemplateData),
     onSuccess: (response, variables) => {
-      toast.success("Template saved successfully!");
-      queryClient.invalidateQueries({
-        queryKey: ["seoTemplate", variables.pageType, DEFAULT_LOCALE],
-      });
+      toast.success(`Template for ${variables.language.toUpperCase()} saved!`);
+      queryClient.setQueryData(
+        ["seoTemplate", variables.pageType, variables.language],
+        response.data
+      );
+      if (variables.language === DEFAULT_LOCALE) {
+        queryClient.setQueryData(
+          ["seoTemplate", variables.pageType, DEFAULT_LOCALE],
+          response.data
+        );
+      }
     },
     onError: (err: any) =>
       toast.error(err.response?.data?.error || "Failed to save template."),
+  });
+
+  const translateAllTemplatesMutation = useMutation({
+    mutationFn: translateTemplate,
+    onSuccess: (data) => {
+      const otherLangs =
+        languages
+          ?.filter((lang) => lang.code !== "en")
+          .map((lang) => lang.code) || [];
+      otherLangs.forEach((langCode) => {
+        queryClient.setQueryData(
+          ["seoTemplate", selectedPageType, langCode],
+          (oldData: any) => {
+            return {
+              ...oldData,
+              template: data.translations[langCode] || oldData?.template || "",
+            };
+          }
+        );
+      });
+      toast.success(
+        "All templates auto-translated! Please review each one and save it."
+      );
+    },
+    onError: (err: any) =>
+      toast.error(err.response?.data?.error || "Translation failed."),
   });
 
   const testMutation = useMutation({
@@ -258,19 +308,64 @@ export default function SeoContentManager({
       toast.error(err.response?.data?.error || "Failed to run test."),
   });
 
-  const getMappingsObject = () =>
+  const getMappingsObjectForTest = () =>
     variableMappings.reduce((acc, item) => {
-      if (item.variable && item.expression)
-        acc[item.variable] = item.expression;
+      if (item.variable && item.path) acc[item.variable] = item.path;
       return acc;
     }, {} as Record<string, string>);
+
+  const handleSaveTemplate = () => {
+    saveTemplateMutation.mutate({
+      pageType: selectedPageType,
+      language: activeTemplateLang,
+      template: content,
+      variableMappings:
+        activeTemplateLang === DEFAULT_LOCALE ? variableMappings : undefined,
+    });
+  };
+
+  const handleTranslateAllTemplates = () => {
+    const englishTemplateContent = queryClient.getQueryData<ISeoTemplate>([
+      "seoTemplate",
+      selectedPageType,
+      "en",
+    ])?.template;
+    if (!englishTemplateContent) {
+      toast.error(
+        "Please write and save the English template before translating."
+      );
+      return;
+    }
+
+    const targetLangs =
+      languages
+        ?.filter((lang) => lang.code !== "en")
+        .map((lang) => ({ code: lang.code, name: lang.name })) || [];
+    if (targetLangs.length === 0) {
+      toast.error("No other active languages to translate to.");
+      return;
+    }
+
+    translateAllTemplatesMutation.mutate({
+      template: englishTemplateContent,
+      sourceLang: "English",
+      targetLangs: targetLangs,
+    });
+  };
+
+  const handleTestGenerator = () =>
+    testMutation.mutate({
+      pageType: selectedPageType,
+      template: content,
+      variableMappings: getMappingsObjectForTest(),
+    });
 
   const handleRunGenerator = async () => {
     if (!content.trim() || !selectedPageType)
       return toast.error("Template and page type must be selected.");
     if (
       !window.confirm(
-        "This will save the current template and overwrite existing SEO text for ALL languages. Are you sure?"
+        "This will run the generator for ALL entities of this type. This may take a while and will overwrite existing SEO content. Are you sure?"
       )
     )
       return;
@@ -285,11 +380,7 @@ export default function SeoContentManager({
       const response = await fetch("/api/admin/seo-runner/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          pageType: selectedPageType,
-          template: content,
-          variableMappings: getMappingsObject(),
-        }),
+        body: JSON.stringify({ pageType: selectedPageType }),
       });
 
       if (!response.ok)
@@ -318,13 +409,13 @@ export default function SeoContentManager({
                 setIsRunnerComplete(true);
                 toast.success(data.message);
                 queryClient.invalidateQueries({
-                  queryKey: ["seoContent", selectedPageType],
+                  queryKey: ["paginatedSeoContent"],
                 });
               } else {
                 setRunnerLogs((prev) => [...prev, data]);
               }
             } catch (e) {
-              console.error("Failed to parse stream message:", line);
+              console.error("Failed to parse stream chunk:", line);
             }
           }
         }
@@ -346,27 +437,12 @@ export default function SeoContentManager({
     }
   };
 
-  const handleSaveTemplate = () =>
-    saveTemplateMutation.mutate({
-      pageType: selectedPageType,
-      language: DEFAULT_LOCALE,
-      template: content,
-      variableMappings: getMappingsObject(),
-    });
-  const handleTestGenerator = () =>
-    testMutation.mutate({
-      pageType: selectedPageType,
-      template: content,
-      variableMappings: getMappingsObject(),
-    });
   const handleAddVariable = () =>
-    setVariableMappings([
-      ...variableMappings,
-      { variable: "", expression: "" },
-    ]);
+    setVariableMappings([...variableMappings, { variable: "", path: "" }]);
+
   const handleVariableChange = (
     index: number,
-    field: "variable" | "expression",
+    field: "variable" | "path",
     value: string
   ) => {
     const newMappings = [...variableMappings];
@@ -380,7 +456,8 @@ export default function SeoContentManager({
     isRunningGenerator ||
     testMutation.isPending ||
     isLoadingTemplate ||
-    saveTemplateMutation.isPending;
+    saveTemplateMutation.isPending ||
+    translateAllTemplatesMutation.isPending;
 
   return (
     <div>
@@ -436,9 +513,10 @@ export default function SeoContentManager({
                     ))}
                   </select>
                 </div>
+
                 <div className="bg-brand-dark/50 p-4 rounded-lg">
                   <label className="block text-sm font-medium text-brand-light mb-2">
-                    2. Define Variables (from `apiResponse`)
+                    2. Define Variables (Managed on TR Template)
                   </label>
                   <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-2">
                     {variableMappings.map((mapping, index) => (
@@ -459,14 +537,10 @@ export default function SeoContentManager({
                         <span className="text-gray-500">=</span>
                         <input
                           type="text"
-                          placeholder="e.g., apiResponse.standings[0].length"
-                          value={mapping.expression}
+                          placeholder="e.g., apiResponse.teamInfo.team.name"
+                          value={mapping.path}
                           onChange={(e) =>
-                            handleVariableChange(
-                              index,
-                              "expression",
-                              e.target.value
-                            )
+                            handleVariableChange(index, "path", e.target.value)
                           }
                           className="flex-grow p-1 rounded bg-gray-800 text-white border border-gray-600 text-sm font-mono"
                         />
@@ -487,10 +561,50 @@ export default function SeoContentManager({
                   </button>
                 </div>
               </div>
+
+              <div className="border-b border-gray-700">
+                <nav className="-mb-px flex space-x-4" aria-label="Tabs">
+                  {initialLanguages.map((lang) => (
+                    <button
+                      key={lang.code}
+                      onClick={() => setActiveTemplateLang(lang.code)}
+                      className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors
+                                  ${
+                                    activeTemplateLang === lang.code
+                                      ? "border-[var(--brand-accent)] text-[var(--brand-accent)]"
+                                      : "border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-500"
+                                  }`}
+                    >
+                      {lang.name}
+                    </button>
+                  ))}
+                </nav>
+              </div>
+
               <div>
-                <label className="block text-sm font-medium text-brand-light mb-2">
-                  3. Write master template (in {DEFAULT_LOCALE.toUpperCase()})
-                </label>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-sm font-medium text-brand-light">
+                    Template for{" "}
+                    <span className="font-bold text-white">
+                      {activeTemplateLang.toUpperCase()}
+                    </span>
+                  </label>
+                  {activeTemplateLang === "en" && (
+                    <button
+                      onClick={handleTranslateAllTemplates}
+                      disabled={translateAllTemplatesMutation.isPending}
+                      className="flex items-center gap-2 text-xs bg-indigo-600 text-white font-semibold py-1.5 px-3 rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                    >
+                      {translateAllTemplatesMutation.isPending ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <Sparkles size={14} />
+                      )}
+                      Translate this to All Other Languages
+                    </button>
+                  )}
+                </div>
+
                 {isLoadingTemplate ? (
                   <div className="min-h-[200px] flex items-center justify-center rounded-lg bg-brand-dark">
                     <Loader2
@@ -502,6 +616,7 @@ export default function SeoContentManager({
                   <RichTextEditor value={content} onChange={setContent} />
                 )}
               </div>
+
               <div className="flex items-center justify-end gap-2 md:gap-4 pt-4 border-t border-gray-700/50">
                 <button
                   onClick={handleSaveTemplate}
@@ -513,7 +628,7 @@ export default function SeoContentManager({
                   ) : (
                     <Save size={20} />
                   )}
-                  <span>Save Template</span>
+                  <span>Save {activeTemplateLang.toUpperCase()} Template</span>
                 </button>
                 <button
                   onClick={handleTestGenerator}
@@ -546,12 +661,10 @@ export default function SeoContentManager({
           </div>
         </div>
       </div>
-
       <SeoContentList
         pageType={selectedPageType}
         languages={initialLanguages}
-        contentItems={contentItems || []}
-        isLoading={isLoadingContent}
+        initialData={initialContentData}
       />
     </div>
   );

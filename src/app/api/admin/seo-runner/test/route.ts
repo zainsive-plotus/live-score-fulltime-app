@@ -5,6 +5,12 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import axios from "axios";
 import vm from "vm";
+import {
+  getTeamInfo,
+  getTeamSquad,
+  getTeamFixtures,
+  getTeamStandings,
+} from "@/lib/data/team";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
@@ -18,7 +24,7 @@ const evaluateExpression = (expression: string, context: object): any => {
       `[VM Sandbox Error] Failed to execute expression "${expression}":`,
       error.message
     );
-    return `[ERROR: ${error.message}]`;
+    return `[EVAL_ERROR]`;
   }
 };
 
@@ -36,20 +42,25 @@ const populateTemplate = (
   return populated;
 };
 
-// MODIFIED: This function now fetches the complete list of standings-eligible leagues from our internal API.
+// MODIFIED: This function now correctly handles the 'team-details' case.
 const getEntitiesForPageType = async (pageType: string) => {
   switch (pageType) {
     case "league-standings":
-      // Fetching all leagues (using a large limit) from our own optimized and cached endpoint.
-      const { data } = await axios.get(
+      const { data: leagueData } = await axios.get(
         `${BASE_URL}/api/directory/standings-leagues?limit=10000`
       );
-      return data.leagues || []; // Return the leagues array from the response
+      return leagueData.leagues;
+    case "team-details": // ADDED THIS CASE
+      const { data: teamData } = await axios.get(
+        `${BASE_URL}/api/directory/teams-all`
+      );
+      return teamData || [];
     default:
       throw new Error(`Unsupported pageType: ${pageType}`);
   }
 };
 
+// MODIFIED: This function now correctly handles the 'team-details' case.
 const getDynamicDataForEntity = async (pageType: string, entity: any) => {
   switch (pageType) {
     case "league-standings":
@@ -59,6 +70,14 @@ const getDynamicDataForEntity = async (pageType: string, entity: any) => {
         }&season=${new Date().getFullYear()}`
       );
       return data;
+    case "team-details": // ADDED THIS CASE
+      const [teamInfo, squad, fixtures, standings] = await Promise.all([
+        getTeamInfo(entity.id),
+        getTeamSquad(entity.id),
+        getTeamFixtures(entity.id),
+        getTeamStandings(entity.id),
+      ]);
+      return { teamInfo, squad, fixtures, standings };
     default:
       return {};
   }
@@ -90,6 +109,16 @@ export async function POST(request: Request) {
 
     const dynamicData = await getDynamicDataForEntity(pageType, testEntity);
 
+    // ADDED: A check to ensure dynamic data was actually found for the test entity
+    if (!dynamicData) {
+      return NextResponse.json(
+        {
+          error: `Could not fetch dynamic data for the test entity: ${testEntity.name}. The API may not have data for it.`,
+        },
+        { status: 404 }
+      );
+    }
+
     const extractedVariables: Record<string, any> = {};
 
     for (const key in variableMappings) {
@@ -103,7 +132,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       generatedHtml,
       extractedVariables,
-      testEntityName: testEntity.name || testEntity.team.name,
+      testEntityName: testEntity.name || testEntity.team?.name,
     });
   } catch (error: any) {
     console.error("[SEO Runner Test] Error:", error);

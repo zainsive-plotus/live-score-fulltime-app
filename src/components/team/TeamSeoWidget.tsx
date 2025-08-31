@@ -7,14 +7,7 @@ interface TeamSeoWidgetProps {
   seoText: string;
 }
 
-// Helper to convert newline characters to JSX <p> tags on the server
-const formatTextToParagraphs = (text: string) => {
-  return text.split("\n\n").map((paragraph, index) => (
-    <p key={index} className={index > 0 ? "mt-4" : ""}>
-      {paragraph}
-    </p>
-  ));
-};
+// REMOVED: The old paragraph formatting function is no longer needed.
 
 export default function TeamSeoWidget({ title, seoText }: TeamSeoWidgetProps) {
   if (!seoText) return null;
@@ -25,9 +18,11 @@ export default function TeamSeoWidget({ title, seoText }: TeamSeoWidgetProps) {
         <BookOpen size={18} className="text-[var(--brand-accent)]" />
         {title}
       </h3>
-      <div className="prose prose-sm prose-invert max-w-none text-text-secondary leading-relaxed">
-        {formatTextToParagraphs(seoText)}
-      </div>
+      {/* MODIFIED: This now uses dangerouslySetInnerHTML to render the fetched HTML directly */}
+      <div
+        className="prose prose-sm prose-invert max-w-none text-text-secondary leading-relaxed"
+        dangerouslySetInnerHTML={{ __html: seoText }}
+      />
     </div>
   );
 }
