@@ -54,6 +54,6 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     // Add 'login' to the list of paths to ignore in the negative lookahead
-    "/((?!api|_next/static|_next/image|admin|login|favicon.ico|.*\\.).*)",
+    "/((?!api|_next/static|_next/image|admin|login|favicon.ico|go/.*|.*\\.).*)",
   ],
 };

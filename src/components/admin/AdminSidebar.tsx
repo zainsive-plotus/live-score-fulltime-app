@@ -1,3 +1,5 @@
+// ===== src/components/admin/AdminSidebar.tsx =====
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -26,6 +28,7 @@ import {
   Trophy,
   Users as TeamsIcon,
   BrainCircuit,
+  Link as LinkIcon, // ADDED: Import the Link icon
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 
@@ -65,7 +68,7 @@ export default function AdminSidebar() {
     pathname.startsWith("/admin/title-templates") ||
     pathname.startsWith("/admin/curated-news") ||
     pathname.startsWith("/admin/predictions") ||
-    pathname.startsWith("/admin/seo-text"); // ** NEW: Added this path **
+    pathname.startsWith("/admin/seo-text");
 
   const isPagesSectionActive =
     pathname.startsWith("/admin/faqs") || pathname.startsWith("/admin/pages");
@@ -105,6 +108,8 @@ export default function AdminSidebar() {
     { name: "Casino Partners", href: "/admin/casino-partners", icon: Crown },
     { name: "File Manager", href: "/admin/file-manager", icon: ImageIcon },
     { name: "Banners", href: "/admin/banners", icon: ImageIcon },
+    // ADDED: The new navigation item for our feature
+    { name: "Link Tracker", href: "/admin/link-tracker", icon: LinkIcon },
   ];
 
   const localizationSubNav = [
@@ -118,7 +123,6 @@ export default function AdminSidebar() {
     { name: "AI Journalists", href: "/admin/ai-journalists", icon: User },
     { name: "Title Templates", href: "/admin/title-templates", icon: Type },
     { name: "Predictions", href: "/admin/predictions", icon: BrainCircuit },
-    // ** NEW: Added the SEO Text Runner link **
     { name: "SEO Text Runner", href: "/admin/seo-text", icon: FileText },
   ];
 
