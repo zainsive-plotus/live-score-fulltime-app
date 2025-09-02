@@ -9,7 +9,7 @@ import { format } from "date-fns";
 import { Info, Search, XCircle, ChevronDown } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useDebounce } from "@/hooks/useDebounce";
-import MatchListItem, { MobileMatchListItemSkeleton } from "./MatchListItem";
+import MatchListItem, { MatchListItemSkeleton } from "./MatchListItem";
 import MatchDateNavigator from "./MatchDateNavigator";
 import StyledLink from "./StyledLink";
 import { generateLeagueSlug } from "@/lib/generate-league-slug";
@@ -272,7 +272,7 @@ export default function MatchList() {
             className="rounded-lg p-2 space-y-2"
           >
             {Array.from({ length: 10 }).map((_, i) => (
-              <MobileMatchListItemSkeleton key={i} />
+              <MatchListItemSkeleton key={i} />
             ))}
           </div>
         ) : fixtureData?.leagueGroups?.length > 0 ? (
