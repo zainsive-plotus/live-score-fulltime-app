@@ -148,7 +148,7 @@ export default function DesktopMatchListItem({
   return (
     <div
       className="group flex items-center p-2 rounded-lg transition-all duration-300 ease-in-out border border-transparent hover:border-[#8b5cf6]/20"
-      style={{ backgroundColor: "#252837" }}
+      style={{ backgroundColor: "#363636ff" }}
     >
       <Link href={slug} className="flex flex-1 items-center min-w-0">
         <div className="w-16 flex-shrink-0 text-center text-sm font-semibold">
@@ -324,7 +324,7 @@ export default function DesktopMatchListItem({
 export const MatchListItemSkeleton = () => (
   <div
     className="flex items-center p-2 rounded-lg animate-pulse"
-    style={{ backgroundColor: "#252837" }}
+    style={{ backgroundColor: "#363636ff" }}
   >
     <div className="flex-1 flex items-center">
       <div className="w-16 flex-shrink-0">
