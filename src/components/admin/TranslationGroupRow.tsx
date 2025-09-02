@@ -1,4 +1,4 @@
-// ===== src/components/admin/TranslationGroupRow.tsx (Updated) =====
+// ===== src/components/admin/TranslationGroupRow.tsx =====
 
 "use client";
 
@@ -7,7 +7,20 @@ import Image from "next/image";
 import { format } from "date-fns";
 import { IPost } from "@/models/Post";
 import { ILanguage } from "@/models/Language";
-import { Edit, Plus, Trash2 } from "lucide-react";
+import {
+  Edit,
+  Plus,
+  Trash2,
+  Languages,
+  Loader2,
+  ChevronDown,
+} from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
+import toast from "react-hot-toast";
+import { useState } from "react"; // ADDED
+import { Menu, Transition } from "@headlessui/react"; // ADDED
+import { Fragment } from "react"; // ADDED
 
 interface TranslationGroupRowProps {
   group: IPost[];
@@ -20,6 +33,10 @@ export default function TranslationGroupRow({
   languageMap,
   onDelete,
 }: TranslationGroupRowProps) {
+  const queryClient = useQueryClient();
+  // ADDED: State to manage the selected translation engine
+  const [selectedEngine, setSelectedEngine] = useState<"gpt" | "gemini">("gpt");
+
   const sortedGroup = [...group].sort(
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
@@ -31,6 +48,23 @@ export default function TranslationGroupRow({
   const allActiveLanguages = Array.from(languageMap.values())
     .filter((lang) => lang.isActive)
     .sort((a, b) => a.name.localeCompare(b.name));
+
+  const translateAllMutation = useMutation({
+    // MODIFIED: Mutation now sends the selected engine
+    mutationFn: (payload: {
+      translationGroupId: string;
+      engine: "gpt" | "gemini";
+    }) => axios.post("/api/admin/posts/auto-translate", payload),
+    onSuccess: (response) => {
+      toast.success(response.data.message || "Translation process completed!");
+      queryClient.invalidateQueries({ queryKey: ["adminPosts"] });
+    },
+    onError: (err: any) => {
+      toast.error(
+        err.response?.data?.error || "Failed to start translation process."
+      );
+    },
+  });
 
   const handleDeleteAll = () => {
     if (
@@ -47,6 +81,29 @@ export default function TranslationGroupRow({
       });
     }
   };
+
+  const handleTranslateAll = () => {
+    const sourceEnglishPost = group.find((p) => p.language === "en");
+    if (!sourceEnglishPost) {
+      toast.error(
+        "An English version of this post is required to act as the source for translation."
+      );
+      return;
+    }
+    if (
+      window.confirm(
+        `This will auto-translate this post into all missing languages using the ${selectedEngine.toUpperCase()} engine. Proceed?`
+      )
+    ) {
+      translateAllMutation.mutate({
+        translationGroupId: masterPost.translationGroupId.toString(),
+        engine: selectedEngine,
+      });
+    }
+  };
+
+  const hasAllTranslations =
+    existingTranslationsMap.size >= allActiveLanguages.length;
 
   return (
     <tr className="border-t-2 border-gray-800 bg-brand-secondary hover:bg-gray-800/50 transition-colors">
@@ -82,12 +139,10 @@ export default function TranslationGroupRow({
                 ? `/admin/news/edit/${translation._id}`
                 : {
                     pathname: "/admin/news/create",
-                    // --- THIS IS THE KEY CHANGE ---
                     query: {
                       from: masterPost.translationGroupId.toString(),
                       lang: lang.code,
                       title: `[${lang.code.toUpperCase()}] ${masterPost.title}`,
-                      // Add the image and categories from the master post
                       image: masterPost.featuredImage || "",
                       categories: masterPost.sportsCategory.join(","),
                     },
@@ -154,10 +209,85 @@ export default function TranslationGroupRow({
           </p>
         </div>
       </td>
-      <td className="p-4 align-middle text-center">
+      <td className="p-4 align-middle text-center space-y-2">
+        {/* MODIFIED: The Translate button is now part of a dropdown group */}
+        <div className="flex rounded-md shadow-sm">
+          <button
+            onClick={handleTranslateAll}
+            disabled={translateAllMutation.isPending || hasAllTranslations}
+            className="relative inline-flex items-center justify-center gap-2 flex-grow text-sm bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 font-semibold px-3 py-1.5 rounded-l-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title={
+              hasAllTranslations
+                ? "All languages are already translated"
+                : "Auto-translate into all missing languages"
+            }
+          >
+            {translateAllMutation.isPending ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Languages size={16} />
+            )}
+            <span>Translate All</span>
+          </button>
+          <Menu as="div" className="relative -ml-px block">
+            <Menu.Button className="relative inline-flex items-center h-full px-2 py-1.5 rounded-r-md border-l border-indigo-500/30 bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30">
+              <span className="sr-only">Open options</span>
+              <ChevronDown className="h-5 w-5" aria-hidden="true" />
+            </Menu.Button>
+            <Transition
+              as={Fragment}
+              enter="transition ease-out duration-100"
+              enterFrom="transform opacity-0 scale-95"
+              enterTo="transform opacity-100 scale-100"
+              leave="transition ease-in duration-75"
+              leaveFrom="transform opacity-100 scale-100"
+              leaveTo="transform opacity-0 scale-95"
+            >
+              <Menu.Items className="absolute right-0 z-10 mt-2 w-32 origin-top-right rounded-md bg-brand-dark shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                <div className="py-1">
+                  <Menu.Item>
+                    {({ active }) => (
+                      <button
+                        onClick={() => setSelectedEngine("gpt")}
+                        className={`${
+                          active
+                            ? "bg-brand-secondary text-white"
+                            : "text-gray-300"
+                        } group flex w-full items-center rounded-md px-2 py-2 text-sm`}
+                      >
+                        GPT-4o
+                      </button>
+                    )}
+                  </Menu.Item>
+                  <Menu.Item>
+                    {({ active }) => (
+                      <button
+                        onClick={() => setSelectedEngine("gemini")}
+                        className={`${
+                          active
+                            ? "bg-brand-secondary text-white"
+                            : "text-gray-300"
+                        } group flex w-full items-center rounded-md px-2 py-2 text-sm`}
+                      >
+                        Gemini
+                      </button>
+                    )}
+                  </Menu.Item>
+                </div>
+              </Menu.Items>
+            </Transition>
+          </Menu>
+        </div>
+        <p className="text-xs text-brand-muted">
+          Using:{" "}
+          <span className="font-semibold text-white">
+            {selectedEngine.toUpperCase()}
+          </span>
+        </p>
+
         <button
           onClick={handleDeleteAll}
-          className="text-gray-500 hover:text-red-400 transition-colors"
+          className="text-gray-500 hover:text-red-400 transition-colors p-1"
           title="Delete entire translation group"
         >
           <Trash2 size={18} />
