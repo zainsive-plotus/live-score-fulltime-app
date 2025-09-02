@@ -8,7 +8,7 @@ import "react-day-picker/dist/style.css";
 import { format, Locale } from "date-fns";
 import { enUS, tr, fr, es } from "date-fns/locale"; // <-- Import locales
 import { Calendar, Info } from "lucide-react";
-import MatchListItem, { MatchListItemSkeleton } from "../MatchListItem";
+import MatchListItem, { MobileMatchListItemSkeleton } from "../MatchListItem";
 import { useTranslation } from "@/hooks/useTranslation";
 
 type FixtureView = "upcoming" | "today" | "date";
@@ -143,7 +143,7 @@ export default function LeagueFixturesWidget({
       <div className="p-2 space-y-2 max-h-[600px] overflow-y-auto custom-scrollbar">
         {isLoading ? (
           Array.from({ length: 5 }).map((_, i) => (
-            <MatchListItemSkeleton key={i} />
+            <MobileMatchListItemSkeleton key={i} />
           ))
         ) : isError ? (
           <div className="text-center py-10 text-red-400">

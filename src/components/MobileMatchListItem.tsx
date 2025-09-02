@@ -76,18 +76,7 @@ const TeamRow = ({
   </div>
 );
 
-const fetchLiveMatchData = async (fixtureId: number) => {
-  const { data } = await axios.get(`/api/match-details?fixture=${fixtureId}`);
-  return data?.fixture || null;
-};
-
-export default function MobileMatchListItem({
-  match: initialMatch,
-}: {
-  match: any;
-}) {
-  const [match, setMatch] = useState(initialMatch);
-
+export default function MobileMatchListItem({ match }: { match: any }) {
   const { fixture, teams, goals } = match;
   const { t } = useTranslation();
   const slug = generateMatchSlug(teams.home, teams.away, fixture.id);
@@ -97,6 +86,22 @@ export default function MobileMatchListItem({
     fixture.status.short
   );
   const isFinished = ["FT", "AET", "PEN"].includes(fixture.status.short);
+
+  const [elapsedTime, setElapsedTime] = useState(fixture.status.elapsed);
+
+  // MODIFIED: The useEffect hook now depends on the `match` object itself for re-synchronization.
+  useEffect(() => {
+    setElapsedTime(match.fixture.status.elapsed);
+    if (
+      isLive &&
+      !["FT", "AET", "PEN", "HT"].includes(match.fixture.status.short)
+    ) {
+      const interval = setInterval(() => {
+        setElapsedTime((prevTime) => (prevTime ? prevTime + 1 : 1));
+      }, 60000);
+      return () => clearInterval(interval);
+    }
+  }, [match, isLive]);
 
   const { data: customOdds, isLoading } = useQuery({
     queryKey: ["customOdds", fixture.id],
@@ -161,21 +166,6 @@ export default function MobileMatchListItem({
     );
   };
 
-  // API Polling
-  const { data: newMatchData } = useQuery({
-    queryKey: ["liveMatchData", fixture.id],
-    queryFn: () => fetchLiveMatchData(fixture.id),
-    enabled: isLive && !isFinished,
-    refetchInterval: 30000,
-    staleTime: 4000,
-  });
-
-  useEffect(() => {
-    if (newMatchData) {
-      setMatch(newMatchData);
-    }
-  }, [newMatchData]);
-
   return (
     <div
       className="rounded-lg overflow-hidden"
@@ -187,7 +177,7 @@ export default function MobileMatchListItem({
             {isLive ? (
               <div className="flex flex-col items-center justify-center gap-1 text-green-400">
                 <span className="h-1.5 w-1.5 rounded-full bg-green-500"></span>
-                <span>{fixture.status.elapsed}'</span>
+                <span>{elapsedTime}'</span>
               </div>
             ) : isFinished ? (
               <div className="text-text-muted">{t("ft_short")}</div>
@@ -270,6 +260,7 @@ export default function MobileMatchListItem({
         <button
           onClick={() => setIsExpanded(!isExpanded)}
           className="flex items-center gap-1.5 text-xs font-semibold bg-[var(--brand-accent)]/10 text-[var(--brand-accent)] hover:bg-[var(--brand-accent)] hover:text-white rounded-full px-3 py-1.5 transition-all duration-200"
+          aria-label={isExpanded ? t("hide_panel") : t("vote_and_see_poll")}
         >
           {isFinished ? <History size={14} /> : <TrendingUp size={14} />}
           <span>
@@ -287,7 +278,6 @@ export default function MobileMatchListItem({
   );
 }
 
-// Skeleton remains the same
 export const MobileMatchListItemSkeleton = () => (
   <div
     className="flex flex-col p-3 rounded-lg animate-pulse"

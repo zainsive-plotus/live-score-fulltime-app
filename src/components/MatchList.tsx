@@ -2,39 +2,26 @@
 
 "use client";
 
-import { useEffect, useState, useMemo, Dispatch, SetStateAction } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import Image from "next/image";
-import MatchListItem, { MatchListItemSkeleton } from "./MatchListItem";
-import MatchDateNavigator from "./MatchDateNavigator";
-import { Globe, Search, XCircle, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
-import { proxyImageUrl } from "@/lib/image-proxy";
+import { Info, Search, XCircle, ChevronDown } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useDebounce } from "@/hooks/useDebounce";
+import MatchListItem, { MobileMatchListItemSkeleton } from "./MatchListItem";
+import MatchDateNavigator from "./MatchDateNavigator";
 import StyledLink from "./StyledLink";
 import { generateLeagueSlug } from "@/lib/generate-league-slug";
 import { leagueIdToPriorityMap } from "@/config/topLeaguesConfig";
-
-function useDebounce(value: string, delay: number) {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-  return debouncedValue;
-}
+import Image from "next/image";
+import { proxyImageUrl } from "@/lib/image-proxy";
+import { Globe } from "lucide-react";
 
 type StatusFilter = "all" | "live" | "finished" | "scheduled";
 
-// ** THE FIX IS HERE: Updated fetcher to use the correct endpoint for live matches **
 const fetchAllFixturesByGroup = async (date: Date, status: StatusFilter) => {
   if (status === "live") {
-    // For live status, fetch from the dedicated live endpoint and group manually
     const { data: liveMatches } = await axios.get("/api/global-live");
     if (!liveMatches || liveMatches.length === 0) {
       return { leagueGroups: [] };
@@ -54,7 +41,6 @@ const fetchAllFixturesByGroup = async (date: Date, status: StatusFilter) => {
 
     const leagueGroups = Object.values(groupedMatches);
 
-    // Sort the groups by priority, just like the backend does
     leagueGroups.sort((a: any, b: any) => {
       const priorityA =
         leagueIdToPriorityMap.get(a.leagueInfo.id.toString()) || 999;
@@ -66,7 +52,6 @@ const fetchAllFixturesByGroup = async (date: Date, status: StatusFilter) => {
 
     return { leagueGroups };
   } else {
-    // For all other statuses, use the date-based endpoint
     const dateString = format(date, "yyyy-MM-dd");
     const params = new URLSearchParams({
       date: dateString,
@@ -168,6 +153,7 @@ const TabButton = ({
   </button>
 );
 
+// MODIFIED: This component no longer accepts any props.
 export default function MatchList() {
   const [activeStatusFilter, setActiveStatusFilter] =
     useState<StatusFilter>("live");
@@ -198,12 +184,12 @@ export default function MatchList() {
   });
 
   const liveMatchCount = useMemo(() => {
-    if (!fixtureData?.leagueGroups) return 0;
+    if (activeStatusFilter !== "live" || !fixtureData?.leagueGroups) return 0;
     return fixtureData.leagueGroups.reduce(
       (total: number, group: any) => total + group.matches.length,
       0
     );
-  }, [fixtureData]);
+  }, [fixtureData, activeStatusFilter]);
 
   const toggleLeagueExpansion = (leagueId: number) => {
     setExpandedLeagues((prev) => {
@@ -226,7 +212,9 @@ export default function MatchList() {
         className="flex flex-col gap-3 p-2 rounded-xl"
         style={{ backgroundColor: "var(--color-primary)" }}
       >
-        <h1 className="py-2 italic">{t("homepage_seo_text_title")}</h1>
+        <h1 className="py-2 italic text-sm text-text-muted px-2">
+          {t("homepage_seo_text_title")}
+        </h1>
         <div className="relative">
           <Search
             className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
@@ -283,10 +271,9 @@ export default function MatchList() {
             style={{ backgroundColor: "var(--color-primary)" }}
             className="rounded-lg p-2 space-y-2"
           >
-            {" "}
             {Array.from({ length: 10 }).map((_, i) => (
-              <MatchListItemSkeleton key={i} />
-            ))}{" "}
+              <MobileMatchListItemSkeleton key={i} />
+            ))}
           </div>
         ) : fixtureData?.leagueGroups?.length > 0 ? (
           <>
@@ -314,12 +301,11 @@ export default function MatchList() {
                         className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-text-muted hover:text-white hover:bg-gray-700/50 transition-colors py-2 rounded-md"
                       >
                         <span>
-                          {" "}
                           {isExpanded
                             ? t("show_less")
                             : t("show_more_matches", {
                                 count: matches.length - 3,
-                              })}{" "}
+                              })}
                         </span>
                         <ChevronDown
                           size={16}

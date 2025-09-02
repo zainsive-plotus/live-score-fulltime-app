@@ -6,8 +6,6 @@ export default async function TeamsSeoWidget({ locale }: { locale: string }) {
   const seoTitle = t("about_teams_title"); // You might need to add this translation key, e.g., "About Football Teams"
   const seoText = t("teams_page_seo_text");
 
-  console.log(seoText);
-
   // Robustly split the text into paragraphs, handling escaped newlines
   const paragraphs = seoText.split("\\n\\n").filter((p) => p.trim() !== "");
 

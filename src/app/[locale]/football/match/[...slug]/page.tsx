@@ -3,7 +3,12 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getFixture, getStatistics } from "@/lib/data/match";
+import {
+  getFixture,
+  getH2H,
+  getStandings,
+  getStatistics,
+} from "@/lib/data/match";
 import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
 import Header from "@/components/Header";
@@ -20,6 +25,7 @@ import {
 import MatchFormationWidget from "@/components/match/MatchFormationWidget";
 import StandingsWidget from "@/components/StandingsWidget";
 import AdSlotWidget from "@/components/AdSlotWidget";
+import MatchSeoWidget from "@/components/match/MatchSeoWidget";
 
 // Revalidate pages every hour to catch updates (e.g., scores, stats)
 export const revalidate = 3600;
@@ -183,9 +189,13 @@ export default async function MatchDetailPage({
   const fixtureData = await getFixture(fixtureId);
   if (!fixtureData) notFound();
 
-  const statistics = await getStatistics(fixtureId);
-
   const { teams, fixture: fixtureDetails, league } = fixtureData;
+
+  const [statistics, standingsResponse, h2h] = await Promise.all([
+    getStatistics(fixtureId),
+    getStandings(league.id, league.season),
+    getH2H(teams.home.id, teams.away.id),
+  ]);
 
   const isLive = ["1H", "HT", "2H", "ET", "BT", "P", "LIVE"].includes(
     fixtureDetails?.status?.short
@@ -203,6 +213,116 @@ export default async function MatchDetailPage({
     awayTeam: teams.away.name,
     leagueName: league.name,
   });
+
+  // --- NEW: Prepare all variables for the t() function ---
+  const homeTopPlayer =
+    fixtureData.lineups?.[0]?.startXI.sort(
+      (a: any, b: any) =>
+        parseFloat(b.player.rating || "0") - parseFloat(a.player.rating || "0")
+    )[0]?.player.name || "Key Players";
+  const awayTopPlayer =
+    fixtureData.lineups?.[1]?.startXI.sort(
+      (a: any, b: any) =>
+        parseFloat(b.player.rating || "0") - parseFloat(a.player.rating || "0")
+    )[0]?.player.name || "Key Players";
+  const standings = standingsResponse?.[0]?.league?.standings?.[0] || [];
+  const homeRank =
+    standings.find((s: any) => s.team.id === teams.home.id)?.rank || "N/A";
+  const awayRank =
+    standings.find((s: any) => s.team.id === teams.away.id)?.rank || "N/A";
+
+  const seoWidgetTitle = t("match_seo_widget_title", {
+    homeTeam: teams.home.name,
+    awayTeam: teams.away.name,
+    season: league.season,
+  });
+
+  const seoWidgetText = `
+    <p>${t("match_seo_widget_intro", {
+      leagueName: league.name,
+      homeTeam: teams.home.name,
+      awayTeam: teams.away.name,
+      matchDate: new Date(fixtureDetails.date).toLocaleDateString("en-GB", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }),
+      matchTime: new Date(fixtureDetails.date).toLocaleTimeString("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "UTC",
+      }),
+      venueName: fixtureDetails.venue.name,
+      venueCity: fixtureDetails.venue.city,
+      season: league.season,
+    })}</p>
+    <p>${t("match_seo_widget_stakes", {
+      homeTeam: teams.home.name,
+      awayTeam: teams.away.name,
+      homeRank: homeRank,
+      awayRank: awayRank,
+    })}</p>
+    <p>${t("match_seo_widget_search_terms", {
+      homeTeam: teams.home.name,
+      awayTeam: teams.away.name,
+      leagueName: league.name,
+      season: league.season,
+    })}</p>
+    <h3>${t("match_seo_widget_details_title")}</h3>
+    <ul>
+      <li>${t("match_seo_widget_details_name", {
+        homeTeam: teams.home.name,
+        awayTeam: teams.away.name,
+      })}</li>
+      <li>${t("match_seo_widget_details_date", {
+        matchDate: new Date(fixtureDetails.date).toLocaleDateString("en-GB", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }),
+      })}</li>
+      <li>${t("match_seo_widget_details_time", {
+        matchTime: new Date(fixtureDetails.date).toLocaleTimeString("en-GB", {
+          hour: "2-digit",
+          minute: "2-digit",
+          timeZone: "UTC",
+        }),
+      })}</li>
+      <li>${t("match_seo_widget_details_venue", {
+        venueName: fixtureDetails.venue.name,
+        venueCity: fixtureDetails.venue.city,
+      })}</li>
+      <li>${t("match_seo_widget_details_competition", {
+        leagueName: league.name,
+        season: league.season,
+      })}</li>
+      <li>${t("match_seo_widget_details_standings", {
+        homeTeam: teams.home.name,
+        homeRank,
+        awayTeam: teams.away.name,
+        awayRank,
+      })}</li>
+    </ul>
+    <h3>${t("match_seo_widget_features_title")}</h3>
+    <ul>
+      <li>${t("match_seo_widget_features_item1")}</li>
+      <li>${t("match_seo_widget_features_item2", {
+        homeTopPlayer,
+        awayTopPlayer,
+      })}</li>
+      <li>${t("match_seo_widget_features_item3", {
+        homeTeam: teams.home.name,
+        awayTeam: teams.away.name,
+        h2hCount: h2h?.length || 0,
+      })}</li>
+      <li>${t("match_seo_widget_features_item4", {
+        homeTeam: teams.home.name,
+        awayTeam: teams.away.name,
+        leagueName: league.name,
+        season: league.season,
+      })}</li>
+    </ul>
+  `;
 
   return (
     <>
@@ -267,7 +387,11 @@ export default async function MatchDetailPage({
             </Suspense>
 
             <Suspense fallback={<H2HContentSkeleton />}>
-              <MatchH2HWidget teams={teams} currentFixtureId={fixtureId} />
+              <MatchH2HWidget
+                teams={teams}
+                currentFixtureId={fixtureId}
+                h2hSeoDescription={""}
+              />
             </Suspense>
 
             {(isLive || isFinished) && (
@@ -279,6 +403,8 @@ export default async function MatchDetailPage({
               isLive={isLive}
               homeTeamId={teams.home.id}
             />
+
+            <MatchSeoWidget title={seoWidgetTitle} seoText={seoWidgetText} />
           </main>
 
           {/* CHANGE: Right sidebar stacks last on mobile, but appears third on desktop */}

@@ -8,7 +8,8 @@ import {
   RecentNewsWidgetSkeleton,
 } from "@/components/skeletons/WidgetSkeletons";
 import { PredictionWidgetSkeleton } from "@/components/match/MatchPredictionWidget";
-import MatchAboutWidget from "@/components/match/MatchAboutWidget";
+// REMOVED: MatchAboutWidget is no longer needed in the sidebar.
+// import MatchAboutWidget from "@/components/match/MatchAboutWidget";
 
 const LiveOddsWidget = dynamic(
   () => import("@/components/match/LiveOddsWidget"),
@@ -21,7 +22,7 @@ const LinkedNewsWidget = dynamic(
 const MatchHighlightsWidget = dynamic(
   () => import("@/components/match/MatchHighlightsWidget")
 );
-// REMOVE: Redundant import of TeamStandingsWidget removed
+
 const MatchPredictionWidget = dynamic(
   () => import("@/components/match/MatchPredictionWidget"),
   { loading: () => <PredictionWidgetSkeleton />, ssr: false }
@@ -34,15 +35,14 @@ const AdSlotWidget = dynamic(() => import("@/components/AdSlotWidget"), {
 interface SidebarContentProps {
   fixtureData: any;
   isLive: boolean;
-  aboutMatchTitle: string;
-  aboutMatchSeoText: string;
+  // REMOVED: Props for the old widget are no longer needed.
+  // aboutMatchTitle: string;
+  // aboutMatchSeoText: string;
 }
 
 export default function SidebarContent({
   fixtureData,
   isLive,
-  aboutMatchTitle,
-  aboutMatchSeoText,
 }: SidebarContentProps) {
   const { fixture, league, teams } = fixtureData;
 
@@ -60,7 +60,8 @@ export default function SidebarContent({
 
       <MatchPredictionWidget fixtureId={fixture.id.toString()} />
 
-      <MatchAboutWidget title={aboutMatchTitle} seoText={aboutMatchSeoText} />
+      {/* REMOVED: The MatchAboutWidget has been removed from this component's render output. */}
+      {/* <MatchAboutWidget title={aboutMatchTitle} seoText={aboutMatchSeoText} /> */}
 
       <AdSlotWidget location="match_sidebar" />
     </>
