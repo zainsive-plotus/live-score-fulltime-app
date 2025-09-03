@@ -13,7 +13,6 @@ type SitemapEntry = {
   priority?: number;
 };
 
-// Helper to construct the full URL with locale prefix if needed
 const getUrl = (path: string, locale: string) => {
   if (locale === DEFAULT_LOCALE) {
     return `${BASE_URL}${path}`;
@@ -42,12 +41,20 @@ const generateXml = (entries: SitemapEntry[]) =>
 
 export async function GET() {
   try {
-    // Fetch the same curated list of leagues that have standings pages
-    const { data: leagues } = await axios.get(
-      `${BASE_URL}/api/directory/standings-leagues`
+    // MODIFIED: Correctly destructure to get the `leagues` array from the response data.
+    // We fetch with a very large limit to get all leagues for the sitemap.
+    const {
+      data: { leagues },
+    } = await axios.get(
+      `${BASE_URL}/api/directory/standings-leagues?limit=10000`
     );
 
-    if (!leagues || leagues.length === 0) {
+    // ADDED: A robust safety check to prevent crashes if the API response is malformed.
+    if (!leagues || !Array.isArray(leagues)) {
+      console.error(
+        "[SITEMAP-STANDINGS] API did not return a valid leagues array."
+      );
+      // Return an empty sitemap to prevent a 500 error.
       return new Response(generateXml([]), {
         headers: { "Content-Type": "application/xml" },
       });
@@ -58,8 +65,8 @@ export async function GET() {
       SUPPORTED_LOCALES.map((locale) => ({
         url: getUrl(league.href, locale),
         lastModified: new Date(),
-        changeFrequency: "daily", // Standings change frequently
-        priority: 0.8, // High priority as these are key pages
+        changeFrequency: "daily",
+        priority: 0.8,
       }))
     );
 
