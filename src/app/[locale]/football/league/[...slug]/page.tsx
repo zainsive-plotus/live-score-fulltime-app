@@ -8,6 +8,7 @@ import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
 import { getLeaguePageData } from "@/lib/data/league";
 import { generateStandingsSlug } from "@/lib/generate-standings-slug";
+import LeagueSeoWidget from "@/components/league-detail-view/LeagueSeoWidget";
 
 import LeagueHeader from "@/components/league-detail-view/LeagueHeader";
 import LeagueStandingsWidget from "@/components/league-detail-view/LeagueStandingsWidget";
@@ -16,6 +17,7 @@ import LeagueTeamsList from "@/components/league-detail-view/LeagueTeamsList";
 import AdSlotWidget from "@/components/AdSlotWidget";
 import RecentNewsWidget from "@/components/RecentNewsWidget";
 import LeagueDetailWidget from "@/components/directory/LeagueDetailWidget";
+import { format } from "date-fns";
 
 import Script from "next/script"; // ADD: Import Script
 import { WithContext, SportsEvent, BreadcrumbList } from "schema-dts";
@@ -90,12 +92,70 @@ export default async function LeaguePage({
   const leagueData = await getLeaguePageData(leagueId);
   if (!leagueData) notFound();
 
-  const { league, country, seasons, standings } = leagueData;
+  const { league, country, seasons, standings, topScorer, leagueStats } =
+    leagueData;
   const currentSeason =
-    seasons.find((s: any) => s.current === true)?.year ||
-    new Date().getFullYear();
+    seasons.find((s: any) => s.current === true) || seasons[0];
+  const currentSeasonYear = currentSeason.year;
 
   const standingsSlug = generateStandingsSlug(league.name, league.id);
+
+  / --- NEW: Prepare all variables for the SEO widget --- /;
+  const seoWidgetTitle = t("league_seo_widget_title", {
+    leagueName: league.name,
+  });
+
+  const clubExamples =
+    standings?.[0]?.slice(0, 3).map((t: any) => t.team.name) || [];
+
+  const seoWidgetText = `
+    <h3>${t("league_seo_widget_about_title")}</h3>
+    <p>${t("league_seo_widget_about_text", {
+      leagueName: league.name,
+      country: country.name,
+      clubCount: standings?.[0]?.length || "many",
+      clubExample1: clubExamples[0] || "top clubs",
+      clubExample2: clubExamples[1] || "",
+      clubExample3: clubExamples[2] || "",
+      startMonth: format(new Date(currentSeason.start), "MMMM"),
+      endMonth: format(new Date(currentSeason.end), "MMMM"),
+    })}</p>
+    <h3>${t("league_seo_widget_format_title")}</h3>
+    <p>${t("league_seo_widget_format_text", {
+      leagueName: league.name,
+      clubCount: standings?.[0]?.length || "numerous",
+    })}</p>
+    <h3>${t("league_seo_widget_scorers_title")}</h3>
+    <p>${t("league_seo_widget_scorers_text", {
+      season: currentSeasonYear,
+      topScorer1Name: topScorer?.player?.name || "leading strikers",
+      topScorer1Goals: topScorer?.statistics[0]?.goals?.total || "",
+      topScorer2Name: "", // This can be enhanced if you fetch more than one top scorer
+      topScorer2Goals: "",
+    })}</p>
+    <h3>${t("league_seo_widget_champions_title")}</h3>
+    <p>${t("league_seo_widget_champions_text", {
+      championTeam: standings?.[0]?.[0]?.team?.name || "The champion",
+      season: currentSeasonYear - 1, // Assumes previous season's winner
+      leagueName: league.name,
+    })}</p>
+    <h3>${t("league_seo_widget_rank_title")}</h3>
+    <p>${t("league_seo_widget_rank_text", {
+      country: country.name,
+      leagueName: league.name,
+      season: currentSeasonYear,
+      avgGoals: leagueStats?.avgGoals || "exciting",
+    })}</p>
+    <h3>${t("league_seo_widget_timeline_title")}</h3>
+    <p>${t("league_seo_widget_timeline_text", {
+      startMonth: format(new Date(currentSeason.start), "MMMM"),
+      endMonth: format(new Date(currentSeason.end), "MMMM"),
+      leagueName: league.name,
+    })}</p>
+    <h3>${t("league_seo_widget_why_title")}</h3>
+    <p>${t("league_seo_widget_why_text")}</p>
+  `;
+  // --- END NEW SECTION ---
 
   // ADD: Define JSON-LD schema for this page
   const jsonLd: WithContext<SportsEvent | BreadcrumbList>[] = [
@@ -162,9 +222,8 @@ export default async function LeaguePage({
             <LeagueHeader
               league={league}
               country={country}
-              currentSeason={currentSeason}
+              currentSeason={currentSeasonYear}
             />
-
             {league.type === "League" && (
               <LeagueStandingsWidget
                 initialStandings={leagueData.standings}
@@ -186,6 +245,7 @@ export default async function LeaguePage({
               countryName={country.name}
               countryFlag={country.flag}
             />
+            <LeagueSeoWidget title={seoWidgetTitle} seoText={seoWidgetText} />
           </main>
 
           <aside className="hidden lg:block lg:col-span-1 space-y-8 min-w-0">

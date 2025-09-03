@@ -145,10 +145,12 @@ const TabButton = ({
       </span>
     )}
     {label}
-    {liveCount && liveCount > 0 && (
+    {hasLiveIndicator ? (
       <span className="ml-1 flex items-center justify-center text-[10px] font-bold text-white bg-brand-live rounded-full h-4 w-4">
         {liveCount}
       </span>
+    ) : (
+      <></>
     )}
   </button>
 );
@@ -183,13 +185,12 @@ export default function MatchList() {
     staleTime: 25000,
   });
 
-  const liveMatchCount = useMemo(() => {
-    if (activeStatusFilter !== "live" || !fixtureData?.leagueGroups) return 0;
-    return fixtureData.leagueGroups.reduce(
-      (total: number, group: any) => total + group.matches.length,
-      0
-    );
-  }, [fixtureData, activeStatusFilter]);
+  const { data: liveMatchCount } = useQuery({
+    queryKey: ["globalLiveCount"],
+    queryFn: () => axios.get("/api/global-live").then((res) => res.data.length),
+    refetchInterval: 30000,
+    staleTime: 25000,
+  });
 
   const toggleLeagueExpansion = (leagueId: number) => {
     setExpandedLeagues((prev) => {
@@ -257,7 +258,7 @@ export default function MatchList() {
                 key={tab.key}
                 label={tab.label}
                 isActive={activeStatusFilter === tab.key}
-                liveCount={tab.key === "live" ? liveMatchCount : undefined}
+                liveCount={liveMatchCount}
                 hasLiveIndicator={tab.key === "live" && liveMatchCount > 0}
                 onClick={() => setActiveStatusFilter(tab.key as StatusFilter)}
               />
