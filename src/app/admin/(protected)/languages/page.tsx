@@ -1,3 +1,5 @@
+// ===== src/app/admin/(protected)/languages/page.tsx =====
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -16,12 +18,10 @@ import {
   Save,
   FileJson,
   UploadCloud,
+  RefreshCw, // ADDED: Icon for the new button
 } from "lucide-react";
 import Image from "next/image";
 
-// ##################################################################
-// # 1. MODAL COMPONENT (with Flag Upload)
-// ##################################################################
 interface LanguageFormModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -239,9 +239,6 @@ const LanguageFormModal: React.FC<LanguageFormModalProps> = ({
   );
 };
 
-// ##################################################################
-// # 2. MAIN PAGE COMPONENT
-// ##################################################################
 export default function AdminLanguagesPage() {
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -281,6 +278,19 @@ export default function AdminLanguagesPage() {
       onError: () =>
         toast.error(`Could not load translations for ${selectedLocale}.`),
     });
+
+  // ADDED: Mutation to call the cache invalidation endpoint
+  const invalidateCacheMutation = useMutation({
+    mutationFn: () => axios.post("/api/admin/i18n-cache/invalidate"),
+    onSuccess: (data) => {
+      toast.success(
+        data.data.message || "Translation cache flushed successfully!"
+      );
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || "Failed to flush cache.");
+    },
+  });
 
   useEffect(() => {
     if (selectedLocale) {
@@ -354,6 +364,17 @@ export default function AdminLanguagesPage() {
     });
   };
 
+  // ADDED: Handler for the new button
+  const handleFlushCache = () => {
+    if (
+      window.confirm(
+        "This will reload all translations from the database, which may take a moment. Are you sure you want to flush the cache?"
+      )
+    ) {
+      invalidateCacheMutation.mutate();
+    }
+  };
+
   const activeLanguages = useMemo(
     () => languages.filter((l) => l.isActive),
     [languages]
@@ -361,19 +382,34 @@ export default function AdminLanguagesPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-white flex items-center gap-2">
           <Languages size={28} /> Manage Languages
         </h1>
-        <button
-          onClick={() => {
-            setEditingLanguage(null);
-            setIsModalOpen(true);
-          }}
-          className="flex items-center gap-2 bg-brand-purple text-white font-bold py-2 px-4 rounded-lg hover:opacity-90"
-        >
-          <PlusCircle size={20} /> New Language
-        </button>
+        <div className="flex items-center gap-2">
+          {/* ADDED: The new button for flushing the cache */}
+          <button
+            onClick={handleFlushCache}
+            disabled={invalidateCacheMutation.isPending}
+            className="flex items-center gap-2 bg-amber-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-amber-700 disabled:opacity-50"
+          >
+            {invalidateCacheMutation.isPending ? (
+              <Loader2 size={20} className="animate-spin" />
+            ) : (
+              <RefreshCw size={20} />
+            )}
+            <span>Reload Translations</span>
+          </button>
+          <button
+            onClick={() => {
+              setEditingLanguage(null);
+              setIsModalOpen(true);
+            }}
+            className="flex items-center gap-2 bg-brand-purple text-white font-bold py-2 px-4 rounded-lg hover:opacity-90"
+          >
+            <PlusCircle size={20} /> New Language
+          </button>
+        </div>
       </div>
 
       <div className="bg-brand-secondary rounded-lg overflow-x-auto mb-8">
