@@ -28,7 +28,8 @@ import {
   Trophy,
   Users as TeamsIcon,
   BrainCircuit,
-  Link as LinkIcon, // ADDED: Import the Link icon
+  Link as LinkIcon,
+  Send, // ADDED: Icon for the new tracker
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 
@@ -108,8 +109,9 @@ export default function AdminSidebar() {
     { name: "Casino Partners", href: "/admin/casino-partners", icon: Crown },
     { name: "File Manager", href: "/admin/file-manager", icon: ImageIcon },
     { name: "Banners", href: "/admin/banners", icon: ImageIcon },
-    // ADDED: The new navigation item for our feature
     { name: "Link Tracker", href: "/admin/link-tracker", icon: LinkIcon },
+    // ADDED: The new navigation item for the Referrer Tracker
+    { name: "Referrer Tracker", href: "/admin/referrer-tracker", icon: Send },
   ];
 
   const localizationSubNav = [
