@@ -40,7 +40,7 @@ export async function generateMetadata({
       title: pageTitle,
       description: pageDescription,
       url: `${BASE_URL}${PAGE_PATH}`,
-      siteName: "Fan Skor",
+      siteName: "FanSkor",
       type: "website",
     },
   };
@@ -72,7 +72,7 @@ export default async function ContactUsPage({
       url: `${BASE_URL}/${locale}${PAGE_PATH}`,
       mainEntity: {
         "@type": "Organization",
-        name: "Fan Skor",
+        name: "FanSkor",
         url: BASE_URL,
         logo: `${BASE_URL}/fanskor-transparent.webp`,
         contactPoint: [

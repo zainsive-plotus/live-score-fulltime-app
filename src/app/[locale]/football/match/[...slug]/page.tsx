@@ -26,6 +26,15 @@ import MatchFormationWidget from "@/components/match/MatchFormationWidget";
 import StandingsWidget from "@/components/StandingsWidget";
 import AdSlotWidget from "@/components/AdSlotWidget";
 import MatchSeoWidget from "@/components/match/MatchSeoWidget";
+import { generateLeagueSlug } from "@/lib/generate-league-slug";
+import {
+  BreadcrumbList,
+  EventStatusType,
+  SportsEvent,
+  SportsTeam,
+  WithContext,
+} from "schema-dts";
+import Script from "next/script";
 
 // Revalidate pages every hour to catch updates (e.g., scores, stats)
 export const revalidate = 3600;
@@ -324,8 +333,100 @@ export default async function MatchDetailPage({
     </ul>
   `;
 
+  const pageUrl = `${BASE_URL}/${locale}/football/match/${slug[0]}`;
+  const pageDescription = t("match_page_description", {
+    homeTeam: teams.home.name,
+    awayTeam: teams.away.name,
+    leagueName: league.name,
+  });
+
+  const statusMap: { [key: string]: EventStatusType } = {
+    NS: "EventScheduled",
+    TBD: "EventScheduled",
+    PST: "EventPostponed",
+    "1H": "EventInProgress",
+    HT: "EventInProgress",
+    "2H": "EventInProgress",
+    ET: "EventInProgress",
+    P: "EventInProgress",
+    LIVE: "EventInProgress",
+    FT: "EventCompleted",
+    AET: "EventCompleted",
+    PEN: "EventCompleted",
+    CANC: "EventCancelled",
+    ABD: "EventCancelled",
+  };
+  const schemaEventStatus =
+    statusMap[fixtureDetails.status.short] || "EventScheduled";
+
+  const homeTeamSchema: SportsTeam = {
+    "@type": "SportsTeam",
+    name: teams.home.name,
+  };
+
+  const awayTeamSchema: SportsTeam = {
+    "@type": "SportsTeam",
+    name: teams.away.name,
+  };
+
+  const jsonLd: WithContext<SportsEvent | BreadcrumbList>[] = [
+    {
+      "@context": "https://schema.org",
+      "@type": "SportsEvent",
+      name: `${teams.home.name} vs ${teams.away.name} - ${league.name}`,
+      description: pageDescription,
+      url: pageUrl,
+      startDate: new Date(fixtureDetails.date).toISOString(),
+      eventStatus: schemaEventStatus,
+      sport: "Soccer",
+      location: {
+        "@type": "StadiumOrArena",
+        name: fixtureDetails.venue.name,
+        address: {
+          "@type": "PostalAddress",
+          addressLocality: fixtureDetails.venue.city,
+          addressCountry: league.country,
+        },
+      },
+      homeTeam: homeTeamSchema,
+      awayTeam: awayTeamSchema,
+      competitor: [homeTeamSchema, awayTeamSchema],
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        {
+          "@type": "ListItem",
+          position: 1,
+          name: t("homepage"),
+          item: `${BASE_URL}/${locale}`,
+        },
+        {
+          "@type": "ListItem",
+          position: 2,
+          name: league.name,
+          item: `${BASE_URL}/${locale}${generateLeagueSlug(
+            league.name,
+            league.id
+          )}`,
+        },
+        {
+          "@type": "ListItem",
+          position: 3,
+          name: `${teams.home.name} vs ${teams.away.name}`,
+        },
+      ],
+    },
+  ];
+
   return (
     <>
+      <Script
+        id="match-details-jsonld"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <title>
         {t("match_page_title", {
           homeTeam: teams.home.name,

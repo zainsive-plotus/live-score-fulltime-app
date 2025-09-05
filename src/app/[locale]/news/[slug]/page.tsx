@@ -105,7 +105,7 @@ export async function generateMetadata({
       type: "article",
       publishedTime: new Date(post.createdAt).toISOString(),
       modifiedTime: new Date(post.updatedAt).toISOString(),
-      authors: [post.author || "Fan Skor"],
+      authors: [post.author || "FanSkor"],
       images: [{ url: imageUrl, width: 1200, height: 630, alt: post.title }],
     },
   };
@@ -166,10 +166,10 @@ export default async function GeneralNewsArticlePage({
       image: [imageUrl],
       datePublished: new Date(post.createdAt).toISOString(),
       dateModified: new Date(post.updatedAt).toISOString(),
-      author: { "@type": "Organization", name: "Fan Skor", url: BASE_URL },
+      author: { "@type": "Organization", name: "FanSkor", url: BASE_URL },
       publisher: {
         "@type": "Organization",
-        name: "Fan Skor",
+        name: "FanSkor",
         logo: {
           "@type": "ImageObject",
           url: `${BASE_URL}/fanskor-transparent.webp`,

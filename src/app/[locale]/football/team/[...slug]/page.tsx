@@ -101,7 +101,7 @@ export async function generateMetadata({
       title: pageTitle,
       description: pageDescription,
       url: hreflangAlternates.canonical, // Use the generated canonical URL
-      siteName: "Fan Skor",
+      siteName: "FanSkor",
       type: "website",
       images: [
         {
@@ -236,22 +236,37 @@ export default async function TeamPage({
   // We need fixtures here for the country flag in the header.
   const fixtures = await getTeamFixtures(teamId);
 
+  const pageUrl = `${BASE_URL}/${locale}/football/team/${slug[0]}`;
+  const pageTitle = t("team_page_meta_title", { teamName: team.name });
+  const pageDescription = t("team_page_meta_description", {
+    teamName: team.name,
+  });
+
   const jsonLd: WithContext<SportsTeam | BreadcrumbList>[] = [
     {
       "@context": "https://schema.org",
       "@type": "SportsTeam",
       name: team.name,
-      sport: "Soccer",
+      alternateName: team.code,
+      url: pageUrl,
       logo: team.logo,
-      url: `${BASE_URL}/${locale}/football/team/${slug[0]}`,
+      sport: "Soccer",
+      foundingDate: team.founded?.toString(),
       location: {
         "@type": "Place",
+        name: venue.city,
         address: {
           "@type": "PostalAddress",
           addressLocality: venue.city,
           addressCountry: team.country,
         },
       },
+      coach: teamInfo.coach
+        ? {
+            "@type": "Person",
+            name: teamInfo.coach.name,
+          }
+        : undefined,
     },
     {
       "@context": "https://schema.org",
@@ -273,11 +288,6 @@ export default async function TeamPage({
       ],
     },
   ];
-
-  const pageTitle = t("team_page_meta_title", { teamName: team.name });
-  const pageDescription = t("team_page_meta_description", {
-    teamName: team.name,
-  });
 
   return (
     <>

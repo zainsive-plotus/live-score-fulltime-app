@@ -93,8 +93,6 @@ export const getTeamStandings = cache(async (teamId: string) => {
   const season = new Date().getFullYear().toString();
   const cacheKey = `team:standings:v3:${teamId}:${season}`; // Incremented version key
 
-  console.log(cacheKey);
-
   try {
     const cachedData = await redis.get(cacheKey);
     if (cachedData) {
