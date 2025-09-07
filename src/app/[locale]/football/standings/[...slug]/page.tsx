@@ -208,6 +208,15 @@ export default async function LeagueStandingsPage({
           leagueName: league.name,
         });
 
+  const currentSeasonData = initialData.league.seasons?.find(
+    (s: number) => s === initialData.league.season
+  )
+    ? {
+        start: `${initialData.league.season}-08-01`,
+        end: `${initialData.league.season + 1}-05-31`,
+      } // A sensible fallback
+    : { start: null, end: null };
+
   const jsonLd: WithContext<SportsEvent | BreadcrumbList>[] = [
     {
       "@context": "https://schema.org",
@@ -215,12 +224,16 @@ export default async function LeagueStandingsPage({
       name: `${league.name} ${league.season}`,
       sport: "Soccer",
       location: { "@type": "Country", name: league.country },
+      // ADDED: Start and End Dates for the season
+      startDate: currentSeasonData.start!,
+      endDate: currentSeasonData.end!,
+      // ADDED: Image of the league
+      image: league.logo,
       competitor:
         standings?.[0]?.map((teamStanding: any) => ({
           "@type": "SportsTeam",
           name: teamStanding.team.name,
         })) || [],
-      // MODIFIED: This now uses the final pageDescription, ensuring it matches the meta tag
       description: pageDescription,
     },
     {

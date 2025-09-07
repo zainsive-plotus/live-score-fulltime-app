@@ -393,12 +393,12 @@ export default async function MatchDetailPage({
     {
       "@context": "https://schema.org",
       "@type": "SportsEvent",
-      name: `${teams.home.name} vs ${teams.away.name}`,
+      name: `${teams.home.name} vs ${teams.away.name} - ${league.name}`,
       description: pageDescription,
       url: pageUrl,
       startDate: new Date(fixtureDetails.date).toISOString(),
       eventStatus: schemaEventStatus,
-      sport: "Soccer",
+      sport: "Soccer", // Changed from "Football" to "Soccer" to match the example's precision
       location: {
         "@type": "StadiumOrArena",
         name: fixtureDetails.venue.name,
@@ -411,10 +411,8 @@ export default async function MatchDetailPage({
       homeTeam: homeTeamSchema,
       awayTeam: awayTeamSchema,
       competitor: [homeTeamSchema, awayTeamSchema],
-      // NEW: Add organizer and potential broadcast details
       organizer: fanSkorOrganization,
       potentialAction: broadcastEvent,
-      // NEW: Add official league URL as another signal
       superEvent: {
         "@type": "SportsEvent",
         name: league.name,
@@ -431,8 +429,8 @@ export default async function MatchDetailPage({
         {
           "@type": "ListItem",
           position: 1,
-          name: t("homepage"),
-          item: `${BASE_URL}/${locale}`,
+          name: "Soccer", // Generic top level, as in the example
+          item: `${BASE_URL}/${locale}/football`,
         },
         {
           "@type": "ListItem",
@@ -446,10 +444,12 @@ export default async function MatchDetailPage({
         {
           "@type": "ListItem",
           position: 3,
-          name: `${teams.home.name} vs ${teams.away.name}`,
+          name: `${teams.home.name} - ${teams.away.name}`, // Use a simple hyphen as per the example
+          // The final item does not have an 'item' property
         },
       ],
     },
+    // --- END OF NEW SECTION ---
   ];
 
   return (

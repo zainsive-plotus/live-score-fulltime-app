@@ -14,9 +14,11 @@ import {
   RefreshCw,
   Trash2,
 } from "lucide-react";
-import Select, { StylesConfig } from "react-select"; // MODIFIED: Imported StylesConfig
+import Select, { StylesConfig } from "react-select";
 import RichTextEditor from "@/components/admin/RichTextEditor";
 import { ILanguage } from "@/models/Language";
+import Image from "next/image";
+import { proxyImageUrl } from "@/lib/image-proxy";
 
 // --- Data Fetching Functions ---
 const fetchLanguages = async (): Promise<ILanguage[]> => {
@@ -24,13 +26,18 @@ const fetchLanguages = async (): Promise<ILanguage[]> => {
   return data;
 };
 
-const fetchLeagues = async (): Promise<{ value: string; label: string }[]> => {
+// MODIFIED: fetchLeagues now needs countryName for the label
+const fetchLeagues = async (): Promise<
+  { value: string; label: string; logoUrl: string; countryName: string }[]
+> => {
   const { data } = await axios.get(
     "/api/directory/standings-leagues?limit=10000"
   );
   return data.leagues.map((l: any) => ({
     value: l.id.toString(),
     label: l.name,
+    logoUrl: l.logoUrl,
+    countryName: l.countryName, // Pass countryName through
   }));
 };
 
@@ -44,12 +51,11 @@ const fetchOverrideData = async (entityType: string, entityId: string) => {
 
 const PAGE_TYPES = [{ value: "league-standings", label: "League Standings" }];
 
-// ADDED: Custom styles object for the react-select component
 const customSelectStyles: StylesConfig = {
   control: (provided) => ({
     ...provided,
-    backgroundColor: "#1F1D2B", // --brand-dark
-    borderColor: "#4A5568", // gray-600
+    backgroundColor: "#1F1D2B",
+    borderColor: "#4A5568",
     minHeight: "42px",
   }),
   singleValue: (provided) => ({
@@ -58,7 +64,7 @@ const customSelectStyles: StylesConfig = {
   }),
   menu: (provided) => ({
     ...provided,
-    backgroundColor: "#252837", // --brand-secondary
+    backgroundColor: "#252837",
   }),
   option: (provided, state) => ({
     ...provided,
@@ -86,10 +92,35 @@ const customSelectStyles: StylesConfig = {
   }),
 };
 
+// MODIFIED: The custom component for rendering options is updated
+const formatOptionLabel = ({
+  label,
+  logoUrl,
+  countryName,
+}: {
+  label: string;
+  logoUrl: string;
+  countryName: string;
+}) => (
+  <div className="flex items-center gap-3">
+    <Image
+      src={proxyImageUrl(logoUrl)}
+      alt={label}
+      width={24}
+      height={24}
+      className="bg-white rounded-full p-0.5"
+    />
+    <span className="font-semibold">{label}</span>
+    {/* CHANGED: Replaced the Image component with a simple text span */}
+    <span className="ml-auto text-xs text-brand-muted font-semibold bg-gray-700 px-2 py-0.5 rounded-md">
+      {countryName}
+    </span>
+  </div>
+);
+
 export default function SeoOverridesPage() {
   const queryClient = useQueryClient();
 
-  // --- State Management ---
   const [selectedPageType, setSelectedPageType] = useState(PAGE_TYPES[0].value);
   const [selectedEntity, setSelectedEntity] = useState<{
     value: string;
@@ -101,13 +132,12 @@ export default function SeoOverridesPage() {
   const [metaDescription, setMetaDescription] = useState("");
   const [seoText, setSeoText] = useState("");
 
-  // --- Data Fetching ---
   const { data: languages = [] } = useQuery<ILanguage[]>({
     queryKey: ["activeLanguages"],
     queryFn: fetchLanguages,
   });
   const { data: leagues = [], isLoading: isLoadingLeagues } = useQuery<
-    { value: string; label: string }[]
+    { value: string; label: string; logoUrl: string; countryName: string }[]
   >({ queryKey: ["allLeaguesForSelect"], queryFn: fetchLeagues });
 
   const {
@@ -121,7 +151,6 @@ export default function SeoOverridesPage() {
     refetchOnWindowFocus: false,
   });
 
-  // --- Mutations ---
   const saveMutation = useMutation({
     mutationFn: (payload: any) =>
       axios.post("/api/admin/seo-overrides", payload),
@@ -178,7 +207,6 @@ export default function SeoOverridesPage() {
       toast.error(err.response?.data?.error || "Deletion failed."),
   });
 
-  // --- UI Logic & Effects ---
   useEffect(() => {
     const currentLangData = overrideData?.[activeLang] || {};
     setMetaTitle(currentLangData.metaTitle || "");
@@ -201,7 +229,6 @@ export default function SeoOverridesPage() {
     );
   }, [overrideData]);
 
-  // --- Event Handlers ---
   const handleSave = () => {
     if (!selectedEntity) return;
     saveMutation.mutate({
@@ -289,7 +316,7 @@ export default function SeoOverridesPage() {
             options={PAGE_TYPES}
             defaultValue={PAGE_TYPES[0]}
             onChange={(opt: any) => setSelectedPageType(opt.value)}
-            styles={customSelectStyles} // ADDED
+            styles={customSelectStyles}
             menuPortalTarget={
               typeof window !== "undefined" ? document.body : null
             }
@@ -306,7 +333,8 @@ export default function SeoOverridesPage() {
             isLoading={isLoadingLeagues}
             placeholder="Search for a league..."
             isClearable
-            styles={customSelectStyles} // ADDED
+            styles={customSelectStyles}
+            formatOptionLabel={formatOptionLabel}
             menuPortalTarget={
               typeof window !== "undefined" ? document.body : null
             }
