@@ -36,8 +36,6 @@ async function getSeoOverride(
       `${BASE_URL}/api/seo-content/overrides?entityType=league-standings&entityId=${leagueId}&language=${language}`
     );
 
-    console.log(data);
-
     return data;
   } catch (error) {
     return null;
@@ -197,14 +195,18 @@ export default async function LeagueStandingsPage({
       `;
   };
 
-  const finalSeoText = seoOverride?.seoText || generateDefaultSeoText();
+  const finalSeoText =
+    seoOverride?.seoText && seoOverride?.seoText.length
+      ? seoOverride?.seoText
+      : generateDefaultSeoText();
 
   // --- NEW: Define pageDescription here to be used in both meta tags and JSON-LD ---
   const pageDescription =
-    seoOverride?.metaDescription ||
-    t("standings_detail_page_description", {
-      leagueName: league.name,
-    });
+    seoOverride?.metaDescription && seoOverride?.metaDescription.length
+      ? seoOverride?.metaDescription
+      : t("standings_detail_page_description", {
+          leagueName: league.name,
+        });
 
   const jsonLd: WithContext<SportsEvent | BreadcrumbList>[] = [
     {

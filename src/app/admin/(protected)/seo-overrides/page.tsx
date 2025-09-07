@@ -6,8 +6,15 @@ import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import toast from "react-hot-toast";
-import { FilePenLine, Loader2, Save, Sparkles, RefreshCw } from "lucide-react";
-import Select from "react-select";
+import {
+  FilePenLine,
+  Loader2,
+  Save,
+  Sparkles,
+  RefreshCw,
+  Trash2,
+} from "lucide-react";
+import Select, { StylesConfig } from "react-select"; // MODIFIED: Imported StylesConfig
 import RichTextEditor from "@/components/admin/RichTextEditor";
 import { ILanguage } from "@/models/Language";
 
@@ -37,6 +44,48 @@ const fetchOverrideData = async (entityType: string, entityId: string) => {
 
 const PAGE_TYPES = [{ value: "league-standings", label: "League Standings" }];
 
+// ADDED: Custom styles object for the react-select component
+const customSelectStyles: StylesConfig = {
+  control: (provided) => ({
+    ...provided,
+    backgroundColor: "#1F1D2B", // --brand-dark
+    borderColor: "#4A5568", // gray-600
+    minHeight: "42px",
+  }),
+  singleValue: (provided) => ({
+    ...provided,
+    color: "white",
+  }),
+  menu: (provided) => ({
+    ...provided,
+    backgroundColor: "#252837", // --brand-secondary
+  }),
+  option: (provided, state) => ({
+    ...provided,
+    backgroundColor: state.isSelected
+      ? "rgba(139, 92, 246, 0.5)"
+      : state.isFocused
+      ? "#8b5cf6"
+      : "transparent",
+    ":active": {
+      ...provided[":active"],
+      backgroundColor: "rgba(139, 92, 246, 0.7)",
+    },
+  }),
+  input: (provided) => ({
+    ...provided,
+    color: "#E0E0E0",
+  }),
+  indicatorSeparator: (provided) => ({
+    ...provided,
+    backgroundColor: "#4A5568",
+  }),
+  placeholder: (provided) => ({
+    ...provided,
+    color: "#9E9E9E",
+  }),
+};
+
 export default function SeoOverridesPage() {
   const queryClient = useQueryClient();
 
@@ -61,7 +110,11 @@ export default function SeoOverridesPage() {
     { value: string; label: string }[]
   >({ queryKey: ["allLeaguesForSelect"], queryFn: fetchLeagues });
 
-  const { data: overrideData, isLoading: isLoadingOverrides } = useQuery({
+  const {
+    data: overrideData,
+    isLoading: isLoadingOverrides,
+    refetch: refetchOverrides,
+  } = useQuery({
     queryKey: ["seoOverride", selectedPageType, selectedEntity?.value],
     queryFn: () => fetchOverrideData(selectedPageType, selectedEntity!.value),
     enabled: !!selectedEntity,
@@ -76,7 +129,6 @@ export default function SeoOverridesPage() {
       toast.success(
         `Override for ${variables.language.toUpperCase()} saved successfully!`
       );
-      // Intelligently update the cache with the new data
       queryClient.setQueryData(
         ["seoOverride", selectedPageType, selectedEntity?.value],
         (oldData: any) => ({
@@ -94,18 +146,36 @@ export default function SeoOverridesPage() {
       axios.post("/api/admin/seo-overrides/translate", payload),
     onSuccess: (data) => {
       const { translations } = data.data;
-      // Update the form fields for the currently active tab if its translation was returned
-      if (translations[activeLang]) {
-        setMetaTitle(translations[activeLang].metaTitle);
-        setMetaDescription(translations[activeLang].metaDescription);
-        setSeoText(translations[activeLang].seoText);
-      }
+      queryClient.setQueryData(
+        ["seoOverride", selectedPageType, selectedEntity?.value],
+        (oldData: any) => {
+          const newData = { ...oldData };
+          for (const langCode in translations) {
+            newData[langCode] = translations[langCode];
+          }
+          return newData;
+        }
+      );
       toast.success(
         "Content translated. Please review and save each language."
       );
     },
     onError: (err: any) =>
       toast.error(err.response?.data?.error || "Translation failed."),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (payload: {
+      entityType: string;
+      entityId: string;
+      language?: string;
+    }) => axios.post("/api/admin/seo-overrides/delete", payload),
+    onSuccess: (response) => {
+      toast.success(response.data.message);
+      refetchOverrides();
+    },
+    onError: (err: any) =>
+      toast.error(err.response?.data?.error || "Deletion failed."),
   });
 
   // --- UI Logic & Effects ---
@@ -155,25 +225,56 @@ export default function SeoOverridesPage() {
       );
       return;
     }
-
     const targetLangs = languages.filter((lang) => lang.code !== "en");
     if (targetLangs.length === 0) {
       toast.error("No other active languages to translate to.");
       return;
     }
-
     translateMutation.mutate({
       sourceContent: englishContent,
       sourceLang: "English",
-      targetLangs: targetLangs,
+      targetLangs,
     });
   };
 
-  const isBusy = saveMutation.isPending || translateMutation.isPending;
+  const handleDeleteLanguage = () => {
+    if (!selectedEntity || !activeLang) return;
+    if (
+      window.confirm(
+        `Are you sure you want to delete the override for ${activeLang.toUpperCase()}? This will revert this language to its default content.`
+      )
+    ) {
+      deleteMutation.mutate({
+        entityType: selectedPageType,
+        entityId: selectedEntity.value,
+        language: activeLang,
+      });
+    }
+  };
+
+  const handleDeleteAll = () => {
+    if (!selectedEntity) return;
+    if (
+      window.confirm(
+        `Are you sure you want to delete ALL overrides for ${selectedEntity.label}? This will revert all languages to default content.`
+      )
+    ) {
+      deleteMutation.mutate({
+        entityType: selectedPageType,
+        entityId: selectedEntity.value,
+      });
+    }
+  };
+
+  const isDataPresentForActiveLang = !!overrideData?.[activeLang];
+  const isBusy =
+    saveMutation.isPending ||
+    translateMutation.isPending ||
+    deleteMutation.isPending;
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap gap-4 justify-between items-center">
+      <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-white flex items-center gap-2">
           <FilePenLine size={28} /> SEO Overrides
         </h1>
@@ -188,8 +289,7 @@ export default function SeoOverridesPage() {
             options={PAGE_TYPES}
             defaultValue={PAGE_TYPES[0]}
             onChange={(opt: any) => setSelectedPageType(opt.value)}
-            classNamePrefix="react-select"
-            styles={{ menuPortal: (base) => ({ ...base, zIndex: 9999 }) }}
+            styles={customSelectStyles} // ADDED
             menuPortalTarget={
               typeof window !== "undefined" ? document.body : null
             }
@@ -206,8 +306,7 @@ export default function SeoOverridesPage() {
             isLoading={isLoadingLeagues}
             placeholder="Search for a league..."
             isClearable
-            classNamePrefix="react-select"
-            styles={{ menuPortal: (base) => ({ ...base, zIndex: 9999 }) }}
+            styles={customSelectStyles} // ADDED
             menuPortalTarget={
               typeof window !== "undefined" ? document.body : null
             }
@@ -217,11 +316,24 @@ export default function SeoOverridesPage() {
 
       {selectedEntity && (
         <div className="bg-brand-secondary rounded-lg">
-          <div className="p-4 border-b border-gray-700/50">
+          <div className="p-4 border-b border-gray-700/50 flex flex-wrap gap-4 justify-between items-center">
             <h2 className="text-xl font-bold">
               Editing:{" "}
               <span className="text-brand-purple">{selectedEntity.label}</span>
             </h2>
+            <button
+              onClick={handleDeleteAll}
+              disabled={isBusy}
+              className="flex items-center gap-2 text-xs bg-red-800 text-white font-semibold py-2 px-3 rounded-md hover:bg-red-700 disabled:opacity-50"
+            >
+              {deleteMutation.isLoading &&
+              !deleteMutation.variables?.language ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <Trash2 size={14} />
+              )}
+              Delete All Overrides
+            </button>
           </div>
 
           <div className="border-b border-gray-700">
@@ -230,7 +342,7 @@ export default function SeoOverridesPage() {
                 <button
                   key={lang.code}
                   onClick={() => setActiveLang(lang.code)}
-                  className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors
+                  className={`relative whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors
                                 ${
                                   activeLang === lang.code
                                     ? "border-[var(--brand-accent)] text-[var(--brand-accent)]"
@@ -238,6 +350,9 @@ export default function SeoOverridesPage() {
                                 }`}
                 >
                   {lang.name}
+                  {overrideData?.[lang.code] && (
+                    <span className="absolute top-2 -right-1 block h-2 w-2 rounded-full bg-green-400 ring-2 ring-brand-secondary" />
+                  )}
                 </button>
               ))}
             </nav>
@@ -293,6 +408,21 @@ export default function SeoOverridesPage() {
               </div>
 
               <div className="flex justify-end items-center gap-4 pt-4 border-t border-gray-700/50">
+                {isDataPresentForActiveLang && (
+                  <button
+                    onClick={handleDeleteLanguage}
+                    disabled={isBusy}
+                    className="flex items-center gap-2 text-xs text-red-400 font-semibold py-2 px-3 rounded-md hover:bg-red-500/20 disabled:opacity-50 mr-auto"
+                  >
+                    {deleteMutation.isLoading &&
+                    deleteMutation.variables?.language === activeLang ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <Trash2 size={14} />
+                    )}
+                    Delete for {activeLang.toUpperCase()}
+                  </button>
+                )}
                 {activeLang === "en" && (
                   <button
                     onClick={handleAutoTranslate}
@@ -304,7 +434,7 @@ export default function SeoOverridesPage() {
                     ) : (
                       <Sparkles size={14} />
                     )}
-                    Translate to All Other Languages
+                    Translate to All Others
                   </button>
                 )}
                 <button
