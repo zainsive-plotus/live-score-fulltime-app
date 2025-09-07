@@ -29,7 +29,8 @@ import {
   Users as TeamsIcon,
   BrainCircuit,
   Link as LinkIcon,
-  Send, // ADDED: Icon for the new tracker
+  Send,
+  FilePenLine, // ADDED: Icon for the new feature
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 
@@ -69,7 +70,8 @@ export default function AdminSidebar() {
     pathname.startsWith("/admin/title-templates") ||
     pathname.startsWith("/admin/curated-news") ||
     pathname.startsWith("/admin/predictions") ||
-    pathname.startsWith("/admin/seo-text");
+    pathname.startsWith("/admin/seo-text") ||
+    pathname.startsWith("/admin/seo-overrides"); // ADDED: Include new page in section logic
 
   const isPagesSectionActive =
     pathname.startsWith("/admin/faqs") || pathname.startsWith("/admin/pages");
@@ -110,7 +112,6 @@ export default function AdminSidebar() {
     { name: "File Manager", href: "/admin/file-manager", icon: ImageIcon },
     { name: "Banners", href: "/admin/banners", icon: ImageIcon },
     { name: "Link Tracker", href: "/admin/link-tracker", icon: LinkIcon },
-    // ADDED: The new navigation item for the Referrer Tracker
     { name: "Referrer Tracker", href: "/admin/referrer-tracker", icon: Send },
   ];
 
@@ -126,6 +127,8 @@ export default function AdminSidebar() {
     { name: "Title Templates", href: "/admin/title-templates", icon: Type },
     { name: "Predictions", href: "/admin/predictions", icon: BrainCircuit },
     { name: "SEO Text Runner", href: "/admin/seo-text", icon: FileText },
+    // ADDED: The new navigation item for the overrides page
+    { name: "SEO Overrides", href: "/admin/seo-overrides", icon: FilePenLine },
   ];
 
   const pagesSubNav = [

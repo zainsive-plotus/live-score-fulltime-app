@@ -1,3 +1,5 @@
+// ===== src/app/[locale]/football/standings/[...slug]/page.tsx =====
+
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Header from "@/components/Header";
@@ -12,6 +14,8 @@ import StandingsPageClient from "./StandingsPageClient";
 import Script from "next/script";
 import { WithContext, SportsEvent, BreadcrumbList } from "schema-dts";
 import LeagueStandingsSeoWidget from "@/components/league-detail-view/LeagueStandingsSeoWidget";
+import { ISeoOverride } from "@/models/SeoOverride";
+import { format } from "date-fns";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
@@ -22,6 +26,23 @@ const getLeagueIdFromSlug = (slug: string): string | null => {
   const lastPart = parts[parts.length - 1];
   return /^\d+$/.test(lastPart) ? lastPart : null;
 };
+
+async function getSeoOverride(
+  leagueId: string,
+  language: string
+): Promise<ISeoOverride | null> {
+  try {
+    const { data } = await axios.get(
+      `${BASE_URL}/api/seo-content/overrides?entityType=league-standings&entityId=${leagueId}&language=${language}`
+    );
+
+    console.log(data);
+
+    return data;
+  } catch (error) {
+    return null;
+  }
+}
 
 async function getInitialStandingsData(leagueId: string, season: string) {
   try {
@@ -51,7 +72,11 @@ export async function generateMetadata({
 
   const season =
     (searchParams?.season as string) || new Date().getFullYear().toString();
-  const initialData = await getInitialStandingsData(leagueId, season);
+
+  const [initialData, seoOverride] = await Promise.all([
+    getInitialStandingsData(leagueId, season),
+    getSeoOverride(leagueId, locale),
+  ]);
 
   if (!initialData || !initialData.league) {
     return { title: t("not_found_title") };
@@ -64,13 +89,17 @@ export async function generateMetadata({
     locale
   );
 
-  const pageTitle = t("standings_detail_page_title", {
-    leagueName: league.name,
-    season: league.season,
-  });
-  const pageDescription = t("standings_detail_page_description", {
-    leagueName: league.name,
-  });
+  const pageTitle =
+    seoOverride?.metaTitle ||
+    t("standings_detail_page_title", {
+      leagueName: league.name,
+      season: league.season,
+    });
+  const pageDescription =
+    seoOverride?.metaDescription ||
+    t("standings_detail_page_description", {
+      leagueName: league.name,
+    });
 
   return {
     title: pageTitle,
@@ -96,18 +125,86 @@ export default async function LeagueStandingsPage({
 
   const season =
     (searchParams?.season as string) || new Date().getFullYear().toString();
-  const initialData = await getInitialStandingsData(leagueId, season);
+
+  const [initialData, seoOverride] = await Promise.all([
+    getInitialStandingsData(leagueId, season),
+    getSeoOverride(leagueId, locale),
+  ]);
 
   if (!initialData || !initialData.league) {
     notFound();
   }
 
-  const { league, standings } = initialData;
+  const { league, standings, leagueStats, topScorer } = initialData;
 
-  // ** NEW: Fetch the specific SEO text for this page **
-  const seoText = t("standings_detail_seo_description", {
-    leagueName: league.name,
-  });
+  const generateDefaultSeoText = () => {
+    const currentSeasonInfo = league.seasons?.find(
+      (s: number) => s === league.season
+    )
+      ? { start: `${league.season}-08-01`, end: `${league.season + 1}-05-31` }
+      : { start: `${league.season}-08-01`, end: `${league.season + 1}-05-31` };
+
+    const clubExamples =
+      standings?.[0]?.slice(0, 3).map((t: any) => t.team.name) || [];
+
+    return `
+        <h3>${t("league_seo_fallback_about_title", {
+          leagueName: league.name,
+        })}</h3>
+        <p>${t("league_seo_fallback_about_text", {
+          leagueName: league.name,
+          country: league.country,
+          clubCount: standings?.[0]?.length || "many",
+          clubExample1: clubExamples[0] || "top clubs",
+          clubExample2: clubExamples[1] || "",
+          clubExample3: clubExamples[2] || "",
+          startMonth: format(new Date(currentSeasonInfo.start), "MMMM"),
+          endMonth: format(new Date(currentSeasonInfo.end), "MMMM"),
+        })}</p>
+        <h3>${t("league_seo_fallback_format_title")}</h3>
+        <p>${t("league_seo_fallback_format_text", {
+          leagueName: league.name,
+          clubCount: standings?.[0]?.length || "numerous",
+        })}</p>
+        <h3>${t("league_seo_fallback_scorers_title")}</h3>
+        <p>${t("league_seo_fallback_scorers_text", {
+          season: league.season,
+          topScorerName: topScorer?.player?.name || "leading strikers",
+          topScorerTeam: topScorer?.statistics[0]?.team?.name || "",
+          topScorerGoals: topScorer?.statistics[0]?.goals?.total || "many",
+        })}</p>
+        <h3>${t("league_seo_fallback_champions_title")}</h3>
+        <p>${t("league_seo_fallback_champions_text", {
+          championTeam: standings?.[0]?.[0]?.team?.name || "The top team",
+          previousSeason: league.season - 1,
+          leagueName: league.name,
+        })}</p>
+        <h3>${t("league_seo_fallback_rank_title")}</h3>
+        <p>${t("league_seo_fallback_rank_text", {
+          country: league.country,
+          leagueName: league.name,
+          season: league.season,
+          avgGoals: leagueStats?.avgGoals || "numerous",
+        })}</p>
+        <h3>${t("league_seo_fallback_timeline_title")}</h3>
+        <p>${t("league_seo_fallback_timeline_text", {
+          startMonth: format(new Date(currentSeasonInfo.start), "MMMM"),
+          endMonth: format(new Date(currentSeasonInfo.end), "MMMM"),
+          leagueName: league.name,
+        })}</p>
+        <h3>${t("league_seo_fallback_why_title")}</h3>
+        <p>${t("league_seo_fallback_why_text")}</p>
+      `;
+  };
+
+  const finalSeoText = seoOverride?.seoText || generateDefaultSeoText();
+
+  // --- NEW: Define pageDescription here to be used in both meta tags and JSON-LD ---
+  const pageDescription =
+    seoOverride?.metaDescription ||
+    t("standings_detail_page_description", {
+      leagueName: league.name,
+    });
 
   const jsonLd: WithContext<SportsEvent | BreadcrumbList>[] = [
     {
@@ -121,9 +218,8 @@ export default async function LeagueStandingsPage({
           "@type": "SportsTeam",
           name: teamStanding.team.name,
         })) || [],
-      description: t("standings_detail_page_description", {
-        leagueName: league.name,
-      }),
+      // MODIFIED: This now uses the final pageDescription, ensuring it matches the meta tag
+      description: pageDescription,
     },
     {
       "@context": "https://schema.org",
@@ -158,18 +254,20 @@ export default async function LeagueStandingsPage({
         <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr_288px] lg:gap-8 lg:items-start p-4 lg:p-0 lg:py-6">
           <Sidebar />
 
-          {/* ** NEW: Pass the seoText as a prop to the client component ** */}
           <div>
             <StandingsPageClient
               initialData={initialData}
               leagueId={leagueId}
             />
-            <LeagueStandingsSeoWidget
-              locale={locale}
-              leagueId={league.id}
-              leagueName={league.name}
-              season={league.season}
-            />
+            {finalSeoText && (
+              <LeagueStandingsSeoWidget
+                locale={locale}
+                leagueId={league.id}
+                leagueName={league.name}
+                season={league.season}
+                seoText={finalSeoText}
+              />
+            )}
           </div>
 
           <aside className="hidden lg:block lg:col-span-1 space-y-8 min-w-0">

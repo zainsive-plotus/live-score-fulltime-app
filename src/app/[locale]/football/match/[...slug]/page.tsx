@@ -30,6 +30,7 @@ import { generateLeagueSlug } from "@/lib/generate-league-slug";
 import {
   BreadcrumbList,
   EventStatusType,
+  Organization,
   SportsEvent,
   SportsTeam,
   WithContext,
@@ -359,6 +360,12 @@ export default async function MatchDetailPage({
   const schemaEventStatus =
     statusMap[fixtureDetails.status.short] || "EventScheduled";
 
+  const fanSkorOrganization: Organization = {
+    "@type": "Organization",
+    name: "Fan Skor",
+    url: BASE_URL,
+  };
+
   const homeTeamSchema: SportsTeam = {
     "@type": "SportsTeam",
     name: teams.home.name,
@@ -369,11 +376,24 @@ export default async function MatchDetailPage({
     name: teams.away.name,
   };
 
+  // NEW: Add broadcast and official website information
+  const broadcastEvent = fixtureDetails.fixture?.tvstation
+    ? {
+        "@type": "BroadcastEvent",
+        isLiveBroadcast: true,
+        name: `Live stream on ${fixtureDetails.fixture.tvstation}`,
+        broadcastOf: {
+          "@type": "SportsEvent",
+          name: `${teams.home.name} vs ${teams.away.name}`,
+        },
+      }
+    : undefined;
+
   const jsonLd: WithContext<SportsEvent | BreadcrumbList>[] = [
     {
       "@context": "https://schema.org",
       "@type": "SportsEvent",
-      name: `${teams.home.name} vs ${teams.away.name} - ${league.name}`,
+      name: `${teams.home.name} vs ${teams.away.name}`,
       description: pageDescription,
       url: pageUrl,
       startDate: new Date(fixtureDetails.date).toISOString(),
@@ -391,6 +411,18 @@ export default async function MatchDetailPage({
       homeTeam: homeTeamSchema,
       awayTeam: awayTeamSchema,
       competitor: [homeTeamSchema, awayTeamSchema],
+      // NEW: Add organizer and potential broadcast details
+      organizer: fanSkorOrganization,
+      potentialAction: broadcastEvent,
+      // NEW: Add official league URL as another signal
+      superEvent: {
+        "@type": "SportsEvent",
+        name: league.name,
+        url: `${BASE_URL}/${locale}${generateLeagueSlug(
+          league.name,
+          league.id
+        )}`,
+      },
     },
     {
       "@context": "https://schema.org",
