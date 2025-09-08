@@ -185,16 +185,10 @@ export default async function GeneralNewsArticlePage({
         {
           "@type": "ListItem",
           position: 1,
-          name: t("homepage"),
-          item: `${BASE_URL}/${locale === DEFAULT_LOCALE ? "" : locale}`,
-        },
-        {
-          "@type": "ListItem",
-          position: 2,
           name: t("news"),
           item: `${BASE_URL}/${locale === DEFAULT_LOCALE ? "" : locale}/news`,
         },
-        { "@type": "ListItem", position: 3, name: post.title },
+        { "@type": "ListItem", position: 2, name: post.title },
       ],
     },
   ];

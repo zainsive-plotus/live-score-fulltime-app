@@ -1,19 +1,31 @@
-// ===== src/app/admin/news/page.tsx (Corrected) =====
+// ===== src/app/admin/(protected)/news/page.tsx =====
 
 "use client";
 
+import { useState, useMemo } from "react"; // ADDED useState
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import Link from "@/components/StyledLink";
 import { PlusCircle } from "lucide-react";
 import { IPost } from "@/models/Post";
 import toast from "react-hot-toast";
-import { useMemo } from "react";
 import { ILanguage } from "@/models/Language";
 import TranslationGroupRow from "@/components/admin/TranslationGroupRow";
+import AdminPagination from "@/components/admin/AdminPagination"; // ADDED
 
-const fetchAdminPosts = async (): Promise<IPost[]> => {
-  const { data } = await axios.get("/api/admin/posts");
+interface PaginatedNewsResponse {
+  groups: IPost[][];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalCount: number;
+  };
+}
+
+const fetchAdminPosts = async (
+  page: number
+): Promise<PaginatedNewsResponse> => {
+  const { data } = await axios.get(`/api/admin/posts?page=${page}`);
   return data;
 };
 
@@ -24,14 +36,17 @@ const fetchLanguages = async (): Promise<ILanguage[]> => {
 
 export default function AdminNewsPage() {
   const queryClient = useQueryClient();
+  const [currentPage, setCurrentPage] = useState(1); // ADDED state for pagination
 
+  // MODIFIED: This query now fetches paginated groups
   const {
-    data: posts,
+    data: postsData,
     isLoading: isLoadingPosts,
     error: postsError,
-  } = useQuery<IPost[]>({
-    queryKey: ["adminPosts"],
-    queryFn: fetchAdminPosts,
+  } = useQuery<PaginatedNewsResponse>({
+    queryKey: ["adminPosts", currentPage],
+    queryFn: () => fetchAdminPosts(currentPage),
+    keepPreviousData: true, // For a smooth pagination experience
   });
 
   const { data: languages, isLoading: isLoadingLanguages } = useQuery<
@@ -46,54 +61,22 @@ export default function AdminNewsPage() {
     return new Map(languages.map((lang) => [lang.code, lang]));
   }, [languages]);
 
-  const groupedPosts = useMemo(() => {
-    if (!posts) return [];
-    const groups: Record<string, IPost[]> = {};
-    posts.forEach((post) => {
-      const groupId = (post.translationGroupId || post._id).toString();
-      if (!groups[groupId]) {
-        groups[groupId] = [];
-      }
-      groups[groupId].push(post);
-    });
-
-    return Object.values(groups).sort((a, b) => {
-      const dateA = new Date(
-        a.sort(
-          (x, y) =>
-            new Date(y.createdAt).getTime() - new Date(x.createdAt).getTime()
-        )[0].createdAt
-      ).getTime();
-      const dateB = new Date(
-        b.sort(
-          (x, y) =>
-            new Date(y.createdAt).getTime() - new Date(x.createdAt).getTime()
-        )[0].createdAt
-      ).getTime();
-      return dateB - dateA;
-    });
-  }, [posts]);
+  // MODIFIED: Use the `groups` array from the API response
+  const groupedPosts = postsData?.groups || [];
 
   const deleteMutation = useMutation({
     mutationFn: (postId: string) => axios.delete(`/api/posts/${postId}`),
     onSuccess: (_, postId) => {
-      // Optimistically update the UI before refetching
-      queryClient.setQueryData(["adminPosts"], (oldData: IPost[] | undefined) =>
-        oldData ? oldData.filter((post) => post._id !== postId) : []
-      );
       toast.success("Post deleted successfully!");
+      // Invalidate the query to refetch the current page of data
+      queryClient.invalidateQueries({ queryKey: ["adminPosts", currentPage] });
     },
     onError: (error: any) => {
       const message = error.response?.data?.message || "Error deleting post.";
       toast.error(message);
     },
-    onSettled: () => {
-      // Refetch to ensure data consistency
-      queryClient.invalidateQueries({ queryKey: ["adminPosts"] });
-    },
   });
 
-  // This handler is now passed to the child component
   const handleDeletePost = (postId: string, title: string) => {
     if (
       window.confirm(
@@ -106,7 +89,8 @@ export default function AdminNewsPage() {
 
   const isLoading = isLoadingPosts || isLoadingLanguages;
 
-  if (isLoading) return <p className="text-brand-muted">Loading posts...</p>;
+  if (isLoading && !postsData)
+    return <p className="text-brand-muted">Loading posts...</p>;
   if (postsError) return <p className="text-red-400">Failed to load posts.</p>;
 
   return (
@@ -142,18 +126,29 @@ export default function AdminNewsPage() {
                 }
                 group={group}
                 languageMap={languageMap}
-                onDelete={handleDeletePost} // Pass the handler here
+                onDelete={handleDeletePost}
               />
             ))}
           </tbody>
         </table>
 
-        {posts?.length === 0 && (
+        {groupedPosts.length === 0 && (
           <p className="text-center p-8 text-brand-muted">
             No news posts found.
           </p>
         )}
       </div>
+
+      {/* ADDED: Pagination controls */}
+      {postsData?.pagination && postsData.pagination.totalPages > 1 && (
+        <div className="mt-6">
+          <AdminPagination
+            currentPage={currentPage}
+            totalPages={postsData.pagination.totalPages}
+            onPageChange={setCurrentPage}
+          />
+        </div>
+      )}
     </div>
   );
 }
