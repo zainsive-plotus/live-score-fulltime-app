@@ -1,5 +1,5 @@
 # ===================================================================
-# robots.txt for FanSkor.com
+# robots.txt for Fanskor.com
 # Allow all good bots, including AI crawlers, and block admin areas.
 # ===================================================================
 

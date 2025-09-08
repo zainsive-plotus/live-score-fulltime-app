@@ -70,7 +70,7 @@ export default async function AuthorPage({
       "@type": "AboutPage",
       mainEntity: {
         "@type": "Organization",
-        name: "FanSkor",
+        name: "Fanskor",
         url: BASE_URL,
         logo: `${BASE_URL}/fanskor-transparent.webp`,
       },

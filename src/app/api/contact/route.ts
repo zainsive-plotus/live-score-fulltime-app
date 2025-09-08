@@ -73,10 +73,10 @@ export async function POST(request: Request) {
     const mailOptions = {
       // The "from" field should ideally be a static, trusted address.
       // We use the user's name but our own email to improve deliverability.
-      from: `"${name} via FanSkor" <${NEXT_PUBLIC_SMTP_USER}>`,
+      from: `"${name} via Fanskor" <${NEXT_PUBLIC_SMTP_USER}>`,
       to: NEXT_PUBLIC_CONTACT_FORM_RECIPIENT,
       replyTo: email, // This ensures hitting "Reply" goes to the user.
-      subject: `New FanSkor Contact: ${subject}`,
+      subject: `New Fanskor Contact: ${subject}`,
       text: `
         New Contact Form Submission
         -----------------------------
@@ -90,7 +90,7 @@ export async function POST(request: Request) {
       html: `
         <div style="font-family: Arial, sans-serif; font-size: 16px; color: #333;">
           <h2 style="color: #1a1a1a;">New Contact Form Submission</h2>
-          <p style="margin-bottom: 20px;">You have a new message from the FanSkor website.</p>
+          <p style="margin-bottom: 20px;">You have a new message from the Fanskor website.</p>
           <table style="width: 100%; border-collapse: collapse;">
             <tr style="border-bottom: 1px solid #eee;">
               <td style="padding: 8px; width: 100px;"><strong>Name:</strong></td>

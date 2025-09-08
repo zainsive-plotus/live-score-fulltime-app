@@ -245,7 +245,12 @@ export default async function LeaguePage({
               countryName={country.name}
               countryFlag={country.flag}
             />
-            <LeagueSeoWidget title={seoWidgetTitle} seoText={seoWidgetText} />
+            <LeagueSeoWidget
+              season={currentSeasonYear}
+              leagueName={league.name}
+              title={seoWidgetTitle}
+              seoText={seoWidgetText}
+            />
           </main>
 
           <aside className="hidden lg:block lg:col-span-1 space-y-8 min-w-0">

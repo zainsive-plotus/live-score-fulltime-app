@@ -40,7 +40,7 @@ export async function generateMetadata({
       title: pageTitle,
       description: pageDescription,
       url: `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/${locale}${PAGE_PATH}`,
-      siteName: "FanSkor",
+      siteName: "Fanskor",
       type: "website",
     },
     twitter: {

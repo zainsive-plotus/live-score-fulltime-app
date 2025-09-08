@@ -57,7 +57,7 @@ export async function generateMetadata({
       title: title,
       description: description,
       url: `${METADATA_BASE_URL}/${locale === "tr" ? "" : locale}`,
-      siteName: "FanSkor",
+      siteName: "Fanskor",
       images: [
         {
           url: `${METADATA_BASE_URL}/og-image.jpg`,
@@ -83,7 +83,7 @@ const jsonLd: WithContext<WebSite | Organization>[] = [
   {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    name: "FanSkor",
+    name: "Fanskor",
     url: BASE_URL,
     potentialAction: {
       "@type": "SearchAction",
@@ -94,7 +94,7 @@ const jsonLd: WithContext<WebSite | Organization>[] = [
   {
     "@context": "https://schema.org",
     "@type": "Organization",
-    name: "FanSkor",
+    name: "Fanskor",
     url: BASE_URL,
     logo: `${BASE_URL}/fanskor-transparent.webp`,
   },

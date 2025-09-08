@@ -51,10 +51,10 @@ const generateInitialJsonLd = (posts: IPost[], t: Function) => {
           `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/og-image.jpg`,
         datePublished: post.createdAt,
         dateModified: post.updatedAt,
-        author: { "@type": "Organization", name: "FanSkor" },
+        author: { "@type": "Organization", name: "Fanskor" },
         publisher: {
           "@type": "Organization",
-          name: "FanSkor",
+          name: "Fanskor",
           logo: {
             "@type": "ImageObject",
             url: `${process.env.NEXT_PUBLIC_PUBLIC_APP_URL}/fanskor-transparent.webp`,

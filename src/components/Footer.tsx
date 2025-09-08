@@ -1,16 +1,17 @@
+// ===== src/components/Footer.tsx =====
+
 import Image from "next/image";
 import { getI18n } from "@/lib/i18n/server";
 import FooterContent from "./FooterContent";
 import FooterAboutSection from "./FooterAboutSection";
 import StyledLink from "./StyledLink";
+import SocialLinks from "./SocialLinks"; // ADDED: Import the new component
 
-// ** THE FIX IS HERE: The component now receives the locale as a prop. **
 export default async function Footer({ locale }: { locale: string }) {
   const t = await getI18n(locale);
 
   return (
     <footer className="bg-brand-secondary text-white">
-      {/* Pass the locale down to any other Server Components that need it */}
       <FooterAboutSection locale={locale} />
 
       <div className="container mx-auto px-4">
@@ -25,6 +26,12 @@ export default async function Footer({ locale }: { locale: string }) {
               height={28}
             />
           </div>
+
+          {/* ADDED: The new SocialLinks component is placed here */}
+          <div className="flex-grow flex justify-center">
+            <SocialLinks />
+          </div>
+
           <div className="flex items-center justify-center flex-wrap gap-x-6 gap-y-4 md:gap-8">
             <Image
               src="/images/logos/18plus.svg"
@@ -55,7 +62,7 @@ export default async function Footer({ locale }: { locale: string }) {
 
         <div className="flex flex-col md:flex-row justify-between items-center text-sm text-brand-muted border-t border-gray-700/50 pt-6 pb-12">
           <p className="mb-4 md:mb-0 text-center md:text-left">
-            © {new Date().getFullYear()} FanSkor - {t("footer_rights_reserved")}
+            © {new Date().getFullYear()} Fanskor - {t("footer_rights_reserved")}
           </p>
           <div className="flex flex-wrap justify-center gap-x-4 gap-y-2">
             <StyledLink href="/privacy-policy" className="hover:text-white">

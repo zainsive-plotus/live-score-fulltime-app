@@ -9,7 +9,7 @@
  * npx tsx scripts/change-author.ts "Old Author Name" "New Author Name"
  *
  * Example:
- * npx tsx scripts/change-author.ts "Admin" "Fan Skor Staff"
+ * npx tsx scripts/change-author.ts "Admin" "Fanskor Staff"
  */
 
 import "dotenv/config";
@@ -36,7 +36,7 @@ async function runUpdate() {
       '   Usage: npx tsx scripts/change-author.ts "<Old Author Name>" "<New Author Name>"'
     );
     console.log(
-      '   Example: npx tsx scripts/change-author.ts "Admin" "Fan Skor Staff"\n'
+      '   Example: npx tsx scripts/change-author.ts "Admin" "Fanskor Staff"\n'
     );
     process.exit(1); // Exit with an error code
   }

@@ -362,7 +362,7 @@ export default async function MatchDetailPage({
 
   const fanSkorOrganization: Organization = {
     "@type": "Organization",
-    name: "Fan Skor",
+    name: "Fanskor",
     url: BASE_URL,
   };
 

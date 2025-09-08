@@ -1,17 +1,24 @@
 // ===== scripts/update-phrase.ts =====
 
-// This script connects to your MongoDB database and performs a bulk update.
-// It finds all occurrences of "fan skor" (case-insensitive) and replaces them with "FanSkor".
+/**
+ * A one-time script to update the brand name capitalization in the database.
+ * It finds all occurrences of "FanSkor" (case-sensitive) and replaces them with "Fanskor".
+ *
+ * This script is designed to be run with `tsx` to handle TypeScript and path aliases.
+ *
+ * Usage:
+ * npx tsx scripts/update-phrase.ts
+ */
 
-import "dotenv/config"; // Use this for top-level await
+import "dotenv/config";
 import mongoose from "mongoose";
 import path from "path";
-
-// Load environment variables from .env.local
 import { config } from "dotenv";
+
+// Ensure .env.local is loaded from the project root
 config({ path: path.resolve(process.cwd(), ".env.local") });
 
-// Use path aliases that tsx will understand from your tsconfig.json
+// Import all relevant Mongoose Models using path aliases
 import Post from "@/models/Post";
 import SeoContent from "@/models/SeoContent";
 import PageContent from "@/models/PageContent";
@@ -19,9 +26,12 @@ import Translation from "@/models/Translation";
 import TickerMessage from "@/models/TickerMessage";
 import Faq from "@/models/Faq";
 import TitleTemplate from "@/models/TitleTemplate";
+import SeoOverride from "@/models/SeoOverride"; // ADDED: Include the new SEO Override model
 
-const PHRASE_TO_FIND = /fan skor/gi; // g = global, i = case-insensitive
-const PHRASE_TO_REPLACE = "FanSkor";
+// MODIFIED: Updated the phrases for this specific task
+const PHRASE_TO_FIND = /FanSkor/g; // g = global, case-SENSITIVE
+const PHRASE_TO_REPLACE = "Fanskor";
+const SEARCH_REGEX = "FanSkor"; // Case-sensitive search string for the query
 
 // A generic function to update a collection
 async function updateCollection(
@@ -32,15 +42,15 @@ async function updateCollection(
   console.log(`\n--- Processing collection: ${modelName} ---`);
 
   const query = {
-    $or: fields.map((field) => ({
-      [field]: { $regex: "fan skor", $options: "i" },
-    })),
+    $or: fields.map((field) => ({ [field]: { $regex: SEARCH_REGEX } })),
   };
 
   const documentsToUpdate = await Model.find(query);
 
   if (documentsToUpdate.length === 0) {
-    console.log(`No documents containing "fan skor" found in ${modelName}.`);
+    console.log(
+      `No documents containing "${SEARCH_REGEX}" found in ${modelName}.`
+    );
     return 0;
   }
 
@@ -77,7 +87,7 @@ async function updateCollection(
 // Special handler for the `Translation` model due to its Map structure
 async function updateTranslationsCollection() {
   console.log(`\n--- Processing collection: Translation ---`);
-  const documents = await Translation.find({});
+  const documents = await Translation.find({ translations: { $exists: true } });
   let updatedCount = 0;
 
   for (const doc of documents) {
@@ -148,6 +158,12 @@ async function runUpdate() {
       TitleTemplate,
       ["template", "name", "description"],
       "TitleTemplate"
+    );
+    // ADDED: Process the new SeoOverride collection
+    totalUpdated += await updateCollection(
+      SeoOverride,
+      ["metaTitle", "metaDescription", "seoText"],
+      "SeoOverride"
     );
 
     totalUpdated += await updateTranslationsCollection();

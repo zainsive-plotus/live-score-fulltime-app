@@ -117,7 +117,7 @@ export const FixtureImageTemplate = ({
           color: "#ed5c19",
         }}
       >
-        FanSkor
+        Fanskor
       </div>
     </div>
   );

@@ -101,7 +101,7 @@ export async function generateMetadata({
       title: pageTitle,
       description: pageDescription,
       url: hreflangAlternates.canonical, // Use the generated canonical URL
-      siteName: "FanSkor",
+      siteName: "Fanskor",
       type: "website",
       images: [
         {

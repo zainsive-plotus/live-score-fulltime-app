@@ -85,7 +85,7 @@ export default async function FooterContent({ locale }: { locale: string }) {
       <div className="sm:col-span-2 lg:col-span-1">
         <div className="space-y-4">
           <h4 className="font-bold text-white uppercase tracking-wider">
-            FanSkor
+            Fanskor
           </h4>
           <div className="flex flex-col space-y-3">
             <FooterLink href="/">{t("homepage")}</FooterLink>
