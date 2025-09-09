@@ -2,14 +2,13 @@
 
 "use client";
 
-import { useState, Fragment } from "react";
+import { useState, Fragment, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import { ChevronDown, Loader2 } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
 import { ILanguage } from "@/models/Language";
 import { Menu, Transition } from "@headlessui/react";
-import { setLocaleCookie } from "@/app/actions/language";
 import { DEFAULT_LOCALE } from "@/lib/i18n/config";
 
 interface LanguageDropdownProps {
@@ -21,7 +20,7 @@ export default function LanguageDropdown({
   languages,
   isLoading,
 }: LanguageDropdownProps) {
-  const [isPending, startTransition] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const pathname = usePathname();
   const { locale: currentLocale } = useTranslation();
@@ -44,8 +43,7 @@ export default function LanguageDropdown({
     }
     if (newPath === "") newPath = "/";
 
-    startTransition(true);
-    setLocaleCookie(newLocale).then(() => {
+    startTransition(() => {
       router.push(newPath);
     });
   };
