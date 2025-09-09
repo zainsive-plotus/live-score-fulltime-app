@@ -22,7 +22,7 @@ const SERPPreview = memo(function SERPPreview({
   const language = post.language || "en";
 
   // Construct the display URL
-  const displayUrl = `${siteUrl}/${language}/news › ${slug}`;
+  const displayUrl = `${siteUrl} › ${language} › news › ${slug}`;
 
   return (
     <div className="p-4 bg-brand-dark rounded-lg border border-gray-700">

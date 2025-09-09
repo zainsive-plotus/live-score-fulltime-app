@@ -34,10 +34,15 @@ export async function PUT(request: Request, { params }: Params) {
 
   const { postId } = params;
   try {
-    // MODIFIED: The body type now includes the optional focusKeyword
-    const body: Partial<IPost> & { slug?: string; focusKeyword?: string } =
-      await request.json();
-    const { title, slug, content, focusKeyword } = body;
+    // MODIFIED: The body type now includes all keyword fields
+    const body: Partial<IPost> & {
+      slug?: string;
+      focusKeyword?: string;
+      secondaryKeywords?: string[];
+      supportingKeywords?: string[];
+    } = await request.json();
+
+    const { title, slug, content } = body;
 
     if (!title || !content) {
       return NextResponse.json(
@@ -70,10 +75,11 @@ export async function PUT(request: Request, { params }: Params) {
       );
     }
 
-    // MODIFIED: The update payload now includes the focusKeyword
+    // MODIFIED: The update payload now includes all keyword fields.
+    // We spread the `...body` to include all other fields from the request.
     const updatedPost = await Post.findByIdAndUpdate(
       postId,
-      { ...body, slug: finalSlug, focusKeyword: focusKeyword },
+      { ...body, slug: finalSlug },
       { new: true, runValidators: true }
     );
 

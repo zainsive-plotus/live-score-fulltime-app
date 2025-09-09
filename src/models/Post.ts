@@ -24,7 +24,9 @@ export interface IPost extends Document {
   featuredImageAltText?: string;
   metaTitle?: string;
   metaDescription?: string;
-  focusKeyword?: string; // ADDED: The new field for the focus keyword
+  focusKeyword?: string;
+  secondaryKeywords?: string[]; // ADDED: For keyword variations
+  supportingKeywords?: string[]; // ADDED: For LSI/semantic keywords
   language: string;
   translationGroupId: mongoose.Types.ObjectId;
   sportsCategory: SportsCategory[];
@@ -59,10 +61,18 @@ const PostSchema: Schema = new Schema(
     featuredImageAltText: { type: String, trim: true },
     metaTitle: { type: String, trim: true },
     metaDescription: { type: String, trim: true },
-    // ADDED: The schema definition for the new field
     focusKeyword: {
       type: String,
       trim: true,
+    },
+    // ADDED: Schema definitions for the new keyword fields
+    secondaryKeywords: {
+      type: [{ type: String, trim: true }],
+      default: [],
+    },
+    supportingKeywords: {
+      type: [{ type: String, trim: true }],
+      default: [],
     },
     language: {
       type: String,

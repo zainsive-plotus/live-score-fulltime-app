@@ -60,8 +60,16 @@ export async function POST(request: Request) {
       slug?: string;
     } = await request.json();
 
-    // MODIFIED: Destructure the new focusKeyword from the request body
-    const { title, slug, content, language, focusKeyword } = body;
+    // MODIFIED: Destructure the new keyword fields from the request body
+    const {
+      title,
+      slug,
+      content,
+      language,
+      focusKeyword,
+      secondaryKeywords,
+      supportingKeywords,
+    } = body;
 
     if (!title || !content || !language) {
       return NextResponse.json(
@@ -87,7 +95,10 @@ export async function POST(request: Request) {
     const newPost = new Post({
       ...body,
       slug: finalSlug,
-      focusKeyword: focusKeyword, // ADDED: Save the focus keyword
+      // ADDED: Save the new keyword fields
+      focusKeyword: focusKeyword,
+      secondaryKeywords: secondaryKeywords || [],
+      supportingKeywords: supportingKeywords || [],
       author: session.user.name || "Admin",
       translationGroupId: body.translationGroupId
         ? new mongoose.Types.ObjectId(body.translationGroupId)
