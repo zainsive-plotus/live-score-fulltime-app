@@ -3,7 +3,7 @@
 import "server-only";
 import axios from "axios";
 
-const INDEXNOW_KEY = process.env.INDEXNOW_KEY;
+const INDEXNOW_KEY = process.env.NEXT_PUBLIC_INDEXNOW_KEY;
 
 // MODIFIED: The regular expression is now correctly escaped.
 const HOST = process.env.NEXT_PUBLIC_PUBLIC_APP_URL?.replace(
