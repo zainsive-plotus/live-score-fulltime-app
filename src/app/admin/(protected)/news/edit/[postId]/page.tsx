@@ -16,6 +16,7 @@ import TranslationsWidget from "@/components/admin/TranslationsWidget";
 import SERPPreview from "@/components/admin/SERPPreview";
 import SeoAnalysis from "@/components/admin/SeoAnalysis";
 import { analyzeSeo, SeoAnalysisResult } from "@/lib/seo-analyzer";
+import KeywordInput from "@/components/admin/KeywordInput";
 
 import { UploadCloud, XCircle, Save, Loader2, Send } from "lucide-react";
 import { IPost, SportsCategory, NewsType } from "@/models/Post";
@@ -75,6 +76,8 @@ export default function EditNewsPostPage() {
 
   // --- SEO Analyzer State ---
   const [focusKeyword, setFocusKeyword] = useState("");
+  const [secondaryKeywords, setSecondaryKeywords] = useState<string[]>([]);
+  const [supportingKeywords, setSupportingKeywords] = useState<string[]>([]);
   const [seoResult, setSeoResult] = useState<SeoAnalysisResult | null>(null);
   const siteUrl =
     typeof window !== "undefined"
@@ -104,6 +107,8 @@ export default function EditNewsPostPage() {
       setImageTitle(postData.featuredImageTitle || "");
       setImageAltText(postData.featuredImageAltText || "");
       setFocusKeyword(postData.focusKeyword || "");
+      setSecondaryKeywords(postData.secondaryKeywords || []);
+      setSupportingKeywords(postData.supportingKeywords || []);
       setSelectedSportsCategories(postData.sportsCategory || ["general"]);
       setNewsType(postData.newsType || "news");
       setLinkedFixtureId(postData.linkedFixtureId?.toString() || "");
@@ -123,10 +128,21 @@ export default function EditNewsPostPage() {
       slug,
       metaTitle,
       metaDescription,
+      secondaryKeywords,
+      supportingKeywords,
     };
     const result = analyzeSeo(postContentForAnalysis, focusKeyword);
     setSeoResult(result);
-  }, [title, content, slug, metaTitle, metaDescription, focusKeyword]);
+  }, [
+    title,
+    content,
+    slug,
+    metaTitle,
+    metaDescription,
+    focusKeyword,
+    secondaryKeywords,
+    supportingKeywords,
+  ]);
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTitle = e.target.value;
@@ -180,7 +196,7 @@ export default function EditNewsPostPage() {
       toast.success("Post updated successfully!");
       queryClient.invalidateQueries({ queryKey: ["adminPosts"] });
       queryClient.invalidateQueries({ queryKey: ["post", postId] });
-      router.push("/admin/news");
+      // router.push("/admin/news");
     },
     onError: (error: any) => {
       if (error.response && error.response.data && error.response.data.error) {
@@ -237,6 +253,8 @@ export default function EditNewsPostPage() {
       sportsCategory: selectedSportsCategories,
       newsType,
       focusKeyword,
+      secondaryKeywords,
+      supportingKeywords,
       linkedFixtureId: linkedFixtureId ? Number(linkedFixtureId) : undefined,
       linkedLeagueId: linkedLeagueId ? Number(linkedLeagueId) : undefined,
       linkedTeamId: linkedTeamId ? Number(linkedTeamId) : undefined,
@@ -361,6 +379,20 @@ export default function EditNewsPostPage() {
                 className="w-full p-2 rounded bg-gray-700 text-white border border-gray-600"
               />
             </div>
+
+            <KeywordInput
+              keywords={secondaryKeywords}
+              setKeywords={setSecondaryKeywords}
+              label="Secondary Keywords (3-5)"
+              placeholder="Add keyword and press Enter..."
+            />
+            <KeywordInput
+              keywords={supportingKeywords}
+              setKeywords={setSupportingKeywords}
+              label="Supporting Keywords (5-10)"
+              placeholder="Add keyword and press Enter..."
+            />
+
             <SERPPreview
               post={{ title, metaTitle, metaDescription, slug, language }}
               siteUrl={siteUrl}

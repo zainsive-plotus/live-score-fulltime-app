@@ -4,18 +4,20 @@ import "client-only";
 import slugify from "slugify";
 
 // --- Helper Functions ---
+
 const stripHtml = (html: string): string => {
   if (typeof window === "undefined") return html.replace(/<[^>]*>?/gm, "");
   const doc = new DOMParser().parseFromString(html, "text/html");
   return doc.body.textContent || "";
 };
 
+// MODIFIED: This function is now robust for multi-word phrases.
 const countOccurrences = (text: string, keyword: string): number => {
   if (!text || !keyword) return 0;
-  const regex = new RegExp(
-    `\\b${keyword.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&")}\\b`,
-    "gi"
-  );
+  // Escape special regex characters from the keyword
+  const escapedKeyword = keyword.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
+  // Removed the word boundaries (\b) to allow for phrase matching
+  const regex = new RegExp(escapedKeyword, "gi");
   return (text.match(regex) || []).length;
 };
 
@@ -30,7 +32,6 @@ interface PostData {
   supportingKeywords?: string[];
 }
 
-// MODIFIED: AnalysisResult now includes an optional `suggestion` field
 interface AnalysisResult {
   message: string;
   points: number;
@@ -78,7 +79,12 @@ export const analyzeSeo = (
 
   const contentText = stripHtml(post.content);
   const wordCount = contentText.split(/\s+/).filter(Boolean).length;
-  const first150Words = contentText.substring(0, 150).toLowerCase();
+
+  // MODIFIED: This now finds the actual first paragraph's text content.
+  const firstParagraphMatch = post.content.match(/<p>(.*?)<\/p>/i);
+  const firstParagraphText = firstParagraphMatch
+    ? stripHtml(firstParagraphMatch[0])
+    : contentText.substring(0, 250);
 
   // --- CRITICAL CHECKS ---
   if (!post.metaTitle?.toLowerCase().includes(focusKeyword.toLowerCase())) {
@@ -96,7 +102,7 @@ export const analyzeSeo = (
       suggestion: "Your main post title should contain the focus keyword.",
     });
   }
-  if (!first150Words.includes(focusKeyword.toLowerCase())) {
+  if (!firstParagraphText.toLowerCase().includes(focusKeyword.toLowerCase())) {
     results.critical.push({
       message: "Focus keyword not in the first paragraph.",
       points: -15,
@@ -126,13 +132,13 @@ export const analyzeSeo = (
         }
   );
   results.keyword.push(
-    first150Words.includes(focusKeyword.toLowerCase())
+    firstParagraphText.toLowerCase().includes(focusKeyword.toLowerCase())
       ? { message: "Keyword in first paragraph.", points: 5 }
       : {
           message: "Keyword missing from first paragraph.",
           points: 0,
           suggestion:
-            "Include your focus keyword within the first 100-150 words of your content.",
+            "Include your focus keyword within the first paragraph of your content.",
         }
   );
 
@@ -140,7 +146,9 @@ export const analyzeSeo = (
   const density = wordCount > 0 ? (occurrences / wordCount) * 100 : 0;
   if (density >= 0.8 && density <= 2.5) {
     results.keyword.push({
-      message: `Keyword density is good (${density.toFixed(1)}%).`,
+      message: `Keyword density is good (${occurrences} times, ${density.toFixed(
+        1
+      )}%).`,
       points: 5,
     });
   } else {
@@ -159,12 +167,14 @@ export const analyzeSeo = (
     });
   }
 
+  // MODIFIED: This regex is now robust for multi-word keywords.
   const secondaryInHeadings =
-    post.secondaryKeywords?.some((kw) =>
-      new RegExp(`<h[2-3][^>]*>.*?\\b${kw}\\b.*?<\/h[2-3]>`, "i").test(
+    post.secondaryKeywords?.some((kw) => {
+      const escapedKw = kw.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
+      return new RegExp(`<h[2-3][^>]*>.*?${escapedKw}.*?<\/h[2-3]>`, "i").test(
         post.content
-      )
-    ) ?? false;
+      );
+    }) ?? false;
   results.keyword.push(
     secondaryInHeadings
       ? { message: "Secondary keyword found in a subheading.", points: 10 }
@@ -177,6 +187,7 @@ export const analyzeSeo = (
   );
 
   // --- CONTENT STRUCTURE & READABILITY (30 points) ---
+  // ... (This section remains the same as it was correct) ...
   results.structure.push(
     post.metaTitle && post.metaTitle.length >= 50 && post.metaTitle.length <= 60
       ? { message: "Meta Title length is optimal.", points: 5 }
@@ -214,15 +225,10 @@ export const analyzeSeo = (
   results.structure.push(
     /<h[2-3]/.test(post.content)
       ? { message: "Subheadings (H2/H3) are used.", points: 5 }
-      : {
-          message: "Missing subheadings.",
-          points: 0,
-          suggestion:
-            "Break up your content with H2 and H3 tags to improve readability and structure.",
-        }
+      : { message: "Add H2 or H3 subheadings to break up content.", points: 0 }
   );
   results.structure.push(
-    wordCount / (post.content.split("</p>").length - 1) < 40
+    wordCount === 0 || wordCount / (post.content.split("</p>").length - 1) < 40
       ? { message: "Paragraphs seem concise.", points: 5 }
       : {
           message: "Some paragraphs may be too long.",
@@ -233,6 +239,7 @@ export const analyzeSeo = (
   );
 
   // --- TECHNICAL & SEMANTIC SEO (30 points) ---
+  // ... (This section remains the same as it was correct) ...
   const slugifiedKeyword = slugify(focusKeyword, { lower: true, strict: true });
   results.technical.push(
     post.slug?.includes(slugifiedKeyword)
