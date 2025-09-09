@@ -1,4 +1,4 @@
-// ===== src/app/admin/news/edit/[postId]/page.tsx =====
+// ===== src/app/admin/(protected)/news/edit/[postId]/page.tsx =====
 
 "use client";
 
@@ -13,9 +13,11 @@ import slugify from "slugify";
 import StyledLink from "@/components/StyledLink";
 import RichTextEditor from "@/components/admin/RichTextEditor";
 import TranslationsWidget from "@/components/admin/TranslationsWidget";
+import SERPPreview from "@/components/admin/SERPPreview";
+import SeoAnalysis from "@/components/admin/SeoAnalysis";
+import { analyzeSeo, SeoAnalysisResult } from "@/lib/seo-analyzer";
 
-import { UploadCloud, XCircle, Save, Loader2 } from "lucide-react";
-
+import { UploadCloud, XCircle, Save, Loader2, Send } from "lucide-react";
 import { IPost, SportsCategory, NewsType } from "@/models/Post";
 
 const availableSportsCategories: { id: SportsCategory; label: string }[] = [
@@ -25,8 +27,6 @@ const availableSportsCategories: { id: SportsCategory; label: string }[] = [
   { id: "general", label: "General" },
 ];
 
-// --- Start of Change ---
-// Added "Recent News" to the list of available news types.
 const availableNewsTypes: { id: NewsType; label: string }[] = [
   { id: "news", label: "General News" },
   { id: "recent", label: "Recent News (AI Curated)" },
@@ -35,11 +35,14 @@ const availableNewsTypes: { id: NewsType; label: string }[] = [
   { id: "prediction", label: "Prediction/Analysis" },
   { id: "transfer", label: "Transfer" },
 ];
-// --- End of Change ---
 
 const fetchPost = async (postId: string): Promise<IPost> => {
   const { data } = await axios.get(`/api/posts/${postId}`);
   return data;
+};
+
+const submitToIndexNow = async (urls: string[]) => {
+  await axios.post("/api/admin/indexing/submit-now", { urls });
 };
 
 export default function EditNewsPostPage() {
@@ -48,6 +51,7 @@ export default function EditNewsPostPage() {
   const queryClient = useQueryClient();
   const postId = params.postId as string;
 
+  // --- Main Post State ---
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(true);
@@ -69,6 +73,14 @@ export default function EditNewsPostPage() {
   const [language, setLanguage] = useState("");
   const [translationGroupId, setTranslationGroupId] = useState("");
 
+  // --- SEO Analyzer State ---
+  const [focusKeyword, setFocusKeyword] = useState("");
+  const [seoResult, setSeoResult] = useState<SeoAnalysisResult | null>(null);
+  const siteUrl =
+    typeof window !== "undefined"
+      ? window.location.origin
+      : "https://fanskor.com";
+
   const {
     data: postData,
     isLoading,
@@ -79,6 +91,7 @@ export default function EditNewsPostPage() {
     enabled: !!postId,
   });
 
+  // Effect to populate form when post data loads
   useEffect(() => {
     if (postData) {
       setTitle(postData.title || "");
@@ -90,12 +103,8 @@ export default function EditNewsPostPage() {
       setFeaturedImage(postData.featuredImage || null);
       setImageTitle(postData.featuredImageTitle || "");
       setImageAltText(postData.featuredImageAltText || "");
-      setSelectedSportsCategories(
-        Array.isArray(postData.sportsCategory) &&
-          postData.sportsCategory.length > 0
-          ? postData.sportsCategory
-          : ["general"]
-      );
+      setFocusKeyword(postData.focusKeyword || "");
+      setSelectedSportsCategories(postData.sportsCategory || ["general"]);
       setNewsType(postData.newsType || "news");
       setLinkedFixtureId(postData.linkedFixtureId?.toString() || "");
       setLinkedLeagueId(postData.linkedLeagueId?.toString() || "");
@@ -105,6 +114,19 @@ export default function EditNewsPostPage() {
       setIsSlugManuallyEdited(true);
     }
   }, [postData]);
+
+  // Effect to run the SEO analysis whenever content changes
+  useEffect(() => {
+    const postContentForAnalysis = {
+      title,
+      content,
+      slug,
+      metaTitle,
+      metaDescription,
+    };
+    const result = analyzeSeo(postContentForAnalysis, focusKeyword);
+    setSeoResult(result);
+  }, [title, content, slug, metaTitle, metaDescription, focusKeyword]);
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTitle = e.target.value;
@@ -125,15 +147,6 @@ export default function EditNewsPostPage() {
     setSlug(e.target.value);
   };
 
-  const handleSportsCategoryChange = (category: SportsCategory) => {
-    setSelectedSportsCategories((prev) => {
-      if (prev.includes(category)) {
-        return prev.length > 1 ? prev.filter((c) => c !== category) : prev;
-      }
-      return [...prev, category];
-    });
-  };
-
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -151,8 +164,17 @@ export default function EditNewsPostPage() {
     }
   };
 
+  const handleSportsCategoryChange = (category: SportsCategory) => {
+    setSelectedSportsCategories((prev) => {
+      if (prev.includes(category)) {
+        return prev.length > 1 ? prev.filter((c) => c !== category) : prev;
+      }
+      return [...prev, category];
+    });
+  };
+
   const updatePostMutation = useMutation({
-    mutationFn: (updatedPost: Partial<IPost> & { slug?: string }) =>
+    mutationFn: (updatedPost: Partial<IPost>) =>
       axios.put(`/api/posts/${postId}`, updatedPost),
     onSuccess: () => {
       toast.success("Post updated successfully!");
@@ -168,6 +190,33 @@ export default function EditNewsPostPage() {
       }
     },
   });
+
+  const indexNowMutation = useMutation({
+    mutationFn: submitToIndexNow,
+    onSuccess: () => {
+      toast.success(
+        "Successfully submitted URL to search engines via IndexNow."
+      );
+    },
+    onError: () => {
+      toast.error(
+        "Failed to submit URL to IndexNow. Please check server logs."
+      );
+    },
+  });
+
+  const handleIndexNowSubmit = () => {
+    if (!postData) return;
+
+    const postUrl = `${window.location.origin}/${postData.language}/news/${postData.slug}`;
+    if (
+      window.confirm(
+        `This will submit the following URL for priority indexing:\n\n${postUrl}\n\nProceed?`
+      )
+    ) {
+      indexNowMutation.mutate([postUrl]);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -187,6 +236,7 @@ export default function EditNewsPostPage() {
       featuredImageAltText: imageAltText,
       sportsCategory: selectedSportsCategories,
       newsType,
+      focusKeyword,
       linkedFixtureId: linkedFixtureId ? Number(linkedFixtureId) : undefined,
       linkedLeagueId: linkedLeagueId ? Number(linkedLeagueId) : undefined,
       linkedTeamId: linkedTeamId ? Number(linkedTeamId) : undefined,
@@ -202,6 +252,26 @@ export default function EditNewsPostPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-white">Edit Post</h1>
         <div className="flex gap-4">
+          <button
+            type="button"
+            onClick={handleIndexNowSubmit}
+            disabled={
+              indexNowMutation.isPending || postData?.status !== "published"
+            }
+            title={
+              postData?.status !== "published"
+                ? "Post must be published to submit"
+                : "Submit to IndexNow"
+            }
+            className="flex items-center gap-2 bg-sky-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {indexNowMutation.isPending ? (
+              <Loader2 size={18} className="animate-spin" />
+            ) : (
+              <Send size={18} />
+            )}
+            Index Now
+          </button>
           <StyledLink
             href="/admin/news"
             className="bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:opacity-90"
@@ -274,6 +344,30 @@ export default function EditNewsPostPage() {
         </div>
 
         <aside className="lg:col-span-1 space-y-6 lg:sticky top-8">
+          <div className="bg-brand-secondary p-4 rounded-lg space-y-4">
+            <h3 className="text-lg font-semibold text-white">SEO Analyzer</h3>
+            <div>
+              <label
+                htmlFor="focusKeyword"
+                className="block text-sm font-medium text-brand-light mb-1"
+              >
+                Focus Keyword
+              </label>
+              <input
+                id="focusKeyword"
+                type="text"
+                value={focusKeyword}
+                onChange={(e) => setFocusKeyword(e.target.value)}
+                className="w-full p-2 rounded bg-gray-700 text-white border border-gray-600"
+              />
+            </div>
+            <SERPPreview
+              post={{ title, metaTitle, metaDescription, slug, language }}
+              siteUrl={siteUrl}
+            />
+            {seoResult && <SeoAnalysis result={seoResult} />}
+          </div>
+
           <div className="bg-brand-secondary p-4 rounded-lg space-y-4">
             <h3 className="text-lg font-semibold text-white">Publishing</h3>
             <div>

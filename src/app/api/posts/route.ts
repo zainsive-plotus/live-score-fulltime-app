@@ -21,21 +21,12 @@ export async function GET(request: Request) {
     const newsType = searchParams.get("newsType") as NewsType | null;
     const pageParam = searchParams.get("page");
     const limitParam = searchParams.get("limit");
-
-    // --- Start of Fix ---
-    // Read the linkedFixtureId from the URL search parameters.
     const fixtureIdParam = searchParams.get("linkedFixtureId");
-    // --- End of Fix ---
-
     const page = pageParam ? parseInt(pageParam, 10) : 1;
     const limit = limitParam ? parseInt(limitParam, 10) : 10;
-
-    // --- Start of Fix ---
-    // Convert the fixtureId to a number if it exists.
     const linkedFixtureId = fixtureIdParam
       ? parseInt(fixtureIdParam, 10)
       : undefined;
-    // --- End of Fix ---
 
     const { posts, pagination } = await getNews({
       locale,
@@ -43,7 +34,7 @@ export async function GET(request: Request) {
       newsType: newsType || undefined,
       page,
       limit,
-      linkedFixtureId, // Pass the ID to the data fetching function
+      linkedFixtureId,
     });
 
     return NextResponse.json({ posts, pagination });
@@ -68,7 +59,9 @@ export async function POST(request: Request) {
       translationGroupId?: string;
       slug?: string;
     } = await request.json();
-    const { title, slug, content, language } = body;
+
+    // MODIFIED: Destructure the new focusKeyword from the request body
+    const { title, slug, content, language, focusKeyword } = body;
 
     if (!title || !content || !language) {
       return NextResponse.json(
@@ -94,6 +87,7 @@ export async function POST(request: Request) {
     const newPost = new Post({
       ...body,
       slug: finalSlug,
+      focusKeyword: focusKeyword, // ADDED: Save the focus keyword
       author: session.user.name || "Admin",
       translationGroupId: body.translationGroupId
         ? new mongoose.Types.ObjectId(body.translationGroupId)
@@ -103,7 +97,7 @@ export async function POST(request: Request) {
     await newPost.save();
     return NextResponse.json(newPost, { status: 201 });
   } catch (error: any) {
-    console.error("[API/posts POST] Error creating post:", error);
+    console.error("[API/posts POST] Server error creating post:", error);
     if (error.code === 11000) {
       return NextResponse.json(
         {

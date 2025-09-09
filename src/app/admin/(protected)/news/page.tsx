@@ -1,8 +1,7 @@
 // ===== src/app/admin/(protected)/news/page.tsx =====
-
 "use client";
 
-import { useState, useMemo } from "react"; // ADDED useState
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import Link from "@/components/StyledLink";
@@ -11,7 +10,7 @@ import { IPost } from "@/models/Post";
 import toast from "react-hot-toast";
 import { ILanguage } from "@/models/Language";
 import TranslationGroupRow from "@/components/admin/TranslationGroupRow";
-import AdminPagination from "@/components/admin/AdminPagination"; // ADDED
+import AdminPagination from "@/components/admin/AdminPagination";
 
 interface PaginatedNewsResponse {
   groups: IPost[][];
@@ -36,9 +35,8 @@ const fetchLanguages = async (): Promise<ILanguage[]> => {
 
 export default function AdminNewsPage() {
   const queryClient = useQueryClient();
-  const [currentPage, setCurrentPage] = useState(1); // ADDED state for pagination
+  const [currentPage, setCurrentPage] = useState(1);
 
-  // MODIFIED: This query now fetches paginated groups
   const {
     data: postsData,
     isLoading: isLoadingPosts,
@@ -46,7 +44,7 @@ export default function AdminNewsPage() {
   } = useQuery<PaginatedNewsResponse>({
     queryKey: ["adminPosts", currentPage],
     queryFn: () => fetchAdminPosts(currentPage),
-    keepPreviousData: true, // For a smooth pagination experience
+    keepPreviousData: true,
   });
 
   const { data: languages, isLoading: isLoadingLanguages } = useQuery<
@@ -61,14 +59,12 @@ export default function AdminNewsPage() {
     return new Map(languages.map((lang) => [lang.code, lang]));
   }, [languages]);
 
-  // MODIFIED: Use the `groups` array from the API response
   const groupedPosts = postsData?.groups || [];
 
   const deleteMutation = useMutation({
     mutationFn: (postId: string) => axios.delete(`/api/posts/${postId}`),
     onSuccess: (_, postId) => {
       toast.success("Post deleted successfully!");
-      // Invalidate the query to refetch the current page of data
       queryClient.invalidateQueries({ queryKey: ["adminPosts", currentPage] });
     },
     onError: (error: any) => {
@@ -106,40 +102,26 @@ export default function AdminNewsPage() {
         </Link>
       </div>
 
-      <div className="bg-brand-secondary rounded-lg overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-gray-800/50 text-sm text-brand-muted uppercase">
-            <tr>
-              <th className="p-4 w-[140px]">Preview</th>
-              <th className="p-4">Title & Language</th>
-              <th className="p-4">Status</th>
-              <th className="p-4">Created At</th>
-              <th className="p-4">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {groupedPosts.map((group) => (
-              <TranslationGroupRow
-                key={
-                  group[0].translationGroupId?.toString() ||
-                  group[0]._id.toString()
-                }
-                group={group}
-                languageMap={languageMap}
-                onDelete={handleDeletePost}
-              />
-            ))}
-          </tbody>
-        </table>
+      {/* MODIFIED: Replaced the <table> with a <div> */}
+      <div className="space-y-4">
+        {groupedPosts.map((group) => (
+          <TranslationGroupRow
+            key={
+              group[0].translationGroupId?.toString() || group[0]._id.toString()
+            }
+            group={group}
+            languageMap={languageMap}
+            onDelete={handleDeletePost}
+          />
+        ))}
 
         {groupedPosts.length === 0 && (
-          <p className="text-center p-8 text-brand-muted">
+          <p className="text-center p-8 text-brand-muted bg-brand-secondary rounded-lg">
             No news posts found.
           </p>
         )}
       </div>
 
-      {/* ADDED: Pagination controls */}
       {postsData?.pagination && postsData.pagination.totalPages > 1 && (
         <div className="mt-6">
           <AdminPagination

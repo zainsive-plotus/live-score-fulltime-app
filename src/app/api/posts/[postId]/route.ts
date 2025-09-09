@@ -1,4 +1,4 @@
-// ===== src/app/api/posts/[postId]/route.ts (Enhanced Error Handling) =====
+// ===== src/app/api/posts/[postId]/route.ts =====
 
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
@@ -12,7 +12,6 @@ interface Params {
 }
 
 export async function GET(request: Request, { params }: Params) {
-  // GET handler remains the same
   const { postId } = params;
   try {
     await dbConnect();
@@ -35,8 +34,10 @@ export async function PUT(request: Request, { params }: Params) {
 
   const { postId } = params;
   try {
-    const body: Partial<IPost> & { slug?: string } = await request.json();
-    const { title, slug, content } = body;
+    // MODIFIED: The body type now includes the optional focusKeyword
+    const body: Partial<IPost> & { slug?: string; focusKeyword?: string } =
+      await request.json();
+    const { title, slug, content, focusKeyword } = body;
 
     if (!title || !content) {
       return NextResponse.json(
@@ -54,11 +55,10 @@ export async function PUT(request: Request, { params }: Params) {
 
     const finalSlug = slugify(slug || title, { lower: true, strict: true });
 
-    // Check if another post (with a different ID) has the same slug and language
     const slugExists = await Post.findOne({
       slug: finalSlug,
       language: existingPost.language,
-      _id: { $ne: postId }, // $ne means "not equal to"
+      _id: { $ne: postId },
     });
 
     if (slugExists) {
@@ -70,17 +70,16 @@ export async function PUT(request: Request, { params }: Params) {
       );
     }
 
-    // Update the post with the new values
+    // MODIFIED: The update payload now includes the focusKeyword
     const updatedPost = await Post.findByIdAndUpdate(
       postId,
-      { ...body, slug: finalSlug },
+      { ...body, slug: finalSlug, focusKeyword: focusKeyword },
       { new: true, runValidators: true }
     );
 
     return NextResponse.json(updatedPost);
   } catch (error: any) {
-    // --- THIS IS THE KEY CHANGE ---
-    // Add a catch block for the same duplicate key error, just in case
+    console.error(`[API/posts PUT] Error updating post ${postId}:`, error);
     if (error.code === 11000) {
       return NextResponse.json(
         {
@@ -93,7 +92,7 @@ export async function PUT(request: Request, { params }: Params) {
     if (error.name === "ValidationError") {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
-    console.error(`[API/posts PUT] Error updating post ${postId}:`, error);
+
     return NextResponse.json(
       { error: "An unexpected server error occurred while updating the post." },
       { status: 500 }
@@ -102,7 +101,6 @@ export async function PUT(request: Request, { params }: Params) {
 }
 
 export async function DELETE(request: Request, { params }: Params) {
-  // DELETE handler remains the same
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });

@@ -24,6 +24,7 @@ export interface IPost extends Document {
   featuredImageAltText?: string;
   metaTitle?: string;
   metaDescription?: string;
+  focusKeyword?: string; // ADDED: The new field for the focus keyword
   language: string;
   translationGroupId: mongoose.Types.ObjectId;
   sportsCategory: SportsCategory[];
@@ -34,7 +35,7 @@ export interface IPost extends Document {
   linkedFixtureId?: number;
   linkedLeagueId?: number;
   linkedTeamId?: number;
-  originalSourceUrl?: string; // <-- ADD THIS LINE
+  originalSourceUrl?: string;
 }
 
 export interface IPostWithTranslations extends IPost {
@@ -58,6 +59,11 @@ const PostSchema: Schema = new Schema(
     featuredImageAltText: { type: String, trim: true },
     metaTitle: { type: String, trim: true },
     metaDescription: { type: String, trim: true },
+    // ADDED: The schema definition for the new field
+    focusKeyword: {
+      type: String,
+      trim: true,
+    },
     language: {
       type: String,
       required: true,
@@ -103,13 +109,12 @@ const PostSchema: Schema = new Schema(
       default: "news",
       required: true,
     },
-    // --- THIS IS THE FIX ---
-    // Define the new field in the schema.
+
     originalSourceUrl: {
       type: String,
       trim: true,
     },
-    // --- END OF FIX ---
+
     linkedFixtureId: {
       type: Number,
       required: false,
