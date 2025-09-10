@@ -11,6 +11,8 @@ import { generateHreflangTags } from "@/lib/hreflang";
 import { WithContext, WebSite, Organization } from "schema-dts"; // ADD: Import schema types
 import Script from "next/script";
 
+import homepageMeta from "public/data//homepage-meta.json";
+
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
@@ -33,14 +35,16 @@ export async function generateMetadata({
   const { locale } = await params;
   const t = await getI18n(locale);
   const hreflangAlternates = await generateHreflangTags("/", "", locale);
-  const title = t("homepage_meta_title");
-  const description = t("homepage_meta_description");
+  const meta = (homepageMeta as any)[locale] || homepageMeta.default;
+
+  const title = meta.title;
+  const description = meta.description;
 
   return {
     metadataBase: new URL(METADATA_BASE_URL),
     alternates: hreflangAlternates,
-    // title: title,
-    // description: description,
+    title: title,
+    description: description,
     icons: {
       icon: [{ url: "/favicon.ico", type: "image/png" }],
       apple: [{ url: "/favicon.ico" }],
@@ -79,27 +83,6 @@ export async function generateMetadata({
   };
 }
 
-const jsonLd: WithContext<WebSite | Organization>[] = [
-  {
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    name: "Fanskor",
-    url: BASE_URL,
-    potentialAction: {
-      "@type": "SearchAction",
-      target: `${BASE_URL}/search?q={search_term_string}`,
-      "query-input": "required name=search_term_string",
-    },
-  },
-  {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    name: "Fanskor",
-    url: BASE_URL,
-    logo: `${BASE_URL}/fanskor-transparent.webp`,
-  },
-];
-
 export default async function HomePage({ params }: HomePageProps) {
   const { locale } = await params;
 
@@ -111,12 +94,34 @@ export default async function HomePage({ params }: HomePageProps) {
   // const homepageAboutSeoText =
   //   initialHomepageText || t("homepage_about_seo_text");
   // const sidebarAboutSeoText = initialSidebarText || t("sidebar_about_seo_text");
-  const title = t("homepage_meta_title");
-  const description = t("homepage_meta_description");
+  // const title = t("homepage_meta_title");
+  // const description = t("homepage_meta_description");
+
+  const jsonLd: WithContext<WebSite | Organization>[] = [
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      name: "Fanskor",
+      url: BASE_URL,
+      potentialAction: {
+        "@type": "SearchAction",
+        target: `${BASE_URL}/search?q={search_term_string}`,
+        "query-input": "required name=search_term_string",
+      },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      name: "Fanskor",
+      url: BASE_URL,
+      logo: `${BASE_URL}/fanskor-transparent.webp`,
+    },
+  ];
+
   return (
     <>
-      <title>{title}</title>
-      <meta name="description" content={description} />
+      {/* <title>{title}</title>
+      <meta name="description" content={description} /> */}
       <Script
         id="homepage-jsonld"
         type="application/ld+json"

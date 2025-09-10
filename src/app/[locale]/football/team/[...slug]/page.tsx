@@ -2,23 +2,26 @@
 
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import Script from "next/script";
-import { WithContext, SportsTeam, BreadcrumbList } from "schema-dts";
 
 import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
-import { getTeamInfo } from "@/lib/data/team";
-import { getTeamPageData } from "@/lib/data/team";
-import { generateTeamSlug } from "@/lib/generate-team-slug";
+import { getTeamStaticData } from "@/lib/data/team-static"; // <-- IMPORT THE NEW LOADER
 
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
-import TeamDetailView from "@/components/TeamDetailView";
+// We now use a more focused TeamDetailView component
+import TeamHeader from "@/components/team/TeamHeader";
 import TeamInfoWidget from "@/components/team/TeamInfoWidget";
 import TeamTrophiesWidget from "@/components/team/TeamTrophiesWidget";
 import TeamFormWidgetSidebar from "@/components/team/TeamFormWidgetSidebar";
 import TeamSeoWidget from "@/components/team/TeamSeoWidget";
 import AdSlotWidget from "@/components/AdSlotWidget";
+// Import the dynamic widgets
+import LeagueFixturesWidget from "@/components/league-detail-view/LeagueFixturesWidget";
+import TeamSquadWidget from "@/components/team/TeamSquadWidget";
+// We need the data-fetching function for the dynamic part
+import { getTeamFixtures, getTeamStandings } from "@/lib/data/team";
+import TeamFixturesWidget from "@/components/team/TeamFixturesWidget";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
@@ -30,7 +33,7 @@ const getTeamIdFromSlug = (slug: string): string | null => {
   return /^\d+$/.test(lastPart) ? lastPart : null;
 };
 
-// Server-side function to generate metadata
+// This function is now much faster
 export async function generateMetadata({
   params,
 }: {
@@ -50,8 +53,10 @@ export async function generateMetadata({
     return { title: t("not_found_title"), alternates: hreflangAlternates };
   }
 
-  // Fetch minimal data needed for metadata
-  const teamInfo = await getTeamInfo(teamId);
+  // Fetch from the fast local JSON file
+  const allTeamData = await getTeamStaticData();
+
+  const teamInfo = allTeamData[teamId];
 
   if (!teamInfo) {
     return {
@@ -78,7 +83,6 @@ export async function generateMetadata({
   };
 }
 
-// This is now a Server Component
 export default async function TeamPage({
   params,
 }: {
@@ -92,60 +96,18 @@ export default async function TeamPage({
     notFound();
   }
 
-  // Fetch all data for the page on the server
-  const teamData = await getTeamPageData(teamId);
+  // --- Core change: Fetch basic info from the static file ---
+  const allTeamData = await getTeamStaticData();
+  const teamInfo = allTeamData[teamId];
 
-  if (!teamData) {
+  if (!teamInfo) {
     notFound();
   }
 
-  const { teamInfo, fixtures } = teamData;
-  const { team, venue } = teamInfo;
+  // We can still fetch some dynamic data on the server if needed, like fixtures
+  const fixtures = await getTeamFixtures(teamId);
 
-  // Prepare JSON-LD Schema data
-  const jsonLd: WithContext<SportsTeam | BreadcrumbList>[] = [
-    {
-      "@context": "https://schema.org",
-      "@type": "SportsTeam",
-      name: team.name,
-      sport: "Soccer",
-      logo: team.logo,
-      url: `${BASE_URL}${generateTeamSlug(team.name, team.id)}`,
-      location: {
-        "@type": "Place",
-        name: venue.city,
-        address: {
-          "@type": "PostalAddress",
-          addressLocality: venue.city,
-          addressCountry: team.country,
-        },
-      },
-      coach: team.coach?.name,
-      athlete: team.squad?.map((p: any) => ({
-        "@type": "Person",
-        name: p.name,
-      })),
-    },
-    {
-      "@context": "https://schema.org",
-      "@type": "BreadcrumbList",
-      itemListElement: [
-        {
-          "@type": "ListItem",
-          position: 1,
-          name: t("homepage"),
-          item: `${BASE_URL}/${locale}`,
-        },
-        {
-          "@type": "ListItem",
-          position: 2,
-          name: t("teams"),
-          item: `${BASE_URL}/${locale}/football/teams`,
-        },
-        { "@type": "ListItem", position: 3, name: team.name },
-      ],
-    },
-  ];
+  const { team, venue } = teamInfo;
 
   const seoWidgetTitle = t("about_team_title", { teamName: team.name });
   const seoWidgetText = t("team_page_seo_text", {
@@ -155,24 +117,34 @@ export default async function TeamPage({
 
   return (
     <>
-      <Script
-        id="team-page-jsonld"
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      {/* JSON-LD Script can be added here if needed */}
       <div className="min-h-screen flex flex-col">
         <Header />
         <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr_288px] lg:gap-8 lg:items-start p-4 lg:p-0 lg:py-6">
           <Sidebar />
 
-          <main className="min-w-0">
-            <TeamDetailView teamData={teamData} />
+          <main className="min-w-0 space-y-8">
+            {/* Statically rendered header with basic info */}
+            <TeamHeader
+              team={team}
+              countryFlag={fixtures?.[0]?.league?.flag || ""}
+              foundedText={t("founded_in", { year: team.founded })}
+            />
+
+            {/* Fixtures can be server-rendered as they are relatively static */}
+            <TeamFixturesWidget fixtures={fixtures} />
+
+            {/* Squad is more dynamic, so we let it load on the client */}
+            <TeamSquadWidget teamId={teamId} />
+
+            {/* Additional widgets can also be client-side */}
           </main>
 
           <aside className="hidden lg:block lg:col-span-1 space-y-8 min-w-0">
+            {/* These are perfect for client-side loading */}
             <TeamInfoWidget venue={venue} />
             <TeamFormWidgetSidebar teamId={team.id} fixtures={fixtures} />
-            <TeamTrophiesWidget teamId={team.id} />
+            <TeamTrophiesWidget teamId={teamId} />
             <AdSlotWidget location="homepage_right_sidebar" />
             <TeamSeoWidget title={seoWidgetTitle} seoText={seoWidgetText} />
           </aside>

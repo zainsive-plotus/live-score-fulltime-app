@@ -1,3 +1,5 @@
+// ===== src/app/[locale]/football/standings/[...slug]/StandingsPageClient.tsx =====
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -7,29 +9,25 @@ import axios from "axios";
 import { useTranslation } from "@/hooks/useTranslation";
 import LeagueStandingsWidget from "@/components/league-detail-view/LeagueStandingsWidget";
 import { ListOrdered } from "lucide-react";
+import type { StaticLeague } from "@/lib/data/league-static";
 
+// This interface now only expects the static, basic league info
+interface StandingsPageClientProps {
+  staticLeagueInfo: StaticLeague;
+  initialSeason: string;
+}
+
+// The data fetched on the client will be more comprehensive
 interface StandingsData {
   league: {
-    id: number;
-    name: string;
-    logo: string;
-    type: string;
-    season: number;
     seasons: number[];
-    href: string;
-    country: string;
+    [key: string]: any; // Other properties
   };
   standings: any[][];
-  leagueStats: any;
-  topScorer: any;
 }
 
-interface StandingsPageClientProps {
-  initialData: StandingsData;
-  leagueId: string;
-}
-
-const fetchStandingsData = async (
+// Updated fetcher to get standings data for a specific season
+const fetchStandingsForSeason = async (
   leagueId: string,
   season: number
 ): Promise<StandingsData> => {
@@ -42,16 +40,18 @@ const fetchStandingsData = async (
 };
 
 export default function StandingsPageClient({
-  initialData,
-  leagueId,
+  staticLeagueInfo,
+  initialSeason,
 }: StandingsPageClientProps) {
   const { t } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const leagueId = staticLeagueInfo.id.toString();
+
   const getSeasonFromUrl = () => {
     const seasonParam = searchParams.get("season");
-    return seasonParam ? parseInt(seasonParam) : initialData.league.season;
+    return seasonParam ? parseInt(seasonParam) : parseInt(initialSeason);
   };
 
   const [selectedSeason, setSelectedSeason] =
@@ -59,27 +59,31 @@ export default function StandingsPageClient({
 
   useEffect(() => {
     setSelectedSeason(getSeasonFromUrl());
-  }, [searchParams]);
+  }, [searchParams, initialSeason]);
 
-  const { data: standingsData, isFetching } = useQuery<StandingsData>({
+  // useQuery now fetches the dynamic standings data
+  const {
+    data: standingsData,
+    isFetching,
+    isError,
+  } = useQuery<StandingsData>({
     queryKey: ["standingsDetail", leagueId, selectedSeason],
-    queryFn: () => fetchStandingsData(leagueId, selectedSeason),
-    placeholderData: (previousData) => previousData,
+    queryFn: () => fetchStandingsForSeason(leagueId, selectedSeason),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    refetchOnWindowFocus: false,
   });
 
   const handleSeasonChange = (season: number) => {
     setSelectedSeason(season);
-    const current = new URLSearchParams(Array.from(searchParams.entries()));
-    current.set("season", season.toString());
-    const search = current.toString();
-    const query = search ? `?${search}` : "";
-    router.push(`${window.location.pathname}${query}`, { scroll: false });
+    const params = new URLSearchParams(Array.from(searchParams.entries()));
+    params.set("season", season.toString());
+    router.push(`${window.location.pathname}?${params.toString()}`, {
+      scroll: false,
+    });
   };
 
-  const displayData = standingsData || initialData;
-  const league = displayData.league;
   const seoTitle = t("standings_detail_seo_title", {
-    leagueName: league?.name,
+    leagueName: staticLeagueInfo.name,
     season: selectedSeason,
   });
 
@@ -94,18 +98,22 @@ export default function StandingsPageClient({
             <h1 className="text-3xl font-extrabold text-white">{seoTitle}</h1>
           </div>
         </div>
-        {/* We can keep a short description here */}
         <p className="text-brand-muted leading-relaxed">
-          {t("standings_detail_page_description", { leagueName: league?.name })}
+          {t("standings_detail_page_description", {
+            leagueName: staticLeagueInfo.name,
+          })}
         </p>
       </div>
 
       <LeagueStandingsWidget
-        initialStandings={displayData.standings}
-        leagueSeasons={initialData.league?.seasons || []}
+        // Use fetched data if available, otherwise pass empty array to show skeleton
+        initialStandings={standingsData?.standings || []}
+        leagueSeasons={standingsData?.league?.seasons || [selectedSeason]}
         currentSeason={selectedSeason}
         onSeasonChange={handleSeasonChange}
-        isLoading={isFetching}
+        isLoading={isFetching} // Use isFetching to show loading state on season change
+        leagueId={parseInt(leagueId)}
+        leagueSlug={staticLeagueInfo.href.split("/").pop()}
       />
     </main>
   );

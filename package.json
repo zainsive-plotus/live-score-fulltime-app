@@ -11,7 +11,8 @@
     "db:seed-lang": "node scripts/seedLanguages.js",
     "db:backup": "mongodump --uri=\"$npm_config_uri\" --out=\"./backups/backup-$(date +%F)\"",
     "db:update-author": "tsx scripts/change-author.ts",
-    "db:update-phrase": "tsx scripts/update-phrase.ts"
+    "db:update-phrase": "tsx scripts/update-phrase.ts",
+    "prebuild": "npx tsx scripts/generate-league-data.ts && npx tsx scripts/generate-team-data.ts"
   },
   "dependencies": {
     "@auth/mongodb-adapter": "^3.9.1",
