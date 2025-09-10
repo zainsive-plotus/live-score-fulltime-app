@@ -24,10 +24,9 @@ import TeamFormWidgetSidebar from "@/components/team/TeamFormWidgetSidebar";
 import AdSlotWidget from "@/components/AdSlotWidget";
 import RecentNewsWidget from "@/components/RecentNewsWidget";
 import TeamSeoWidget from "@/components/team/TeamSeoWidget";
-// import LeagueStandingsWidget from "@/components/league-detail-view/LeagueStandingsWidget";
 import Script from "next/script";
 import { WithContext, SportsTeam, BreadcrumbList } from "schema-dts";
-import axios from "axios"; // ADDED
+import axios from "axios";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
@@ -42,7 +41,6 @@ async function getSeoContent(
     );
     return data.seoText || null;
   } catch (error) {
-    // It's normal for content not to be found (404), so we return null gracefully.
     console.log(
       `[Team Page] No generated SEO content found for team ${teamId} in ${language}.`
     );
@@ -89,30 +87,29 @@ export async function generateMetadata({
     teamName: team.name,
   });
 
-  // Determine the image URL for Open Graph, with a fallback
   const imageUrl = team.logo || `${BASE_URL}/og-image.jpg`;
 
   return {
-    // title: pageTitle,
-    // description: pageDescription,
+    // MODIFIED: Uncommented these lines to make this function the single source of truth.
+    title: pageTitle,
+    description: pageDescription,
     alternates: hreflangAlternates,
 
     openGraph: {
       title: pageTitle,
       description: pageDescription,
-      url: hreflangAlternates.canonical, // Use the generated canonical URL
+      url: hreflangAlternates.canonical,
       siteName: "Fanskor",
       type: "website",
       images: [
         {
           url: imageUrl,
-          width: 256, // Specify dimensions, even if they are approximate
+          width: 256,
           height: 256,
           alt: `${team.name} logo`,
         },
       ],
     },
-    // It's also good practice to add Twitter-specific tags
     twitter: {
       card: "summary",
       title: pageTitle,
@@ -144,7 +141,7 @@ async function MainContent({
 }: {
   teamId: string;
   locale: string;
-  seoText: string | null; // Can be null if not found
+  seoText: string | null;
 }) {
   const t = await getI18n(locale);
   const teamInfo = await getTeamInfo(teamId);
@@ -152,7 +149,6 @@ async function MainContent({
 
   const { team } = teamInfo;
   const standingsData = getTeamStandings(teamId);
-
   const squadData = getTeamSquad(teamId);
 
   const primaryLeagueStandings = (await standingsData)?.[0]?.league?.standings;
@@ -166,15 +162,7 @@ async function MainContent({
     <main className="min-w-0 space-y-8">
       {primaryLeagueStandings && primaryLeagueInfo && (
         <Suspense fallback={<StandingsWidgetSkeleton />}>
-          {/* <LeagueStandingsWidget
-            initialStandings={[primaryLeagueStandings]}
-            leagueSeasons={[primaryLeagueInfo.season]}
-            currentSeason={primaryLeagueInfo.season}
-            isLoading={false}
-            leagueId={primaryLeagueInfo.id}
-            homeTeamId={team.id}
-            hideSeasonDropdown={true}
-          /> */}
+          {/* Standings Widget Placeholder */}
         </Suspense>
       )}
 
@@ -223,24 +211,16 @@ export default async function TeamPage({
   const teamId = getTeamIdFromSlug(slug[0]);
   if (!teamId) notFound();
 
-  // Await only the most critical data for SEO and JSON-LD here.
-  // The rest will be streamed in via Suspense.
-  // MODIFIED: Fetch team info AND SEO content in parallel
   const [teamInfo, seoText] = await Promise.all([
     getTeamInfo(teamId),
     getSeoContent(teamId, locale),
   ]);
 
+  if (!teamInfo) notFound(); // Moved check here for safety
+
   const t = await getI18n(locale);
   const { team, venue } = teamInfo;
-  // We need fixtures here for the country flag in the header.
   const fixtures = await getTeamFixtures(teamId);
-
-  const pageUrl = `${BASE_URL}/${locale}/football/team/${slug[0]}`;
-  const pageTitle = t("team_page_meta_title", { teamName: team.name });
-  const pageDescription = t("team_page_meta_description", {
-    teamName: team.name,
-  });
 
   const jsonLd: WithContext<SportsTeam | BreadcrumbList>[] = [
     {
@@ -248,7 +228,7 @@ export default async function TeamPage({
       "@type": "SportsTeam",
       name: team.name,
       alternateName: team.code,
-      url: pageUrl,
+      url: `${BASE_URL}/${locale}/football/team/${slug[0]}`,
       logo: team.logo,
       sport: "Soccer",
       foundingDate: team.founded?.toString(),
@@ -296,8 +276,7 @@ export default async function TeamPage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <title>{pageTitle}</title>
-      <meta name="description" content={pageDescription} />
+      {/* REMOVED: The manual <title> and <meta> tags have been deleted. */}
       <div className="min-h-screen flex flex-col">
         <Header />
         <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr_288px] lg:gap-8 lg:items-start p-4 lg:p-0 lg:py-6">
