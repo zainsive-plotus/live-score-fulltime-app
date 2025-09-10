@@ -1,52 +1,27 @@
 // ===== src/app/[locale]/football/team/[...slug]/page.tsx =====
 
-import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
+import type { Metadata } from "next";
+import Script from "next/script";
+import { WithContext, SportsTeam, BreadcrumbList } from "schema-dts";
+
 import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
-import {
-  getTeamInfo,
-  getTeamSquad,
-  getTeamFixtures,
-  getTeamStandings,
-} from "@/lib/data/team";
+import { getTeamInfo } from "@/lib/data/team";
+import { getTeamPageData } from "@/lib/data/team";
+import { generateTeamSlug } from "@/lib/generate-team-slug";
 
-// Component Imports
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
-import TeamHeader from "@/components/team/TeamHeader";
-import TeamSquadWidget from "@/components/team/TeamSquadWidget";
-import TeamFixturesWidget from "@/components/team/TeamFixturesWidget";
+import TeamDetailView from "@/components/TeamDetailView";
 import TeamInfoWidget from "@/components/team/TeamInfoWidget";
 import TeamTrophiesWidget from "@/components/team/TeamTrophiesWidget";
 import TeamFormWidgetSidebar from "@/components/team/TeamFormWidgetSidebar";
-import AdSlotWidget from "@/components/AdSlotWidget";
-import RecentNewsWidget from "@/components/RecentNewsWidget";
 import TeamSeoWidget from "@/components/team/TeamSeoWidget";
-import Script from "next/script";
-import { WithContext, SportsTeam, BreadcrumbList } from "schema-dts";
-import axios from "axios";
+import AdSlotWidget from "@/components/AdSlotWidget";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
-
-async function getSeoContent(
-  teamId: string,
-  language: string
-): Promise<string | null> {
-  try {
-    const { data } = await axios.get(
-      `${BASE_URL}/api/seo-content/team-details?teamId=${teamId}&language=${language}`
-    );
-    return data.seoText || null;
-  } catch (error) {
-    console.log(
-      `[Team Page] No generated SEO content found for team ${teamId} in ${language}.`
-    );
-    return null;
-  }
-}
 
 const getTeamIdFromSlug = (slug: string): string | null => {
   if (!slug) return null;
@@ -55,7 +30,7 @@ const getTeamIdFromSlug = (slug: string): string | null => {
   return /^\d+$/.test(lastPart) ? lastPart : null;
 };
 
-// --- Metadata Generation ---
+// Server-side function to generate metadata
 export async function generateMetadata({
   params,
 }: {
@@ -64,174 +39,78 @@ export async function generateMetadata({
   const { slug, locale } = params;
   const t = await getI18n(locale);
   const teamId = getTeamIdFromSlug(slug[0]);
+
   const hreflangAlternates = await generateHreflangTags(
     "/football/team",
     slug.join("/"),
     locale
   );
 
-  if (!teamId)
+  if (!teamId) {
     return { title: t("not_found_title"), alternates: hreflangAlternates };
+  }
 
+  // Fetch minimal data needed for metadata
   const teamInfo = await getTeamInfo(teamId);
-  if (!teamInfo)
+
+  if (!teamInfo) {
     return {
       title: t("not_found_title"),
       alternates: hreflangAlternates,
       robots: { index: false, follow: false },
     };
+  }
 
   const { team } = teamInfo;
-  const pageTitle = t("team_page_meta_title", { teamName: team.name });
+  const pageTitle = t("team_page_meta_title", {
+    teamName: team.name,
+    country: team.country,
+  });
   const pageDescription = t("team_page_meta_description", {
     teamName: team.name,
+    country: team.country,
   });
 
-  const imageUrl = team.logo || `${BASE_URL}/og-image.jpg`;
-
   return {
-    // MODIFIED: Uncommented these lines to make this function the single source of truth.
     title: pageTitle,
     description: pageDescription,
     alternates: hreflangAlternates,
-
-    openGraph: {
-      title: pageTitle,
-      description: pageDescription,
-      url: hreflangAlternates.canonical,
-      siteName: "Fanskor",
-      type: "website",
-      images: [
-        {
-          url: imageUrl,
-          width: 256,
-          height: 256,
-          alt: `${team.name} logo`,
-        },
-      ],
-    },
-    twitter: {
-      card: "summary",
-      title: pageTitle,
-      description: pageDescription,
-      images: [imageUrl],
-    },
   };
 }
 
-// --- Skeletons ---
-const StandingsWidgetSkeleton = () => (
-  <div className="bg-brand-secondary rounded-lg h-96 animate-pulse p-6"></div>
-);
-const TeamFixturesSkeleton = () => (
-  <div className="h-96 bg-brand-secondary rounded-xl animate-pulse"></div>
-);
-const TeamSquadSkeleton = () => (
-  <div className="h-96 bg-brand-secondary rounded-lg animate-pulse"></div>
-);
-const SidebarItemSkeleton = () => (
-  <div className="h-40 bg-brand-secondary rounded-lg animate-pulse"></div>
-);
-
-// --- Data Fetching Wrapper Components for Suspense ---
-async function MainContent({
-  teamId,
-  locale,
-  seoText,
-}: {
-  teamId: string;
-  locale: string;
-  seoText: string | null;
-}) {
-  const t = await getI18n(locale);
-  const teamInfo = await getTeamInfo(teamId);
-  if (!teamInfo) notFound();
-
-  const { team } = teamInfo;
-  const standingsData = getTeamStandings(teamId);
-  const squadData = getTeamSquad(teamId);
-
-  const primaryLeagueStandings = (await standingsData)?.[0]?.league?.standings;
-  const primaryLeagueInfo = (await standingsData)?.[0]?.league;
-
-  const seoWidgetTitle = t("team_seo_widget_title", { teamName: team.name });
-  const finalSeoText =
-    seoText || t("team_page_seo_text", { teamName: team.name });
-
-  return (
-    <main className="min-w-0 space-y-8">
-      {primaryLeagueStandings && primaryLeagueInfo && (
-        <Suspense fallback={<StandingsWidgetSkeleton />}>
-          {/* Standings Widget Placeholder */}
-        </Suspense>
-      )}
-
-      <Suspense fallback={<TeamFixturesSkeleton />}>
-        <TeamFixturesWidget teamId={team.id} />
-      </Suspense>
-
-      <Suspense fallback={<TeamSquadSkeleton />}>
-        <TeamSquadWidget squad={await squadData} />
-      </Suspense>
-
-      <TeamSeoWidget title={seoWidgetTitle} seoText={finalSeoText} />
-    </main>
-  );
-}
-
-async function SidebarContent({ teamId }: { teamId: string }) {
-  const teamInfo = await getTeamInfo(teamId);
-  const fixturesData = getTeamFixtures(teamId);
-  if (!teamInfo) return null;
-  const { team, venue } = teamInfo;
-
-  return (
-    <aside className="hidden lg:block lg:col-span-1 space-y-8 min-w-0">
-      <TeamInfoWidget venue={venue} />
-      <Suspense fallback={<SidebarItemSkeleton />}>
-        <TeamFormWidgetSidebar
-          teamId={team.id}
-          fixtures={(await fixturesData) ?? []}
-        />
-      </Suspense>
-      <TeamTrophiesWidget teamId={team.id} />
-      <RecentNewsWidget />
-      <AdSlotWidget location="match_sidebar" />
-    </aside>
-  );
-}
-
-// --- Main Page Component ---
+// This is now a Server Component
 export default async function TeamPage({
   params,
 }: {
   params: { slug: string[]; locale: string };
 }) {
-  const { locale, slug } = params;
-  const teamId = getTeamIdFromSlug(slug[0]);
-  if (!teamId) notFound();
-
-  const [teamInfo, seoText] = await Promise.all([
-    getTeamInfo(teamId),
-    getSeoContent(teamId, locale),
-  ]);
-
-  if (!teamInfo) notFound(); // Moved check here for safety
-
+  const { slug, locale } = params;
   const t = await getI18n(locale);
-  const { team, venue } = teamInfo;
-  const fixtures = await getTeamFixtures(teamId);
+  const teamId = getTeamIdFromSlug(slug[0]);
 
+  if (!teamId) {
+    notFound();
+  }
+
+  // Fetch all data for the page on the server
+  const teamData = await getTeamPageData(teamId);
+
+  if (!teamData) {
+    notFound();
+  }
+
+  const { teamInfo, fixtures } = teamData;
+  const { team, venue } = teamInfo;
+
+  // Prepare JSON-LD Schema data
   const jsonLd: WithContext<SportsTeam | BreadcrumbList>[] = [
     {
       "@context": "https://schema.org",
       "@type": "SportsTeam",
       name: team.name,
-      alternateName: team.code,
-      url: `${BASE_URL}/${locale}/football/team/${slug[0]}`,
-      logo: team.logo,
       sport: "Soccer",
-      foundingDate: team.founded?.toString(),
+      logo: team.logo,
+      url: `${BASE_URL}${generateTeamSlug(team.name, team.id)}`,
       location: {
         "@type": "Place",
         name: venue.city,
@@ -241,12 +120,11 @@ export default async function TeamPage({
           addressCountry: team.country,
         },
       },
-      coach: teamInfo.coach
-        ? {
-            "@type": "Person",
-            name: teamInfo.coach.name,
-          }
-        : undefined,
+      coach: team.coach?.name,
+      athlete: team.squad?.map((p: any) => ({
+        "@type": "Person",
+        name: p.name,
+      })),
     },
     {
       "@context": "https://schema.org",
@@ -261,13 +139,19 @@ export default async function TeamPage({
         {
           "@type": "ListItem",
           position: 2,
-          name: t("football_teams_title"),
+          name: t("teams"),
           item: `${BASE_URL}/${locale}/football/teams`,
         },
         { "@type": "ListItem", position: 3, name: team.name },
       ],
     },
   ];
+
+  const seoWidgetTitle = t("about_team_title", { teamName: team.name });
+  const seoWidgetText = t("team_page_seo_text", {
+    teamName: team.name,
+    country: team.country,
+  });
 
   return (
     <>
@@ -276,20 +160,22 @@ export default async function TeamPage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      {/* REMOVED: The manual <title> and <meta> tags have been deleted. */}
       <div className="min-h-screen flex flex-col">
         <Header />
         <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr_288px] lg:gap-8 lg:items-start p-4 lg:p-0 lg:py-6">
           <Sidebar />
-          <div className="min-w-0 space-y-8">
-            <TeamHeader
-              team={team}
-              countryFlag={teamInfo.team.country && fixtures?.[0]?.league?.flag}
-              foundedText={t("founded_in", { year: team.founded })}
-            />
-            <MainContent teamId={teamId} locale={locale} seoText={seoText} />
-          </div>
-          <SidebarContent teamId={teamId} />
+
+          <main className="min-w-0">
+            <TeamDetailView teamData={teamData} />
+          </main>
+
+          <aside className="hidden lg:block lg:col-span-1 space-y-8 min-w-0">
+            <TeamInfoWidget venue={venue} />
+            <TeamFormWidgetSidebar teamId={team.id} fixtures={fixtures} />
+            <TeamTrophiesWidget teamId={team.id} />
+            <AdSlotWidget location="homepage_right_sidebar" />
+            <TeamSeoWidget title={seoWidgetTitle} seoText={seoWidgetText} />
+          </aside>
         </div>
       </div>
     </>

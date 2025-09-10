@@ -168,3 +168,20 @@ export const getTeamStandings = cache(async (teamId: string) => {
     return null;
   }
 });
+
+export async function getTeamPageData(teamId: string) {
+  // Fetch all required data in parallel for maximum efficiency
+  const [teamInfo, squad, fixtures, standings] = await Promise.all([
+    getTeamInfo(teamId),
+    getTeamSquad(teamId),
+    getTeamFixtures(teamId),
+    getTeamStandings(teamId),
+  ]);
+
+  // If the core team information doesn't exist, we can't render the page.
+  if (!teamInfo) {
+    return null;
+  }
+
+  return { teamInfo, squad, fixtures, standings };
+}
