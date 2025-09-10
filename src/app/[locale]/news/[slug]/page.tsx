@@ -237,7 +237,7 @@ export default async function GeneralNewsArticlePage({
                     {t("read_full_story_on_source")}
                   </StyledLink>
                 )}
-                {toc.length > 0 && <TableOfContents toc={toc} />}
+                {/* {toc.length > 0 && <TableOfContents toc={toc} />} */}
                 <div
                   className="prose prose-invert prose-lg lg:prose-xl max-w-none mt-8"
                   dangerouslySetInnerHTML={{ __html: processedHtml }}

@@ -14,17 +14,21 @@ import {
   TelegramIcon,
   RedditShareButton,
   RedditIcon,
-} from 'react-share';
+} from "react-share";
 
 interface SocialShareButtonsProps {
   url: string;
   title: string;
 }
 
-export default function SocialShareButtons({ url, title }: SocialShareButtonsProps) {
+export default function SocialShareButtons({
+  url,
+  title,
+}: SocialShareButtonsProps) {
   const iconSize = 48;
-  const iconBgStyle = { background: 'none' };
-  const iconClassName = "rounded-full transition-transform duration-200 hover:scale-110";
+  const iconBgStyle = { background: "none" };
+  const iconClassName =
+    "rounded-full transition-transform duration-200 hover:scale-110";
 
   return (
     <div className="flex items-center justify-center gap-4 flex-wrap">
@@ -36,7 +40,12 @@ export default function SocialShareButtons({ url, title }: SocialShareButtonsPro
         <XIcon size={iconSize} round bgStyle={iconBgStyle} />
       </TwitterShareButton>
 
-      <WhatsappShareButton url={url} title={title} separator=":: " className={iconClassName}>
+      <WhatsappShareButton
+        url={url}
+        title={title}
+        separator=":: "
+        className={iconClassName}
+      >
         <WhatsappIcon size={iconSize} round bgStyle={iconBgStyle} />
       </WhatsappShareButton>
 
@@ -44,13 +53,13 @@ export default function SocialShareButtons({ url, title }: SocialShareButtonsPro
         <LinkedinIcon size={iconSize} round bgStyle={iconBgStyle} />
       </LinkedinShareButton>
 
-      <TelegramShareButton url={url} title={title} className={iconClassName}>
+      {/* <TelegramShareButton url={url} title={title} className={iconClassName}>
         <TelegramIcon size={iconSize} round bgStyle={iconBgStyle} />
-      </TelegramShareButton>
-      
+      </TelegramShareButton> */}
+      {/*       
       <RedditShareButton url={url} title={title} className={iconClassName}>
         <RedditIcon size={iconSize} round bgStyle={iconBgStyle} />
-      </RedditShareButton>
+      </RedditShareButton> */}
     </div>
   );
 }
