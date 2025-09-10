@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Script from "next/script";
 import { WithContext, SportsEvent, BreadcrumbList } from "schema-dts";
+import { format } from "date-fns";
 
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
@@ -18,13 +19,15 @@ import LeagueTeamsList from "@/components/league-detail-view/LeagueTeamsList";
 
 import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
-import { getLeaguesStaticData } from "@/lib/data/league-static"; // <-- IMPORT STATIC LOADER
-import { getLeaguePageData } from "@/lib/data/league"; // For dynamic data
+import { getLeaguesStaticData } from "@/lib/data/league-static";
+import { getLeaguePageData } from "@/lib/data/league";
 import { generateStandingsSlug } from "@/lib/generate-standings-slug";
-import { format } from "date-fns";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
+
+// Revalidate the page data periodically to keep it fresh
+export const revalidate = 3600; // 1 hour
 
 const getLeagueIdFromSlug = (slug: string): string | null => {
   if (!slug) return null;
@@ -33,7 +36,7 @@ const getLeagueIdFromSlug = (slug: string): string | null => {
   return /^\d+$/.test(lastPart) ? lastPart : null;
 };
 
-// This function now uses the fast static data for metadata
+// Generates metadata using the fast, pre-built static JSON file
 export async function generateMetadata({
   params,
 }: {
@@ -77,6 +80,7 @@ export async function generateMetadata({
   };
 }
 
+// The main page component, now using a hybrid data fetching strategy
 export default async function LeaguePage({
   params,
 }: {
@@ -87,12 +91,12 @@ export default async function LeaguePage({
   const leagueId = getLeagueIdFromSlug(slug[0]);
   if (!leagueId) notFound();
 
-  // --- CORE CHANGE: Fetch static data first, then dynamic data ---
+  // 1. Fetch basic info from the fast static file
   const allLeagues = await getLeaguesStaticData();
   const staticLeagueInfo = allLeagues.find((l) => l.id.toString() === leagueId);
   if (!staticLeagueInfo) notFound();
 
-  // Fetch the rest of the dynamic data needed for the page
+  // 2. Fetch the complete, dynamic data for the page body
   const dynamicLeagueData = await getLeaguePageData(leagueId);
   if (!dynamicLeagueData) notFound();
 
@@ -104,11 +108,65 @@ export default async function LeaguePage({
   const currentSeasonYear = currentSeason.year;
   const standingsSlug = generateStandingsSlug(league.name, league.id);
 
-  // SEO Widget and JSON-LD generation can continue as before
-  // ... (Your seoWidgetText and jsonLd generation logic remains the same)
-  const seoWidgetText = `...`; // Keep your existing SEO text generation logic here
+  // --- Prepare SEO and JSON-LD data ---
+  const seoWidgetTitle = t("league_seo_widget_title", {
+    leagueName: league.name,
+  });
+  const clubExamples =
+    standings?.[0]?.slice(0, 3).map((t: any) => t.team.name) || [];
+  const seoWidgetText = `
+    <h3>${t("league_seo_widget_about_title")}</h3>
+    <p>${t("league_seo_widget_about_text", {
+      leagueName: league.name,
+      country: country.name,
+      clubCount: standings?.[0]?.length || "many",
+      clubExample1: clubExamples[0] || "top clubs",
+      clubExample2: clubExamples[1] || "",
+      clubExample3: clubExamples[2] || "",
+      startMonth: format(new Date(currentSeason.start), "MMMM"),
+      endMonth: format(new Date(currentSeason.end), "MMMM"),
+    })}</p>
+    <h3>${t("league_seo_widget_scorers_title")}</h3>
+    <p>${t("league_seo_widget_scorers_text", {
+      season: currentSeasonYear,
+      topScorer1Name: topScorer?.player?.name || "leading strikers",
+      topScorer1Goals: topScorer?.statistics[0]?.goals?.total || "",
+    })}</p>
+  `;
+
   const jsonLd: WithContext<SportsEvent | BreadcrumbList>[] = [
-    /* ... as before ... */
+    {
+      "@context": "https://schema.org",
+      "@type": "SportsEvent",
+      name: `${league.name} ${currentSeasonYear}/${currentSeasonYear + 1}`,
+      sport: "Soccer",
+      location: { "@type": "Country", name: country.name },
+      description: t("league_page_description", {
+        leagueName: league.name,
+        countryName: country.name,
+      }),
+      startDate: seasons.find((s: any) => s.year === currentSeasonYear)?.start,
+      endDate: seasons.find((s: any) => s.year === currentSeasonYear)?.end,
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        {
+          "@type": "ListItem",
+          position: 1,
+          name: t("homepage"),
+          item: `${BASE_URL}/${locale}`,
+        },
+        {
+          "@type": "ListItem",
+          position: 2,
+          name: t("leagues"),
+          item: `${BASE_URL}/${locale}/football/leagues`,
+        },
+        { "@type": "ListItem", position: 3, name: league.name },
+      ],
+    },
   ];
 
   return (
@@ -124,7 +182,6 @@ export default async function LeaguePage({
           <Sidebar />
 
           <main className="min-w-0 space-y-8">
-            {/* The header can be rendered instantly with static data */}
             <LeagueHeader
               league={{
                 name: staticLeagueInfo.name,
@@ -138,7 +195,6 @@ export default async function LeaguePage({
               currentSeason={currentSeasonYear}
             />
 
-            {/* The rest of the components will use the dynamically fetched data */}
             {league.type === "League" && (
               <LeagueStandingsWidget
                 initialStandings={standings}
@@ -146,7 +202,7 @@ export default async function LeaguePage({
                   .map((s: any) => s.year)
                   .sort((a: number, b: number) => b - a)}
                 currentSeason={currentSeasonYear}
-                isLoading={false}
+                isLoading={false} // Data is pre-fetched on the server
                 leagueId={league.id}
                 leagueSlug={standingsSlug}
               />
@@ -167,7 +223,7 @@ export default async function LeaguePage({
             <LeagueSeoWidget
               season={currentSeasonYear}
               leagueName={league.name}
-              title={t("league_seo_widget_title", { leagueName: league.name })}
+              title={seoWidgetTitle}
               seoText={seoWidgetText}
             />
           </main>
