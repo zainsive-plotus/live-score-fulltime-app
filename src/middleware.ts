@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from "./lib/i18n/config";
 import redis from "@/lib/redis";
-import { REFERRER_RULES_CACHE_KEY } from "./app/api/admin/referrer-rules/route";
+// Define a constant for our Redis cache key to avoid typos
+export const REFERRER_RULES_CACHE_KEY = "referrer-rules:active-list";
 
 const I18N_COOKIE_NAME = "NEXT_LOCALE";
 
