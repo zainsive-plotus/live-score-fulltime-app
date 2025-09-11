@@ -21,11 +21,19 @@ Disallow: /cdn-cgi/
 User-agent: *
 Allow: /
 
-# Block aggressive SEO and AI bots from crawling the entire site
+# Block non-essential AI and SEO crawlers to conserve API quota.
+# These bots are known for aggressive, high-volume crawling.
+
+# Block Claude AI's crawler
 User-agent: ClaudeBot
 Disallow: /
 
+# --- NEW: Block Majestic SEO crawler ---
 User-agent: MJ12bot
+Disallow: /
+
+# --- NEW: Block Ahrefs SEO crawler ---
+User-agent: AhrefsBot
 Disallow: /
 
 
