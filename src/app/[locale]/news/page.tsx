@@ -97,25 +97,24 @@ export default async function NewsHubPage({
   const { locale } = params;
   const t = await getI18n(locale);
 
-  // --- Start of Fix ---
-  // The calls to getNews now correctly destructure the 'posts' array from the returned object.
   const [recentNews, footballNews, transferNews] = await Promise.all([
-    getNews({ locale, newsType: "recent", limit: 5 }).then(
+    getNews({ locale, newsType: "recent", limit: 6 }).then(
       (result) => result.posts
     ),
+    // --- CORE CHANGE: Fetch more football articles for the featured section ---
     getNews({
       locale,
       sportsCategory: "football",
       newsType: "news",
-      limit: 8,
+      limit: 9, // 1 for featured, 8 for the grid below
     }).then((result) => result.posts),
     getNews({ locale, newsType: "transfer", limit: 4 }).then(
       (result) => result.posts
     ),
   ]);
-  // --- End of Fix ---
 
-  const jsonLdData = generateInitialJsonLd(recentNews, t);
+  // JSON-LD now uses football news as it's the most prominent
+  const jsonLdData = generateInitialJsonLd(footballNews, t);
 
   return (
     <>

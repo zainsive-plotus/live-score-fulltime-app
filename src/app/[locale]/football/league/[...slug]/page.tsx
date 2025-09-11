@@ -115,7 +115,6 @@ export default async function LeaguePage({
   const clubExamples =
     standings?.[0]?.slice(0, 3).map((t: any) => t.team.name) || [];
   const seoWidgetText = `
-    <h3>${t("league_seo_widget_about_title")}</h3>
     <p>${t("league_seo_widget_about_text", {
       leagueName: league.name,
       country: country.name,
@@ -125,12 +124,6 @@ export default async function LeaguePage({
       clubExample3: clubExamples[2] || "",
       startMonth: format(new Date(currentSeason.start), "MMMM"),
       endMonth: format(new Date(currentSeason.end), "MMMM"),
-    })}</p>
-    <h3>${t("league_seo_widget_scorers_title")}</h3>
-    <p>${t("league_seo_widget_scorers_text", {
-      season: currentSeasonYear,
-      topScorer1Name: topScorer?.player?.name || "leading strikers",
-      topScorer1Goals: topScorer?.statistics[0]?.goals?.total || "",
     })}</p>
   `;
 

@@ -2,20 +2,30 @@
 
 "use client";
 
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 import { useLeagueContext } from "@/context/LeagueContext";
 import dynamic from "next/dynamic";
-import { useTranslation } from "@/hooks/useTranslation";
-import LeagueDetailView from "./league-detail-view";
 import PredictionSidebarWidget from "./PredictionSidebarWidget";
-import MatchList from "./MatchList"; // Standard, non-dynamic import
+import MatchList from "./MatchList";
+import { format } from "date-fns";
 
 import {
   AdSlotWidgetSkeleton,
   RecentNewsWidgetSkeleton,
 } from "./skeletons/WidgetSkeletons";
 
-// MatchListSkeleton is no longer needed in this file
-// as MatchList now handles its own internal loading state.
+// --- Data fetching logic is now centralized in MainContent ---
+const fetchAllFixturesByGroup = async (date: Date) => {
+  const dateString = format(date, "yyyy-MM-dd");
+  const params = new URLSearchParams({
+    date: dateString,
+    groupByLeague: "true",
+  });
+  const { data } = await axios.get(`/api/fixtures?${params.toString()}`);
+  return data.leagueGroups || [];
+};
 
 const StandingsDisplaySkeleton = () => (
   <div className="bg-brand-secondary rounded-lg h-[480px] animate-pulse">
@@ -41,32 +51,43 @@ const NewsSection = dynamic(() => import("./NewsSection"), {
   loading: () => <RecentNewsWidgetSkeleton />,
 });
 
-interface MainContentProps {}
+export const MainContent: React.FC = () => {
+  const { selectedLeagueIds } = useLeagueContext();
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
-export const MainContent: React.FC<MainContentProps> = ({}) => {
-  const { selectedLeague } = useLeagueContext();
-  const { t } = useTranslation();
+  // Fetch all fixtures for the selected date
+  const { data: allLeagueGroups, isLoading: isLoadingFixtures } = useQuery({
+    queryKey: ["allFixturesByGroup", format(selectedDate, "yyyy-MM-dd")],
+    queryFn: () => fetchAllFixturesByGroup(selectedDate),
+    staleTime: 1000 * 60 * 2, // Cache for 2 minutes
+    refetchInterval: 60000, // Refetch every 60 seconds
+  });
 
-  // If a league is selected in the context, show the detailed view for that league.
-  if (selectedLeague) {
-    return (
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 p-4 lg:p-0 lg:pl-8">
-        <div className="lg:col-span-2 flex flex-col gap-8">
-          <LeagueDetailView leagueData={selectedLeague} />
-        </div>
-        <div className="lg:col-span-1 flex flex-col gap-6">
-          <AdSlotWidget location="homepage_right_sidebar" />
-          <NewsSection />
-        </div>
-      </div>
+  // --- CORE CHANGE: Filter the fetched data based on the context ---
+  const filteredLeagueGroups = useMemo(() => {
+    if (!allLeagueGroups) return [];
+    // If no leagues are selected, show all
+    if (selectedLeagueIds.length === 0) {
+      return allLeagueGroups;
+    }
+    // Otherwise, filter to only include the selected leagues
+    return allLeagueGroups.filter((group: any) =>
+      selectedLeagueIds.includes(group.leagueInfo.id)
     );
-  }
+  }, [allLeagueGroups, selectedLeagueIds]);
 
-  // Otherwise, show the default homepage content with the general match list.
+  // NOTE: The logic for the now-removed LeagueDetailView has been omitted.
+  // This component now focuses solely on the MatchList display.
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 p-4 lg:p-0 lg:pl-8">
       <div className="lg:col-span-2 flex flex-col gap-8">
-        <MatchList />
+        <MatchList
+          leagueGroups={filteredLeagueGroups}
+          isLoading={isLoadingFixtures}
+          selectedDate={selectedDate}
+          onDateChange={setSelectedDate}
+        />
       </div>
 
       <div className="lg:col-span-1 flex flex-col gap-6">

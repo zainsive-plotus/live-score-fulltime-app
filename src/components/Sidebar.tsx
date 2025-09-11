@@ -14,8 +14,6 @@ export default async function Sidebar() {
   return (
     <aside className="hidden lg:block">
       <div className="flex flex-col gap-4 h-auto">
-        <AdSlotWidget location="homepage_left_sidebar" />
-
         {/* This section now correctly suspends while the data-fetching component loads */}
         <section
           className="flex flex-col gap-2 p-3 rounded-xl"
@@ -28,6 +26,8 @@ export default async function Sidebar() {
             <SidebarLeagueList />
           </Suspense>
         </section>
+
+        <AdSlotWidget location="homepage_left_sidebar" />
 
         <section
           className="flex flex-col gap-2 p-3 rounded-xl sticky top-8"

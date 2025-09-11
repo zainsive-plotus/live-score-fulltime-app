@@ -1,26 +1,38 @@
+// ===== src/context/LeagueContext.tsx =====
+
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  Dispatch,
+  SetStateAction,
+} from "react";
 import { Country, League } from "@/types/api-football";
 
 interface LeagueContextType {
   selectedCountry: Country | null;
   setSelectedCountry: (country: Country | null) => void;
-  selectedLeague: League | null;
-  setSelectedLeague: (league: League | null) => void;
+  // --- CORE CHANGE: selectedLeague is now an array of league IDs ---
+  selectedLeagueIds: number[];
+  setSelectedLeagueIds: Dispatch<SetStateAction<number[]>>;
 }
 
 const LeagueContext = createContext<LeagueContextType | undefined>(undefined);
 
 export const LeagueProvider = ({ children }: { children: ReactNode }) => {
-  // --- CHANGE: Start with null state by default ---
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null);
-  const [selectedLeague, setSelectedLeague] = useState<League | null>(null);
+  // --- CORE CHANGE: State is now an array of numbers ---
+  const [selectedLeagueIds, setSelectedLeagueIds] = useState<number[]>([]);
 
-  // --- REMOVE: The entire useQuery and useEffect for finding a live match ---
-  // The logic to pre-select a country and league is no longer needed.
-
-  const value = { selectedCountry, setSelectedCountry, selectedLeague, setSelectedLeague };
+  const value = {
+    selectedCountry,
+    setSelectedCountry,
+    selectedLeagueIds,
+    setSelectedLeagueIds,
+  };
 
   return (
     <LeagueContext.Provider value={value}>{children}</LeagueContext.Provider>
@@ -29,6 +41,7 @@ export const LeagueProvider = ({ children }: { children: ReactNode }) => {
 
 export const useLeagueContext = (): LeagueContextType => {
   const context = useContext(LeagueContext);
-  if (!context) throw new Error("useLeagueContext must be used within a LeagueProvider");
+  if (!context)
+    throw new Error("useLeagueContext must be used within a LeagueProvider");
   return context;
 };

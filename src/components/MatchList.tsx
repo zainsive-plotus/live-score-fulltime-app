@@ -3,72 +3,30 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
-import { format } from "date-fns";
-import { Info, Search, XCircle, ChevronDown } from "lucide-react";
+import { Info, ChevronDown } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
-import { useDebounce } from "@/hooks/useDebounce";
 import MatchListItem, { MatchListItemSkeleton } from "./MatchListItem";
 import MatchDateNavigator from "./MatchDateNavigator";
 import StyledLink from "./StyledLink";
 import { generateLeagueSlug } from "@/lib/generate-league-slug";
-import { leagueIdToPriorityMap } from "@/config/topLeaguesConfig";
 import Image from "next/image";
 import { proxyImageUrl } from "@/lib/image-proxy";
 import { Globe } from "lucide-react";
 
 type StatusFilter = "all" | "live" | "finished" | "scheduled";
 
-const fetchAllFixturesByGroup = async (date: Date, status: StatusFilter) => {
-  if (status === "live") {
-    const { data: liveMatches } = await axios.get("/api/global-live");
-    if (!liveMatches || liveMatches.length === 0) {
-      return { leagueGroups: [] };
-    }
+interface MatchListProps {
+  leagueGroups: any[];
+  isLoading: boolean;
+  selectedDate: Date;
+  onDateChange: (date: Date) => void;
+}
 
-    const groupedMatches = liveMatches.reduce((acc: any, match: any) => {
-      const groupKey = match.league.id;
-      if (!acc[groupKey]) {
-        acc[groupKey] = {
-          leagueInfo: { ...match.league },
-          matches: [],
-        };
-      }
-      acc[groupKey].matches.push(match);
-      return acc;
-    }, {});
-
-    const leagueGroups = Object.values(groupedMatches);
-
-    leagueGroups.sort((a: any, b: any) => {
-      const priorityA =
-        leagueIdToPriorityMap.get(a.leagueInfo.id.toString()) || 999;
-      const priorityB =
-        leagueIdToPriorityMap.get(b.leagueInfo.id.toString()) || 999;
-      if (priorityA !== priorityB) return priorityA - priorityB;
-      return a.leagueInfo.name.localeCompare(b.leagueInfo.name);
-    });
-
-    return { leagueGroups };
-  } else {
-    const dateString = format(date, "yyyy-MM-dd");
-    const params = new URLSearchParams({
-      date: dateString,
-      status,
-      groupByLeague: "true",
-    });
-    const { data } = await axios.get(`/api/fixtures?${params.toString()}`);
-    return data;
-  }
-};
-
-const searchFixtures = async (query: string): Promise<any[]> => {
-  if (query.length < 3) return [];
-  const { data } = await axios.get(
-    `/api/search/fixtures?q=${encodeURIComponent(query)}`
-  );
-  return data;
+const STATUS_MAP: Record<string, string[]> = {
+  all: [], // No filter
+  live: ["1H", "HT", "2H", "ET", "P", "LIVE"],
+  finished: ["FT", "AET", "PEN"],
+  scheduled: ["NS", "TBD", "PST"],
 };
 
 const LeagueGroupHeader = ({
@@ -120,15 +78,11 @@ const LeagueGroupHeader = ({
 const TabButton = ({
   label,
   isActive,
-  liveCount,
   onClick,
-  hasLiveIndicator,
 }: {
   label: string;
   isActive: boolean;
-  liveCount?: number;
   onClick: () => void;
-  hasLiveIndicator?: boolean;
 }) => (
   <button
     onClick={onClick}
@@ -138,59 +92,39 @@ const TabButton = ({
         : "bg-transparent text-text-muted hover:text-white"
     }`}
   >
-    {hasLiveIndicator && (
-      <span className="relative flex h-3 w-3">
-        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-        <span className="relative inline-flex rounded-full h-3 w-3 bg-brand-live"></span>
-      </span>
-    )}
     {label}
-    {hasLiveIndicator ? (
-      <span className="ml-1 flex items-center justify-center text-[10px] font-bold text-white bg-brand-live rounded-full h-4 w-4">
-        {liveCount}
-      </span>
-    ) : (
-      <></>
-    )}
   </button>
 );
 
-// MODIFIED: This component no longer accepts any props.
-export default function MatchList() {
-  const [activeStatusFilter, setActiveStatusFilter] =
-    useState<StatusFilter>("live");
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [searchTerm, setSearchTerm] = useState("");
-  const debouncedSearchTerm = useDebounce(searchTerm, 500);
+export default function MatchList({
+  leagueGroups,
+  isLoading,
+  selectedDate,
+  onDateChange,
+}: MatchListProps) {
   const { t } = useTranslation();
+  const [activeStatusFilter, setActiveStatusFilter] =
+    useState<StatusFilter>("all");
   const [expandedLeagues, setExpandedLeagues] = useState<Set<number>>(
     new Set()
   );
 
-  const { data: searchResults, isLoading: isLoadingSearch } = useQuery({
-    queryKey: ["fixtureSearch", debouncedSearchTerm],
-    queryFn: () => searchFixtures(debouncedSearchTerm),
-    enabled: debouncedSearchTerm.length >= 3,
-  });
+  // --- CORE CHANGE: Status filtering logic is now handled here ---
+  const filteredByStatusGroups = useMemo(() => {
+    if (!leagueGroups) return [];
+    if (activeStatusFilter === "all") return leagueGroups;
 
-  const { data: fixtureData, isLoading: isLoadingFixtures } = useQuery({
-    queryKey: [
-      "allFixturesByGroup",
-      format(selectedDate, "yyyy-MM-dd"),
-      activeStatusFilter,
-    ],
-    queryFn: () => fetchAllFixturesByGroup(selectedDate, activeStatusFilter),
-    enabled: !debouncedSearchTerm,
-    refetchInterval: activeStatusFilter === "live" ? 30000 : false,
-    staleTime: 25000,
-  });
+    const statusFilterSet = new Set(STATUS_MAP[activeStatusFilter]);
 
-  const { data: liveMatchCount } = useQuery({
-    queryKey: ["globalLiveCount"],
-    queryFn: () => axios.get("/api/global-live").then((res) => res.data.length),
-    refetchInterval: 30000,
-    staleTime: 25000,
-  });
+    return leagueGroups
+      .map((group) => {
+        const filteredMatches = group.matches.filter((match: any) =>
+          statusFilterSet.has(match.fixture.status.short)
+        );
+        return { ...group, matches: filteredMatches };
+      })
+      .filter((group) => group.matches.length > 0); // Only keep groups that still have matches
+  }, [leagueGroups, activeStatusFilter]);
 
   const toggleLeagueExpansion = (leagueId: number) => {
     setExpandedLeagues((prev) => {
@@ -204,9 +138,6 @@ export default function MatchList() {
     });
   };
 
-  const isCurrentlyLoading =
-    isLoadingFixtures || (isLoadingSearch && debouncedSearchTerm.length >= 3);
-
   return (
     <div className="space-y-4">
       <div
@@ -216,58 +147,33 @@ export default function MatchList() {
         <h1 className="py-2 italic text-sm text-text-muted px-2">
           {t("homepage_seo_text_title")}
         </h1>
-        <div className="relative">
-          <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
-            size={20}
-          />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder={t("search_fixtures_placeholder")}
-            className="w-full bg-[var(--color-secondary)] border border-gray-700/50 rounded-lg p-3 pl-11 text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
-          />
-          {searchTerm && (
-            <button
-              onClick={() => setSearchTerm("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-white"
-            >
-              <XCircle size={18} />
-            </button>
-          )}
-        </div>
-        <>
-          <div className="flex justify-center">
-            <MatchDateNavigator
-              selectedDate={selectedDate}
-              onDateChange={setSelectedDate}
+        <MatchDateNavigator
+          selectedDate={selectedDate}
+          onDateChange={onDateChange}
+        />
+        {/* --- TABS ARE RESTORED HERE --- */}
+        <div
+          className="flex items-center gap-1 p-1 rounded-xl w-full"
+          style={{ backgroundColor: "var(--color-secondary)" }}
+        >
+          {[
+            { key: "all", label: t("filter_all") },
+            { key: "live", label: t("filter_live") },
+            { key: "finished", label: t("filter_finished") },
+            { key: "scheduled", label: t("filter_scheduled") },
+          ].map((tab) => (
+            <TabButton
+              key={tab.key}
+              label={tab.label}
+              isActive={activeStatusFilter === tab.key}
+              onClick={() => setActiveStatusFilter(tab.key as StatusFilter)}
             />
-          </div>
-          <div
-            className="flex items-center gap-1 p-1 rounded-xl w-full"
-            style={{ backgroundColor: "var(--color-secondary)" }}
-          >
-            {[
-              { key: "all", label: t("filter_all") },
-              { key: "live", label: t("filter_live") },
-              { key: "finished", label: t("filter_finished") },
-              { key: "scheduled", label: t("filter_scheduled") },
-            ].map((tab) => (
-              <TabButton
-                key={tab.key}
-                label={tab.label}
-                isActive={activeStatusFilter === tab.key}
-                liveCount={liveMatchCount}
-                hasLiveIndicator={tab.key === "live" && liveMatchCount > 0}
-                onClick={() => setActiveStatusFilter(tab.key as StatusFilter)}
-              />
-            ))}
-          </div>
-        </>
+          ))}
+        </div>
       </div>
+
       <div className="space-y-4">
-        {isCurrentlyLoading ? (
+        {isLoading ? (
           <div
             style={{ backgroundColor: "var(--color-primary)" }}
             className="rounded-lg p-2 space-y-2"
@@ -276,9 +182,9 @@ export default function MatchList() {
               <MatchListItemSkeleton key={i} />
             ))}
           </div>
-        ) : fixtureData?.leagueGroups?.length > 0 ? (
+        ) : filteredByStatusGroups && filteredByStatusGroups.length > 0 ? (
           <>
-            {fixtureData.leagueGroups.map(({ leagueInfo, matches }: any) => {
+            {filteredByStatusGroups.map(({ leagueInfo, matches }: any) => {
               const isExpanded = expandedLeagues.has(leagueInfo.id);
               const displayedMatches = isExpanded
                 ? matches
