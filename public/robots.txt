@@ -21,6 +21,14 @@ Disallow: /cdn-cgi/
 User-agent: *
 Allow: /
 
+# Block aggressive SEO and AI bots from crawling the entire site
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+
 # Disallow crawling of specific, non-public directories
 Disallow: /admin/
 Disallow: /login/
