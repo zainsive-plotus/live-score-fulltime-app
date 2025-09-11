@@ -6,40 +6,32 @@ import { useMemo, useState } from "react";
 import { Info, ChevronDown } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
 import MatchListItem, { MatchListItemSkeleton } from "./MatchListItem";
-import MatchDateNavigator from "./MatchDateNavigator";
+import MatchDateRangeNavigator from "./MatchDateRangeNavigator"; // <-- IMPORT NEW COMPONENT
 import StyledLink from "./StyledLink";
 import { generateLeagueSlug } from "@/lib/generate-league-slug";
 import Image from "next/image";
 import { proxyImageUrl } from "@/lib/image-proxy";
 import { Globe } from "lucide-react";
+import { DateRange } from "react-day-picker";
 
 type StatusFilter = "all" | "live" | "finished" | "scheduled";
 
+// --- CORE CHANGE: Updated props to accept a date range ---
 interface MatchListProps {
   leagueGroups: any[];
   isLoading: boolean;
-  selectedDate: Date;
-  onDateChange: (date: Date) => void;
+  dateRange: DateRange | undefined;
+  onDateRangeChange: (range: DateRange | undefined) => void;
 }
 
 const STATUS_MAP: Record<string, string[]> = {
-  all: [], // No filter
+  all: [],
   live: ["1H", "HT", "2H", "ET", "P", "LIVE"],
   finished: ["FT", "AET", "PEN"],
   scheduled: ["NS", "TBD", "PST"],
 };
 
-const LeagueGroupHeader = ({
-  league,
-}: {
-  league: {
-    id: number;
-    name: string;
-    logo: string;
-    country: string;
-    flag: string | null;
-  };
-}) => {
+const LeagueGroupHeader = ({ league }: { league: any }) => {
   const leagueHref = generateLeagueSlug(league.name, league.id);
   return (
     <div
@@ -99,8 +91,8 @@ const TabButton = ({
 export default function MatchList({
   leagueGroups,
   isLoading,
-  selectedDate,
-  onDateChange,
+  dateRange,
+  onDateRangeChange,
 }: MatchListProps) {
   const { t } = useTranslation();
   const [activeStatusFilter, setActiveStatusFilter] =
@@ -109,7 +101,6 @@ export default function MatchList({
     new Set()
   );
 
-  // --- CORE CHANGE: Status filtering logic is now handled here ---
   const filteredByStatusGroups = useMemo(() => {
     if (!leagueGroups) return [];
     if (activeStatusFilter === "all") return leagueGroups;
@@ -117,13 +108,13 @@ export default function MatchList({
     const statusFilterSet = new Set(STATUS_MAP[activeStatusFilter]);
 
     return leagueGroups
-      .map((group) => {
-        const filteredMatches = group.matches.filter((match: any) =>
+      .map((group) => ({
+        ...group,
+        matches: group.matches.filter((match: any) =>
           statusFilterSet.has(match.fixture.status.short)
-        );
-        return { ...group, matches: filteredMatches };
-      })
-      .filter((group) => group.matches.length > 0); // Only keep groups that still have matches
+        ),
+      }))
+      .filter((group) => group.matches.length > 0);
   }, [leagueGroups, activeStatusFilter]);
 
   const toggleLeagueExpansion = (leagueId: number) => {
@@ -147,26 +138,23 @@ export default function MatchList({
         <h1 className="py-2 italic text-sm text-text-muted px-2">
           {t("homepage_seo_text_title")}
         </h1>
-        <MatchDateNavigator
-          selectedDate={selectedDate}
-          onDateChange={onDateChange}
+
+        {/* --- CORE CHANGE: Use the new date range navigator --- */}
+        <MatchDateRangeNavigator
+          range={dateRange}
+          onRangeChange={onDateRangeChange}
         />
-        {/* --- TABS ARE RESTORED HERE --- */}
+
         <div
           className="flex items-center gap-1 p-1 rounded-xl w-full"
           style={{ backgroundColor: "var(--color-secondary)" }}
         >
-          {[
-            { key: "all", label: t("filter_all") },
-            { key: "live", label: t("filter_live") },
-            { key: "finished", label: t("filter_finished") },
-            { key: "scheduled", label: t("filter_scheduled") },
-          ].map((tab) => (
+          {["all", "live", "finished", "scheduled"].map((status) => (
             <TabButton
-              key={tab.key}
-              label={tab.label}
-              isActive={activeStatusFilter === tab.key}
-              onClick={() => setActiveStatusFilter(tab.key as StatusFilter)}
+              key={status}
+              label={t(`filter_${status}`)}
+              isActive={activeStatusFilter === status}
+              onClick={() => setActiveStatusFilter(status as StatusFilter)}
             />
           ))}
         </div>

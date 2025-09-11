@@ -10,19 +10,25 @@ import dynamic from "next/dynamic";
 import PredictionSidebarWidget from "./PredictionSidebarWidget";
 import MatchList from "./MatchList";
 import { format } from "date-fns";
+import { DateRange } from "react-day-picker";
 
 import {
   AdSlotWidgetSkeleton,
   RecentNewsWidgetSkeleton,
 } from "./skeletons/WidgetSkeletons";
 
-// --- Data fetching logic is now centralized in MainContent ---
-const fetchAllFixturesByGroup = async (date: Date) => {
-  const dateString = format(date, "yyyy-MM-dd");
+// --- CORE CHANGE: Updated fetcher to use a date range ---
+const fetchFixturesByDateRange = async (range: DateRange | undefined) => {
+  // Default to today if range is not set
+  const from = format(range?.from || new Date(), "yyyy-MM-dd");
+  const to = format(range?.to || range?.from || new Date(), "yyyy-MM-dd");
+
   const params = new URLSearchParams({
-    date: dateString,
+    from,
+    to,
     groupByLeague: "true",
   });
+
   const { data } = await axios.get(`/api/fixtures?${params.toString()}`);
   return data.leagueGroups || [];
 };
@@ -53,31 +59,30 @@ const NewsSection = dynamic(() => import("./NewsSection"), {
 
 export const MainContent: React.FC = () => {
   const { selectedLeagueIds } = useLeagueContext();
-  const [selectedDate, setSelectedDate] = useState(new Date());
 
-  // Fetch all fixtures for the selected date
+  // --- CORE CHANGE: State is now a DateRange object ---
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: new Date(),
+    to: new Date(),
+  });
+
+  // Fetch all fixtures for the selected date range
   const { data: allLeagueGroups, isLoading: isLoadingFixtures } = useQuery({
-    queryKey: ["allFixturesByGroup", format(selectedDate, "yyyy-MM-dd")],
-    queryFn: () => fetchAllFixturesByGroup(selectedDate),
+    queryKey: ["allFixturesByGroup", dateRange],
+    queryFn: () => fetchFixturesByDateRange(dateRange),
     staleTime: 1000 * 60 * 2, // Cache for 2 minutes
     refetchInterval: 60000, // Refetch every 60 seconds
   });
 
-  // --- CORE CHANGE: Filter the fetched data based on the context ---
   const filteredLeagueGroups = useMemo(() => {
     if (!allLeagueGroups) return [];
-    // If no leagues are selected, show all
     if (selectedLeagueIds.length === 0) {
       return allLeagueGroups;
     }
-    // Otherwise, filter to only include the selected leagues
     return allLeagueGroups.filter((group: any) =>
       selectedLeagueIds.includes(group.leagueInfo.id)
     );
   }, [allLeagueGroups, selectedLeagueIds]);
-
-  // NOTE: The logic for the now-removed LeagueDetailView has been omitted.
-  // This component now focuses solely on the MatchList display.
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 p-4 lg:p-0 lg:pl-8">
@@ -85,18 +90,19 @@ export const MainContent: React.FC = () => {
         <MatchList
           leagueGroups={filteredLeagueGroups}
           isLoading={isLoadingFixtures}
-          selectedDate={selectedDate}
-          onDateChange={setSelectedDate}
+          // --- CORE CHANGE: Pass the range and its setter to MatchList ---
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
         />
       </div>
 
       <div className="lg:col-span-1 flex flex-col gap-6">
-        <AdSlotWidget location="homepage_right_sidebar" />
-        <PredictionSidebarWidget />
-        <StandingsDisplay />
         <div className="space-y-8 gap-8">
           <NewsSection />
         </div>
+        <AdSlotWidget location="homepage_right_sidebar" />
+        {/* <PredictionSidebarWidget /> */}
+        <StandingsDisplay />
       </div>
     </div>
   );
