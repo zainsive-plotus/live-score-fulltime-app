@@ -36,6 +36,7 @@ import {
   WithContext,
 } from "schema-dts";
 import Script from "next/script";
+import { RequestContext } from "@/lib/logging";
 
 // Revalidate pages every hour to catch updates (e.g., scores, stats)
 export const revalidate = 3600;
@@ -133,7 +134,13 @@ export async function generateMetadata({
     };
   }
 
-  const fixtureData = await getFixture(fixtureId);
+  const metadataContext: RequestContext = {
+    source: "server",
+    pagePath: `/football/match/${slug[0]}`,
+    callerName: "generateMetadata",
+  };
+
+  const fixtureData = await getFixture(fixtureId, metadataContext);
 
   if (!fixtureData) {
     return {
@@ -196,15 +203,21 @@ export default async function MatchDetailPage({
   const fixtureId = getFixtureIdFromSlug(slug[0]);
   if (!fixtureId) notFound();
 
-  const fixtureData = await getFixture(fixtureId);
+  const pageContext: RequestContext = {
+    source: "server",
+    pagePath: `/football/match/${slug[0]}`,
+    callerName: "MatchDetailPage",
+  };
+
+  const fixtureData = await getFixture(fixtureId, pageContext);
   if (!fixtureData) notFound();
 
   const { teams, fixture: fixtureDetails, league } = fixtureData;
 
   const [statistics, standingsResponse, h2h] = await Promise.all([
-    getStatistics(fixtureId),
-    getStandings(league.id, league.season),
-    getH2H(teams.home.id, teams.away.id),
+    getStatistics(fixtureId, pageContext),
+    getStandings(league.id, league.season, pageContext),
+    getH2H(teams.home.id, teams.away.idm, pageContext),
   ]);
 
   const isLive = ["1H", "HT", "2H", "ET", "BT", "P", "LIVE"].includes(
