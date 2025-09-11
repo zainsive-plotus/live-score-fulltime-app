@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from "./lib/i18n/config";
+import redis from "@/lib/redis";
+import { REFERRER_RULES_CACHE_KEY } from "./app/api/admin/referrer-rules/route";
 
 const I18N_COOKIE_NAME = "NEXT_LOCALE";
 
