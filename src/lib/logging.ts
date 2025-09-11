@@ -1,23 +1,50 @@
 // ===== src/lib/logging.ts =====
 
 import "server-only";
+import { NextRequest } from "next/server";
 
-// Define the structure of our context object for clear, typed logs
+// --- CORE CHANGE: Added ip, userAgent, and geo to the context ---
 export interface RequestContext {
   source: "client" | "server" | "build-script";
-  // The user-facing path, e.g., /en/football/match/man-utd-vs-liverpool-12345
   pagePath?: string;
-  // The name of the component or function making the call
   callerName?: string;
+  ip?: string;
+  userAgent?: string;
+  geo?: {
+    city?: string;
+    country?: string;
+    region?: string;
+  };
+}
+
+/**
+ * Creates a RequestContext object from a NextRequest.
+ * This is a helper to standardize context creation in your pages.
+ * @param req The NextRequest object.
+ * @param callerName The name of the function creating the context.
+ * @returns A populated RequestContext object.
+ */
+export function createContextFromRequest(
+  req: NextRequest,
+  callerName: string
+): RequestContext {
+  return {
+    source: "server",
+    pagePath: req.nextUrl.pathname,
+    callerName,
+    ip: req.ip,
+    userAgent: req.headers.get("user-agent") || "unknown",
+    geo: {
+      city: req.geo?.city,
+      country: req.geo?.country,
+      region: req.geo?.region,
+    },
+  };
 }
 
 /**
  * A standardized logger for API requests to the third-party service.
  * It creates a structured log message that is easy to search and filter.
- *
- * @param endpoint The API endpoint being called (e.g., 'fixtures').
- * @param params The parameters sent to the API.
- * @param context Information about where the request originated.
  */
 export function logApiRequest(
   endpoint: string,
@@ -26,12 +53,15 @@ export function logApiRequest(
 ) {
   const paramsString = JSON.stringify(params);
 
-  // Construct a detailed, key-value log message for better analysis
+  // --- CORE CHANGE: Added new fields to the log output ---
   const logMessage =
     `[API Request] ` +
     `source=${context.source} ` +
     `caller=${context.callerName || "unknown"} ` +
-    `path=${context.pagePath || "unknown"} | ` +
+    `path=${context.pagePath || "unknown"} ` +
+    `ip=${context.ip || "unknown"} ` +
+    `geo=${context.geo?.city || "?"},${context.geo?.country || "?"} ` +
+    `userAgent="${context.userAgent || "unknown"}" | ` +
     `==> endpoint=${endpoint} ` +
     `params=${paramsString}`;
 

@@ -37,6 +37,7 @@ import {
 } from "schema-dts";
 import Script from "next/script";
 import { RequestContext } from "@/lib/logging";
+import { headers } from "next/headers";
 
 // Revalidate pages every hour to catch updates (e.g., scores, stats)
 export const revalidate = 3600;
@@ -134,12 +135,21 @@ export async function generateMetadata({
     };
   }
 
+  const headersList = headers();
   const metadataContext: RequestContext = {
     source: "server",
     pagePath: `/football/match/${slug[0]}`,
     callerName: "generateMetadata",
+    ip: (await headersList).get("x-forwarded-for") ?? "unknown",
+    userAgent: (await headersList).get("user-agent") ?? "unknown",
+    geo: {
+      // Vercel provides these headers automatically
+      city: (await headersList).get("x-vercel-ip-city") ?? undefined,
+      country: (await headersList).get("x-vercel-ip-country") ?? undefined,
+      region:
+        (await headersList).get("x-vercel-ip-country-region") ?? undefined,
+    },
   };
-
   const fixtureData = await getFixture(fixtureId, metadataContext);
 
   if (!fixtureData) {
@@ -203,10 +213,19 @@ export default async function MatchDetailPage({
   const fixtureId = getFixtureIdFromSlug(slug[0]);
   if (!fixtureId) notFound();
 
+  const headersList = headers();
   const pageContext: RequestContext = {
     source: "server",
     pagePath: `/football/match/${slug[0]}`,
     callerName: "MatchDetailPage",
+    ip: (await headersList).get("x-forwarded-for") ?? "unknown",
+    userAgent: (await headersList).get("user-agent") ?? "unknown",
+    geo: {
+      city: (await headersList).get("x-vercel-ip-city") ?? undefined,
+      country: (await headersList).get("x-vercel-ip-country") ?? undefined,
+      region:
+        (await headersList).get("x-vercel-ip-country-region") ?? undefined,
+    },
   };
 
   const fixtureData = await getFixture(fixtureId, pageContext);
