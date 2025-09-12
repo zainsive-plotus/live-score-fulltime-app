@@ -5,13 +5,12 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import dbConnect from "@/lib/dbConnect";
 import ReferrerRule, { IReferrerRule } from "@/models/ReferrerRule";
-import { refreshReferrerCache } from "../route"; // Import the cache utility
+import { refreshReferrerCache } from "../route";
 
 interface Params {
   params: { id: string };
 }
 
-// PUT handler to update an existing rule
 export async function PUT(request: Request, { params }: Params) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") {
@@ -21,11 +20,13 @@ export async function PUT(request: Request, { params }: Params) {
   const { id } = params;
   try {
     const body: Partial<IReferrerRule> = await request.json();
-    const { sourceUrl, targetPage, description, isActive } = body;
+    // --- FIX: Removed 'targetPage' from destructuring ---
+    const { sourceUrl, description, isActive } = body;
 
-    if (!sourceUrl || !targetPage || !description) {
+    // --- FIX: Updated validation to match the new model ---
+    if (!sourceUrl || !description) {
       return NextResponse.json(
-        { error: "Source URL, Target Page, and Description are required." },
+        { error: "Source URL and Description are required." },
         { status: 400 }
       );
     }
@@ -36,7 +37,6 @@ export async function PUT(request: Request, { params }: Params) {
       id,
       {
         sourceUrl,
-        targetPage,
         description,
         isActive,
       },
@@ -50,12 +50,10 @@ export async function PUT(request: Request, { params }: Params) {
       );
     }
 
-    // Refresh the Redis cache after the update
-    await refreshReferrerCache();
+    await refreshReferrerCache(); // Refresh cache after updating
 
     return NextResponse.json(updatedRule, { status: 200 });
   } catch (error: any) {
-    console.error(`[API/admin/referrer-rules] PUT Error for ID ${id}:`, error);
     if (error.code === 11000) {
       return NextResponse.json(
         { error: "A rule for this Source URL already exists." },
@@ -69,8 +67,8 @@ export async function PUT(request: Request, { params }: Params) {
   }
 }
 
-// DELETE handler to remove a rule
 export async function DELETE(request: Request, { params }: Params) {
+  // ... (DELETE function remains correct) ...
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -88,7 +86,6 @@ export async function DELETE(request: Request, { params }: Params) {
       );
     }
 
-    // Refresh the Redis cache after the deletion
     await refreshReferrerCache();
 
     return NextResponse.json(

@@ -2,7 +2,6 @@
 
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import Script from "next/script";
 import { WithContext, SportsTeam, BreadcrumbList } from "schema-dts";
 
@@ -17,7 +16,6 @@ import {
 import { getTeamTransfers } from "@/lib/data/transfers";
 import { getHighlightsForTeam } from "@/lib/data/highlightly";
 import { generateTeamSlug } from "@/lib/generate-team-slug";
-import { RequestContext } from "@/lib/logging";
 
 import Header from "@/components/Header";
 import TeamDetailView from "@/components/TeamDetailView";

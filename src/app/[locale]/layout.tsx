@@ -18,6 +18,48 @@ import { inter } from "../fonts";
 
 import { SUPPORTED_LOCALES } from "@/lib/i18n/config"; // ADD: Import your locales
 import { getI18n } from "@/lib/i18n/server";
+import ReferrerRule from "@/models/ReferrerRule";
+import { headers } from "next/headers";
+
+/**
+ * A non-blocking function to handle referrer tracking directly on the server.
+ * This runs in the Node.js runtime, allowing database access.
+ */
+async function handleReferrerTracking() {
+  try {
+    const headersList = headers();
+    const referrer = (await headersList).get("referer");
+    const host = (await headersList).get("host");
+    const pathname = (await headersList).get("x-next-pathname") || "/";
+
+    if (!referrer || new URL(referrer).hostname.includes(host || "")) {
+      return;
+    }
+
+    // --- CORE CHANGE: Call our internal API instead of connecting to the DB ---
+    // This is a "fire-and-forget" call. We do not await it.
+    const internalApiUrl = new URL("/api/track/referrer-hit", `http://${host}`);
+
+    fetch(internalApiUrl.toString(), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        // Pass essential headers for the API to use for logging
+        "x-forwarded-for": headersList.get("x-forwarded-for") || "",
+        "user-agent": headersList.get("user-agent") || "",
+      },
+      body: JSON.stringify({
+        sourceUrl: referrer, // Send the full referrer
+        landingPage: pathname,
+      }),
+    }).catch((err) => {
+      // Log the error but don't let it crash the page render
+      console.error("[Layout Tracker] Fire-and-forget API call failed:", err);
+    });
+  } catch (error) {
+    console.error("[Layout Tracker] A critical error occurred:", error);
+  }
+}
 
 // ADD: generateStaticParams to pre-build for all supported locales
 export async function generateStaticParams() {
@@ -33,6 +75,8 @@ export default async function LocaleLayout({
   children: React.ReactNode;
   params: { locale: string };
 }) {
+  // Call the tracking function. It runs in the background.
+  handleReferrerTracking();
   const { locale } = await params;
   const t = await getI18n(locale);
   const translations = (await i18nCache.getTranslations(locale)) || {};

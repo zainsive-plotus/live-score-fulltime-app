@@ -12,13 +12,7 @@
  * npx tsx scripts/change-author.ts "Admin" "Fanskor Staff"
  */
 
-import "dotenv/config";
 import mongoose from "mongoose";
-import path from "path";
-import { config } from "dotenv";
-
-// Ensure .env.local is loaded from the project root
-config({ path: path.resolve(process.cwd(), ".env.local") });
 
 // Import the Mongoose Post model using path aliases
 import Post from "@/models/Post";

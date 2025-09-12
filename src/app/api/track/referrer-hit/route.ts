@@ -6,13 +6,12 @@ import ReferrerRule from "@/models/ReferrerRule";
 import { headers } from "next/headers";
 import crypto from "crypto";
 
-// This endpoint is designed to be called internally by the middleware.
-// It should not be exposed to the public.
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { sourceUrl, landingPage } = body;
 
+    // Basic validation
     if (!sourceUrl || !landingPage) {
       return NextResponse.json(
         { error: "sourceUrl and landingPage are required." },
@@ -26,12 +25,15 @@ export async function POST(request: NextRequest) {
     const ip = headersList.get("x-forwarded-for") || "unknown";
     const ipHash = crypto.createHash("sha256").update(ip).digest("hex");
 
-    // Find the rule by the sourceUrl and perform the update in one atomic operation.
-    // This is highly efficient.
+    // Find the active rule that matches the start of the sourceUrl
     const result = await ReferrerRule.updateOne(
-      { sourceUrl: sourceUrl, isActive: true }, // Match the active rule
       {
-        $inc: { hitCount: 1 }, // Increment the counter
+        // Use a regex to match if the referrer starts with the sourceUrl
+        $expr: { $eq: [0, { $indexOfCP: [sourceUrl, "$sourceUrl"] }] },
+        isActive: true,
+      },
+      {
+        $inc: { hitCount: 1 },
         $push: {
           analytics: {
             $each: [
@@ -42,27 +44,32 @@ export async function POST(request: NextRequest) {
                 timestamp: new Date(),
               },
             ],
-            $slice: -500, // Keep only the last 500 detailed click records
+            $slice: -500, // Keep only the most recent 500 hits per rule
           },
         },
       }
     );
 
-    // If result.modifiedCount is 0, it means no rule was found for that sourceUrl.
-    // We can log this for debugging if needed, but we don't need to send an error response.
     if (result.modifiedCount === 0) {
-      console.warn(
-        `[Referrer Tracker] Received a hit for an unknown or inactive sourceUrl: ${sourceUrl}`
+      // This is expected if a referrer doesn't match any rule, so we don't log an error.
+      // We just return a success response to not indicate a problem.
+      return NextResponse.json(
+        { success: true, status: "No matching rule found." },
+        { status: 200 }
       );
     }
 
-    // Always return a success response quickly.
-    // The middleware doesn't wait for this, but it's good practice.
-    return NextResponse.json({ success: true }, { status: 200 });
+    return NextResponse.json(
+      { success: true, status: "Hit recorded." },
+      { status: 200 }
+    );
   } catch (error) {
-    console.error("[API/track/referrer-hit] POST Error:", error);
-    // In case of an error, we still return a success status to not block anything,
-    // but the error will be logged on the server.
-    return NextResponse.json({ success: false }, { status: 500 });
+    // This endpoint should never fail loudly, as it's a background task.
+    // We log the error on the server but return a success response.
+    console.error("[API/referrer-hit] Error recording referrer hit:", error);
+    return NextResponse.json(
+      { success: true, status: "Error logged on server." },
+      { status: 200 }
+    );
   }
 }

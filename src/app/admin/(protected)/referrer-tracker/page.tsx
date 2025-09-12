@@ -19,7 +19,8 @@ import {
   XCircle,
 } from "lucide-react";
 import AdminPagination from "@/components/admin/AdminPagination";
-import ReferrerRuleFormModal from "@/components/admin/ReferrerRuleFormModal"; // MODIFIED: Uncommented the import
+import ReferrerRuleFormModal from "@/components/admin/ReferrerRuleFormModal";
+import { useRouter } from "next/navigation";
 
 interface PaginatedRulesResponse {
   rules: IReferrerRule[];
@@ -39,6 +40,7 @@ const fetchReferrerRules = async (
 
 export default function AdminReferrerTrackerPage() {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const [currentPage, setCurrentPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<IReferrerRule | null>(null);
@@ -78,7 +80,7 @@ export default function AdminReferrerTrackerPage() {
   const handleDelete = (rule: IReferrerRule) => {
     if (
       window.confirm(
-        `Are you sure you want to delete the rule for "${rule.sourceUrl}"? This action cannot be undone.`
+        `Are you sure you want to delete the rule for "${rule.description}"? This action cannot be undone.`
       )
     ) {
       deleteMutation.mutate(rule._id);
@@ -104,8 +106,8 @@ export default function AdminReferrerTrackerPage() {
         <table className="w-full text-left text-brand-light">
           <thead className="bg-gray-800/50 text-sm text-brand-muted uppercase">
             <tr>
-              <th className="p-4">Source URL</th>
-              <th className="p-4">Landing Page</th>
+              <th className="p-4">Description</th>
+              <th className="p-4">Source URL / Domain</th>
               <th className="p-4 text-center">Hits</th>
               <th className="p-4 text-center">Status</th>
               <th className="p-4 text-center">Actions</th>
@@ -127,7 +129,8 @@ export default function AdminReferrerTrackerPage() {
             ) : (
               rulesData?.rules.map((rule) => (
                 <tr key={rule._id} className="border-t border-gray-700/50">
-                  <td className="p-4 font-medium max-w-sm">
+                  <td className="p-4 font-medium">{rule.description}</td>
+                  <td className="p-4 text-sm max-w-xs truncate">
                     <a
                       href={rule.sourceUrl}
                       target="_blank"
@@ -138,12 +141,6 @@ export default function AdminReferrerTrackerPage() {
                       <span className="truncate">{rule.sourceUrl}</span>
                       <ExternalLink size={14} />
                     </a>
-                    <p className="text-xs text-brand-muted mt-1">
-                      {rule.description}
-                    </p>
-                  </td>
-                  <td className="p-4 text-sm max-w-xs truncate">
-                    <span title={rule.targetPage}>{rule.targetPage}</span>
                   </td>
                   <td className="p-4 text-center text-lg font-bold">
                     {rule.hitCount}
@@ -165,9 +162,13 @@ export default function AdminReferrerTrackerPage() {
                   <td className="p-4">
                     <div className="flex justify-center gap-2">
                       <button
+                        onClick={() =>
+                          router.push(
+                            `/admin/referrer-tracker/${rule._id}/stats`
+                          )
+                        }
                         className="text-brand-muted hover:text-white"
-                        title="View Stats (Coming Soon)"
-                        disabled
+                        title="View Stats"
                       >
                         <BarChart2 size={18} />
                       </button>
@@ -201,7 +202,7 @@ export default function AdminReferrerTrackerPage() {
             )}
           </tbody>
         </table>
-        {rulesData?.rules.length === 0 && (
+        {rulesData?.rules.length === 0 && !isLoading && (
           <p className="text-center p-8 text-brand-muted">
             No referrer rules created yet. Click "New Rule" to get started.
           </p>
@@ -218,7 +219,6 @@ export default function AdminReferrerTrackerPage() {
         </div>
       )}
 
-      {/* MODIFIED: The modal is now active */}
       <ReferrerRuleFormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

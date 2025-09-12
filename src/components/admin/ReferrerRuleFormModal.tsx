@@ -15,20 +15,14 @@ interface ReferrerRuleFormModalProps {
   rule: IReferrerRule | null;
 }
 
-type FormData = Omit<
-  IReferrerRule,
-  "_id" | "createdAt" | "updatedAt" | "hitCount" | "analytics"
->;
-
 export default function ReferrerRuleFormModal({
   isOpen,
   onClose,
   rule,
 }: ReferrerRuleFormModalProps) {
   const queryClient = useQueryClient();
-  const [formData, setFormData] = useState<FormData>({
+  const [formData, setFormData] = useState<any>({
     sourceUrl: "",
-    targetPage: "",
     description: "",
     isActive: true,
   });
@@ -38,15 +32,12 @@ export default function ReferrerRuleFormModal({
       if (rule) {
         setFormData({
           sourceUrl: rule.sourceUrl,
-          targetPage: rule.targetPage,
           description: rule.description,
           isActive: rule.isActive,
         });
       } else {
-        // Reset form for creating a new rule
         setFormData({
           sourceUrl: "",
-          targetPage: "",
           description: "",
           isActive: true,
         });
@@ -73,8 +64,10 @@ export default function ReferrerRuleFormModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.sourceUrl || !formData.targetPage || !formData.description) {
-      toast.error("All fields are required.");
+    // --- FIX: Removed targetPage from the validation check ---
+    if (!formData.sourceUrl || !formData.description) {
+      // --- FIX: Updated the error message to be accurate ---
+      toast.error("Source URL and Description are required.");
       return;
     }
     mutation.mutate(formData);
@@ -112,7 +105,7 @@ export default function ReferrerRuleFormModal({
               htmlFor="description"
               className="block text-sm font-medium text-brand-light mb-1"
             >
-              Description
+              Description (Internal)
             </label>
             <input
               type="text"
@@ -122,10 +115,10 @@ export default function ReferrerRuleFormModal({
               onChange={handleInputChange}
               required
               className="w-full p-2 rounded bg-gray-700 text-white border border-gray-600"
-              placeholder="e.g., AS Roma feature on SoccerBlogz"
+              placeholder="e.g., Guest Post on SoccerBlogz - Oct 2024"
             />
             <p className="text-xs text-brand-muted mt-1">
-              An internal note to identify this backlink.
+              An internal note to identify this backlink campaign.
             </p>
           </div>
           <div>
@@ -133,43 +126,27 @@ export default function ReferrerRuleFormModal({
               htmlFor="sourceUrl"
               className="block text-sm font-medium text-brand-light mb-1"
             >
-              Source URL
+              Source URL / Domain to Track
             </label>
             <input
-              type="url"
+              type="text"
               id="sourceUrl"
               name="sourceUrl"
               value={formData.sourceUrl}
               onChange={handleInputChange}
               required
               className="w-full p-2 rounded bg-gray-700 text-white border border-gray-600"
-              placeholder="https://soccerblogz.com/best-teams-2024"
+              placeholder="https://soccerblogz.com"
             />
             <p className="text-xs text-brand-muted mt-1">
-              The exact external URL that links to your site. Must be unique.
+              Enter the full domain (e.g., `https://example.com`) or a specific
+              URL path. The system will track any visitor whose referrer URL
+              **starts with** this value.
             </p>
           </div>
-          <div>
-            <label
-              htmlFor="targetPage"
-              className="block text-sm font-medium text-brand-light mb-1"
-            >
-              Expected Landing Page
-            </label>
-            <input
-              type="text"
-              id="targetPage"
-              name="targetPage"
-              value={formData.targetPage}
-              onChange={handleInputChange}
-              required
-              className="w-full p-2 rounded bg-gray-700 text-white border border-gray-600"
-              placeholder="/en/football/team/as-roma-497"
-            />
-            <p className="text-xs text-brand-muted mt-1">
-              The page on your site the backlink points to. For context only.
-            </p>
-          </div>
+
+          {/* --- FIX: Removed the "Expected Landing Page" input field --- */}
+
           <div className="flex items-center">
             <input
               id="isActive"

@@ -4,14 +4,13 @@ import mongoose, { Schema, Document, Model } from "mongoose";
 
 interface IReferrerHit {
   timestamp: Date;
-  ipHash: string; // To store a hashed version of the IP for privacy
+  ipHash: string;
   userAgent?: string;
-  landingPage: string; // The full URL the user landed on
+  landingPage: string; // The first page the user landed on
 }
 
 export interface IReferrerRule extends Document {
-  sourceUrl: string;
-  targetPage: string;
+  sourceUrl: string; // The domain or specific URL of the guest post to track
   description: string;
   hitCount: number;
   analytics: IReferrerHit[];
@@ -35,13 +34,8 @@ const ReferrerRuleSchema: Schema<IReferrerRule> = new Schema(
     sourceUrl: {
       type: String,
       required: [true, "The source URL to track is required."],
-      unique: true, // Each external URL can only have one rule
+      unique: true,
       index: true,
-      trim: true,
-    },
-    targetPage: {
-      type: String,
-      required: [true, "The expected landing page is required."],
       trim: true,
     },
     description: {
@@ -57,7 +51,7 @@ const ReferrerRuleSchema: Schema<IReferrerRule> = new Schema(
     isActive: {
       type: Boolean,
       default: true,
-      index: true, // Index for quickly finding active rules
+      index: true,
     },
   },
   {

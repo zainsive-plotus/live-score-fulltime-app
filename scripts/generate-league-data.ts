@@ -3,7 +3,6 @@
 import fs from "fs/promises";
 import path from "path";
 import axios from "axios";
-import dotenv from "dotenv";
 import slugify from "slugify";
 import { topLeaguesConfig } from "../src/config/topLeaguesConfig"; // Adjust path as needed
 
