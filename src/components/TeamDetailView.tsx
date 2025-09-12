@@ -78,7 +78,7 @@ export default function TeamDetailView({ teamData }: { teamData: any }) {
       />
 
       {/* --- CORE CHANGE: Added overflow-x-auto and scrollbar-hide --- */}
-      <div className="bg-brand-secondary rounded-lg p-2 flex items-center space-x-2 sticky top-[88px] z-30 overflow-x-auto scrollbar-hide">
+      <div className="bg-brand-secondary rounded-lg p-2 flex items-center space-x-2 top-[88px] z-30 overflow-x-auto scrollbar-hide">
         {TABS.map((tab) => (
           <button
             key={tab.name}

@@ -1,7 +1,11 @@
 // ===== src/components/league-detail-view/LeagueHeader.tsx =====
+
+"use client";
+
 import Image from "next/image";
 import { proxyImageUrl } from "@/lib/image-proxy";
 import { Shield, Flag, Calendar } from "lucide-react";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface LeagueHeaderProps {
   league: {
@@ -13,17 +17,25 @@ interface LeagueHeaderProps {
     name: string;
     flag: string | null;
   };
-  currentSeason: number;
+  // --- CORE CHANGE: Add props for season selection ---
+  availableSeasons: number[];
+  selectedSeason: number;
+  onSeasonChange: (season: number) => void;
+  isLoading: boolean;
 }
 
 export default function LeagueHeader({
   league,
   country,
-  currentSeason,
+  availableSeasons,
+  selectedSeason,
+  onSeasonChange,
+  isLoading,
 }: LeagueHeaderProps) {
+  const { t } = useTranslation();
+
   return (
     <div className="relative bg-brand-secondary rounded-lg overflow-hidden p-6 pt-10 text-center md:text-left">
-      {/* Background Flag */}
       {country.flag && (
         <Image
           src={proxyImageUrl(country.flag)}
@@ -36,7 +48,6 @@ export default function LeagueHeader({
       <div className="absolute inset-0 bg-gradient-to-t from-brand-secondary via-brand-secondary/80 to-transparent z-10"></div>
 
       <div className="relative z-20 flex flex-col md:flex-row items-center gap-6">
-        {/* League Logo */}
         <div className="flex-shrink-0">
           <Image
             src={proxyImageUrl(league.logo)}
@@ -47,7 +58,6 @@ export default function LeagueHeader({
           />
         </div>
 
-        {/* League Info */}
         <div className="flex-1">
           <h1 className="text-4xl md:text-5xl font-extrabold text-white">
             {league.name}
@@ -61,11 +71,27 @@ export default function LeagueHeader({
               <Flag size={14} />
               <span>{country.name}</span>
             </div>
+            {/* --- CORE CHANGE: Replace static text with a dropdown selector --- */}
             <div className="flex items-center gap-1.5 text-sm">
               <Calendar size={14} />
-              <span>
-                {currentSeason}/{currentSeason + 1}
-              </span>
+              {availableSeasons.length > 1 ? (
+                <select
+                  value={selectedSeason}
+                  onChange={(e) => onSeasonChange(Number(e.target.value))}
+                  disabled={isLoading}
+                  className="bg-brand-dark/50 border border-gray-700/80 rounded-md px-2 py-1 font-semibold text-white focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)] transition-colors"
+                >
+                  {availableSeasons.map((season) => (
+                    <option key={season} value={season}>
+                      {season}/{season + 1}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span>
+                  {selectedSeason}/{selectedSeason + 1}
+                </span>
+              )}
             </div>
           </div>
         </div>

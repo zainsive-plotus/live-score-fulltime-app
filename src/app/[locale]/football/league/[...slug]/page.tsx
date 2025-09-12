@@ -11,8 +11,6 @@ import LeagueDetailView from "@/components/league-detail-view";
 import RecentNewsWidget from "@/components/RecentNewsWidget";
 import AdSlotWidget from "@/components/AdSlotWidget";
 import LeagueSeoWidget from "@/components/league-detail-view/LeagueSeoWidget";
-import LeagueTopScorersWidget from "@/components/league-detail-view/LeagueTopScorersWidget";
-import LeagueStandingsWidget from "@/components/league-detail-view/LeagueStandingsWidget";
 
 import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
@@ -183,10 +181,6 @@ export default async function LeaguePage({
           </main>
 
           <aside className="hidden lg:block space-y-8 min-w-0">
-            <LeagueTopScorersWidget
-              leagueId={league.id}
-              season={currentSeasonYear}
-            />
             <RecentNewsWidget />
             <AdSlotWidget location="homepage_right_sidebar" />
           </aside>
