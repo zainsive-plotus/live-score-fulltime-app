@@ -1,13 +1,14 @@
 // ===== src/app/sitemap-matches.xml/route.ts =====
 
-import axios from "axios";
 import slugify from "slugify";
 import { format, subDays, addDays } from "date-fns";
+// --- CORE CHANGE: Import the direct data fetcher ---
+import { getFixturesByDateRange } from "@/lib/data/fixtures";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
-const SUPPORTED_LOCALES = ["tr", "en", "fr", "es", "zu"];
+const SUPPORTED_LOCALES = ["tr", "en", "fr", "es", "zu", "it"];
 const DEFAULT_LOCALE = "tr";
 
 type SitemapEntry = {
@@ -34,9 +35,9 @@ const generateMatchSlug = (
   )}-${fixtureId}`;
 };
 
-// ** FIX 1: Cleaned up XML generation to remove unnecessary whitespace. **
 const generateXml = (entries: SitemapEntry[]) =>
-  `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${entries
+  `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${entries
     .map(
       (entry) =>
         `<url><loc>${entry.url}</loc><lastmod>${new Date(
@@ -53,11 +54,9 @@ export async function GET() {
     const fromDate = format(subDays(today, 7), "yyyy-MM-dd");
     const toDate = format(addDays(today, 14), "yyyy-MM-dd");
 
-    const { data: matches } = await axios.get(
-      `${BASE_URL}/api/fixtures?from=${fromDate}&to=${toDate}`
-    );
+    // --- CORE CHANGE: Call the direct data fetching function instead of the internal API ---
+    const matches = await getFixturesByDateRange(fromDate, toDate);
 
-    // ** FIX 2: Add a defensive filter to ensure all match objects are valid before processing. **
     const validMatches = matches.filter(
       (match: any) =>
         match &&
@@ -85,12 +84,14 @@ export async function GET() {
     const xml = generateXml(sitemapEntries);
 
     return new Response(xml, {
+      status: 200,
       headers: {
         "Content-Type": "application/xml",
+        "Cache-Control": "s-maxage=3600, stale-while-revalidate",
       },
     });
   } catch (error) {
-    console.error("[Sitemap] Failed to fetch match URLs:", error);
+    console.error("[Sitemap/Matches] Error generating sitemap:", error);
     return new Response("Error generating sitemap.", { status: 500 });
   }
 }

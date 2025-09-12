@@ -77,7 +77,7 @@ export default function LeagueDetailView({
   leagueData: any;
 }) {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState("Teams"); // Your change to default to Teams
+  const [activeTab, setActiveTab] = useState("teams"); // Your change to default to Teams
 
   const initialSeason = useMemo(() => {
     return (
