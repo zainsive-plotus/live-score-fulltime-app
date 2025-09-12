@@ -15,6 +15,7 @@ import {
   getTeamStandings,
 } from "@/lib/data/team";
 import { getTeamTransfers } from "@/lib/data/transfers";
+import { getHighlightsForTeam } from "@/lib/data/highlightly";
 import { generateTeamSlug } from "@/lib/generate-team-slug";
 import { RequestContext } from "@/lib/logging";
 
@@ -25,7 +26,6 @@ import TeamTrophiesWidget from "@/components/team/TeamTrophiesWidget";
 import TeamFormWidgetSidebar from "@/components/team/TeamFormWidgetSidebar";
 import TeamSeoWidget from "@/components/team/TeamSeoWidget";
 import AdSlotWidget from "@/components/AdSlotWidget";
-import { getHighlightsForTeam } from "@/lib/data/highlightly";
 
 export const revalidate = 3600;
 
@@ -100,18 +100,18 @@ export default async function TeamPage({
   const teamInfo = allTeamData[teamId];
   if (!teamInfo) notFound();
 
-  // Fetch all dynamic data in parallel
+  const { team, venue } = teamInfo;
+
   const [fixtures, squad, transfers, standings, highlights] = await Promise.all(
     [
       getTeamFixtures(teamId),
       getTeamSquad(teamId),
       getTeamTransfers(teamId),
       getTeamStandings(teamId),
-      getHighlightsForTeam(teamInfo.team.name),
+      getHighlightsForTeam(team.name),
     ]
   );
 
-  // Consolidate all data into a single object for the client component
   const teamData = {
     teamInfo,
     fixtures,
@@ -120,8 +120,6 @@ export default async function TeamPage({
     standings,
     highlights,
   };
-
-  const { team, venue } = teamInfo;
 
   const seoWidgetTitle = t("about_team_title", { teamName: team.name });
   const seoWidgetText = t("team_page_seo_text", {
@@ -146,7 +144,7 @@ export default async function TeamPage({
           addressCountry: team.country,
         },
       },
-      coach: squad?.[0]?.coach?.name, // Access coach from squad data
+      coach: squad?.[0]?.coach?.name,
       athlete: squad?.[0]?.players?.map((p: any) => ({
         "@type": "Person",
         name: p.name,
@@ -182,10 +180,22 @@ export default async function TeamPage({
       />
       <div className="min-h-screen flex flex-col">
         <Header />
-        <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[1fr_320px] lg:gap-8 lg:items-start p-4 lg:p-0 lg:py-6">
-          <main className="min-w-0">
+        <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[1fr_320px] lg:gap-8 lg:items-start p-4 lg:py-6">
+          <main className="min-w-0 space-y-8">
             <TeamDetailView teamData={teamData} />
+
+            <div className="space-y-8 lg:hidden">
+              <h2 className="font-bold text-xl text-white border-b-2 border-[var(--brand-accent)] pb-2">
+                {t("team_overview")}
+              </h2>
+              <TeamInfoWidget venue={venue} />
+              <TeamFormWidgetSidebar teamId={team.id} fixtures={fixtures} />
+              <TeamTrophiesWidget teamId={team.id} />
+              <AdSlotWidget location="homepage_right_sidebar" />
+              <TeamSeoWidget title={seoWidgetTitle} seoText={seoWidgetText} />
+            </div>
           </main>
+
           <aside className="hidden lg:block space-y-8 min-w-0">
             <TeamInfoWidget venue={venue} />
             <TeamFormWidgetSidebar teamId={team.id} fixtures={fixtures} />

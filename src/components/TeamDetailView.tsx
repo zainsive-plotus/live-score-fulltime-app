@@ -16,7 +16,6 @@ const LeagueStandingsWidget = dynamic(
   () => import("@/components/league-detail-view/LeagueStandingsWidget")
 );
 const TeamTransfersTab = dynamic(() => import("./team/TeamTransfersTab"));
-// --- CORE CHANGE: Import the new, real HighlightsTab component ---
 const TeamHighlightsTab = dynamic(() => import("./team/TeamHighlightsTab"));
 
 // Main View Component
@@ -62,7 +61,6 @@ export default function TeamDetailView({ teamData }: { teamData: any }) {
         ) : null;
       case "Transfers":
         return <TeamTransfersTab transfers={transfers} currentTeam={team} />;
-      // --- CORE CHANGE: Render the real component with the fetched data ---
       case "Highlights":
         return <TeamHighlightsTab highlights={highlights} />;
       case "Fixtures":
@@ -79,12 +77,14 @@ export default function TeamDetailView({ teamData }: { teamData: any }) {
         foundedText={t("founded_in", { year: team.founded })}
       />
 
-      <div className="bg-brand-secondary rounded-lg p-2 flex items-center space-x-2 sticky top-[88px] z-30">
+      {/* --- CORE CHANGE: Added overflow-x-auto and scrollbar-hide --- */}
+      <div className="bg-brand-secondary rounded-lg p-2 flex items-center space-x-2 sticky top-[88px] z-30 overflow-x-auto scrollbar-hide">
         {TABS.map((tab) => (
           <button
             key={tab.name}
             onClick={() => setActiveTab(tab.name)}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-semibold transition-colors ${
+            // --- CORE CHANGE: Removed flex-1 and added flex-shrink-0 ---
+            className={`flex-shrink-0 flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-semibold transition-colors ${
               activeTab === tab.name
                 ? "bg-[var(--brand-accent)] text-white shadow-md"
                 : "text-brand-muted hover:bg-white/5 hover:text-white"
