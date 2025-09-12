@@ -7,27 +7,24 @@ import { WithContext, SportsEvent, BreadcrumbList } from "schema-dts";
 import { format } from "date-fns";
 
 import Header from "@/components/Header";
-import Sidebar from "@/components/Sidebar";
-import AdSlotWidget from "@/components/AdSlotWidget";
+import LeagueDetailView from "@/components/league-detail-view";
 import RecentNewsWidget from "@/components/RecentNewsWidget";
-import LeagueDetailWidget from "@/components/directory/LeagueDetailWidget";
+import AdSlotWidget from "@/components/AdSlotWidget";
 import LeagueSeoWidget from "@/components/league-detail-view/LeagueSeoWidget";
-import LeagueHeader from "@/components/league-detail-view/LeagueHeader";
+import LeagueTopScorersWidget from "@/components/league-detail-view/LeagueTopScorersWidget";
 import LeagueStandingsWidget from "@/components/league-detail-view/LeagueStandingsWidget";
-import LeagueFixturesWidget from "@/components/league-detail-view/LeagueFixturesWidget";
-import LeagueTeamsList from "@/components/league-detail-view/LeagueTeamsList";
 
 import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
 import { getLeaguesStaticData } from "@/lib/data/league-static";
 import { getLeaguePageData } from "@/lib/data/league";
-import { generateStandingsSlug } from "@/lib/generate-standings-slug";
+import { getNews } from "@/lib/data/news";
+import { getHighlightsForLeague } from "@/lib/data/highlightly";
+
+export const revalidate = 3600;
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
-
-// Revalidate the page data periodically to keep it fresh
-export const revalidate = 3600; // 1 hour
 
 const getLeagueIdFromSlug = (slug: string): string | null => {
   if (!slug) return null;
@@ -36,7 +33,6 @@ const getLeagueIdFromSlug = (slug: string): string | null => {
   return /^\d+$/.test(lastPart) ? lastPart : null;
 };
 
-// Generates metadata using the fast, pre-built static JSON file
 export async function generateMetadata({
   params,
 }: {
@@ -45,7 +41,6 @@ export async function generateMetadata({
   const { slug, locale } = params;
   const t = await getI18n(locale);
   const leagueId = getLeagueIdFromSlug(slug[0]);
-
   const hreflangAlternates = await generateHreflangTags(
     "/football/league",
     slug.join("/"),
@@ -55,7 +50,6 @@ export async function generateMetadata({
   if (!leagueId) {
     return { title: t("not_found_title"), alternates: hreflangAlternates };
   }
-
   const allLeagues = await getLeaguesStaticData();
   const leagueInfo = allLeagues.find((l) => l.id.toString() === leagueId);
 
@@ -80,7 +74,6 @@ export async function generateMetadata({
   };
 }
 
-// The main page component, now using a hybrid data fetching strategy
 export default async function LeaguePage({
   params,
 }: {
@@ -91,24 +84,31 @@ export default async function LeaguePage({
   const leagueId = getLeagueIdFromSlug(slug[0]);
   if (!leagueId) notFound();
 
-  // 1. Fetch basic info from the fast static file
   const allLeagues = await getLeaguesStaticData();
   const staticLeagueInfo = allLeagues.find((l) => l.id.toString() === leagueId);
   if (!staticLeagueInfo) notFound();
 
-  // 2. Fetch the complete, dynamic data for the page body
-  const dynamicLeagueData = await getLeaguePageData(leagueId);
+  // Fetch all dynamic data in parallel for efficiency
+  const [dynamicLeagueData, newsData, highlightsData] = await Promise.all([
+    getLeaguePageData(leagueId),
+    getNews({ locale, linkedLeagueId: parseInt(leagueId), limit: 12 }),
+    getHighlightsForLeague(staticLeagueInfo.name),
+  ]);
+
   if (!dynamicLeagueData) notFound();
 
-  const { league, country, seasons, standings, topScorer, leagueStats } =
-    dynamicLeagueData;
+  // Consolidate all fetched data into a single object for the client component
+  const leagueData = {
+    ...dynamicLeagueData,
+    news: newsData.posts,
+    highlights: highlightsData,
+  };
 
+  const { league, country, seasons, standings } = dynamicLeagueData;
   const currentSeason =
     seasons.find((s: any) => s.current === true) || seasons[0];
   const currentSeasonYear = currentSeason.year;
-  const standingsSlug = generateStandingsSlug(league.name, league.id);
 
-  // --- Prepare SEO and JSON-LD data ---
   const seoWidgetTitle = t("league_seo_widget_title", {
     leagueName: league.name,
   });
@@ -171,48 +171,9 @@ export default async function LeaguePage({
       />
       <div className="min-h-screen flex flex-col">
         <Header />
-        <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[288px_1fr_288px] lg:gap-8 lg:items-start p-4 lg:p-0 lg:py-6">
-          <Sidebar />
-
+        <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[1fr_320px] lg:gap-8 lg:items-start p-4 lg:py-6">
           <main className="min-w-0 space-y-8">
-            <LeagueHeader
-              league={{
-                name: staticLeagueInfo.name,
-                logo: staticLeagueInfo.logoUrl,
-                type: staticLeagueInfo.type,
-              }}
-              country={{
-                name: staticLeagueInfo.countryName,
-                flag: staticLeagueInfo.countryFlagUrl,
-              }}
-              currentSeason={currentSeasonYear}
-            />
-
-            {league.type === "League" && (
-              <LeagueStandingsWidget
-                initialStandings={standings}
-                leagueSeasons={seasons
-                  .map((s: any) => s.year)
-                  .sort((a: number, b: number) => b - a)}
-                currentSeason={currentSeasonYear}
-                isLoading={false} // Data is pre-fetched on the server
-                leagueId={league.id}
-                leagueSlug={standingsSlug}
-              />
-            )}
-
-            <LeagueFixturesWidget
-              leagueId={league.id}
-              season={currentSeasonYear}
-            />
-
-            <LeagueTeamsList
-              leagueId={league.id}
-              season={currentSeasonYear}
-              countryName={country.name}
-              countryFlag={country.flag}
-            />
-
+            <LeagueDetailView leagueData={leagueData} />
             <LeagueSeoWidget
               season={currentSeasonYear}
               leagueName={league.name}
@@ -221,11 +182,10 @@ export default async function LeaguePage({
             />
           </main>
 
-          <aside className="hidden lg:block lg:col-span-1 space-y-8 min-w-0">
-            <LeagueDetailWidget
-              league={league}
-              leagueStats={leagueStats}
-              topScorer={topScorer}
+          <aside className="hidden lg:block space-y-8 min-w-0">
+            <LeagueTopScorersWidget
+              leagueId={league.id}
+              season={currentSeasonYear}
             />
             <RecentNewsWidget />
             <AdSlotWidget location="homepage_right_sidebar" />

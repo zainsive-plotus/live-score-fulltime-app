@@ -8,9 +8,11 @@ const API_KEY = process.env.NEXT_PUBLIC_HIGHLIGHTLY_API_KEY;
 
 const CACHE_KEY = "highlights:latest-v6"; // Incremented cache key
 const TEAM_CACHE_KEY_PREFIX = "highlights:team:v1:";
+const LEAGUE_CACHE_KEY_PREFIX = "highlights:league:v1:";
 const CACHE_TTL_SUCCESS = 60 * 15; // 15 minutes for latest
 const CACHE_TTL_TEAM = 60 * 60 * 24; // 24 hours for team-specific
 const CACHE_TTL_RATELIMIT = 60 * 5;
+const CACHE_TTL_TEAM_LEAGUE = 60 * 60 * 24;
 
 async function request(endpoint: string, params?: object) {
   if (!API_KEY) {
@@ -204,6 +206,89 @@ export async function getHighlightsForTeam(teamName: string): Promise<any[]> {
   } catch (error) {
     console.error(
       `[Highlightly Service] Failed to fetch highlights for team ${teamName}:`,
+      error
+    );
+    return []; // Return empty array on failure
+  }
+}
+
+/**
+ * Fetches and caches video highlights for a specific league.
+ *
+ * @param leagueName The name of the league to search for.
+ * @returns A promise that resolves to an array of highlight objects.
+ */
+export async function getHighlightsForLeague(
+  leagueName: string
+): Promise<any[]> {
+  if (!API_KEY) {
+    console.error("[Highlightly Service] API key is not configured.");
+    return [];
+  }
+
+  const cacheKey = `${LEAGUE_CACHE_KEY_PREFIX}${leagueName.replace(
+    /\s+/g,
+    "-"
+  )}`;
+
+  try {
+    const cachedData = await redis.get(cacheKey);
+    if (cachedData) {
+      console.log(
+        `[Highlightly Service] Cache HIT for league highlights: ${leagueName}`
+      );
+      return JSON.parse(cachedData);
+    }
+  } catch (e) {
+    console.error(
+      `[Highlightly Service] Redis GET failed for key ${cacheKey}`,
+      e
+    );
+  }
+
+  console.log(
+    `[Highlightly Service] Cache MISS for league highlights: ${leagueName}. Fetching from API.`
+  );
+
+  try {
+    const result = await request("football/highlights", {
+      leagueName: leagueName,
+      limit: 40,
+    });
+
+    if (!result || !result.data || !Array.isArray(result.data)) {
+      console.warn(
+        `[Highlightly Service] No highlights data array returned for league: ${leagueName}.`
+      );
+      await redis.set(
+        cacheKey,
+        JSON.stringify([]),
+        "EX",
+        CACHE_TTL_TEAM_LEAGUE
+      ); // Cache empty result
+      return [];
+    }
+
+    const highlights = result.data;
+    highlights.sort(
+      (a, b) =>
+        new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+    );
+
+    await redis.set(
+      cacheKey,
+      JSON.stringify(highlights),
+      "EX",
+      CACHE_TTL_TEAM_LEAGUE
+    );
+    console.log(
+      `[Highlightly Service] Cached ${highlights.length} highlights for ${leagueName}.`
+    );
+
+    return highlights;
+  } catch (error) {
+    console.error(
+      `[Highlightly Service] Failed to fetch highlights for league ${leagueName}:`,
       error
     );
     return []; // Return empty array on failure

@@ -6,6 +6,7 @@ import Post, { IPost, NewsType, SportsCategory } from "@/models/Post";
 
 const DEFAULT_LOCALE = "tr";
 
+// --- CORE CHANGE: Added linkedLeagueId and linkedTeamId to the interface ---
 interface GetNewsParams {
   locale: string;
   sportsCategory?: SportsCategory;
@@ -13,11 +14,11 @@ interface GetNewsParams {
   page?: number;
   limit?: number;
   linkedFixtureId?: number;
+  linkedLeagueId?: number;
+  linkedTeamId?: number;
 }
 
-export async function getNews(
-  params: GetNewsParams
-): Promise<{
+export async function getNews(params: GetNewsParams): Promise<{
   posts: IPost[];
   pagination: { totalCount: number; totalPages: number };
 }> {
@@ -28,6 +29,8 @@ export async function getNews(
     page = 1,
     limit = 10,
     linkedFixtureId,
+    linkedLeagueId, // <-- New parameter
+    linkedTeamId, // <-- New parameter
   } = params;
 
   try {
@@ -35,25 +38,29 @@ export async function getNews(
 
     const matchConditions: any[] = [{ status: "published" }];
 
-    // --- Start of Fix ---
-    // The value for $in must be an array. We wrap sportsCategory in square brackets.
     if (sportsCategory) {
       matchConditions.push({ sportsCategory: { $in: [sportsCategory] } });
     }
-    // --- End of Fix ---
-
     if (newsType) {
       matchConditions.push({ newsType: newsType });
     }
     if (linkedFixtureId) {
       matchConditions.push({ linkedFixtureId: linkedFixtureId });
     }
+    // --- CORE CHANGE: Add the new filters to the match conditions ---
+    if (linkedLeagueId) {
+      matchConditions.push({ linkedLeagueId: linkedLeagueId });
+    }
+    if (linkedTeamId) {
+      matchConditions.push({ linkedTeamId: linkedTeamId });
+    }
 
     const matchStage = { $and: matchConditions };
 
     const skip = (page - 1) * limit;
 
-    const initialPipeline = [
+    // The aggregation pipeline remains the same, it just uses the updated matchStage
+    const aggregationPipeline = [
       { $match: matchStage },
       {
         $addFields: {
@@ -84,7 +91,7 @@ export async function getNews(
     ];
 
     const facetPipeline = [
-      ...initialPipeline,
+      ...aggregationPipeline,
       {
         $facet: {
           paginatedResults: [{ $skip: skip }, { $limit: limit }],
@@ -109,7 +116,7 @@ export async function getNews(
       },
     };
   } catch (error) {
-    console.error(`[getNews Data Fetching Error]`, error);
+    console.error("[data/news] Error fetching news:", error);
     return { posts: [], pagination: { totalCount: 0, totalPages: 0 } };
   }
 }

@@ -45,8 +45,8 @@ async function handleReferrerTracking() {
       headers: {
         "Content-Type": "application/json",
         // Pass essential headers for the API to use for logging
-        "x-forwarded-for": headersList.get("x-forwarded-for") || "",
-        "user-agent": headersList.get("user-agent") || "",
+        "x-forwarded-for": (await headersList).get("x-forwarded-for") || "",
+        "user-agent": (await headersList).get("user-agent") || "",
       },
       body: JSON.stringify({
         sourceUrl: referrer, // Send the full referrer

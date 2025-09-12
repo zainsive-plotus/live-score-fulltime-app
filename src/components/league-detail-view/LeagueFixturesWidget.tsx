@@ -1,31 +1,35 @@
+// ===== src/components/league-detail-view/LeagueFixturesWidget.tsx =====
+
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import { DayPicker } from "react-day-picker";
-import "react-day-picker/dist/style.css";
-import { format, Locale } from "date-fns";
-import { enUS, tr, fr, es } from "date-fns/locale"; // <-- Import locales
-import { Calendar, Info } from "lucide-react";
+import { format } from "date-fns";
+import { DateRange } from "react-day-picker";
+import { Info, CalendarClock, Loader2 } from "lucide-react";
 import MatchListItem, { MatchListItemSkeleton } from "../MatchListItem";
 import { useTranslation } from "@/hooks/useTranslation";
+import MatchDateRangeNavigator from "../MatchDateRangeNavigator"; // <-- IMPORT THE NAVIGATOR
 
-type FixtureView = "upcoming" | "today" | "date";
+interface LeagueFixturesWidgetProps {
+  leagueId: number;
+  season: number;
+}
 
-const dateLocales: Record<string, Locale> = { en: enUS, tr, fr, es };
-
+// Updated fetcher to accept a date range
 const fetchFixtures = async (params: {
   leagueId: number;
-  upcoming?: boolean;
-  date?: string;
+  season: number;
+  from: string;
+  to: string;
 }) => {
   const queryParams = new URLSearchParams({
     league: params.leagueId.toString(),
+    season: params.season.toString(),
+    from: params.from,
+    to: params.to,
   });
-  // The API doesn't have an 'upcoming' param, we handle this logic in MatchList
-  // For simplicity here, we can just fetch for a specific date or default to today
-  if (params.date) queryParams.set("date", params.date);
   const { data } = await axios.get(`/api/fixtures?${queryParams.toString()}`);
   return data;
 };
@@ -33,28 +37,24 @@ const fetchFixtures = async (params: {
 export default function LeagueFixturesWidget({
   leagueId,
   season,
-}: {
-  leagueId: number;
-  season: number;
-}) {
-  const [view, setView] = useState<FixtureView>("today");
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const calendarRef = useRef<HTMLDivElement>(null);
-  const { t, locale } = useTranslation();
+}: LeagueFixturesWidgetProps) {
+  const { t } = useTranslation();
 
-  const queryParams = useMemo(() => {
-    const baseParams = { leagueId, season };
-    switch (view) {
-      case "today":
-        return { ...baseParams, date: format(new Date(), "yyyy-MM-dd") };
-      case "date":
-        return { ...baseParams, date: format(selectedDate, "yyyy-MM-dd") };
-      // Fallback for upcoming or other views if needed in future
-      default:
-        return { ...baseParams, date: format(new Date(), "yyyy-MM-dd") };
-    }
-  }, [view, leagueId, season, selectedDate]);
+  // --- CORE CHANGE: State now manages a DateRange object ---
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: new Date(),
+    to: new Date(),
+  });
+
+  const queryParams = useMemo(
+    () => ({
+      leagueId,
+      season,
+      from: format(dateRange?.from || new Date(), "yyyy-MM-dd"),
+      to: format(dateRange?.to || dateRange?.from || new Date(), "yyyy-MM-dd"),
+    }),
+    [leagueId, season, dateRange]
+  );
 
   const {
     data: fixtures,
@@ -64,79 +64,22 @@ export default function LeagueFixturesWidget({
     queryKey: ["leagueFixtures", queryParams],
     queryFn: () => fetchFixtures(queryParams),
     enabled: !!leagueId,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        calendarRef.current &&
-        !calendarRef.current.contains(event.target as Node)
-      ) {
-        setIsCalendarOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [calendarRef]);
-
-  const handleDateSelect = (date: Date | undefined) => {
-    if (date) {
-      setSelectedDate(date);
-      setView("date");
-      setIsCalendarOpen(false);
-    }
-  };
-
-  const renderDateButtonText = () => {
-    const currentLocale = dateLocales[locale] || enUS;
-    if (view === "date")
-      return format(selectedDate, "do MMM", { locale: currentLocale });
-    return t("select_date");
-  };
-
-  const currentLocale = dateLocales[locale] || enUS;
 
   return (
     <div className="bg-brand-secondary rounded-xl">
-      <div className="flex justify-between items-center p-4 border-b border-gray-700/50">
-        <h3 className="text-xl font-bold text-white">{t("fixtures")}</h3>
-        <div className="flex items-center gap-1 bg-[var(--color-primary)] p-1 rounded-lg">
-          <button
-            onClick={() => setView("today")}
-            className={`px-3 py-1 text-sm rounded-md font-semibold transition-colors ${
-              view === "today"
-                ? "bg-[var(--brand-accent)] text-white"
-                : "text-text-muted hover:bg-gray-700"
-            }`}
-          >
-            {t("today")}
-          </button>
-          <div className="relative" ref={calendarRef}>
-            <button
-              onClick={() => setIsCalendarOpen(!isCalendarOpen)}
-              className={`flex items-center gap-1.5 px-3 py-1 text-sm rounded-md font-semibold transition-colors capitalize ${
-                view === "date"
-                  ? "bg-[var(--brand-accent)] text-white"
-                  : "text-text-muted hover:bg-gray-700"
-              }`}
-            >
-              <Calendar size={14} />
-              {renderDateButtonText()}
-            </button>
-            {isCalendarOpen && (
-              <div className="absolute top-full right-0 mt-2 z-20 bg-brand-dark border border-gray-700 rounded-lg shadow-lg">
-                <DayPicker
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={handleDateSelect}
-                  className="text-white"
-                  initialFocus
-                  locale={currentLocale}
-                />
-              </div>
-            )}
-          </div>
+      <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 p-4 border-b border-gray-700/50">
+        <h3 className="text-xl font-bold text-white flex items-center gap-2 flex-shrink-0">
+          <CalendarClock size={22} />
+          {t("fixtures")}
+        </h3>
+        {/* --- CORE CHANGE: Replaced tabs with the Date Range Navigator --- */}
+        <div className="w-full md:max-w-xs lg:max-w-sm">
+          <MatchDateRangeNavigator
+            range={dateRange}
+            onRangeChange={setDateRange}
+          />
         </div>
       </div>
 
