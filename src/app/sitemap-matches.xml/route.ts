@@ -51,8 +51,8 @@ const generateXml = (entries: SitemapEntry[]) =>
 export async function GET() {
   try {
     const today = new Date();
-    const fromDate = format(subDays(today, 2), "yyyy-MM-dd");
-    const toDate = format(addDays(today, 4), "yyyy-MM-dd");
+    const fromDate = format(subDays(today, 1), "yyyy-MM-dd");
+    const toDate = format(addDays(today, 2), "yyyy-MM-dd");
 
     // --- CORE CHANGE: Call the direct data fetching function instead of the internal API ---
     const matches = await getFixturesByDateRange(fromDate, toDate);
