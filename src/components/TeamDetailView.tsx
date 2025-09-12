@@ -1,42 +1,110 @@
-import TeamHeader from "./team/TeamHeader";
-import TeamSquadWidget from "./team/TeamSquadWidget";
-import TeamFixturesWidget from "./team/TeamFixturesWidget";
-import LeagueStandingsWidget from "@/components/league-detail-view/LeagueStandingsWidget";
-import { generateLeagueSlug } from "@/lib/generate-league-slug";
-import { getI18n } from "@/lib/i18n/server"; // <-- Import server helper
+// ===== src/components/TeamDetailView.tsx =====
 
-export default async function TeamDetailView({ teamData }: { teamData: any }) {
-  const t = await getI18n(); // <-- Use server helper
-  const { teamInfo, squad, fixtures, standings } = teamData;
+"use client";
+
+import { useState, useMemo, Suspense } from "react";
+import dynamic from "next/dynamic";
+import { useTranslation } from "@/hooks/useTranslation";
+import { generateLeagueSlug } from "@/lib/generate-league-slug";
+import TeamHeader from "./team/TeamHeader";
+import { CalendarClock, Users, ListOrdered, Repeat, Film } from "lucide-react";
+
+// Dynamically import child components
+const TeamSquadWidget = dynamic(() => import("./team/TeamSquadWidget"));
+const TeamFixturesWidget = dynamic(() => import("./team/TeamFixturesWidget"));
+const LeagueStandingsWidget = dynamic(
+  () => import("@/components/league-detail-view/LeagueStandingsWidget")
+);
+const TeamTransfersTab = dynamic(() => import("./team/TeamTransfersTab"));
+// --- CORE CHANGE: Import the new, real HighlightsTab component ---
+const TeamHighlightsTab = dynamic(() => import("./team/TeamHighlightsTab"));
+
+// Main View Component
+export default function TeamDetailView({ teamData }: { teamData: any }) {
+  const { t } = useTranslation();
+  const [activeTab, setActiveTab] = useState("Fixtures");
+
+  const { teamInfo, squad, fixtures, standings, transfers, highlights } =
+    teamData;
   const { team } = teamInfo;
 
-  const primaryLeague = standings?.[0]?.league;
-  const leagueWithHref = primaryLeague
-    ? {
-        ...primaryLeague,
-        href: generateLeagueSlug(primaryLeague.name, primaryLeague.id),
-      }
-    : null;
+  const primaryLeague = useMemo(() => {
+    if (!standings || standings.length === 0) return null;
+    const league = standings[0]?.league;
+    return league
+      ? { ...league, href: generateLeagueSlug(league.name, league.id) }
+      : null;
+  }, [standings]);
+
+  const TABS = [
+    { name: "Fixtures", icon: CalendarClock },
+    { name: "Squad", icon: Users },
+    ...(primaryLeague ? [{ name: "Standings", icon: ListOrdered }] : []),
+    { name: "Transfers", icon: Repeat },
+    { name: "Highlights", icon: Film },
+  ];
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case "Squad":
+        return <TeamSquadWidget squad={squad} />;
+      case "Standings":
+        return primaryLeague ? (
+          <LeagueStandingsWidget
+            initialStandings={standings[0].league.standings}
+            leagueSeasons={[]}
+            currentSeason={primaryLeague.season}
+            isLoading={false}
+            hideSeasonDropdown={true}
+            leagueId={primaryLeague.id}
+            leagueSlug={primaryLeague.href.split("/").pop()}
+          />
+        ) : null;
+      case "Transfers":
+        return <TeamTransfersTab transfers={transfers} currentTeam={team} />;
+      // --- CORE CHANGE: Render the real component with the fetched data ---
+      case "Highlights":
+        return <TeamHighlightsTab highlights={highlights} />;
+      case "Fixtures":
+      default:
+        return <TeamFixturesWidget fixtures={fixtures} />;
+    }
+  };
 
   return (
-    <div className="space-y-8">
-      {/* Pass translated strings as props */}
+    <div className="space-y-6">
       <TeamHeader
         team={team}
         countryFlag={fixtures?.[0]?.league?.flag || ""}
         foundedText={t("founded_in", { year: team.founded })}
       />
 
-      <TeamFixturesWidget fixtures={fixtures} />
+      <div className="bg-brand-secondary rounded-lg p-2 flex items-center space-x-2 sticky top-[88px] z-30">
+        {TABS.map((tab) => (
+          <button
+            key={tab.name}
+            onClick={() => setActiveTab(tab.name)}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-semibold transition-colors ${
+              activeTab === tab.name
+                ? "bg-[var(--brand-accent)] text-white shadow-md"
+                : "text-brand-muted hover:bg-white/5 hover:text-white"
+            }`}
+          >
+            <tab.icon size={16} />
+            {t(tab.name.toLowerCase())}
+          </button>
+        ))}
+      </div>
 
-      {primaryLeague && leagueWithHref && (
-        <LeagueStandingsWidget
-          standings={standings[0].league.standings}
-          league={leagueWithHref}
-        />
-      )}
-
-      <TeamSquadWidget squad={squad} />
+      <div className="min-h-[400px]">
+        <Suspense
+          fallback={
+            <div className="w-full h-96 bg-brand-secondary rounded-lg animate-pulse"></div>
+          }
+        >
+          {renderTabContent()}
+        </Suspense>
+      </div>
     </div>
   );
 }

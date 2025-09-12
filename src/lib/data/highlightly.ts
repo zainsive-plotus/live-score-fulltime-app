@@ -7,8 +7,10 @@ const API_BASE_URL = "https://soccer.highlightly.net/highlights";
 const API_KEY = process.env.NEXT_PUBLIC_HIGHLIGHTLY_API_KEY;
 
 const CACHE_KEY = "highlights:latest-v6"; // Incremented cache key
-const CACHE_TTL_SUCCESS = 60 * 15; // Cache successful responses for 15 minutes
-const CACHE_TTL_RATELIMIT = 60 * 5; // Cache a rate-limit error for 5 minutes to give it time to reset
+const TEAM_CACHE_KEY_PREFIX = "highlights:team:v1:";
+const CACHE_TTL_SUCCESS = 60 * 15; // 15 minutes for latest
+const CACHE_TTL_TEAM = 60 * 60 * 24; // 24 hours for team-specific
+const CACHE_TTL_RATELIMIT = 60 * 5;
 
 async function request(endpoint: string, params?: object) {
   if (!API_KEY) {
@@ -130,5 +132,80 @@ export async function getLatestPopularHighlights() {
     }
 
     return []; // Always return an empty array on any failure to prevent the page from crashing.
+  }
+}
+
+/**
+ * Fetches and caches video highlights for a specific team.
+ * It searches for matches where the team was either home or away.
+ *
+ * @param teamName The name of the team to search for.
+ * @returns A promise that resolves to an array of highlight objects.
+ */
+export async function getHighlightsForTeam(teamName: string): Promise<any[]> {
+  if (!API_KEY) {
+    console.error("[Highlightly Service] API key is not configured.");
+    return [];
+  }
+
+  const cacheKey = `${TEAM_CACHE_KEY_PREFIX}${teamName.replace(/\s+/g, "-")}`;
+
+  try {
+    const cachedData = await redis.get(cacheKey);
+    if (cachedData) {
+      console.log(
+        `[Highlightly Service] Cache HIT for team highlights: ${teamName}`
+      );
+      return JSON.parse(cachedData);
+    }
+  } catch (e) {
+    console.error(
+      `[Highlightly Service] Redis GET failed for key ${cacheKey}`,
+      e
+    );
+  }
+
+  console.log(
+    `[Highlightly Service] Cache MISS for team highlights: ${teamName}. Fetching from API.`
+  );
+
+  try {
+    // Fetch both home and away games in parallel
+    const [homeGames, awayGames] = await Promise.all([
+      request("football/highlights", { homeTeamName: teamName, limit: 20 }),
+      request("football/highlights", { awayTeamName: teamName, limit: 20 }),
+    ]);
+
+    const allHighlights = [
+      ...(homeGames?.data || []),
+      ...(awayGames?.data || []),
+    ];
+
+    // De-duplicate highlights and sort by date
+    const uniqueHighlights = Array.from(
+      new Map(allHighlights.map((item) => [item.id, item])).values()
+    );
+    uniqueHighlights.sort(
+      (a, b) =>
+        new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+    );
+
+    await redis.set(
+      cacheKey,
+      JSON.stringify(uniqueHighlights),
+      "EX",
+      CACHE_TTL_TEAM
+    );
+    console.log(
+      `[Highlightly Service] Cached ${uniqueHighlights.length} highlights for ${teamName}.`
+    );
+
+    return uniqueHighlights;
+  } catch (error) {
+    console.error(
+      `[Highlightly Service] Failed to fetch highlights for team ${teamName}:`,
+      error
+    );
+    return []; // Return empty array on failure
   }
 }
