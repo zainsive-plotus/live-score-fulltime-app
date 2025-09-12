@@ -20,7 +20,11 @@ import AdSlotWidget from "@/components/AdSlotWidget";
 import LeagueFixturesWidget from "@/components/league-detail-view/LeagueFixturesWidget";
 import TeamSquadWidget from "@/components/team/TeamSquadWidget";
 // We need the data-fetching function for the dynamic part
-import { getTeamFixtures, getTeamStandings } from "@/lib/data/team";
+import {
+  getTeamFixtures,
+  getTeamSquad,
+  getTeamStandings,
+} from "@/lib/data/team";
 import TeamFixturesWidget from "@/components/team/TeamFixturesWidget";
 
 const BASE_URL =
@@ -105,7 +109,10 @@ export default async function TeamPage({
   }
 
   // We can still fetch some dynamic data on the server if needed, like fixtures
-  const fixtures = await getTeamFixtures(teamId);
+  const [fixtures, squad] = await Promise.all([
+    getTeamFixtures(teamId),
+    getTeamSquad(teamId), // Fetch the squad data here
+  ]);
 
   const { team, venue } = teamInfo;
 
@@ -135,7 +142,7 @@ export default async function TeamPage({
             <TeamFixturesWidget fixtures={fixtures} />
 
             {/* Squad is more dynamic, so we let it load on the client */}
-            <TeamSquadWidget teamId={teamId} />
+            <TeamSquadWidget squad={squad} />
 
             {/* Additional widgets can also be client-side */}
           </main>
