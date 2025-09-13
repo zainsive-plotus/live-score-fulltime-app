@@ -1,5 +1,3 @@
-// ===== src/components/admin/AdminSidebar.tsx =====
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -31,10 +29,12 @@ import {
   Link as LinkIcon,
   Send,
   FilePenLine,
-  Share2, // ADDED: Icon for Social Links
+  Share2,
+  Server, // <-- 1. IMPORT THE NEW ICON
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 
+// SubNavItem component remains the same...
 const SubNavItem = ({
   href,
   name,
@@ -114,10 +114,12 @@ export default function AdminSidebar() {
     { name: "Banners", href: "/admin/banners", icon: ImageIcon },
     { name: "Link Tracker", href: "/admin/link-tracker", icon: LinkIcon },
     { name: "Referrer Tracker", href: "/admin/referrer-tracker", icon: Send },
-    // ADDED: The new navigation item for Social Links
     { name: "Social Links", href: "/admin/social-links", icon: Share2 },
+    // VVVV 2. ADD THE NEW NAV ITEM HERE VVVV
+    { name: "Cache Management", href: "/admin/cache-management", icon: Server },
   ];
 
+  // The rest of the file remains the same...
   const localizationSubNav = [
     { name: "Languages", href: "/admin/languages", icon: Languages },
     { name: "Translations", href: "/admin/translations", icon: FileJson },

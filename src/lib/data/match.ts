@@ -1,37 +1,33 @@
-// ===== src/lib/data/match.ts =====
-
 import axios from "axios";
 import "server-only";
 import redis from "@/lib/redis";
 import { logApiRequest, RequestContext } from "@/lib/logging";
-import { calculateCustomPrediction } from "@/lib/prediction-engine";
 import { getNews } from "@/lib/data/news";
 import { getMatchHighlights as fetchHighlights } from "@/lib/data/highlightly";
 
-const STALE_CACHE_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
-const LIVE_CACHE_TTL_SECONDS = 60; // 1 minute
+const STALE_CACHE_TTL_SECONDS = 60 * 60 * 24 * 7;
+const LIVE_CACHE_TTL_SECONDS = 60;
 
-/**
- * A centralized function to make requests to the third-party sports API,
- * with built-in Redis caching and detailed logging.
- */
 const apiRequest = async <T>(
   endpoint: string,
   params: object,
   cacheKey: string,
   ttl: number,
-  context: RequestContext
+  context?: RequestContext // Context is optional
 ): Promise<T | null> => {
   try {
     const cachedData = await redis.get(cacheKey);
     if (cachedData) {
-      // No log needed for cache HITs as no external request is made.
       return JSON.parse(cachedData);
     }
+  } catch (e) {
+    console.error(`[data/match.ts] Redis GET failed for key ${cacheKey}.`, e);
+  }
 
-    // Log the request just before it is sent to the external API.
-    logApiRequest(endpoint, params, context);
+  // Safely call the logger
+  logApiRequest(endpoint, params, context);
 
+  try {
     const options = {
       method: "GET",
       url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/${endpoint}`,
@@ -42,7 +38,6 @@ const apiRequest = async <T>(
     const response = await axios.request(options);
     const data = response.data.response;
 
-    // Cache the data only if the response is valid and contains data.
     if (data && (!Array.isArray(data) || data.length > 0)) {
       await redis.set(cacheKey, JSON.stringify(data), "EX", ttl);
     }
@@ -51,6 +46,7 @@ const apiRequest = async <T>(
     console.error(
       `[data/match.ts] API request for ${endpoint} with key ${cacheKey} failed: ${error.message}. Attempting to serve from cache.`
     );
+    // Fallback to cache on API error
     try {
       const cachedData = await redis.get(cacheKey);
       if (cachedData) {
@@ -69,11 +65,9 @@ const apiRequest = async <T>(
   }
 };
 
-// --- Data Fetching Functions (now with RequestContext) ---
-
 export const getFixture = async (
   fixtureId: string,
-  context: RequestContext
+  context?: RequestContext
 ) => {
   const cacheKey = `fixture:${fixtureId}`;
   const fixtureResponse = await apiRequest<any[]>(
@@ -89,7 +83,7 @@ export const getFixture = async (
 
 export const getStatistics = async (
   fixtureId: string,
-  context: RequestContext
+  context?: RequestContext
 ) => {
   const cacheKey = `statistics:${fixtureId}`;
   return await apiRequest<any[]>(
@@ -104,7 +98,7 @@ export const getStatistics = async (
 export const getH2H = async (
   homeTeamId: number,
   awayTeamId: number,
-  context: RequestContext
+  context?: RequestContext
 ) => {
   const sortedIds = [homeTeamId, awayTeamId].sort();
   const cacheKey = `h2h:${sortedIds[0]}-${sortedIds[1]}`;
@@ -121,7 +115,7 @@ export const getTeamStats = async (
   leagueId: number,
   season: number,
   teamId: number,
-  context: RequestContext
+  context?: RequestContext
 ) => {
   const cacheKey = `team-stats:${teamId}:${leagueId}:${season}`;
   return await apiRequest<any>(
@@ -136,7 +130,7 @@ export const getTeamStats = async (
 export const getStandings = async (
   leagueId: number,
   season: number,
-  context: RequestContext
+  context?: RequestContext
 ) => {
   const cacheKey = `standings:${leagueId}:${season}`;
   return await apiRequest<any[]>(
@@ -150,7 +144,7 @@ export const getStandings = async (
 
 export const getBookmakerOdds = async (
   fixtureId: string,
-  context: RequestContext
+  context?: RequestContext
 ) => {
   const cacheKey = `odds:${fixtureId}`;
   const response = await apiRequest<any[]>(
@@ -162,8 +156,6 @@ export const getBookmakerOdds = async (
   );
   return response ?? [];
 };
-
-// --- Helper Functions (No direct API calls, no context needed) ---
 
 export const getLinkedNews = async (fixtureId: number, locale: string) => {
   const newsData = await getNews({

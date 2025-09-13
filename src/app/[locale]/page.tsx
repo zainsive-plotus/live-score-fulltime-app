@@ -33,13 +33,26 @@ export async function generateMetadata({
   params: { locale: string };
 }): Promise<Metadata> {
   const { locale } = params;
-  const t = await getI18n(locale);
+  const meta: any = {
+    tr: {
+      title:
+        "Canlı Futbol Skorları, Fikstürler & İstatistikler | Fanskor | Premier Lig, La Liga, Serie A",
+      description:
+        "Dünya çapındaki üst liglerden canlı futbol skorlarını, detaylı istatistikleri ve yaklaşan fikstürleri takip edin. Fanskor'da kapsamlı kapsamla güncel kalın.",
+    },
+    en: {
+      title:
+        "Live Football Scores, Fixtures & Stats | Fanskor | Premier League, La Liga, Serie A",
+      description:
+        "Track live football scores, detailed statistics, and upcoming fixtures from top leagues worldwide. Stay updated with comprehensive coverage on Fanskor.",
+    },
+  };
 
   // Use locale-specific meta if it exists, otherwise fall back to the default
-  const meta = (homepageMeta as any)[locale] || homepageMeta.default;
+  // const meta = (homepageMeta as any)[locale] || homepageMeta.default;
 
-  const title = meta.title;
-  const description = meta.description;
+  const title = meta[locale === "tr" ? locale : "en"].title;
+  const description = meta[locale === "tr" ? locale : "en"].description;
 
   const hreflangAlternates = await generateHreflangTags("/", "", locale);
 
@@ -67,7 +80,7 @@ export async function generateMetadata({
           url: `${METADATA_BASE_URL}/og-image.jpg`,
           width: 1200,
           height: 630,
-          alt: t("og_image_alt_text"),
+          alt: "Fanskor - Türkiye Canlı Skor Sitesi",
         },
       ],
       locale: locale,

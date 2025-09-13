@@ -100,6 +100,7 @@ export default function MatchDetailView({ matchData }: { matchData: any }) {
   const renderTabContent = () => {
     switch (activeTab) {
       case "Timeline":
+      default:
         return (
           <MatchActivityWidget
             fixtureId={fixtureId}
@@ -128,9 +129,6 @@ export default function MatchDetailView({ matchData }: { matchData: any }) {
             awayTeamId={teams.away.id}
           />
         ) : null;
-      case "Info":
-      default:
-        return <MatchInfoTab matchData={matchData} />;
     }
   };
 
@@ -138,7 +136,7 @@ export default function MatchDetailView({ matchData }: { matchData: any }) {
     <div className="space-y-6">
       <MatchHeader fixture={fixtureData} />
 
-      <div className="bg-brand-secondary rounded-lg p-2 flex items-center space-x-2 sticky top-[88px] z-30 overflow-x-auto scrollbar-hide">
+      <div className="bg-brand-secondary rounded-lg p-2 flex items-center space-x-2 top-[88px] z-30 overflow-x-auto scrollbar-hide">
         {TABS.map((tab) => (
           <button
             key={tab.name}

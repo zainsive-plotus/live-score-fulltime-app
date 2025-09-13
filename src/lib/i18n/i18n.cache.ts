@@ -1,11 +1,9 @@
-// ===== src/lib/i18n/i18n.cache.ts =====
-
 import dbConnect from "@/lib/dbConnect";
 import Language, { ILanguage } from "@/models/Language";
 import Translation from "@/models/Translation";
 import redis from "@/lib/redis";
 
-const CACHE_TTL_SECONDS = 60 * 60 * 24;
+const CACHE_TTL_SECONDS = 60 * 60 * 24; // 1 day
 
 const CACHE_KEYS = {
   LOCALES: "i18n:meta:locales",
@@ -35,7 +33,6 @@ export class I18nCache {
     return I18nCache.instance;
   }
 
-  // --- NEW: Retry Logic ---
   private async connectWithRetry(
     fn: () => Promise<any>,
     retries = 3,
@@ -49,10 +46,10 @@ export class I18nCache {
           `[I18N_CACHE] DB Operation failed (Attempt ${i}/${retries}): ${error.message}`
         );
         if (i === retries) {
-          console.error("[I18N_CACHE] All DB connection attempts failed.");
+          // On the last retry, re-throw the error to be caught by the caller.
           throw error;
         }
-        await new Promise((res) => setTimeout(res, delay * i)); // Exponential backoff
+        await new Promise((res) => setTimeout(res, delay * i));
       }
     }
   }
@@ -126,7 +123,8 @@ export class I18nCache {
       let foundDefault = false;
 
       if (activeLanguages.length === 0) {
-        this.isInitialized = !isProduction; // Allow dev server to run without languages
+        // In dev, allow initialization to complete to avoid blocking server start.
+        this.isInitialized = !isProduction;
         return;
       }
 
@@ -157,13 +155,15 @@ export class I18nCache {
 
       if (isProduction) {
         const redisPipeline = redis.pipeline();
-        redisPipeline.hset(
+        // CHANGED: Using set instead of hset for simple key-value strings
+        redisPipeline.set(
           CACHE_KEYS.LOCALES,
           JSON.stringify(Array.from(newCache.keys()))
         );
-        redisPipeline.hset(CACHE_KEYS.DEFAULT_LOCALE, this.defaultLocale);
+        redisPipeline.set(CACHE_KEYS.DEFAULT_LOCALE, this.defaultLocale);
         for (const [locale, data] of newCache.entries()) {
-          redisPipeline.hset(
+          // CHANGED: Using set instead of hset here too
+          redisPipeline.set(
             `${CACHE_KEYS.TRANSLATIONS_PREFIX}${locale}`,
             JSON.stringify(data),
             "EX",
@@ -177,7 +177,7 @@ export class I18nCache {
       }
 
       this.cache = newCache;
-      this.isInitialized = true; // Mark as initialized only on full success
+      this.isInitialized = true;
       console.log(
         `[I18N_CACHE] Successfully loaded translations for ${this.cache.size} locales from DB.`
       );
@@ -190,15 +190,14 @@ export class I18nCache {
         "[I18N_CACHE] CRITICAL: Failed to load i18n data from database after multiple retries.",
         error
       );
-      // During a build, we must throw the error to fail the build.
+      // Allow builds to fail if they can't get translation data
       if (process.env.npm_lifecycle_script?.includes("build")) {
         throw error;
       }
-      this.isInitialized = false;
+      this.isInitialized = false; // Stay uninitialized on failure in dev
     }
   }
 
-  // ... (rest of the class remains the same) ...
   public async reload(): Promise<void> {
     if (isProduction) {
       const locales = await this.getLocales();
