@@ -13,8 +13,6 @@ import { generateHreflangTags } from "@/lib/hreflang";
 import { getI18n } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
-// Import the new JSON file
-import homepageMeta from "public/data/homepage-meta.json";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
@@ -27,26 +25,27 @@ interface HomePageProps {
   };
 }
 
+const meta: any = {
+  tr: {
+    title:
+      "Canlı Futbol Skorları, Fikstürler & İstatistikler | Fanskor | Premier Lig, La Liga, Serie A",
+    description:
+      "Dünya çapındaki üst liglerden canlı futbol skorlarını, detaylı istatistikleri ve yaklaşan fikstürleri takip edin. Fanskor'da kapsamlı kapsamla güncel kalın.",
+  },
+  en: {
+    title:
+      "Live Football Scores, Fixtures & Stats | Fanskor | Premier League, La Liga, Serie A",
+    description:
+      "Track live football scores, detailed statistics, and upcoming fixtures from top leagues worldwide. Stay updated with comprehensive coverage on Fanskor.",
+  },
+};
+
 export async function generateMetadata({
   params,
 }: {
   params: { locale: string };
 }): Promise<Metadata> {
   const { locale } = params;
-  const meta: any = {
-    tr: {
-      title:
-        "Canlı Futbol Skorları, Fikstürler & İstatistikler | Fanskor | Premier Lig, La Liga, Serie A",
-      description:
-        "Dünya çapındaki üst liglerden canlı futbol skorlarını, detaylı istatistikleri ve yaklaşan fikstürleri takip edin. Fanskor'da kapsamlı kapsamla güncel kalın.",
-    },
-    en: {
-      title:
-        "Live Football Scores, Fixtures & Stats | Fanskor | Premier League, La Liga, Serie A",
-      description:
-        "Track live football scores, detailed statistics, and upcoming fixtures from top leagues worldwide. Stay updated with comprehensive coverage on Fanskor.",
-    },
-  };
 
   // Use locale-specific meta if it exists, otherwise fall back to the default
   // const meta = (homepageMeta as any)[locale] || homepageMeta.default;
