@@ -1,7 +1,7 @@
 // ===== src/components/match/MatchSeoWidget.tsx =====
 
 import { BookOpenText } from "lucide-react";
-import "server-only"; // Mark this as a server-only component
+// Mark this as a server-only component
 
 interface MatchSeoWidgetProps {
   title: string;

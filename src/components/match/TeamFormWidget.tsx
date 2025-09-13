@@ -3,32 +3,17 @@
 "use client";
 
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
-import { TrendingUp, Shield, BarChart2, Info } from "lucide-react";
+import { TrendingUp, BarChart2, Shield } from "lucide-react";
 import Image from "next/image";
 import { proxyImageUrl } from "@/lib/image-proxy";
 import { useTranslation } from "@/hooks/useTranslation";
 
+// --- CORE CHANGE: The component now receives teamStats directly as a prop ---
 interface TeamFormWidgetProps {
   team: any;
   location: "Home" | "Away";
-  fixtureData: any; // Used to get IDs for the API call
+  teamStats: any; // This will be the statistics object for this specific team
 }
-
-const fetchTeamFormData = async (
-  teamId: number,
-  leagueId: number,
-  season: number
-) => {
-  const params = new URLSearchParams({
-    teamId: teamId.toString(),
-    leagueId: leagueId.toString(),
-    season: season.toString(),
-  });
-  const { data } = await axios.get(`/api/team-form-data?${params.toString()}`);
-  return data;
-};
 
 const StatRow = ({
   label,
@@ -48,6 +33,7 @@ const StatRow = ({
     </span>
   </div>
 );
+
 const FormPill = ({ result }: { result: "W" | "D" | "L" }) => {
   const styles = {
     W: "bg-green-500/80 text-white",
@@ -63,61 +49,28 @@ const FormPill = ({ result }: { result: "W" | "D" | "L" }) => {
   );
 };
 
-const WidgetSkeleton = () => (
-  <div className="bg-brand-secondary p-4 rounded-lg space-y-4 animate-pulse h-[400px]">
-    <div className="flex items-center gap-3">
-      <div className="w-10 h-10 rounded-full bg-gray-700"></div>
-      <div className="space-y-2">
-        <div className="h-3 w-20 bg-gray-600 rounded"></div>
-        <div className="h-5 w-32 bg-gray-600 rounded"></div>
-      </div>
-    </div>
-    <div className="h-6 w-1/2 bg-gray-700 rounded"></div>
-    <div className="h-8 w-full bg-gray-700/50 rounded"></div>
-    <div className="h-6 w-1/2 bg-gray-700 rounded mt-4"></div>
-    <div className="h-24 w-full bg-gray-700/50 rounded"></div>
-  </div>
-);
-
 export default function TeamFormWidget({
   team,
   location,
-  fixtureData,
+  teamStats,
 }: TeamFormWidgetProps) {
   const { t } = useTranslation();
-  const { league } = fixtureData;
 
-  const {
-    data: teamStats,
-    isLoading,
-    isError,
-  } = useQuery({
-    queryKey: ["teamFormData", team.id, league.id, league.season],
-    queryFn: () => fetchTeamFormData(team.id, league.id, league.season),
-    staleTime: 1000 * 60 * 15,
-    enabled: !!team.id && !!league.id && !!league.season,
-  });
-
+  // --- CORE CHANGE: No more useQuery. We use the prop directly. ---
   const { formString, detailedStats } = useMemo(() => {
-    let form = "";
-    let stats = null;
-
-    if (teamStats && teamStats.fixtures?.played?.total > 0) {
-      form = teamStats.form || "";
-      stats = {
+    if (!teamStats || !teamStats.fixtures?.played?.total > 0) {
+      return { formString: "", detailedStats: null };
+    }
+    return {
+      formString: teamStats.form || "",
+      detailedStats: {
         fixtures: teamStats.fixtures,
         goals: teamStats.goals,
-      };
-    }
-
-    return { formString: form, detailedStats: stats };
+      },
+    };
   }, [teamStats]);
 
-  if (isLoading) {
-    return <WidgetSkeleton />;
-  }
-
-  if (isError || !detailedStats) {
+  if (!detailedStats) {
     return (
       <div className="bg-brand-secondary p-4 rounded-lg h-full flex flex-col">
         <div className="flex items-center gap-3 mb-4">
@@ -176,71 +129,61 @@ export default function TeamFormWidget({
         </div>
       )}
 
-      {detailedStats && (
-        <>
-          <div>
-            <h4 className="font-semibold text-brand-light mb-1 flex items-center gap-2">
-              <BarChart2 size={16} /> {t("performance_title")}
-            </h4>
-            <div className="bg-gray-800/50 p-2 rounded-md">
-              <StatRow
-                label={t("matches_played")}
-                value={`${detailedStats.fixtures.played.home} (${t(
-                  "home_short"
-                )}) / ${detailedStats.fixtures.played.away} (${t(
-                  "away_short"
-                )})`}
-              />
-              <StatRow
-                label={t("wins")}
-                value={`${detailedStats.fixtures.wins.home} (${t(
-                  "home_short"
-                )}) / ${detailedStats.fixtures.wins.away} (${t("away_short")})`}
-              />
-              <StatRow
-                label={t("draws")}
-                value={`${detailedStats.fixtures.draws.home} (${t(
-                  "home_short"
-                )}) / ${detailedStats.fixtures.draws.away} (${t(
-                  "away_short"
-                )})`}
-              />
-              <StatRow
-                label={t("losses")}
-                value={`${detailedStats.fixtures.loses.home} (${t(
-                  "home_short"
-                )}) / ${detailedStats.fixtures.loses.away} (${t(
-                  "away_short"
-                )})`}
-              />
-            </div>
-          </div>
-          <div>
-            <h4 className="font-semibold text-brand-light mb-1 flex items-center gap-2">
-              <Shield size={16} /> {t("goal_analysis_title")}
-            </h4>
-            <div className="bg-gray-800/50 p-2 rounded-md">
-              <StatRow
-                label={t("goals_for")}
-                value={detailedStats.goals.for.total.total}
-                highlight
-              />
-              <StatRow
-                label={t("goals_against")}
-                value={detailedStats.goals.against.total.total}
-              />
-              <StatRow
-                label={t("avg_scored")}
-                value={detailedStats.goals.for.average.total}
-              />
-              <StatRow
-                label={t("avg_conceded")}
-                value={detailedStats.goals.against.average.total}
-              />
-            </div>
-          </div>
-        </>
-      )}
+      <div>
+        <h4 className="font-semibold text-brand-light mb-1 flex items-center gap-2">
+          <BarChart2 size={16} /> {t("performance_title")}
+        </h4>
+        <div className="bg-gray-800/50 p-2 rounded-md">
+          <StatRow
+            label={t("matches_played")}
+            value={`${detailedStats.fixtures.played.home} (${t(
+              "home_short"
+            )}) / ${detailedStats.fixtures.played.away} (${t("away_short")})`}
+          />
+          <StatRow
+            label={t("wins")}
+            value={`${detailedStats.fixtures.wins.home} (${t(
+              "home_short"
+            )}) / ${detailedStats.fixtures.wins.away} (${t("away_short")})`}
+          />
+          <StatRow
+            label={t("draws")}
+            value={`${detailedStats.fixtures.draws.home} (${t(
+              "home_short"
+            )}) / ${detailedStats.fixtures.draws.away} (${t("away_short")})`}
+          />
+          <StatRow
+            label={t("losses")}
+            value={`${detailedStats.fixtures.loses.home} (${t(
+              "home_short"
+            )}) / ${detailedStats.fixtures.loses.away} (${t("away_short")})`}
+          />
+        </div>
+      </div>
+      <div>
+        <h4 className="font-semibold text-brand-light mb-1 flex items-center gap-2">
+          <Shield size={16} /> {t("goal_analysis_title")}
+        </h4>
+        <div className="bg-gray-800/50 p-2 rounded-md">
+          <StatRow
+            label={t("goals_for")}
+            value={detailedStats.goals.for.total.total}
+            highlight
+          />
+          <StatRow
+            label={t("goals_against")}
+            value={detailedStats.goals.against.total.total}
+          />
+          <StatRow
+            label={t("avg_scored")}
+            value={detailedStats.goals.for.average.total}
+          />
+          <StatRow
+            label={t("avg_conceded")}
+            value={detailedStats.goals.against.average.total}
+          />
+        </div>
+      </div>
     </div>
   );
 }
