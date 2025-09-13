@@ -13,6 +13,8 @@ import { generateHreflangTags } from "@/lib/hreflang";
 import { getI18n } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
+// Import the new JSON file
+import homepageMeta from "public/data/homepage-meta.json";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
@@ -25,33 +27,19 @@ interface HomePageProps {
   };
 }
 
-const meta: any = {
-  tr: {
-    title:
-      "Canlı Futbol Skorları, Fikstürler & İstatistikler | Fanskor | Premier Lig, La Liga, Serie A",
-    description:
-      "Dünya çapındaki üst liglerden canlı futbol skorlarını, detaylı istatistikleri ve yaklaşan fikstürleri takip edin. Fanskor'da kapsamlı kapsamla güncel kalın.",
-  },
-  en: {
-    title:
-      "Live Football Scores, Fixtures & Stats | Fanskor | Premier League, La Liga, Serie A",
-    description:
-      "Track live football scores, detailed statistics, and upcoming fixtures from top leagues worldwide. Stay updated with comprehensive coverage on Fanskor.",
-  },
-};
-
 export async function generateMetadata({
   params,
 }: {
   params: { locale: string };
 }): Promise<Metadata> {
   const { locale } = params;
+  const t = await getI18n(locale);
 
   // Use locale-specific meta if it exists, otherwise fall back to the default
-  // const meta = (homepageMeta as any)[locale] || homepageMeta.default;
+  const meta = (homepageMeta as any)[locale] || homepageMeta.default;
 
-  const title = meta[locale === "tr" ? locale : "en"].title;
-  const description = meta[locale === "tr" ? locale : "en"].description;
+  const title = meta.title;
+  const description = meta.description;
 
   const hreflangAlternates = await generateHreflangTags("/", "", locale);
 
@@ -79,7 +67,7 @@ export async function generateMetadata({
           url: `${METADATA_BASE_URL}/og-image.jpg`,
           width: 1200,
           height: 630,
-          alt: "Fanskor - Türkiye Canlı Skor Sitesi",
+          alt: t("og_image_alt_text"),
         },
       ],
       locale: locale,
