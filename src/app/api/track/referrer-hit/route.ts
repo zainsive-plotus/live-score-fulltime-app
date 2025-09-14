@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     await dbConnect();
 
     const headersList = headers();
-    const ip = headersList.get("x-forwarded-for") || "unknown";
+    const ip = (await headersList).get("x-forwarded-for") || "unknown";
     const ipHash = crypto.createHash("sha256").update(ip).digest("hex");
 
     // Find the active rule that matches the start of the sourceUrl
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
             $each: [
               {
                 ipHash,
-                userAgent: headersList.get("user-agent") || "unknown",
+                userAgent: (await headersList).get("user-agent") || "unknown",
                 landingPage: landingPage,
                 timestamp: new Date(),
               },

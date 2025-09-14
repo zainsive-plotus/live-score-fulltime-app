@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import axios from "axios";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import TeamListClient from "@/components/TeamListClient";
@@ -11,29 +10,11 @@ import { generateHreflangTags } from "@/lib/hreflang";
 import Script from "next/script";
 import { WithContext, CollectionPage, BreadcrumbList } from "schema-dts";
 import TeamsSeoWidget from "@/components/directory/TeamsSeoWidget";
+import { getPaginatedTeams } from "@/lib/data/team"; // <-- Import the new direct data function
 
 const PAGE_PATH = "/football/teams";
-const BASE_URL =
-  process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
+const BASE_URL = process.env.APP_URL || "http://localhost:3000";
 const ITEMS_PER_PAGE = 21;
-
-// This function now only fetches the first, pre-sorted page from our smart API
-const fetchInitialTeams = async () => {
-  const apiUrl = `${BASE_URL}/api/teams/paginated?page=1&limit=${ITEMS_PER_PAGE}`;
-  try {
-    const { data } = await axios.get(apiUrl, { timeout: 15000 });
-    return data;
-  } catch (error: any) {
-    console.error(
-      `[Teams Page Server] Failed to fetch initial teams:`,
-      error.message
-    );
-    return {
-      teams: [],
-      pagination: { currentPage: 1, totalPages: 0, totalCount: 0 },
-    };
-  }
-};
 
 export async function generateMetadata({
   params,
@@ -60,8 +41,13 @@ export default async function TeamsPage({
   const { locale } = params;
   const t = await getI18n(locale);
 
-  // The logic is now much simpler here: just fetch the initial data.
-  const initialData = await fetchInitialTeams();
+  // Fetch the initial data directly on the server for the first page load.
+  // This bypasses the need for an internal API call on the server.
+  const initialData = await getPaginatedTeams({
+    page: 1,
+    limit: ITEMS_PER_PAGE,
+    searchQuery: "",
+  });
 
   const jsonLd: WithContext<CollectionPage | BreadcrumbList>[] = [
     {
@@ -114,6 +100,11 @@ export default async function TeamsPage({
               </div>
             </div>
 
+            {/* 
+              Pass the server-fetched data directly to the client component.
+              TeamListClient will use this for the initial render and then
+              handle subsequent pagination and searches on its own.
+            */}
             <TeamListClient initialData={initialData} />
 
             <TeamsSeoWidget locale={locale} />
