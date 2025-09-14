@@ -1,12 +1,9 @@
-// ===== src/app/[locale]/football/standings/page.tsx =====
-
 import type { Metadata } from "next";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import { ListOrdered } from "lucide-react";
 import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
-import axios from "axios";
 import StandingsHubClient from "@/components/directory/StandingsHubClient";
 import { Suspense } from "react";
 import { FeaturedLeagueCardSkeleton } from "@/components/directory/FeaturedLeagueCard";
@@ -15,37 +12,18 @@ import AdSlotWidget from "@/components/AdSlotWidget";
 import Script from "next/script";
 import { WithContext, CollectionPage, BreadcrumbList } from "schema-dts";
 import StandingsSeoWidget from "@/components/directory/StandingsSeoWidget";
+import { getStandingsLeagues } from "@/lib/data/directory"; // <-- Import the new data function
 
 const PAGE_PATH = "/football/standings";
-const BASE_URL =
-  process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
+const BASE_URL = process.env.APP_URL || "http://localhost:3000";
 
-// Fetch only the first page for the initial server render
-async function getInitialStandingsLeagues() {
-  try {
-    const { data } = await axios.get(
-      `${BASE_URL}/api/directory/standings-leagues?page=1&limit=18`
-    );
-    return data;
-  } catch (error) {
-    console.error(
-      "[Standings Hub Page] Failed to fetch initial leagues:",
-      error
-    );
-    return {
-      leagues: [],
-      pagination: { currentPage: 1, totalPages: 0, totalCount: 0 },
-    };
-  }
-}
-
+// generateMetadata function remains the same...
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ locale: string }>;
+  params: { locale: string };
 }): Promise<Metadata> {
-  const { locale } = await params;
-
+  const { locale } = params;
   const t = await getI18n(locale);
   const hreflangAlternates = await generateHreflangTags(PAGE_PATH, "", locale);
   const pageTitle = t("standings_hub_page_title");
@@ -72,11 +50,13 @@ const StandingsPageSkeleton = () => (
 export default async function FootballStandingsHubPage({
   params,
 }: {
-  params: Promise<{ locale: string }>;
+  params: { locale: string };
 }) {
-  const { locale } = await params;
+  const { locale } = params;
   const t = await getI18n(locale);
-  const initialData = await getInitialStandingsLeagues();
+
+  // FETCH DATA DIRECTLY ON THE SERVER for the initial page load
+  const initialData = await getStandingsLeagues({ page: 1, limit: 18 });
 
   const jsonLd: WithContext<CollectionPage | BreadcrumbList>[] = [
     {
@@ -128,6 +108,7 @@ export default async function FootballStandingsHubPage({
             </div>
 
             <Suspense fallback={<StandingsPageSkeleton />}>
+              {/* Pass the server-fetched data directly as a prop */}
               <StandingsHubClient
                 initialLeagues={initialData.leagues}
                 initialPagination={initialData.pagination}
