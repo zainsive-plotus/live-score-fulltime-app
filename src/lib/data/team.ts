@@ -1,12 +1,16 @@
+import axios from "axios";
+import redis from "@/lib/redis";
 import "server-only";
-import dbConnect from "@/lib/dbConnect";
+import { cache } from "react";
 import Team from "@/models/Team";
 import { topLeaguesConfig } from "@/config/topLeaguesConfig";
-import axios from "axios";
+import dbConnect from "@/lib/dbConnect";
 
 const BASE_URL = process.env.APP_URL || "http://localhost:3000";
 
-// This logic is moved from your API route to be reusable.
+const STATIC_CACHE_TTL = 60 * 60 * 24;
+const DYNAMIC_CACHE_TTL = 60 * 60 * 6;
+
 const getPopularTeams = async () => {
   try {
     const season = new Date().getFullYear();
@@ -124,3 +128,169 @@ export const getPaginatedTeams = async ({
     pagination: { currentPage: page, totalPages, totalCount },
   };
 };
+
+const apiRequest = async <T>(
+  endpoint: string,
+  params: object,
+  cacheKey: string,
+  ttl: number
+): Promise<T | null> => {
+  try {
+    const cachedData = await redis.get(cacheKey);
+    if (cachedData) {
+      return JSON.parse(cachedData);
+    }
+  } catch (e) {
+    console.error(`[data/team] Redis GET failed for key ${cacheKey}.`, e);
+  }
+
+  try {
+    const options = {
+      method: "GET",
+      url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/${endpoint}`,
+      params,
+      headers: { "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
+      timeout: 8000,
+    };
+    const response = await axios.request(options);
+    const data = response.data.response;
+
+    if (data && (!Array.isArray(data) || data.length > 0)) {
+      await redis.set(cacheKey, JSON.stringify(data), "EX", ttl);
+    }
+    return data;
+  } catch (error: any) {
+    console.error(
+      `[data/team] API fetch failed for key ${cacheKey}:`,
+      error.code || error.message
+    );
+    try {
+      const cachedData = await redis.get(cacheKey);
+      if (cachedData) {
+        console.warn(`[data/team] ✓ Serving STALE data for key: ${cacheKey}`);
+        return JSON.parse(cachedData);
+      }
+    } catch (cacheError) {
+      console.error(
+        `[data/team] ✗ CRITICAL: Redis lookup failed during fallback for key ${cacheKey}.`,
+        cacheError
+      );
+    }
+    return null;
+  }
+};
+
+// VVVV EXPORT STATEMENTS ARE CORRECTED HERE VVVV
+
+export const getTeamInfo = cache(async (teamId: string) => {
+  const data = await apiRequest<any[]>(
+    "teams",
+    { id: teamId },
+    `team:info:${teamId}`,
+    STATIC_CACHE_TTL
+  );
+  return data?.[0] ?? null;
+});
+
+export const getTeamSquad = cache(async (teamId: string) => {
+  const data = await apiRequest<any[]>(
+    "players/squads",
+    { team: teamId },
+    `team:squad:${teamId}`,
+    STATIC_CACHE_TTL
+  );
+  // The API response for squads is an array containing one object with a 'players' key.
+  return data?.[0]?.players ?? [];
+});
+
+export const getTeamFixtures = cache(async (teamId: string) => {
+  return await apiRequest<any[]>(
+    "fixtures",
+    { team: teamId, last: 20 },
+    `team:fixtures:${teamId}`,
+    DYNAMIC_CACHE_TTL
+  );
+});
+
+export const getTeamStandings = cache(async (teamId: string) => {
+  const season = new Date().getFullYear().toString();
+  const cacheKey = `team:standings:v3:${teamId}:${season}`;
+
+  try {
+    const cachedData = await redis.get(cacheKey);
+    if (cachedData) {
+      return JSON.parse(cachedData);
+    }
+
+    const teamLeaguesResponse = await apiRequest<any[]>(
+      "leagues",
+      { team: teamId },
+      `team:leagues:${teamId}`,
+      STATIC_CACHE_TTL
+    );
+    if (!teamLeaguesResponse || teamLeaguesResponse.length === 0) {
+      console.warn(
+        `[data/team] No leagues found for team ${teamId}. Cannot fetch standings.`
+      );
+      return null;
+    }
+
+    const primaryLeagueInfo = teamLeaguesResponse
+      .filter(
+        (item) =>
+          item.league.type === "League" &&
+          item.seasons.some((s: any) => s.year.toString() === season)
+      )
+      .sort((a, b) => a.league.id - b.league.id)[0];
+
+    if (!primaryLeagueInfo) {
+      console.warn(
+        `[data/team] No primary "League" type competition found for team ${teamId} for the ${season} season.`
+      );
+      return null;
+    }
+
+    const { league } = primaryLeagueInfo;
+
+    const standingsData = await apiRequest<any[]>(
+      "standings",
+      { league: league.id, season: season },
+      `standings:${league.id}:${season}`,
+      DYNAMIC_CACHE_TTL
+    );
+
+    await redis.set(
+      cacheKey,
+      JSON.stringify(standingsData),
+      "EX",
+      DYNAMIC_CACHE_TTL
+    );
+    return standingsData;
+  } catch (error) {
+    console.error(
+      `[data/team] CRITICAL: Failed to execute getTeamStandings for team ${teamId}`,
+      error
+    );
+    try {
+      const cachedData = await redis.get(cacheKey);
+      if (cachedData) return JSON.parse(cachedData);
+    } catch (e) {}
+    return null;
+  }
+});
+
+// This is a helper function that bundles the calls for the main page.
+export async function getTeamPageData(teamId: string) {
+  const [teamInfo, squad, fixtures, standings] = await Promise.all([
+    getTeamInfo(teamId),
+    getTeamSquad(teamId),
+    getTeamFixtures(teamId),
+    getTeamStandings(teamId),
+  ]);
+
+  if (!teamInfo) {
+    return null;
+  }
+
+  return { teamInfo, squad, fixtures, standings };
+}
