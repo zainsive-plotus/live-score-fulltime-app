@@ -33,7 +33,7 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const t = await getI18n(locale);
+  // const t = await getI18n(locale);
 
   // Use locale-specific meta if it exists, otherwise fall back to the default
   const meta = (homepageMeta as any)[locale] || homepageMeta.default;
@@ -67,7 +67,8 @@ export async function generateMetadata({
           url: `${METADATA_BASE_URL}/og-image.jpg`,
           width: 1200,
           height: 630,
-          alt: t("og_image_alt_text"),
+          // alt: t("og_image_alt_text"),
+          alt: "og_image_alt_text",
         },
       ],
       locale: locale,
