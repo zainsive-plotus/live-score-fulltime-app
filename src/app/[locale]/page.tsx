@@ -16,6 +16,8 @@ export const dynamic = "force-dynamic";
 // Import the new JSON file
 import homepageMeta from "public/data/homepage-meta.json";
 
+const SUPPORTED_LOCALES = ["tr", "en", "fr", "es", "zu", "it"];
+
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 const METADATA_BASE_URL =
