@@ -24,7 +24,7 @@ const apiRequest = async <T>(
     console.error(`[data/team] Redis GET failed for key ${cacheKey}.`, e);
   }
 
-  logApiRequest(endpoint, params, context); // <-- Use the logger
+  // logApiRequest(endpoint, params, context); // <-- Use the logger
 
   try {
     const options = {

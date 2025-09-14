@@ -25,7 +25,7 @@ const apiRequest = async <T>(
   }
 
   // Safely call the logger
-  logApiRequest(endpoint, params, context);
+  // logApiRequest(endpoint, params, context);
 
   try {
     const options = {
