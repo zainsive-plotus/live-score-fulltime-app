@@ -35,13 +35,15 @@ async function runUpdate() {
     process.exit(1); // Exit with an error code
   }
 
-  if (!process.env.MONGODB_URI) {
-    console.error("ERROR: MONGODB_URI not found in .env.local file.");
+  if (!process.env.NEXT_PUBLIC_MONGODB_URI) {
+    console.error(
+      "ERROR: NEXT_PUBLIC_MONGODB_URI not found in .env.local file."
+    );
     process.exit(1);
   }
 
   console.log("Connecting to database...");
-  await mongoose.connect(process.env.MONGODB_URI);
+  await mongoose.connect(process.env.NEXT_PUBLIC_MONGODB_URI);
   console.log("✅ Database connected successfully.");
 
   try {
