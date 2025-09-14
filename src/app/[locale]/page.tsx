@@ -27,6 +27,12 @@ interface HomePageProps {
   };
 }
 
+export async function generateStaticParams() {
+  return SUPPORTED_LOCALES.map((locale) => ({
+    locale,
+  }));
+}
+
 export async function generateMetadata({
   params,
 }: {
