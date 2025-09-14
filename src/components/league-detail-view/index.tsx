@@ -1,8 +1,7 @@
-// ===== src/components/league-detail-view/index.tsx =====
-
 "use client";
 
-import { useState, useMemo, Suspense } from "react";
+import { useState, useMemo, Suspense, useEffect } from "react"; // <-- Import useEffect
+import { usePathname } from "next/navigation"; // <-- Import usePathname
 import dynamic from "next/dynamic";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
@@ -27,8 +26,7 @@ const fetchLeagueDataForSeason = async (leagueId: number, season: number) => {
   return data;
 };
 
-// Dynamically import child components for faster initial loads
-
+// All dynamic imports remain the same
 const LeagueStandingsWidget = dynamic(
   () => import("@/components/league-detail-view/LeagueStandingsWidget")
 );
@@ -44,32 +42,7 @@ const LeagueTopScorersWidget = dynamic(
 const LeagueNewsTab = dynamic(() => import("./LeagueNewsTab"));
 const LeagueHighlightsTab = dynamic(() => import("./LeagueHighlightsTab"));
 
-const LeagueOverviewTab = ({
-  leagueData,
-  onSeasonChange,
-  selectedSeason,
-  availableSeasons,
-  isLoading,
-}: any) => {
-  const { league, seasons, standings, topScorer } = leagueData;
-
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 p-1">
-      {league.type === "League" && standings.length > 0 && (
-        <LeagueStandingsWidget
-          initialStandings={standings}
-          leagueSeasons={availableSeasons}
-          currentSeason={selectedSeason}
-          isLoading={isLoading}
-          leagueId={league.id}
-          leagueSlug={generateStandingsSlug(league.name, league.id)}
-          onSeasonChange={onSeasonChange}
-        />
-      )}
-      <LeagueTopScorersWidget leagueId={league.id} season={selectedSeason} />
-    </div>
-  );
-};
+const DEFAULT_TAB = "teams"; // Default tab for leagues is 'Teams'
 
 export default function LeagueDetailView({
   leagueData: initialLeagueData,
@@ -77,7 +50,16 @@ export default function LeagueDetailView({
   leagueData: any;
 }) {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState("teams"); // Your change to default to Teams
+  const pathname = usePathname(); // Get the base path for the URL
+
+  // Initialize state from URL hash on the client, with a fallback
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== "undefined") {
+      const hash = window.location.hash.replace("#", "");
+      return hash || DEFAULT_TAB;
+    }
+    return DEFAULT_TAB;
+  });
 
   const initialSeason = useMemo(() => {
     return (
@@ -96,15 +78,13 @@ export default function LeagueDetailView({
       selectedSeason === initialSeason ? initialLeagueData : undefined,
     staleTime: 1000 * 60 * 60,
     refetchOnWindowFocus: false,
-    keepPreviousData: true, // UX Improvement: keeps old data visible while new data loads
+    keepPreviousData: true,
   });
 
-  // Use the latest available data, falling back to initial data while loading
   const displayData = leagueData || initialLeagueData;
   const { league, country, seasons, standings, topScorer, news, highlights } =
     displayData;
   const availableSeasons = useMemo(
-    // Get seasons from the initial data so the dropdown is always populated
     () =>
       initialLeagueData.seasons
         .map((s: any) => s.year)
@@ -112,16 +92,42 @@ export default function LeagueDetailView({
     [initialLeagueData.seasons]
   );
 
-  const TABS = [
-    { key: "teams", name: t("teams"), icon: Users },
-    { key: "top_scorers", name: t("top_scorers"), icon: Trophy },
-    { key: "fixtures", name: t("fixtures"), icon: CalendarClock },
-    ...(league.type === "League"
-      ? [{ key: "standings", name: t("standings"), icon: ListOrdered }]
-      : []),
-    { key: "news", name: t("news"), icon: Newspaper },
-    { key: "highlights", name: t("highlights"), icon: Film },
-  ];
+  const TABS = useMemo(
+    () => [
+      { key: "teams", name: t("teams"), icon: Users },
+      { key: "top_scorers", name: t("top_scorers"), icon: Trophy },
+      { key: "fixtures", name: t("fixtures"), icon: CalendarClock },
+      ...(league.type === "League"
+        ? [{ key: "standings", name: t("standings"), icon: ListOrdered }]
+        : []),
+      { key: "news", name: t("news"), icon: Newspaper },
+      { key: "highlights", name: t("highlights"), icon: Film },
+    ],
+    [league.type, t]
+  );
+
+  // Effect to synchronize URL hash with component state
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace("#", "");
+      const isValidTab = TABS.some(
+        (tab) => tab.key.toLowerCase() === hash.toLowerCase()
+      );
+      setActiveTab(isValidTab ? hash : DEFAULT_TAB);
+    };
+
+    handleHashChange(); // Set initial state correctly on mount
+
+    window.addEventListener("hashchange", handleHashChange);
+    return () => {
+      window.removeEventListener("hashchange", handleHashChange);
+    };
+  }, [pathname, TABS]);
+
+  // Handler to update the URL hash on click
+  const handleTabClick = (tabKey: string) => {
+    window.location.hash = tabKey.toLowerCase();
+  };
 
   const renderTabContent = () => {
     if (isLoading) {
@@ -196,7 +202,7 @@ export default function LeagueDetailView({
         {TABS.map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => handleTabClick(tab.key)}
             className={`flex-shrink-0 flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-semibold transition-colors ${
               activeTab === tab.key
                 ? "bg-[var(--brand-accent)] text-white shadow-md"

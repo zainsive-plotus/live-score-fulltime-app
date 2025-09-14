@@ -1,15 +1,21 @@
-// ===== src/components/TeamDetailView.tsx =====
-
 "use client";
 
-import { useState, useMemo, Suspense } from "react";
+import { useState, useMemo, Suspense, useEffect } from "react";
+import { usePathname } from "next/navigation"; // useRouter is no longer needed
 import dynamic from "next/dynamic";
 import { useTranslation } from "@/hooks/useTranslation";
 import { generateLeagueSlug } from "@/lib/generate-league-slug";
 import TeamHeader from "./team/TeamHeader";
-import { CalendarClock, Users, ListOrdered, Repeat, Film } from "lucide-react";
+import {
+  CalendarClock,
+  Users,
+  ListOrdered,
+  Repeat,
+  Film,
+  Newspaper,
+} from "lucide-react";
 
-// Dynamically import child components
+// All dynamic imports remain the same
 const TeamSquadWidget = dynamic(() => import("./team/TeamSquadWidget"));
 const TeamFixturesWidget = dynamic(() => import("./team/TeamFixturesWidget"));
 const LeagueStandingsWidget = dynamic(
@@ -17,11 +23,16 @@ const LeagueStandingsWidget = dynamic(
 );
 const TeamTransfersTab = dynamic(() => import("./team/TeamTransfersTab"));
 const TeamHighlightsTab = dynamic(() => import("./team/TeamHighlightsTab"));
+const TeamNewsTab = dynamic(() => import("./team/TeamNewsTab"));
 
-// Main View Component
+const DEFAULT_TAB = "Fixtures";
+
 export default function TeamDetailView({ teamData }: { teamData: any }) {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState("Fixtures");
+  const pathname = usePathname();
+
+  // State initialization remains the same
+  const [activeTab, setActiveTab] = useState(DEFAULT_TAB);
 
   const { teamInfo, squad, fixtures, standings, transfers, highlights } =
     teamData;
@@ -35,13 +46,48 @@ export default function TeamDetailView({ teamData }: { teamData: any }) {
       : null;
   }, [standings]);
 
-  const TABS = [
-    { name: "Fixtures", icon: CalendarClock },
-    { name: "Squad", icon: Users },
-    ...(primaryLeague ? [{ name: "Standings", icon: ListOrdered }] : []),
-    { name: "Transfers", icon: Repeat },
-    { name: "Highlights", icon: Film },
-  ];
+  const TABS = useMemo(
+    () => [
+      { name: "Fixtures", icon: CalendarClock },
+      { name: "News", icon: Newspaper },
+      { name: "Squad", icon: Users },
+      ...(primaryLeague ? [{ name: "Standings", icon: ListOrdered }] : []),
+      { name: "Transfers", icon: Repeat },
+      { name: "Highlights", icon: Film },
+    ],
+    [primaryLeague]
+  );
+
+  // This useEffect is now the SINGLE SOURCE OF TRUTH for the active tab state.
+  // It runs on mount and whenever the URL hash changes.
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace("#", "");
+      const tabFromHash = hash.charAt(0).toUpperCase() + hash.slice(1);
+
+      const isValidTab = TABS.some(
+        (tab) => tab.name.toLowerCase() === hash.toLowerCase()
+      );
+
+      setActiveTab(isValidTab ? tabFromHash : DEFAULT_TAB);
+    };
+
+    // Set the initial state correctly on client-side mount
+    handleHashChange();
+
+    // Listen for back/forward navigation
+    window.addEventListener("hashchange", handleHashChange);
+    return () => {
+      window.removeEventListener("hashchange", handleHashChange);
+    };
+  }, [pathname, TABS]); // Re-run if the page changes
+
+  // CORRECTED: The click handler's ONLY job is to change the URL hash.
+  const handleTabClick = (tabName: string) => {
+    // This assignment directly changes the URL and triggers the 'hashchange' event.
+    // The useEffect above will then handle updating the state.
+    window.location.hash = tabName.toLowerCase();
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -62,7 +108,14 @@ export default function TeamDetailView({ teamData }: { teamData: any }) {
       case "Transfers":
         return <TeamTransfersTab transfers={transfers} currentTeam={team} />;
       case "Highlights":
-        return <TeamHighlightsTab highlights={highlights} />;
+        return (
+          <TeamHighlightsTab
+            initialHighlights={highlights}
+            teamName={team.name}
+          />
+        );
+      case "News":
+        return <TeamNewsTab teamId={team.id} />;
       case "Fixtures":
       default:
         return <TeamFixturesWidget fixtures={fixtures} />;
@@ -77,13 +130,11 @@ export default function TeamDetailView({ teamData }: { teamData: any }) {
         foundedText={t("founded_in", { year: team.founded })}
       />
 
-      {/* --- CORE CHANGE: Added overflow-x-auto and scrollbar-hide --- */}
-      <div className="bg-brand-secondary rounded-lg p-2 flex items-center space-x-2 top-[88px] z-30 overflow-x-auto scrollbar-hide">
+      <div className="bg-brand-secondary rounded-lg p-2 flex items-center space-x-2 sticky top-[88px] z-30 overflow-x-auto scrollbar-hide">
         {TABS.map((tab) => (
           <button
             key={tab.name}
-            onClick={() => setActiveTab(tab.name)}
-            // --- CORE CHANGE: Removed flex-1 and added flex-shrink-0 ---
+            onClick={() => handleTabClick(tab.name)}
             className={`flex-shrink-0 flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-semibold transition-colors ${
               activeTab === tab.name
                 ? "bg-[var(--brand-accent)] text-white shadow-md"

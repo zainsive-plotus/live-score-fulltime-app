@@ -1,5 +1,3 @@
-// ===== src/components/team/TeamTransfersTab.tsx =====
-
 "use client";
 
 import Image from "next/image";
@@ -16,6 +14,44 @@ interface TeamTransfersTabProps {
   currentTeam: { id: number; name: string; logo: string };
 }
 
+const TeamLink = ({
+  team,
+}: {
+  team: { id?: number; name?: string; logo?: string } | null;
+}) => {
+  const { t } = useTranslation();
+
+  // Fallback for missing or incomplete team data
+  if (!team || !team.id || !team.name) {
+    return (
+      <div className="flex items-center gap-2 min-w-0">
+        <div className="w-7 h-7 rounded-full bg-gray-800 flex-shrink-0"></div>
+        <span className="font-semibold text-xs text-brand-muted truncate hidden sm:block">
+          {t("unknown_club", { defaultValue: "Unknown Club" })}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <StyledLink
+      href={generateTeamSlug(team.name, team.id)}
+      className="flex items-center gap-2 hover:opacity-80 transition-opacity min-w-0"
+    >
+      <span className="font-semibold text-xs text-brand-light truncate hidden sm:block">
+        {team.name}
+      </span>
+      <Image
+        src={proxyImageUrl(team.logo)}
+        alt={team.name}
+        width={28}
+        height={28}
+        className="rounded-full bg-gray-800 flex-shrink-0"
+      />
+    </StyledLink>
+  );
+};
+
 const TransferRow = ({
   transfer,
   currentTeam,
@@ -23,15 +59,11 @@ const TransferRow = ({
   transfer: CleanedTransfer;
   currentTeam: { id: number; name: string; logo: string };
 }) => {
-  const { t } = useTranslation();
   const isArrival = transfer.teamIn.id === currentTeam.id;
-  const otherTeam = isArrival ? transfer.teamOut : transfer.teamIn;
 
-  const fromTeam = isArrival ? otherTeam : currentTeam;
-  const toTeam = isArrival ? currentTeam : otherTeam;
-
-  const fromTeamName = isArrival ? otherTeam.name : currentTeam.name;
-  const toTeamName = isArrival ? currentTeam.name : otherTeam.name;
+  // Safely determine the from and to teams
+  const fromTeam = isArrival ? transfer.teamOut : currentTeam;
+  const toTeam = isArrival ? currentTeam : transfer.teamIn;
 
   return (
     <div className="flex items-center gap-4 p-3 bg-brand-dark/50 rounded-lg border-b border-gray-700/50">
@@ -54,42 +86,18 @@ const TransferRow = ({
       </div>
 
       <div className="w-3/5 flex items-center justify-end gap-2">
-        <StyledLink
-          href={generateTeamSlug(fromTeam.name, fromTeam.id)}
-          className="flex items-center gap-2 text-right hover:opacity-80 transition-opacity min-w-0"
-        >
-          <span className="font-semibold text-xs text-brand-light truncate hidden sm:block">
-            {fromTeamName}
-          </span>
-          <Image
-            src={proxyImageUrl(fromTeam.logo)}
-            alt={fromTeam.name}
-            width={28}
-            height={28}
-            className="rounded-full bg-gray-800"
-          />
-        </StyledLink>
+        <div className="flex justify-end text-right">
+          <TeamLink team={fromTeam} />
+        </div>
 
         <ArrowRight
           size={20}
           className={isArrival ? "text-green-400" : "text-red-400"}
         />
 
-        <StyledLink
-          href={generateTeamSlug(toTeam.name, toTeam.id)}
-          className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity min-w-0"
-        >
-          <Image
-            src={proxyImageUrl(toTeam.logo)}
-            alt={toTeam.name}
-            width={28}
-            height={28}
-            className="rounded-full bg-gray-800"
-          />
-          <span className="font-semibold text-xs text-brand-light truncate hidden sm:block">
-            {toTeamName}
-          </span>
-        </StyledLink>
+        <div className="flex justify-start text-left">
+          <TeamLink team={toTeam} />
+        </div>
       </div>
     </div>
   );
@@ -124,9 +132,7 @@ export default function TeamTransfersTab({
 
   return (
     <div className="bg-brand-secondary rounded-xl p-4">
-      {/* --- CORE CHANGE: Main grid container for the two-column layout --- */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Arrivals Column */}
         <div>
           <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-3">
             <ArrowRight className="text-green-400 bg-green-500/10 p-1.5 rounded-full w-8 h-8" />
@@ -137,9 +143,9 @@ export default function TeamTransfersTab({
           </h3>
           <div className="space-y-2 max-h-[600px] overflow-y-auto custom-scrollbar pr-1">
             {arrivals.length > 0 ? (
-              arrivals.map((t, i) => (
+              arrivals.map((t) => (
                 <TransferRow
-                  key={`${t.playerId}-${t.date}-in-${i}`}
+                  key={`${t.playerId}-${t.date}-in`}
                   transfer={t}
                   currentTeam={currentTeam}
                 />
@@ -152,7 +158,6 @@ export default function TeamTransfersTab({
           </div>
         </div>
 
-        {/* Departures Column */}
         <div>
           <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-3">
             <ArrowLeft className="text-red-400 bg-red-500/10 p-1.5 rounded-full w-8 h-8" />
