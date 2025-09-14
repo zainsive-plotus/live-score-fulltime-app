@@ -12,7 +12,7 @@ import { SidebarSkeleton } from "@/components/LayoutSkeletons";
 import { generateHreflangTags } from "@/lib/hreflang";
 import { getI18n } from "@/lib/i18n/server";
 
-export const dynamic = "force-dynamic";
+// export const dynamic = "force-dynamic";
 // Import the new JSON file
 import homepageMeta from "public/data/homepage-meta.json";
 

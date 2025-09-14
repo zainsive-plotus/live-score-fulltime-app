@@ -137,9 +137,9 @@ export default function TeamTransfersTab({
           </h3>
           <div className="space-y-2 max-h-[600px] overflow-y-auto custom-scrollbar pr-1">
             {arrivals.length > 0 ? (
-              arrivals.map((t) => (
+              arrivals.map((t, i) => (
                 <TransferRow
-                  key={`${t.playerId}-${t.date}-in`}
+                  key={`${t.playerId}-${t.date}-in-${i}`}
                   transfer={t}
                   currentTeam={currentTeam}
                 />
