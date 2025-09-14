@@ -30,9 +30,9 @@ interface HomePageProps {
 export async function generateMetadata({
   params,
 }: {
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
-  const { locale } = params;
+  const { locale } = await params;
   const t = await getI18n(locale);
 
   // Use locale-specific meta if it exists, otherwise fall back to the default
