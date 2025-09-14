@@ -38,9 +38,9 @@ export async function generateStaticParams() {
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ locale: string }>;
+  params: { locale: string };
 }): Promise<Metadata> {
-  const { locale } = await params;
+  const { locale } = params;
   const t = await getI18n(locale);
 
   // Use locale-specific meta if it exists, otherwise fall back to the default
