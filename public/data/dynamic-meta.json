@@ -1,0 +1,22 @@
+{
+  "team": {
+    "tr": {
+      "title": "{teamName} Takım Profili – İstatistikler, Fikstürler ve İçgörüler | Fanskor",
+      "description": "{teamName} resmi profilini keşfedin. Detaylı kadro bilgilerine, son maç istatistiklerine, oyuncu profillerine ve yaklaşan fikstürlere erişin. Fanskor'da kapsamlı içgörüler ve analizlerle güncel kalın."
+    },
+    "en": {
+      "title": "{teamName} Team Profile – Stats, Fixtures & Insights | Fanskor",
+      "description": "Explore the official profile of {teamName}. Access detailed squad information, recent match statistics, player profiles, and upcoming fixtures. Stay updated with comprehensive insights and analyses on Fanskor."
+    }
+  },
+  "match": {
+    "tr": {
+      "title": "{homeTeam} vs {awayTeam} - Canlı Skor, Tahmin ve Maç İstatistikleri | {leagueName}",
+      "description": "Aksiyonu kaçırmayın! {homeTeam} vs {awayTeam}, {leagueName} liginde – sırada ne olacağına inanamayacaksınız! Fanskor.com'da anında taktiksel analizler ve heyecan verici özetler alın!"
+    },
+    "en": {
+      "title": "{homeTeam} vs {awayTeam} - Live Score, Prediction & Match Stats | {leagueName}",
+      "description": "Don't miss the action! {homeTeam} vs. {awayTeam} in the {leagueName} – you won't believe what happens next! Get instant tactical breakdowns and thrilling highlights at Fanskor.com!"
+    }
+  }
+}

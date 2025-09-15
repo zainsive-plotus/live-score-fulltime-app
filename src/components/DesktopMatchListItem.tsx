@@ -45,9 +45,18 @@ export default function DesktopMatchListItem({
   match,
   isLive,
 }: DesktopMatchListItemProps) {
-  const { fixture, teams, goals } = match;
+  const { fixture, teams, goals, league } = match;
   const { t } = useTranslation();
   const [elapsedTime, setElapsedTime] = useState(fixture.status.elapsed);
+
+  const queryParams = new URLSearchParams({
+    home: teams.home.name,
+    away: teams.away.name,
+    league: league.name,
+  }).toString();
+
+  const slug = generateMatchSlug(teams.home, teams.away, fixture.id);
+  const hrefWithParams = `${slug}?${queryParams}`;
 
   // MODIFIED: The useEffect hook now depends on the `match` object itself.
   // When the parent's useQuery refetches, it creates a new `match` object.
@@ -72,7 +81,6 @@ export default function DesktopMatchListItem({
     }
   }, [match, isLive]); // The dependency array is the crucial fix
 
-  const slug = generateMatchSlug(teams.home, teams.away, fixture.id);
   const isFinished = ["FT", "AET", "PEN"].includes(fixture.status.short);
   const [showResult, setShowResult] = useState(false);
 
@@ -150,7 +158,7 @@ export default function DesktopMatchListItem({
       className="group flex items-center p-2 rounded-lg transition-all duration-300 ease-in-out border border-transparent hover:border-[#8b5cf6]/20"
       style={{ backgroundColor: "#363636ff" }}
     >
-      <Link href={slug} className="flex flex-1 items-center min-w-0">
+      <Link href={hrefWithParams} className="flex flex-1 items-center min-w-0">
         <div className="w-16 flex-shrink-0 text-center text-sm font-semibold">
           {isLive ? (
             <div

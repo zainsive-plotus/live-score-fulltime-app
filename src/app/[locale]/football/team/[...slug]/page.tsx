@@ -25,7 +25,9 @@ import TeamFormWidgetSidebar from "@/components/team/TeamFormWidgetSidebar";
 import TeamSeoWidget from "@/components/team/TeamSeoWidget";
 import AdSlotWidget from "@/components/AdSlotWidget";
 
-export const revalidate = 3600;
+import { generateDynamicMeta } from "@/lib/meta-generator";
+
+export const revalidate = 604800;
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
@@ -44,7 +46,6 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug, locale } = params;
   const teamId = getTeamIdFromSlug(slug[0]);
-  const t = await getI18n(locale);
   const hreflangAlternates = await generateHreflangTags(
     "/football/team",
     slug.join("/"),
@@ -52,33 +53,29 @@ export async function generateMetadata({
   );
 
   if (!teamId) {
-    return { title: t("meta_not_found_title"), alternates: hreflangAlternates };
+    return { title: "Not Found", alternates: hreflangAlternates };
   }
 
+  // Fetch only the static data needed for metadata
   const allTeamData = await getTeamStaticData();
   const teamInfo = allTeamData[teamId];
 
   if (!teamInfo) {
     return {
-      title: t("not_found_title"),
+      title: "Not Found",
       alternates: hreflangAlternates,
       robots: { index: false, follow: false },
     };
   }
 
-  const { team } = teamInfo;
-  const pageTitle = t("team_page_meta_title", {
-    teamName: team.name,
-    country: team.country,
-  });
-  const pageDescription = t("team_page_meta_description", {
-    teamName: team.name,
-    country: team.country,
+  // Use the new helper to generate title and description
+  const { title, description } = generateDynamicMeta("team", locale, {
+    teamName: teamInfo.team.name,
   });
 
   return {
-    title: pageTitle,
-    description: pageDescription,
+    title,
+    description,
     alternates: hreflangAlternates,
   };
 }

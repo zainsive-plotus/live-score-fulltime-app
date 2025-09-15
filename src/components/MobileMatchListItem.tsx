@@ -77,9 +77,8 @@ const TeamRow = ({
 );
 
 export default function MobileMatchListItem({ match }: { match: any }) {
-  const { fixture, teams, goals } = match;
+  const { fixture, teams, goals, league } = match;
   const { t } = useTranslation();
-  const slug = generateMatchSlug(teams.home, teams.away, fixture.id);
   const [isExpanded, setIsExpanded] = useState(false);
 
   const isLive = ["1H", "HT", "2H", "ET", "P", "LIVE"].includes(
@@ -89,6 +88,15 @@ export default function MobileMatchListItem({ match }: { match: any }) {
 
   const [elapsedTime, setElapsedTime] = useState(fixture.status.elapsed);
 
+  const queryParams = new URLSearchParams({
+    home: teams.home.name,
+    away: teams.away.name,
+    league: league.name,
+  }).toString();
+
+  const slug = generateMatchSlug(teams.home, teams.away, fixture.id);
+  const hrefWithParams = `${slug}?${queryParams}`;
+
   // MODIFIED: The useEffect hook now depends on the `match` object itself for re-synchronization.
   useEffect(() => {
     setElapsedTime(match.fixture.status.elapsed);
@@ -97,7 +105,7 @@ export default function MobileMatchListItem({ match }: { match: any }) {
       !["FT", "AET", "PEN", "HT"].includes(match.fixture.status.short)
     ) {
       const interval = setInterval(() => {
-        setElapsedTime((prevTime) => (prevTime ? prevTime + 1 : 1));
+        setElapsedTime((prevTime: any) => (prevTime ? prevTime + 1 : 1));
       }, 60000);
       return () => clearInterval(interval);
     }
@@ -171,7 +179,7 @@ export default function MobileMatchListItem({ match }: { match: any }) {
       className="rounded-lg overflow-hidden"
       style={{ backgroundColor: "var(--color-secondary)" }}
     >
-      <Link href={slug}>
+      <Link href={hrefWithParams}>
         <div className="flex items-center gap-2 p-3">
           <div className="w-12 flex-shrink-0 text-center text-xs font-bold">
             {isLive ? (

@@ -35,6 +35,7 @@ import {
   AdSlotWidgetSkeleton,
   RecentNewsWidgetSkeleton,
 } from "@/components/skeletons/WidgetSkeletons";
+import { generateDynamicMeta } from "@/lib/meta-generator";
 
 export const revalidate = 604800; // 7 days in seconds
 
@@ -50,12 +51,14 @@ const getFixtureIdFromSlug = (slug: string): string | null => {
 
 export async function generateMetadata({
   params,
+  searchParams, // <-- Next.js automatically provides searchParams here
 }: {
   params: { slug: string[]; locale: string };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }): Promise<Metadata> {
   const { slug, locale } = params;
-  const t = await getI18n(locale);
   const fixtureId = getFixtureIdFromSlug(slug[0]);
+
   const hreflangAlternates = await generateHreflangTags(
     "/football/match",
     slug.join("/"),
@@ -63,48 +66,60 @@ export async function generateMetadata({
   );
 
   if (!fixtureId) {
-    return { title: t("not_found_title"), alternates: hreflangAlternates };
+    return { title: "Not Found", alternates: hreflangAlternates };
   }
 
-  const headersList = await headers();
-  const metadataContext: RequestContext = {
-    source: "server",
-    pagePath: `/football/match/${slug[0]}`,
-    callerName: "generateMetadata",
-    ip: headersList.get("x-forwarded-for") ?? "unknown",
-    userAgent: headersList.get("user-agent") ?? "unknown",
-    geo: {
-      city: headersList.get("x-vercel-ip-city") ?? undefined,
-      country: headersList.get("x-vercel-ip-country") ?? undefined,
-      region: headersList.get("x-vercel-ip-country-region") ?? undefined,
-    },
-  };
+  // ---- OPTIMIZATION LOGIC ----
+  const homeTeamParam = (await searchParams).home as string;
+  const awayTeamParam = (await searchParams).away as string;
+  const leagueNameParam = (await searchParams).league as string;
 
-  const fixtureData = await getFixture(fixtureId, metadataContext);
+  let title: string;
+  let description: string;
 
-  if (!fixtureData) {
-    return {
-      title: t("not_found_title"),
-      alternates: hreflangAlternates,
-      robots: { index: false, follow: false },
-    };
+  console.log(homeTeamParam);
+
+  if (homeTeamParam && awayTeamParam && leagueNameParam) {
+    console.log("From Params");
+
+    // FAST PATH: Use data from query parameters
+    console.log(
+      `[Metadata] Using FAST PATH for fixture ${fixtureId} from searchParams.`
+    );
+    const meta = generateDynamicMeta("match", locale, {
+      homeTeam: homeTeamParam,
+      awayTeam: awayTeamParam,
+      leagueName: leagueNameParam,
+    });
+    title = meta.title;
+    description = meta.description;
+  } else {
+    // FALLBACK PATH: Fetch data if params are missing
+    console.log("From database");
+
+    const fixtureData = await getFixture(fixtureId);
+
+    if (!fixtureData) {
+      return {
+        title: "Not Found",
+        alternates: hreflangAlternates,
+        robots: { index: false, follow: false },
+      };
+    }
+
+    const { teams, league } = fixtureData;
+    const meta = generateDynamicMeta("match", locale, {
+      homeTeam: teams.home.name,
+      awayTeam: teams.away.name,
+      leagueName: league.name,
+    });
+    title = meta.title;
+    description = meta.description;
   }
-
-  const { teams, league } = fixtureData;
-  const pageTitle = t("match_page_title", {
-    homeTeam: teams.home.name,
-    awayTeam: teams.away.name,
-    leagueName: league.name,
-  });
-  const pageDescription = t("match_page_description", {
-    homeTeam: teams.home.name,
-    awayTeam: teams.away.name,
-    leagueName: league.name,
-  });
 
   return {
-    title: pageTitle,
-    description: pageDescription,
+    title,
+    description,
     alternates: hreflangAlternates,
   };
 }
@@ -163,8 +178,6 @@ export default async function MatchDetailPage({
   const isFinished = ["FT", "AET", "PEN"].includes(
     fixtureDetails?.status?.short
   );
-
-  console.log(JSON.stringify(statistics));
 
   const homeTeamStats = statistics?.find((s) => s.team.id === teams.home.id);
   const awayTeamStats = statistics?.find((s) => s.team.id === teams.away.id);
