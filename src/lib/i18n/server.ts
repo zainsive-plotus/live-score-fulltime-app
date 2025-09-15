@@ -4,8 +4,9 @@ import "server-only";
 import { i18nCache } from "./i18n.cache";
 
 export async function getI18n(localeFromParams?: string) {
-  const supportedLocales = await i18nCache.getLocales();
-  const defaultLocale = await i18nCache.getDefaultLocale();
+  const supportedLocales = ["tr", "en", "fr", "es", "zu", "it"];
+
+  const defaultLocale = "tr";
 
   const validatedLocale =
     localeFromParams && supportedLocales.includes(localeFromParams)
