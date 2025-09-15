@@ -76,9 +76,6 @@ const TrackedLinkSchema: Schema<ITrackedLink> = new Schema(
   }
 );
 
-// Optimize query performance for the most common lookup
-TrackedLinkSchema.index({ shortCode: 1 });
-
 const TrackedLink: Model<ITrackedLink> =
   mongoose.models.TrackedLink ||
   mongoose.model<ITrackedLink>("TrackedLink", TrackedLinkSchema);
