@@ -50,14 +50,43 @@ const getFixtureIdFromSlug = (slug: string): string | null => {
   return /^\d+$/.test(lastPart) ? lastPart : null;
 };
 
+const parseMatchSlugForMeta = (
+  slug: string
+): { id: string; homeTeam: string; awayTeam: string } | null => {
+  if (!slug) return null;
+
+  const id = getFixtureIdFromSlug(slug);
+  if (!id) return null;
+
+  // Example slug: manchester-united-vs-arsenal-12345
+  const slugWithoutId = slug.substring(0, slug.lastIndexOf(`-${id}`));
+  const teams = slugWithoutId.split("-vs-");
+
+  if (teams.length !== 2) return null;
+
+  const formatName = (nameSlug: string) =>
+    nameSlug.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+
+  return {
+    id,
+    homeTeam: formatName(teams[0]),
+    awayTeam: formatName(teams[1]),
+  };
+};
+
 export async function generateMetadata({
   params,
 }: {
   params: { slug: string[]; locale: string };
 }): Promise<Metadata> {
+  if (!params.slug || !Array.isArray(params.slug) || params.slug.length === 0) {
+    return { title: "Not Found", robots: { index: false } };
+  }
+
   const { slug, locale } = params;
-  const fixtureId = getFixtureIdFromSlug(slug[0]);
   const t = await getI18n(locale);
+
+  const matchInfo = parseMatchSlugForMeta(slug[0]);
 
   // const hreflangAlternates = await generateHreflangTags(
   //   "/football/match",
@@ -71,28 +100,23 @@ export async function generateMetadata({
       ? `${BASE_URL}${path}`
       : `${BASE_URL}/${locale}${path}`;
 
-  if (!fixtureId) {
+  if (!matchInfo) {
     return {
       title: t("not_found_title"),
       alternates: { canonical: canonicalUrl },
     };
   }
 
-  const fixtureData = await getFixture(fixtureId);
+  // --- REFACTORED LOGIC ---
+  // Use the t() function directly for a cleaner implementation.
+  const title = t("match_page_title", {
+    homeTeam: matchInfo.homeTeam,
+    awayTeam: matchInfo.awayTeam,
+  });
 
-  if (!fixtureData) {
-    return {
-      title: t("not_found_title"),
-      alternates: { canonical: canonicalUrl },
-      robots: { index: false, follow: false },
-    };
-  }
-
-  const { teams, league } = fixtureData;
-  const { title, description } = generateDynamicMeta("match", locale, {
-    homeTeam: teams.home.name,
-    awayTeam: teams.away.name,
-    leagueName: league.name,
+  const description = t("match_page_description", {
+    homeTeam: matchInfo.homeTeam,
+    awayTeam: matchInfo.awayTeam,
   });
 
   return {
