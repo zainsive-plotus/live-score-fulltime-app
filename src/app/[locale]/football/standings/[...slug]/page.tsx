@@ -19,6 +19,7 @@ import { generateHreflangTags } from "@/lib/hreflang";
 import { getLeagueStaticData } from "@/lib/data/league-static";
 import { getSeoOverride } from "@/lib/data/seo";
 import { getInitialStandingsData } from "@/lib/data/standings";
+import { DEFAULT_LOCALE } from "@/lib/i18n/config";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
@@ -65,25 +66,39 @@ export async function generateMetadata({
   const { slug, locale } = params;
   const t = await getI18n(locale);
 
-  // Use the new parsing function
   const leagueInfoFromSlug = parseLeagueSlugForMeta(slug[0]);
-
-  if (!leagueInfoFromSlug) {
-    return { title: t("not_found_title") };
-  }
-
-  // Season is still needed for the title template
   const season =
     (searchParams?.season as string) || new Date().getFullYear().toString();
+
+  // --- CONSTRUCT THE CANONICAL URL (WITH SEASON PARAM) ---
+  const path = `/football/standings/${slug.join("/")}`;
+  let canonicalUrl =
+    locale === DEFAULT_LOCALE
+      ? `${BASE_URL}${path}`
+      : `${BASE_URL}/${locale}${path}`;
+
+  // Append the season query parameter if it exists
+  if (season) {
+    canonicalUrl += `?season=${season}`;
+  }
 
   // --- OPTIMIZATION ---
   // We no longer need to fetch leagueInfo or seoOverride here.
   // Metadata is generated instantly from the slug and search params.
-  const hreflangAlternates = await generateHreflangTags(
-    "/football/standings",
-    slug.join("/"),
-    locale
-  );
+  // const hreflangAlternates = await generateHreflangTags(
+  //   "/football/standings",
+  //   slug.join("/"),
+  //   locale
+  // );
+
+  if (!leagueInfoFromSlug) {
+    return {
+      title: t("not_found_title"),
+      alternates: {
+        canonical: canonicalUrl,
+      },
+    };
+  }
 
   const pageTitle = t("standings_detail_page_title", {
     leagueName: leagueInfoFromSlug.name,
@@ -96,7 +111,9 @@ export async function generateMetadata({
   return {
     title: pageTitle,
     description: pageDescription,
-    alternates: hreflangAlternates,
+    alternates: {
+      canonical: canonicalUrl,
+    },
   };
 }
 
