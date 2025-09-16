@@ -56,7 +56,6 @@ export default function DesktopMatchListItem({
   }).toString();
 
   const slug = generateMatchSlug(teams.home, teams.away, fixture.id);
-  const hrefWithParams = `${slug}?${queryParams}`;
 
   // MODIFIED: The useEffect hook now depends on the `match` object itself.
   // When the parent's useQuery refetches, it creates a new `match` object.
@@ -72,7 +71,7 @@ export default function DesktopMatchListItem({
       !["FT", "AET", "PEN", "HT"].includes(match.fixture.status.short)
     ) {
       const interval = setInterval(() => {
-        setElapsedTime((prevTime) => (prevTime ? prevTime + 1 : 1));
+        setElapsedTime((prevTime: any) => (prevTime ? prevTime + 1 : 1));
       }, 60000); // Increment every minute
 
       // 3. The cleanup function will run every time the effect is re-triggered,
@@ -158,7 +157,7 @@ export default function DesktopMatchListItem({
       className="group flex items-center p-2 rounded-lg transition-all duration-300 ease-in-out border border-transparent hover:border-[#8b5cf6]/20"
       style={{ backgroundColor: "#363636ff" }}
     >
-      <Link href={hrefWithParams} className="flex flex-1 items-center min-w-0">
+      <Link href={slug} className="flex flex-1 items-center min-w-0">
         <div className="w-16 flex-shrink-0 text-center text-sm font-semibold">
           {isLive ? (
             <div

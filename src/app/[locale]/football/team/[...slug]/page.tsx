@@ -75,6 +75,7 @@ export async function generateMetadata({
   }
 
   const { slug, locale } = params;
+  const t = await getI18n(locale);
 
   // Use the new parsing function
   const teamInfoFromSlug = parseTeamSlug(slug[0]);
@@ -85,7 +86,6 @@ export async function generateMetadata({
   //   locale
   // );
 
-  // If the slug is invalid, we can't generate metadata.
   const path = `/football/team/${slug.join("/")}`;
   const canonicalUrl =
     locale === DEFAULT_LOCALE
@@ -94,24 +94,27 @@ export async function generateMetadata({
 
   if (!teamInfoFromSlug) {
     return {
-      title: "meta_not_found_title",
+      title: t("meta_not_found_title"),
       alternates: {
         canonical: canonicalUrl, // Still provide canonical for not-found pages
       },
     };
   }
-
   // --- OPTIMIZATION ---
   // We can now use the name directly from the slug for metadata,
   // avoiding a data fetch entirely.
-  const pageTitle = `${teamInfoFromSlug.name} Takım Profili – İstatistikler, Fikstürler ve İçgörüler | Fanskor`;
-  const pageDescription = `${teamInfoFromSlug.name} resmi profilini keşfedin. Detaylı kadro bilgilerine, son maç istatistiklerine, oyuncu profillerine ve yaklaşan fikstürlere erişin. Fanskor'da kapsamlı içgörüler ve analizlerle güncel kalın.`;
+  const pageTitle = t("team_page_meta_title", {
+    teamName: teamInfoFromSlug.name,
+  });
+  const pageDescription = t("team_page_meta_description", {
+    teamName: teamInfoFromSlug.name,
+  });
 
   return {
     title: pageTitle,
     description: pageDescription,
     alternates: {
-      canonical: canonicalUrl,
+      canonical: canonicalUrl, // Still provide canonical for not-found pages
     },
     // alternates: hreflangAlternates,
   };

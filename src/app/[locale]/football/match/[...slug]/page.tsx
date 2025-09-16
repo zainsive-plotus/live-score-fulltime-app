@@ -36,6 +36,7 @@ import {
   RecentNewsWidgetSkeleton,
 } from "@/components/skeletons/WidgetSkeletons";
 import { generateDynamicMeta } from "@/lib/meta-generator";
+import { DEFAULT_LOCALE } from "@/lib/i18n/config";
 
 export const revalidate = 604800; // 7 days in seconds
 
@@ -51,76 +52,53 @@ const getFixtureIdFromSlug = (slug: string): string | null => {
 
 export async function generateMetadata({
   params,
-  searchParams, // <-- Next.js automatically provides searchParams here
 }: {
   params: { slug: string[]; locale: string };
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }): Promise<Metadata> {
   const { slug, locale } = params;
   const fixtureId = getFixtureIdFromSlug(slug[0]);
+  const t = await getI18n(locale);
 
-  const hreflangAlternates = await generateHreflangTags(
-    "/football/match",
-    slug.join("/"),
-    locale
-  );
+  // const hreflangAlternates = await generateHreflangTags(
+  //   "/football/match",
+  //   slug.join("/"),
+  //   locale
+  // );
+
+  const path = `/football/match/${slug.join("/")}`;
+  const canonicalUrl =
+    locale === DEFAULT_LOCALE
+      ? `${BASE_URL}${path}`
+      : `${BASE_URL}/${locale}${path}`;
 
   if (!fixtureId) {
-    return { title: "Not Found", alternates: hreflangAlternates };
+    return {
+      title: t("not_found_title"),
+      alternates: { canonical: canonicalUrl },
+    };
   }
 
-  // ---- OPTIMIZATION LOGIC ----
-  const homeTeamParam = (await searchParams).home as string;
-  const awayTeamParam = (await searchParams).away as string;
-  const leagueNameParam = (await searchParams).league as string;
+  const fixtureData = await getFixture(fixtureId);
 
-  let title: string;
-  let description: string;
-
-  console.log(homeTeamParam);
-
-  if (homeTeamParam && awayTeamParam && leagueNameParam) {
-    console.log("From Params");
-
-    // FAST PATH: Use data from query parameters
-    console.log(
-      `[Metadata] Using FAST PATH for fixture ${fixtureId} from searchParams.`
-    );
-    const meta = generateDynamicMeta("match", locale, {
-      homeTeam: homeTeamParam,
-      awayTeam: awayTeamParam,
-      leagueName: leagueNameParam,
-    });
-    title = meta.title;
-    description = meta.description;
-  } else {
-    // FALLBACK PATH: Fetch data if params are missing
-    console.log("From database");
-
-    const fixtureData = await getFixture(fixtureId);
-
-    if (!fixtureData) {
-      return {
-        title: "Not Found",
-        alternates: hreflangAlternates,
-        robots: { index: false, follow: false },
-      };
-    }
-
-    const { teams, league } = fixtureData;
-    const meta = generateDynamicMeta("match", locale, {
-      homeTeam: teams.home.name,
-      awayTeam: teams.away.name,
-      leagueName: league.name,
-    });
-    title = meta.title;
-    description = meta.description;
+  if (!fixtureData) {
+    return {
+      title: t("not_found_title"),
+      alternates: { canonical: canonicalUrl },
+      robots: { index: false, follow: false },
+    };
   }
+
+  const { teams, league } = fixtureData;
+  const { title, description } = generateDynamicMeta("match", locale, {
+    homeTeam: teams.home.name,
+    awayTeam: teams.away.name,
+    leagueName: league.name,
+  });
 
   return {
     title,
     description,
-    alternates: hreflangAlternates,
+    alternates: { canonical: canonicalUrl },
   };
 }
 

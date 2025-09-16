@@ -4,14 +4,7 @@ interface Team {
   name: string;
 }
 
-/**
- * Generates a non-prefixed, SEO-friendly slug for a match.
- * The StyledLink component will handle adding the locale prefix.
- * @param homeTeam - The home team object.
- * @param awayTeam - The away team object.
- * @param fixtureId - The ID of the fixture.
- * @returns The partial URL path without locale (e.g., '/football/match/manchester-united-vs-liverpool-12345').
- */
+// This function now only takes the essential parts and creates a clean slug.
 export function generateMatchSlug(
   homeTeam: Team,
   awayTeam: Team,

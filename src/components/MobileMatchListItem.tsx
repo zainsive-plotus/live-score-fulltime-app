@@ -95,7 +95,6 @@ export default function MobileMatchListItem({ match }: { match: any }) {
   }).toString();
 
   const slug = generateMatchSlug(teams.home, teams.away, fixture.id);
-  const hrefWithParams = `${slug}?${queryParams}`;
 
   // MODIFIED: The useEffect hook now depends on the `match` object itself for re-synchronization.
   useEffect(() => {
@@ -179,7 +178,7 @@ export default function MobileMatchListItem({ match }: { match: any }) {
       className="rounded-lg overflow-hidden"
       style={{ backgroundColor: "var(--color-secondary)" }}
     >
-      <Link href={hrefWithParams}>
+      <Link href={slug}>
         <div className="flex items-center gap-2 p-3">
           <div className="w-12 flex-shrink-0 text-center text-xs font-bold">
             {isLive ? (
