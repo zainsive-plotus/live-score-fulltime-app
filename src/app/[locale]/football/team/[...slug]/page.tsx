@@ -74,7 +74,6 @@ export async function generateMetadata({
   }
 
   const { slug, locale } = params;
-  const t = await getI18n(locale);
 
   // Use the new parsing function
   const teamInfoFromSlug = parseTeamSlug(slug[0]);
@@ -87,20 +86,17 @@ export async function generateMetadata({
 
   // If the slug is invalid, we can't generate metadata.
   if (!teamInfoFromSlug) {
-    return { title: t("meta_not_found_title"), alternates: hreflangAlternates };
+    return {
+      title: "Takım Profili – İstatistikler, Fikstürler ve İçgörüler | Fanskor",
+      alternates: hreflangAlternates,
+    };
   }
 
   // --- OPTIMIZATION ---
   // We can now use the name directly from the slug for metadata,
   // avoiding a data fetch entirely.
-  const pageTitle = t("team_page_meta_title", {
-    teamName: teamInfoFromSlug.name,
-    country: "", // Note: Country is not available in the slug, so we pass an empty string.
-  });
-  const pageDescription = t("team_page_meta_description", {
-    teamName: teamInfoFromSlug.name,
-    country: "", // The description will be slightly less specific, which is an acceptable trade-off for speed.
-  });
+  const pageTitle = `${teamInfoFromSlug.name} Takım Profili – İstatistikler, Fikstürler ve İçgörüler | Fanskor`;
+  const pageDescription = `${teamInfoFromSlug.name} resmi profilini keşfedin. Detaylı kadro bilgilerine, son maç istatistiklerine, oyuncu profillerine ve yaklaşan fikstürlere erişin. Fanskor'da kapsamlı içgörüler ve analizlerle güncel kalın.`;
 
   return {
     title: pageTitle,
