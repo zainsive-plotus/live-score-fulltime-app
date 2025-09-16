@@ -80,16 +80,17 @@ export async function generateMetadata({
     return { title: "Not Found", robots: { index: false, follow: false } };
   }
 
-  const allTranslations = await post.getTranslations();
-  const hreflangAlternates = await generateHreflangTags(
-    "/news",
-    slug,
-    locale,
-    allTranslations
-  );
+  // --- CONSTRUCT THE CANONICAL URL ---
+  const path = `/news/${post.slug}`;
+  const canonicalUrl =
+    locale === DEFAULT_LOCALE
+      ? `${BASE_URL}${path}`
+      : `${BASE_URL}/${locale}${path}`;
+
   const description =
     post.metaDescription ||
     post.content.replace(/<[^>]*>?/gm, "").substring(0, 160);
+
   const imageUrl = post.featuredImage
     ? proxyImageUrl(post.featuredImage)
     : `${BASE_URL}/og-image.jpg`;
@@ -97,11 +98,17 @@ export async function generateMetadata({
   return {
     title: post.metaTitle || `${post.title}`,
     description: description,
-    alternates: hreflangAlternates,
+
+    // --- ADD THE CANONICAL URL TO THE METADATA ---
+    alternates: {
+      canonical: canonicalUrl,
+    },
+
     openGraph: {
       title: post.metaTitle || post.title,
       description: description,
-      url: hreflangAlternates.canonical,
+      // Use the canonical URL for the Open Graph URL tag.
+      url: canonicalUrl,
       type: "article",
       publishedTime: new Date(post.createdAt).toISOString(),
       modifiedTime: new Date(post.updatedAt).toISOString(),
