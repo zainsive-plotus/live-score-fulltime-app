@@ -24,6 +24,7 @@ import TeamTrophiesWidget from "@/components/team/TeamTrophiesWidget";
 import TeamFormWidgetSidebar from "@/components/team/TeamFormWidgetSidebar";
 import TeamSeoWidget from "@/components/team/TeamSeoWidget";
 import AdSlotWidget from "@/components/AdSlotWidget";
+import { DEFAULT_LOCALE } from "@/lib/i18n/config";
 
 export const revalidate = 604800;
 
@@ -85,10 +86,18 @@ export async function generateMetadata({
   // );
 
   // If the slug is invalid, we can't generate metadata.
+  const path = `/football/team/${slug.join("/")}`;
+  const canonicalUrl =
+    locale === DEFAULT_LOCALE
+      ? `${BASE_URL}${path}`
+      : `${BASE_URL}/${locale}${path}`;
+
   if (!teamInfoFromSlug) {
     return {
-      title: "Takım Profili – İstatistikler, Fikstürler ve İçgörüler | Fanskor",
-      // alternates: hreflangAlternates,
+      title: "meta_not_found_title",
+      alternates: {
+        canonical: canonicalUrl, // Still provide canonical for not-found pages
+      },
     };
   }
 
@@ -101,6 +110,9 @@ export async function generateMetadata({
   return {
     title: pageTitle,
     description: pageDescription,
+    alternates: {
+      canonical: canonicalUrl,
+    },
     // alternates: hreflangAlternates,
   };
 }

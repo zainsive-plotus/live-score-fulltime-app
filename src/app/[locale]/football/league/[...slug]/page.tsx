@@ -18,6 +18,7 @@ import { getLeagueStaticData } from "@/lib/data/league-static";
 import { getLeaguePageData } from "@/lib/data/league";
 import { getNews } from "@/lib/data/news";
 import { getHighlightsForLeague } from "@/lib/data/highlightly";
+import { DEFAULT_LOCALE } from "@/lib/i18n/config";
 
 export const revalidate = 3600;
 
@@ -68,14 +69,25 @@ export async function generateMetadata({
   // Use the new parsing function to get info directly from the URL
   const leagueInfoFromSlug = parseLeagueSlug(slug[0]);
 
-  const hreflangAlternates = await generateHreflangTags(
-    "/football/league",
-    slug.join("/"),
-    locale
-  );
+  // const hreflangAlternates = await generateHreflangTags(
+  //   "/football/league",
+  //   slug.join("/"),
+  //   locale
+  // );
+
+  const path = `/football/league/${slug.join("/")}`;
+  const canonicalUrl =
+    locale === DEFAULT_LOCALE
+      ? `${BASE_URL}${path}`
+      : `${BASE_URL}/${locale}${path}`;
 
   if (!leagueInfoFromSlug) {
-    return { title: t("not_found_title"), alternates: hreflangAlternates };
+    return {
+      title: t("not_found_title"),
+      alternates: {
+        canonical: canonicalUrl,
+      },
+    };
   }
 
   // --- OPTIMIZATION ---
@@ -92,7 +104,9 @@ export async function generateMetadata({
   return {
     title,
     description,
-    alternates: hreflangAlternates,
+    alternates: {
+      canonical: canonicalUrl,
+    },
   };
 }
 export default async function LeaguePage({
