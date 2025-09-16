@@ -1,55 +1,62 @@
-// ===== src/lib/data/league-static.ts =====
-
 import "server-only";
-import fs from "fs/promises";
-import path from "path";
 import { cache } from "react";
+import redis from "@/lib/redis";
+import axios from "axios";
 
-// --- Type Definition ---
-// This should match the structure of the objects in your generated JSON file
 export interface StaticLeague {
-  id: number;
-  name: string;
-  logoUrl: string;
-  countryName: string;
-  countryFlagUrl: string | null;
-  type: string;
-  href: string;
+  league: any;
+  country: any;
+  seasons: any[];
 }
 
-// In-memory cache for the server's lifetime
-let leagueDataCache: StaticLeague[] | null = null;
+// The function now fetches from Redis with an API fallback.
+export const getLeagueStaticData = cache(
+  async (leagueId: string): Promise<StaticLeague | null> => {
+    const cacheKey = `league:static:${leagueId}`;
 
-/**
- * Reads and caches the static league data from the pre-built JSON file.
- * This function is cached per-request by Next.js.
- * @returns {Promise<StaticLeague[]>} A promise that resolves to an array of all leagues.
- */
-export const getLeaguesStaticData = cache(async (): Promise<StaticLeague[]> => {
-  // Return from in-memory cache if available
-  if (leagueDataCache) {
-    return leagueDataCache;
-  }
+    try {
+      const cachedData = await redis.get(cacheKey);
+      if (cachedData) {
+        return JSON.parse(cachedData);
+      }
+    } catch (e) {
+      console.error(
+        `[data/league-static] Redis GET failed for key ${cacheKey}:`,
+        e
+      );
+    }
 
-  try {
-    const filePath = path.join(
-      process.cwd(),
-      "public/data/leagues-static.json"
+    // Fallback: If not in cache, fetch directly from the API and cache it.
+    console.warn(
+      `[data/league-static] Cache MISS for league ${leagueId}. Fetching from API...`
     );
-    const fileContent = await fs.readFile(filePath, "utf-8");
-    const data: StaticLeague[] = JSON.parse(fileContent);
+    try {
+      const response = await axios.get<{ response: StaticLeague[] }>(
+        `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/leagues`,
+        {
+          params: { id: leagueId },
+          headers: {
+            "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY,
+          },
+        }
+      );
 
-    // Store in the in-memory cache for subsequent requests
-    leagueDataCache = data;
-
-    return data;
-  } catch (error) {
-    console.error(
-      "Error reading static league data file. This is critical for directory pages.",
-      error
-    );
-    // Return an empty array to prevent the site from crashing if the file is missing.
-    // The build process should always create this file, so this is a fallback.
-    return [];
+      const leagueData = response.data.response?.[0];
+      if (leagueData) {
+        await redis.set(
+          cacheKey,
+          JSON.stringify(leagueData),
+          "EX",
+          60 * 60 * 24 * 7
+        ); // 7 days
+      }
+      return leagueData || null;
+    } catch (error) {
+      console.error(
+        `[data/league-static] API fallback failed for league ${leagueId}:`,
+        error
+      );
+      return null;
+    }
   }
-});
+);

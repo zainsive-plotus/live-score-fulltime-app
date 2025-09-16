@@ -25,8 +25,6 @@ import TeamFormWidgetSidebar from "@/components/team/TeamFormWidgetSidebar";
 import TeamSeoWidget from "@/components/team/TeamSeoWidget";
 import AdSlotWidget from "@/components/AdSlotWidget";
 
-import { generateDynamicMeta } from "@/lib/meta-generator";
-
 export const revalidate = 604800;
 
 const BASE_URL =
@@ -39,43 +37,74 @@ const getTeamIdFromSlug = (slug: string): string | null => {
   return /^\d+$/.test(lastPart) ? lastPart : null;
 };
 
+const parseTeamSlug = (slug: string): { id: string; name: string } | null => {
+  if (!slug) return null;
+
+  const parts = slug.split("-");
+  const lastPart = parts[parts.length - 1];
+
+  if (!/^\d+$/.test(lastPart)) {
+    // If the last part is not a number, the slug is invalid.
+    return null;
+  }
+
+  const id = lastPart;
+  // Join all parts except for the last one (the ID) to get the name slug.
+  const nameParts = parts.slice(0, -1);
+
+  // Reconstruct a readable name from the slug parts.
+  const name = nameParts
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+
+  return { id, name };
+};
+
 export async function generateMetadata({
   params,
 }: {
   params: { slug: string[]; locale: string };
 }): Promise<Metadata> {
+  // --- ROBUSTNESS FIX ---
+  if (!params.slug || !Array.isArray(params.slug) || params.slug.length === 0) {
+    return {
+      title: "Not Found",
+      robots: { index: false, follow: false },
+    };
+  }
+
   const { slug, locale } = params;
-  const teamId = getTeamIdFromSlug(slug[0]);
+  const t = await getI18n(locale);
+
+  // Use the new parsing function
+  const teamInfoFromSlug = parseTeamSlug(slug[0]);
+
   const hreflangAlternates = await generateHreflangTags(
     "/football/team",
     slug.join("/"),
     locale
   );
 
-  if (!teamId) {
-    return { title: "Not Found", alternates: hreflangAlternates };
+  // If the slug is invalid, we can't generate metadata.
+  if (!teamInfoFromSlug) {
+    return { title: t("meta_not_found_title"), alternates: hreflangAlternates };
   }
 
-  // Fetch only the static data needed for metadata
-  const allTeamData = await getTeamStaticData();
-  const teamInfo = allTeamData[teamId];
-
-  if (!teamInfo) {
-    return {
-      title: "Not Found",
-      alternates: hreflangAlternates,
-      robots: { index: false, follow: false },
-    };
-  }
-
-  // Use the new helper to generate title and description
-  const { title, description } = generateDynamicMeta("team", locale, {
-    teamName: teamInfo.team.name,
+  // --- OPTIMIZATION ---
+  // We can now use the name directly from the slug for metadata,
+  // avoiding a data fetch entirely.
+  const pageTitle = t("team_page_meta_title", {
+    teamName: teamInfoFromSlug.name,
+    country: "", // Note: Country is not available in the slug, so we pass an empty string.
+  });
+  const pageDescription = t("team_page_meta_description", {
+    teamName: teamInfoFromSlug.name,
+    country: "", // The description will be slightly less specific, which is an acceptable trade-off for speed.
   });
 
   return {
-    title,
-    description,
+    title: pageTitle,
+    description: pageDescription,
     alternates: hreflangAlternates,
   };
 }
@@ -91,8 +120,7 @@ export default async function TeamPage({
 
   if (!teamId) notFound();
 
-  const allTeamData = await getTeamStaticData();
-  const teamInfo = allTeamData[teamId];
+  const teamInfo = await getTeamStaticData(teamId);
   if (!teamInfo) notFound();
 
   const { team, venue } = teamInfo;
