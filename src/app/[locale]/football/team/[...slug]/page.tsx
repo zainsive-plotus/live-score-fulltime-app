@@ -78,17 +78,17 @@ export async function generateMetadata({
   // Use the new parsing function
   const teamInfoFromSlug = parseTeamSlug(slug[0]);
 
-  const hreflangAlternates = await generateHreflangTags(
-    "/football/team",
-    slug.join("/"),
-    locale
-  );
+  // const hreflangAlternates = await generateHreflangTags(
+  //   "/football/team",
+  //   slug.join("/"),
+  //   locale
+  // );
 
   // If the slug is invalid, we can't generate metadata.
   if (!teamInfoFromSlug) {
     return {
       title: "Takım Profili – İstatistikler, Fikstürler ve İçgörüler | Fanskor",
-      alternates: hreflangAlternates,
+      // alternates: hreflangAlternates,
     };
   }
 
@@ -101,7 +101,7 @@ export async function generateMetadata({
   return {
     title: pageTitle,
     description: pageDescription,
-    alternates: hreflangAlternates,
+    // alternates: hreflangAlternates,
   };
 }
 
