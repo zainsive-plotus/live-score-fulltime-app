@@ -6,6 +6,8 @@ import Image from "next/image";
 import { proxyImageUrl } from "@/lib/image-proxy";
 import { Users, Shield, Zap, Goal, UserCircle } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
+import { generatePlayerSlug } from "@/lib/generate-player-slug";
+import StyledLink from "../StyledLink";
 
 // Define position colors for better visual grouping
 const positionStyles: {
@@ -39,36 +41,39 @@ const PlayerRow = ({ player }: { player: any }) => {
     text: "text-gray-400",
     border: "border-gray-500/50",
   };
+  const playerHref = generatePlayerSlug(player.name, player.id);
 
   return (
-    <div
-      className={`flex items-center gap-3 p-2.5 rounded-lg border-l-4 transition-all duration-200 hover:bg-white/5 ${style.border}`}
-    >
-      <div className="relative flex-shrink-0">
-        <Image
-          src={proxyImageUrl(player.photo)}
-          alt={player.name}
-          width={40}
-          height={40}
-          className="rounded-full bg-gray-800"
-        />
-        <span
-          className={`absolute -bottom-1 -right-1 w-5 h-5 flex items-center justify-center rounded-full text-xs font-bold text-white ${style.bg} border-2 border-brand-secondary`}
-        >
-          {player.number || "?"}
-        </span>
+    <StyledLink href={playerHref}>
+      <div
+        className={`flex items-center gap-3 p-2.5 rounded-lg border-l-4 transition-all duration-200 hover:bg-white/5 ${style.border}`}
+      >
+        <div className="relative flex-shrink-0">
+          <Image
+            src={proxyImageUrl(player.photo)}
+            alt={player.name}
+            width={40}
+            height={40}
+            className="rounded-full bg-gray-800"
+          />
+          <span
+            className={`absolute -bottom-1 -right-1 w-5 h-5 flex items-center justify-center rounded-full text-xs font-bold text-white ${style.bg} border-2 border-brand-secondary`}
+          >
+            {player.number || "?"}
+          </span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-white truncate text-sm">{player.name}</p>
+          <p className={`text-xs font-semibold ${style.text}`}>
+            {player.position}
+          </p>
+        </div>
+        <div className="flex-shrink-0 text-right">
+          <p className="font-semibold text-white text-sm">{player.age}</p>
+          <p className="text-xs text-brand-muted">{player.nationality}</p>
+        </div>
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="font-bold text-white truncate text-sm">{player.name}</p>
-        <p className={`text-xs font-semibold ${style.text}`}>
-          {player.position}
-        </p>
-      </div>
-      <div className="flex-shrink-0 text-right">
-        <p className="font-semibold text-white text-sm">{player.age}</p>
-        <p className="text-xs text-brand-muted">{player.nationality}</p>
-      </div>
-    </div>
+    </StyledLink>
   );
 };
 

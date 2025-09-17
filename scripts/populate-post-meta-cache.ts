@@ -40,15 +40,15 @@ async function main() {
     const cacheKey = `post:meta:${post.language}:${post.slug}`;
     const cacheValue = JSON.stringify({
       _id: post._id.toString(),
-      title: post.title,
+      // title: post.title,
       metaTitle: post.metaTitle,
       metaDescription: post.metaDescription,
       //   content: post.content, // Needed for fallback description
-      featuredImage: post.featuredImage,
-      author: post.author,
-      createdAt: post.createdAt.toISOString(),
-      updatedAt: post.updatedAt.toISOString(),
-      translationGroupId: post.translationGroupId.toString(),
+      // featuredImage: post.featuredImage,
+      // author: post.author,
+      // createdAt: post.createdAt.toISOString(),
+      // updatedAt: post.updatedAt.toISOString(),
+      // translationGroupId: post.translationGroupId.toString(),
     });
 
     pipeline.set(cacheKey, cacheValue, "EX", CACHE_TTL_SECONDS);

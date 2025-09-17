@@ -1,3 +1,4 @@
+// ===== src/components/HighlightCard.tsx =====
 "use client";
 
 import { useState, useMemo } from "react";
@@ -7,7 +8,6 @@ import { formatDistanceToNow, isValid } from "date-fns";
 import { useTranslation } from "@/hooks/useTranslation";
 import { proxyImageUrl } from "@/lib/image-proxy";
 
-// Updated interface to reflect that nested data can be missing
 interface Highlight {
   id: number;
   imgUrl: string | null;
@@ -43,7 +43,6 @@ export default function HighlightCard({ highlight }: { highlight: Highlight }) {
   const { t } = useTranslation();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Safely destructure with fallbacks to prevent crashes
   const { match = {} } = highlight;
   const { league = {}, homeTeam = {}, awayTeam = {} } = match;
 
@@ -54,26 +53,33 @@ export default function HighlightCard({ highlight }: { highlight: Highlight }) {
   const matchDate = match?.date ? new Date(match.date) : null;
   const isDateValid = matchDate && isValid(matchDate);
 
-  const thumbnailUrl =
-    proxyImageUrl(highlight.imgUrl) ||
-    proxyImageUrl(league?.logo) ||
-    "/images/placeholder-logo.svg";
+  // --- ROBUST THUMBNAIL LOGIC ---
+  // This logic ensures we always have a valid URL to pass to the proxy.
+  const thumbnailUrl = useMemo(() => {
+    // Prioritize the highlight's own image URL if it exists and is valid.
+    if (highlight.imgUrl && highlight.imgUrl.startsWith("http")) {
+      return proxyImageUrl(highlight.imgUrl);
+    }
+    // Fallback to the league's logo if it exists.
+    if (league?.logo && league.logo.startsWith("http")) {
+      return proxyImageUrl(league.logo);
+    }
+    // Final fallback to a local placeholder image. This URL is always valid.
+    return "/images/placeholder-logo.svg";
+  }, [highlight.imgUrl, league?.logo]);
+  // --- END OF ROBUST THUMBNAIL LOGIC ---
 
-  // ** NEW: Logic to create an embed URL for specific providers **
   const embedUrl = useMemo(() => {
     if (highlight.url && highlight.url.includes("streamain.com")) {
       const parts = highlight.url.split("/");
-      // The unique video ID is typically the second to last part of the path
       const videoId = parts[parts.length - 2];
       if (videoId) {
         return `https://streamain.com/embed/${videoId}`;
       }
     }
-    // Return null for other providers to trigger fallback behavior
     return null;
   }, [highlight.url]);
 
-  // ** NEW: Click handler to decide whether to open modal or new tab **
   const handleClick = () => {
     if (embedUrl) {
       setIsModalOpen(true);
@@ -163,7 +169,6 @@ export default function HighlightCard({ highlight }: { highlight: Highlight }) {
         </div>
       </div>
 
-      {/* ** NEW: Lightbox Modal for Video Playback ** */}
       {isModalOpen && embedUrl && (
         <div
           className="fixed inset-0 z-[101] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"

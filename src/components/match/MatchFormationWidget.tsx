@@ -1,15 +1,17 @@
 // ===== src/components/match/MatchFormationWidget.tsx =====
 
-"use client";
-
 import { memo } from "react";
 import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { proxyImageUrl } from "@/lib/image-proxy";
-import { Shirt, Users, UserSquare } from "lucide-react";
+import { Users, UserSquare } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
+// --- IMPORT THE SLUG GENERATOR AND LINK COMPONENT ---
+import { generatePlayerSlug } from "@/lib/generate-player-slug";
+import StyledLink from "../StyledLink";
 
+// ... (fetchLineups and mapFormationToPositions functions remain the same) ...
 const fetchLineups = async (fixtureId: string) => {
   const { data } = await axios.get(`/api/lineups?fixtureId=${fixtureId}`);
   return data;
@@ -74,18 +76,21 @@ const mapFormationToPositions = (
 
 const Player = memo(
   ({ player, colorClass }: { player: any; colorClass: string }) => {
-    // FIX: Construct the full, absolute URL for the player photo
     const playerPhotoUrl = `https://media.api-sports.io/football/players/${player.id}.png`;
+    // --- CREATE THE PLAYER'S UNIQUE URL ---
+    const playerHref = generatePlayerSlug(player.name, player.id);
 
     return (
-      <div
+      // --- WRAP THE PLAYER REPRESENTATION IN A STYLEDLINK ---
+      <StyledLink
+        href={playerHref}
         className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 group cursor-pointer"
         style={{ top: `${player.pos.y}%`, left: `${player.pos.x}%` }}
         title={player.name}
       >
         <div className="relative">
           <Image
-            src={proxyImageUrl(playerPhotoUrl)} // Use the newly constructed full URL
+            src={proxyImageUrl(playerPhotoUrl)}
             alt={player.name}
             width={40}
             height={40}
@@ -101,12 +106,13 @@ const Player = memo(
         <span className="text-xs font-semibold text-white bg-black/60 px-2 py-0.5 rounded-md whitespace-nowrap shadow-lg">
           {player.name.split(" ").slice(-1)[0]}
         </span>
-      </div>
+      </StyledLink>
     );
   }
 );
 Player.displayName = "Player";
 
+// ... (The rest of MatchFormationWidget.tsx remains the same) ...
 const FormationSkeleton = () => (
   <div className="bg-brand-secondary rounded-lg p-4 md:p-6 animate-pulse">
     <div className="h-8 w-1/3 mx-auto bg-gray-700 rounded mb-6"></div>

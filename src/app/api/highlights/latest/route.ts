@@ -5,17 +5,20 @@ import { getLatestPopularHighlights } from "@/lib/data/highlightly";
 
 export async function GET(request: Request) {
   try {
-    // --- Start of Change ---
-    // All complex fetching, validation, and caching logic is now encapsulated
-    // in the getLatestPopularHighlights function. This route is now very simple.
-    const validHighlights = await getLatestPopularHighlights();
-    // --- End of Change ---
+    const { searchParams } = new URL(request.url);
+    const limitParam = searchParams.get("limit");
+    // Default to 40 if no limit is provided, for backward compatibility with other calls
+    const limit = limitParam ? parseInt(limitParam, 10) : 40;
 
-    if (!validHighlights || validHighlights.length === 0) {
+    const allHighlights = await getLatestPopularHighlights();
+
+    if (!allHighlights || allHighlights.length === 0) {
       return NextResponse.json({ highlights: [] }, { status: 200 });
     }
-    
-    // Set a short browser/CDN cache time. The long-term cache is handled by Redis.
+
+    // Apply the limit AFTER fetching all available highlights
+    const limitedHighlights = allHighlights.slice(0, limit);
+
     const headers = new Headers();
     headers.set(
       "Cache-control",
@@ -23,7 +26,7 @@ export async function GET(request: Request) {
     );
 
     return NextResponse.json(
-      { highlights: validHighlights },
+      { highlights: limitedHighlights },
       { status: 200, headers }
     );
   } catch (error: any) {
@@ -33,7 +36,7 @@ export async function GET(request: Request) {
     );
     return NextResponse.json(
       { error: "Failed to fetch latest highlights from the provider." },
-      { status: 502 } // Use 502 Bad Gateway as we're proxying a failing service
+      { status: 502 }
     );
   }
 }
