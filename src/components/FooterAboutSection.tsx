@@ -22,7 +22,7 @@ export default async function FooterAboutSection({
         </h2>
         <div className="prose prose-sm prose-invert max-w-none text-text-secondary leading-relaxed space-y-4">
           {paragraphs.map((p, index) => (
-            <p key={index}>{p}</p>
+            <div dangerouslySetInnerHTML={{ __html: p }}></div>
           ))}
         </div>
       </div>
