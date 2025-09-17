@@ -2,29 +2,24 @@
 "use client";
 
 import { useState, useMemo, Suspense, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useTranslation } from "@/hooks/useTranslation";
-import { BarChart3, Repeat, Trophy } from "lucide-react";
+import { BarChart3, Repeat, Trophy, UserCircle } from "lucide-react";
 import PlayerHeader from "./PlayerHeader";
 
-// Dynamic imports for tab components
+// ... (Dynamic imports and other components remain the same) ...
 const PlayerStatsWidget = dynamic(() => import("./PlayerStatsWidget"));
 const PlayerTransfersWidget = dynamic(() => import("./PlayerTransfersWidget"));
 const PlayerTrophiesWidget = dynamic(() => import("./PlayerTrophiesWidget"));
+const PlayerProfileWidget = dynamic(() => import("./PlayerProfileWidget"));
+const LatestHighlightsWidget = dynamic(
+  () => import("@/components/LatestHighlightsWidget")
+);
 
-// --- DYNAMICALLY IMPORT THE GENERAL HIGHLIGHTS WIDGET ---
 const HighlightsSkeleton = () => (
   <div className="aspect-video w-full bg-brand-secondary rounded-lg animate-pulse"></div>
 );
-const LatestHighlightsWidget = dynamic(
-  () => import("@/components/LatestHighlightsWidget"),
-  {
-    loading: () => <HighlightsSkeleton />,
-    ssr: false,
-  }
-);
-
 const TabButton = ({ name, icon: Icon, isActive, onClick }: any) => (
   <button
     onClick={onClick}
@@ -39,16 +34,28 @@ const TabButton = ({ name, icon: Icon, isActive, onClick }: any) => (
   </button>
 );
 
-const DEFAULT_TAB = "stats";
+const DEFAULT_TAB = "profile"; // Let's default to the profile tab
 
-export default function PlayerDetailView({ playerData }: { playerData: any }) {
+export default function PlayerDetailView({
+  playerData,
+  availableSeasons,
+  selectedSeason,
+}: {
+  playerData: any;
+  availableSeasons: number[];
+  selectedSeason: number;
+}) {
   const { t } = useTranslation();
+  const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [activeTab, setActiveTab] = useState(DEFAULT_TAB);
   const { stats, transfers, trophies } = playerData;
 
   const TABS = useMemo(
     () => [
+      { name: t("profile"), key: "profile", icon: UserCircle },
       { name: t("stats"), key: "stats", icon: BarChart3 },
       ...(transfers && transfers.length > 0
         ? [{ name: t("transfers"), key: "transfers", icon: Repeat }]
@@ -61,24 +68,54 @@ export default function PlayerDetailView({ playerData }: { playerData: any }) {
   );
 
   useEffect(() => {
-    const handleHashChange = () => {
+    const handleStateUpdate = () => {
       const hash = window.location.hash.replace("#", "").toLowerCase();
-      const isValidTab = TABS.some((tab) => tab.key === hash);
-      setActiveTab(isValidTab ? hash : DEFAULT_TAB);
+      const initialTab = hash
+        ? TABS.some((tab) => tab.key === hash)
+          ? hash
+          : DEFAULT_TAB
+        : DEFAULT_TAB;
+      setActiveTab(initialTab);
     };
-    handleHashChange();
-    window.addEventListener("hashchange", handleHashChange);
-    return () => {
-      window.removeEventListener("hashchange", handleHashChange);
-    };
-  }, [pathname, TABS]);
+    handleStateUpdate();
+    window.addEventListener("hashchange", handleStateUpdate);
+    return () => window.removeEventListener("hashchange", handleStateUpdate);
+  }, [pathname, searchParams, TABS]); // Listen to searchParams changes as well
 
-  const handleTabClick = (tabKey: string) => {
-    window.location.hash = tabKey;
+  const handleSeasonChange = (newSeason: number) => {
+    const currentParams = new URLSearchParams(
+      Array.from(searchParams.entries())
+    );
+    currentParams.set("season", newSeason.toString());
+    const newUrl = `${pathname}?${currentParams.toString()}`;
+    router.push(newUrl + window.location.hash, { scroll: false });
   };
 
+  // --- MODIFIED handleTabClick ---
+  const handleTabClick = (tabKey: string) => {
+    const currentParams = new URLSearchParams(
+      Array.from(searchParams.entries())
+    );
+
+    // If we are navigating to any tab that is NOT the stats tab, remove the league param.
+    if (tabKey !== "stats") {
+      currentParams.delete("league");
+    }
+
+    const queryString = currentParams.toString();
+    const newUrl = queryString ? `${pathname}?${queryString}` : pathname;
+
+    // Use router.push to update the URL, then manually set the hash.
+    // This is more reliable across different Next.js versions.
+    router.push(newUrl + `#${tabKey}`, { scroll: false });
+  };
+  // --- END of MODIFICATION ---
+
   const renderTabContent = () => {
+    // ... (renderTabContent logic remains the same)
     switch (activeTab) {
+      case "profile":
+        return <PlayerProfileWidget player={stats.player} />;
       case "transfers":
         return <PlayerTransfersWidget transfers={transfers} />;
       case "honours":
@@ -91,7 +128,13 @@ export default function PlayerDetailView({ playerData }: { playerData: any }) {
 
   return (
     <div className="space-y-6">
-      <PlayerHeader player={stats.player} statistics={stats.statistics[0]} />
+      <PlayerHeader
+        player={stats.player}
+        statistics={stats.statistics[0]}
+        availableSeasons={availableSeasons}
+        selectedSeason={selectedSeason}
+        onSeasonChange={handleSeasonChange}
+      />
       <div className="bg-brand-secondary rounded-lg p-2 flex items-center space-x-2 top-[88px] z-30 overflow-x-auto scrollbar-hide">
         {TABS.map((tab) => (
           <TabButton
@@ -103,7 +146,6 @@ export default function PlayerDetailView({ playerData }: { playerData: any }) {
           />
         ))}
       </div>
-
       <div className="min-h-[400px]">
         <Suspense
           fallback={
@@ -113,8 +155,6 @@ export default function PlayerDetailView({ playerData }: { playerData: any }) {
           {renderTabContent()}
         </Suspense>
       </div>
-
-      {/* --- ADDED RECENT HIGHLIGHTS WIDGET UNDER THE TABS --- */}
       <div className="pt-4">
         <Suspense fallback={<HighlightsSkeleton />}>
           <LatestHighlightsWidget />

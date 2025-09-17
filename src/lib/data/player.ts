@@ -1,5 +1,5 @@
 // ===== src/lib/data/player.ts =====
-import "server-only";
+"use server-only";
 import axios from "axios";
 import redis from "@/lib/redis";
 
@@ -14,7 +14,9 @@ const apiRequest = async <T>(
 ): Promise<T | null> => {
   try {
     const cachedData = await redis.get(cacheKey);
-    if (cachedData) return JSON.parse(cachedData);
+    if (cachedData) {
+      return JSON.parse(cachedData);
+    }
   } catch (e) {
     console.error(`[data/player] Redis GET failed for key ${cacheKey}:`, e);
   }
@@ -42,6 +44,20 @@ const apiRequest = async <T>(
   }
 };
 
+export const getPlayerSeasons = async (playerId: string): Promise<number[]> => {
+  const seasonsData = await apiRequest<number[]>(
+    "players/seasons",
+    { player: playerId },
+    `player:seasons:${playerId}`
+  );
+
+  if (!seasonsData || seasonsData.length === 0) {
+    return [];
+  }
+
+  return seasonsData.sort((a, b) => b - a);
+};
+
 export const getPlayerStats = (playerId: string, season: string) =>
   apiRequest<any[]>(
     "players",
@@ -63,22 +79,22 @@ export const getPlayerTrophies = (playerId: string) =>
     `player:trophies:${playerId}`
   );
 
-export const getPlayerPageData = async (playerId: string) => {
-  const season = new Date().getFullYear().toString();
+export const getTeamSquad = (teamId: number) =>
+  apiRequest<any[]>("players/squads", { team: teamId }, `team:squad:${teamId}`);
 
+export const getPlayerPageData = async (playerId: string, season: string) => {
   const [stats, transfers, trophies] = await Promise.all([
     getPlayerStats(playerId, season),
     getPlayerTransfers(playerId),
     getPlayerTrophies(playerId),
   ]);
 
-  // The 'stats' endpoint is the most crucial; if it fails, the player might not exist for the current season.
   if (!stats || stats.length === 0) {
     return null;
   }
 
   return {
-    stats: stats[0], // The stats endpoint returns an array with one player object
+    stats: stats[0],
     transfers,
     trophies,
   };

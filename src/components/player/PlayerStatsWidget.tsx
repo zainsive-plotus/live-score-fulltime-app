@@ -1,8 +1,9 @@
 // ===== src/components/player/PlayerStatsWidget.tsx =====
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
   BarChart3,
   Goal,
@@ -18,8 +19,9 @@ import {
 import StatBar from "./StatBar";
 import Image from "next/image";
 import { proxyImageUrl } from "@/lib/image-proxy";
+import slugify from "slugify";
 
-// Enhanced StatCard with gradient and better icon styling
+// ... (StatCard and StatGroup components remain exactly the same) ...
 const StatCard = ({ label, value, icon: Icon, color }: any) => (
   <div
     className={`p-4 rounded-lg flex items-center gap-4 border border-gray-700/50 bg-gradient-to-br from-brand-dark to-brand-secondary`}
@@ -38,7 +40,6 @@ const StatCard = ({ label, value, icon: Icon, color }: any) => (
   </div>
 );
 
-// StatGroup component remains the same, but will look better with the new StatBar
 const StatGroup = ({
   title,
   icon: Icon,
@@ -64,11 +65,47 @@ const StatGroup = ({
 
 export default function PlayerStatsWidget({ stats }: { stats: any[] }) {
   const { t } = useTranslation();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [activeIndex, setActiveIndex] = useState(0);
 
+  useEffect(() => {
+    const leagueSlugFromQuery = searchParams.get("league");
+    if (leagueSlugFromQuery) {
+      const indexFromQuery = stats.findIndex(
+        (stat) =>
+          slugify(stat.league.name, { lower: true, strict: true }) ===
+          leagueSlugFromQuery
+      );
+      if (indexFromQuery !== -1) {
+        setActiveIndex(indexFromQuery);
+      }
+    } else {
+      setActiveIndex(0);
+    }
+  }, [searchParams, stats]);
+
+  // --- MODIFIED handleTabClick ---
+  const handleTabClick = (index: number, leagueName: string) => {
+    const newLeagueSlug = slugify(leagueName, { lower: true, strict: true });
+
+    const currentParams = new URLSearchParams(
+      Array.from(searchParams.entries())
+    );
+    currentParams.set("league", newLeagueSlug);
+
+    // Construct the new URL with the query AND the required hash
+    const newUrl = `${pathname}?${currentParams.toString()}#stats`;
+    router.push(newUrl, { scroll: false });
+  };
+  // --- END of MODIFICATION ---
+
   if (!stats || stats.length === 0) {
+    // ... (return statement remains the same)
     return (
-      <div className="bg-brand-secondary rounded-xl p-8 text-center text-brand-muted">
+      <div className="bg-brand-secondary rounded-lg p-8 text-center text-brand-muted">
         <Info size={32} className="mx-auto mb-3" />
         <p className="font-semibold">{t("no_stats_for_season")}</p>
       </div>
@@ -76,6 +113,7 @@ export default function PlayerStatsWidget({ stats }: { stats: any[] }) {
   }
 
   const activeStats = stats[activeIndex];
+  // ... (rest of the component logic and JSX remains exactly the same) ...
   const { games, goals, cards, passes, shots, dribbles, tackles, duels } =
     activeStats;
 
@@ -110,7 +148,7 @@ export default function PlayerStatsWidget({ stats }: { stats: any[] }) {
           {stats.map((stat, index) => (
             <button
               key={stat.league.id}
-              onClick={() => setActiveIndex(index)}
+              onClick={() => handleTabClick(index, stat.league.name)}
               className={`flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold transition-all duration-200 ${
                 activeIndex === index
                   ? "bg-brand-dark shadow-inner shadow-black/50 text-white"
@@ -133,7 +171,6 @@ export default function PlayerStatsWidget({ stats }: { stats: any[] }) {
       </div>
 
       <div className="p-4 md:p-6 space-y-8">
-        {/* Key Performance Indicators with new colors */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             label={t("appearances")}
@@ -160,8 +197,6 @@ export default function PlayerStatsWidget({ stats }: { stats: any[] }) {
             color="text-amber-400"
           />
         </div>
-
-        {/* Detailed Stats Categories */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
           <StatGroup
             title={t("attacking")}
@@ -184,7 +219,6 @@ export default function PlayerStatsWidget({ stats }: { stats: any[] }) {
               percent={dribbleSuccess}
             />
           </StatGroup>
-
           <StatGroup
             title={t("playmaking")}
             icon={Target}
@@ -206,7 +240,6 @@ export default function PlayerStatsWidget({ stats }: { stats: any[] }) {
               percent={duelsWon}
             />
           </StatGroup>
-
           <StatGroup
             title={t("defending")}
             icon={ShieldCheck}
@@ -232,7 +265,6 @@ export default function PlayerStatsWidget({ stats }: { stats: any[] }) {
               }
             />
           </StatGroup>
-
           <StatGroup title={t("discipline")} icon={HeartPulse} hasData={true}>
             <StatBar
               label={t("yellow_cards")}
