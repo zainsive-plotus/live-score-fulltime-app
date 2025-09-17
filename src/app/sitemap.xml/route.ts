@@ -1,29 +1,32 @@
 // ===== src/app/sitemap.xml/route.ts =====
+import { SUPPORTED_LOCALES } from "@/lib/i18n/config";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
 const generateSitemapIndexXml = () => {
-  const sitemaps = [
-    "sitemap-static.xml",
-    "sitemap-news.xml",
-    "sitemap-leagues.xml",
-    "sitemap-teams.xml",
-    "sitemap-matches.xml",
-    // ***** NEW SITEMAP ADDED HERE *****
-    "sitemap-standings.xml",
+  const contentTypes = [
+    "core",
+    "news",
+    "leagues",
+    "teams",
+    "players",
+    "matches",
+    "standings",
   ];
 
-  const sitemapEntries = sitemaps
-    .map(
-      (route) => `
+  let sitemapEntries = "";
+
+  SUPPORTED_LOCALES.forEach((locale) => {
+    contentTypes.forEach((type) => {
+      sitemapEntries += `
     <sitemap>
-      <loc>${BASE_URL}/${route}</loc>
+      <loc>${BASE_URL}/sitemap/${locale}/${type}.xml</loc>
       <lastmod>${new Date().toISOString()}</lastmod>
     </sitemap>
-  `
-    )
-    .join("");
+  `;
+    });
+  });
 
   return `<?xml version="1.0" encoding="UTF-8"?>
     <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -34,10 +37,7 @@ const generateSitemapIndexXml = () => {
 
 export async function GET() {
   const xml = generateSitemapIndexXml();
-
   return new Response(xml, {
-    headers: {
-      "Content-Type": "application/xml",
-    },
+    headers: { "Content-Type": "application/xml" },
   });
 }
