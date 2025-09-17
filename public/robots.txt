@@ -44,4 +44,46 @@ Disallow: /api/
 Disallow: /cdn-cgi/ # Also add it here for good measure
 
 # Specify the location of the sitemap index
-Sitemap: https://fanskor.com/sitemap.xml
+
+Sitemap: https://fanskor.com/sitemap/tr/core.xml
+Sitemap: https://fanskor.com/sitemap/tr/news.xml
+Sitemap: https://fanskor.com/sitemap/tr/leagues.xml
+Sitemap: https://fanskor.com/sitemap/tr/teams.xml
+Sitemap: https://fanskor.com/sitemap/tr/players.xml
+Sitemap: https://fanskor.com/sitemap/tr/matches.xml
+Sitemap: https://fanskor.com/sitemap/tr/standings.xml
+Sitemap: https://fanskor.com/sitemap/en/core.xml
+Sitemap: https://fanskor.com/sitemap/en/news.xml
+Sitemap: https://fanskor.com/sitemap/en/leagues.xml
+Sitemap: https://fanskor.com/sitemap/en/teams.xml
+Sitemap: https://fanskor.com/sitemap/en/players.xml
+Sitemap: https://fanskor.com/sitemap/en/matches.xml
+Sitemap: https://fanskor.com/sitemap/en/standings.xml
+Sitemap: https://fanskor.com/sitemap/fr/core.xml
+Sitemap: https://fanskor.com/sitemap/fr/news.xml
+Sitemap: https://fanskor.com/sitemap/fr/leagues.xml
+Sitemap: https://fanskor.com/sitemap/fr/teams.xml
+Sitemap: https://fanskor.com/sitemap/fr/players.xml
+Sitemap: https://fanskor.com/sitemap/fr/matches.xml
+Sitemap: https://fanskor.com/sitemap/fr/standings.xml
+Sitemap: https://fanskor.com/sitemap/es/core.xml
+Sitemap: https://fanskor.com/sitemap/es/news.xml
+Sitemap: https://fanskor.com/sitemap/es/leagues.xml
+Sitemap: https://fanskor.com/sitemap/es/teams.xml
+Sitemap: https://fanskor.com/sitemap/es/players.xml
+Sitemap: https://fanskor.com/sitemap/es/matches.xml
+Sitemap: https://fanskor.com/sitemap/es/standings.xml
+Sitemap: https://fanskor.com/sitemap/zu/core.xml
+Sitemap: https://fanskor.com/sitemap/zu/news.xml
+Sitemap: https://fanskor.com/sitemap/zu/leagues.xml
+Sitemap: https://fanskor.com/sitemap/zu/teams.xml
+Sitemap: https://fanskor.com/sitemap/zu/players.xml
+Sitemap: https://fanskor.com/sitemap/zu/matches.xml
+Sitemap: https://fanskor.com/sitemap/zu/standings.xml
+Sitemap: https://fanskor.com/sitemap/it/core.xml
+Sitemap: https://fanskor.com/sitemap/it/news.xml
+Sitemap: https://fanskor.com/sitemap/it/leagues.xml
+Sitemap: https://fanskor.com/sitemap/it/teams.xml
+Sitemap: https://fanskor.com/sitemap/it/players.xml
+Sitemap: https://fanskor.com/sitemap/it/matches.xml
+Sitemap: https://fanskor.com/sitemap/it/standings.xml
