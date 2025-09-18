@@ -1,4 +1,3 @@
-// ===== src/lib/generate-player-slug.ts =====
 import slugify from "slugify";
 
 export const generatePlayerSlug = (
@@ -10,5 +9,6 @@ export const generatePlayerSlug = (
     strict: true,
     remove: /[*+~.()'"!:@]/g,
   });
-  return `/players/${playerId}/${nameSlug}`;
+  // The only change is adding /football to the path
+  return `/football/players/${playerId}/${nameSlug}`;
 };
