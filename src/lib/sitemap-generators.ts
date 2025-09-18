@@ -1,29 +1,31 @@
 // ===== src/lib/sitemap-generators.ts =====
 import "server-only";
+import mongoose from "mongoose";
 import dbConnect from "@/lib/dbConnect";
 import Post from "@/models/Post";
 import Team from "@/models/Team";
 import League from "@/models/League";
+// import Player from "@/models/Player"; // Ensure the Player model is imported
 import { getFixturesByDateRange } from "@/lib/data/fixtures";
 import { generatePlayerSlug } from "@/lib/generate-player-slug";
 import { generateLeagueSlug } from "@/lib/generate-league-slug";
 import { generateTeamSlug } from "@/lib/generate-team-slug";
 import { generateMatchSlug } from "@/lib/generate-match-slug";
-import { generateStandingsSlug } from "@/lib/generate-standings-slug";
+import { DEFAULT_LOCALE } from "@/lib/i18n/config";
 import { format, subDays, addDays } from "date-fns";
 import axios from "axios";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
-const API_HOST = process.env.NEXT_PUBLIC_API_FOOTBALL_HOST;
-const API_KEY = process.env.NEXT_PUBLIC_API_FOOTBALL_KEY;
 
 // --- XML Generation Helper ---
+type SitemapEntry = { url: string; lastModified?: string | Date };
+
 const generateXml = (
-  entries: any[],
+  entries: SitemapEntry[],
   changeFrequency: string,
   priority: number
-) => {
+): string => {
   const urls = entries
     .map(
       (entry) => `
@@ -41,7 +43,13 @@ const generateXml = (
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}</urlset>`;
 };
 
-// --- Sitemap Generators ---
+const getUrl = (path: string, locale: string) => {
+  const localePrefix = locale === DEFAULT_LOCALE ? "" : `/${locale}`;
+  const finalPath = path === "/" ? "" : path;
+  return `${BASE_URL}${localePrefix}${finalPath}`;
+};
+
+// --- Sitemap Data Fetching Logic Functions ---
 
 export async function generateCoreSitemap(locale: string) {
   const staticPaths = [
@@ -59,9 +67,7 @@ export async function generateCoreSitemap(locale: string) {
     "/predictions",
     "/highlights",
   ];
-  const entries = staticPaths.map((path) => ({
-    url: `${BASE_URL}/${locale}${path}`,
-  }));
+  const entries = staticPaths.map((path) => ({ url: getUrl(path, locale) }));
   return generateXml(entries, "daily", 1.0);
 }
 
@@ -71,7 +77,7 @@ export async function generateNewsSitemap(locale: string) {
     .select("slug updatedAt")
     .lean();
   const entries = posts.map((post) => ({
-    url: `${BASE_URL}/${locale}/news/${post.slug}`,
+    url: getUrl(`/news/${post.slug}`, locale),
     lastModified: post.updatedAt,
   }));
   return generateXml(entries, "weekly", 0.8);
@@ -81,7 +87,7 @@ export async function generateLeaguesSitemap(locale: string) {
   await dbConnect();
   const leagues = await League.find({}).select("name leagueId").lean();
   const entries = leagues.map((l) => ({
-    url: `${BASE_URL}/${locale}${generateLeagueSlug(l.name, l.leagueId)}`,
+    url: getUrl(generateLeagueSlug(l.name, l.leagueId), locale),
   }));
   return generateXml(entries, "weekly", 0.7);
 }
@@ -90,21 +96,21 @@ export async function generateTeamsSitemap(locale: string) {
   await dbConnect();
   const teams = await Team.find({}).select("name teamId").lean();
   const entries = teams.map((t) => ({
-    url: `${BASE_URL}/${locale}${generateTeamSlug(t.name, t.teamId)}`,
+    url: getUrl(generateTeamSlug(t.name, t.teamId), locale),
   }));
   return generateXml(entries, "weekly", 0.6);
 }
 
-export async function generatePlayersSitemap(locale: string) {
-  //   await dbConnect();
-  //   // Assuming you have a Player model now
-  //   const Player = mongoose.models.Player || require("@/models/Player").default;
-  //   const players = await Player.find({}).select("name playerId").lean();
-  //   const entries = players.map((p) => ({
-  //     url: `${BASE_URL}/${locale}${generatePlayerSlug(p.name, p.playerId)}`,
-  //   }));
-  //   return generateXml(entries, "weekly", 0.5);
-}
+// --- THIS FUNCTION WAS MISSING OR NOT EXPORTED CORRECTLY ---
+// export async function generatePlayersSitemap(locale: string) {
+// await dbConnect();
+// const players = await Player.find({}).select("name playerId").lean();
+// const entries = players.map((p) => ({
+//   url: getUrl(generatePlayerSlug(p.name, p.playerId), locale),
+// }));
+// return generateXml(entries, "weekly", 0.5);
+// }
+// --- END OF FIX ---
 
 export async function generateMatchesSitemap(locale: string) {
   const today = new Date();
@@ -115,11 +121,10 @@ export async function generateMatchesSitemap(locale: string) {
     (m) => m && m.fixture?.id && m.teams?.home?.name && m.teams?.away?.name
   );
   const entries = validMatches.map((m) => ({
-    url: `${BASE_URL}/${locale}${generateMatchSlug(
-      m.teams.home,
-      m.teams.away,
-      m.fixture.id
-    )}`,
+    url: getUrl(
+      generateMatchSlug(m.teams.home, m.teams.away, m.fixture.id),
+      locale
+    ),
     lastModified: m.fixture.date,
   }));
   return generateXml(entries, "daily", 0.9);
@@ -130,7 +135,7 @@ export async function generateStandingsSitemap(locale: string) {
     `${BASE_URL}/api/directory/standings-leagues?limit=10000`
   );
   const entries = data.leagues.map((l: any) => ({
-    url: `${BASE_URL}/${locale}${l.href}`,
+    url: getUrl(l.href, locale),
   }));
   return generateXml(entries, "daily", 0.8);
 }

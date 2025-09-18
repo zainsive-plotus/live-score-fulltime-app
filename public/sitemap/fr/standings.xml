@@ -1,0 +1,5364 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/1-lig-204</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/2-bundesliga-79</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/a-league-188</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/allsvenskan-113</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/bundesliga-78</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/bundesliga-218</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/championship-40</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/czech-liga-345</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/ekstraklasa-106</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/eliteserien-103</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/eredivisie-88</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/hnl-210</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/j1-league-98</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/jupiler-pro-league-144</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/k-league-1-292</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/la-liga-140</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/league-one-41</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/league-two-42</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-i-283</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-mx-262</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-nacional-234</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-profesional-argentina-128</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/ligue-1-61</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/ligue-2-62</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/major-league-soccer-253</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-league-43</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-39</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-235</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-233</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-soccer-league-288</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premiership-179</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/primeira-liga-94</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/primera-a-239</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/pro-league-307</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/segunda-division-141</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/serie-a-71</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/serie-a-135</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/serie-b-136</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/super-league-207</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/super-league-1-197</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/super-lig-203</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/super-liga-286</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/superliga-119</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/1-lyga-361</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/1-deild-165</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/1-deild-366</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/1-division-104</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/1-division-117</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/1-division-388</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/1-division-120</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/1-division-318</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/1-division-women-915</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/1-liga-364</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/1-liga-classic-group-1-599</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/1-liga-classic-group-2-600</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/1-liga-classic-group-3-601</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/1-liga-classic-play-offs-1005</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/1-liga-promotion-510</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/1-liga-u19-668</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/1-liga-women-669</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/1-snl-373</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/1a-divisao-women-948</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/1a-divisio-312</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/1st-division-289</loc>
+      <lastmod>2025-09-18T15:44:09.562Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/1st-division-311</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/1st-league-fbih-316</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/1st-league-rs-317</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/2-deild-166</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/2-division-118</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/2-division-319</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/2-division-122</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/2-division-group-1-473</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/2-division-group-2-474</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/2-division-play-offs-1054</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/2-frauen-bundesliga-1034</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/2-lig-205</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/2-liga-506</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/2-liga-219</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/2-liga-interregional-group-1-796</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/2-liga-interregional-group-2-797</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/2-liga-interregional-group-3-798</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/2-liga-interregional-group-4-799</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/2-liga-interregional-group-5-800</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/2-liga-interregional-group-6-801</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/2-snl-374</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/2a-divisio-313</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/2nd-division-group-2-123</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/2nd-division-group-a-512</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/2nd-division-group-b-513</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/2nd-division-play-offs-978</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/3-division-320</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/3-division-862</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/3-division-girone-1-774</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/3-division-girone-2-775</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/3-division-girone-3-776</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/3-division-girone-4-777</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/3-division-girone-5-778</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/3-division-girone-6-779</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/3-lig-group-1-552</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/3-lig-group-2-553</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/3-lig-group-3-554</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/3-lig-group-4-1027</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/3-lig-play-offs-1007</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/3-liga-80</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/3-liga-bratislava-643</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/3-liga-center-646</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/3-liga-cfl-a-348</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/3-liga-cfl-b-685</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/3-liga-east-645</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/3-liga-msfl-349</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/3-liga-play-offs-1185</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/3-liga-promotion-play-off-1010</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/3-liga-west-644</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/3-snl-east-794</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/3-snl-west-795</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/4-liga-divizie-a-350</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/4-liga-divizie-b-351</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/4-liga-divizie-c-352</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/4-liga-divizie-d-353</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/4-liga-divizie-e-354</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/4-liga-divizie-f-686</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/a-division-590</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/a-lyga-362</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/a-league-women-190</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/acreano-520</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/alagoano-u20-1110</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/amapaense-521</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/amazonense-522</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/amazonense-2-1134</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/axa-womens-super-league-739</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/azadegan-league-291</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/baiano-1-602</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/baiano-2-613</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/baiano-u20-1073</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/birinci-dasta-418</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/botola-2-201</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/botola-pro-200</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/brasileiro-u17-1128</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/brasileiro-women-74</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/brasiliense-610</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/brasiliense-b-1141</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/brasiliense-u20-1100</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/brisbane-premier-league-191</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/c-league-410</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/calcutta-premier-division-1020</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/campeonato-de-portugal-prio-group-a-457</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/campeonato-de-portugal-prio-group-b-458</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/campeonato-de-portugal-prio-group-c-459</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/campeonato-de-portugal-prio-group-d-460</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/campeonato-de-portugal-prio-group-e-681</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/campeonato-de-portugal-prio-group-f-682</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/campeonato-de-portugal-prio-group-g-683</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/campeonato-de-portugal-prio-group-h-684</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/campeonato-de-portugal-prio-promotion-round-991</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/campionato-404</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/campionato-primavera-1-705</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/campionato-primavera-2-706</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/canadian-premier-league-479</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/canadian-soccer-league-258</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/capital-territory-npl-189</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/capital-territory-npl-2-1092</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/capixaba-611</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/capixaba-b-1147</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/carioca-1-624</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/carioca-2-625</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/carioca-a2-851</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/carioca-b2-1155</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/carioca-c-1106</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/carioca-u20-1114</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/catarinense-1-604</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/catarinense-2-936</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/catarinense-3-1154</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/catarinense-u20-1076</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/cearense-1-609</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/cearense-2-620</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/cearense-3-1124</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/cearense-u20-1112</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/central-youth-league-676</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/challenge-league-208</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/challenge-league-392</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/challenger-pro-league-145</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/championnat-d1-968</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/championnat-national-415</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/championnat-national-1084</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/championship-180</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/championship-407</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/copa-de-la-liga-profesional-1032</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/copa-paulino-alcantara-867</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/curacao-sekshon-paga-642</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/damallsvenskan-549</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/denmark-series-group-1-124</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/denmark-series-group-2-125</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/denmark-series-group-3-126</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/denmark-series-group-4-127</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/denmark-series-promotion-round-982</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/denmark-series-relegation-round-983</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/derde-divisie-relegation-round-1004</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/derde-divisie-saturday-92</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/derde-divisie-sunday-93</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/dhivehi-premier-league-855</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/diski-challenge-734</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/division-1-303</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/division-1-308</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/division-1-331</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/division-2-309</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/division-2-norra-gotaland-592</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/division-2-norra-svealand-593</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/division-2-norrland-594</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/division-2-ostra-gotaland-597</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/division-2-play-offs-1053</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/division-2-sodra-svealand-595</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/division-2-vastra-gotaland-596</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/division-dhonneur-377</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/division-di-honor-421</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/division-intermedia-251</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/division-profesional-apertura-250</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/division-profesional-clausura-252</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/druha-liga-336</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/druha-liga-group-b-337</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/eerste-divisie-568</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/eerste-divisie-89</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/ekstraliga-women-1033</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/elite-one-411</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/elite-two-813</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/elitettan-736</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/eredivisie-women-91</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/erovnuli-liga-327</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/erovnuli-liga-2-326</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/esiliiga-a-328</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/esiliiga-b-1126</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/estadual-junior-u20-1143</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/ettan-norra-563</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/ettan-relegation-round-1055</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/ettan-sodra-564</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/fa-wsl-44</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/faw-championship-111</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/feminine-division-1-64</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/first-amateur-division-487</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/first-division-358</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/first-league-172</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/first-league-236</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/first-league-355</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/first-league-343</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/first-league-371</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/first-nl-211</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/fkf-premier-league-276</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/fnl-346</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/football-league-198</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/football-league-championship-992</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/football-league-highland-league-730</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/football-league-lowland-league-731</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/frauen-bundesliga-82</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/frauenliga-484</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/gamma-ethniki-group-1-576</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/gamma-ethniki-group-10-694</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/gamma-ethniki-group-2-577</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/gamma-ethniki-group-3-578</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/gamma-ethniki-group-4-579</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/gamma-ethniki-group-5-580</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/gamma-ethniki-group-6-581</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/gamma-ethniki-group-7-582</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/gamma-ethniki-group-8-583</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/gamma-ethniki-group-9-693</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/gamma-ethniki-promotion-group-990</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/gamma-ethniki-relegation-play-offs-1099</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/gaucho-1-477</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/gaucho-2-478</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/gaucho-3-1150</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/gfa-league-845</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/girabola-397</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/goiano-1-628</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/goiano-2-1030</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/goiano-3-1133</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/goiano-u20-1069</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/hkfa-1st-division-381</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/i-liga-107</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/i-liga-women-733</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/i-league-324</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/i-league-2nd-division-717</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/ii-liga-east-109</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/iii-liga-group-1-780</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/iii-liga-group-2-781</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/iii-liga-group-3-782</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/iii-liga-group-4-783</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/indian-super-league-323</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/iraqi-league-542</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/j2-league-99</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/j3-league-100</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/japan-football-league-497</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/juniores-u19-1041</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/k-league-2-293</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/k3-league-295</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/kakkonen-lohko-a-247</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/kakkonen-lohko-b-248</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/kakkonen-lohko-c-249</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/kakkonen-play-offs-1052</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/kansallinen-liiga-640</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/kvindeliga-638</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/landesliga-burgenland-224</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/landesliga-karnten-225</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/landesliga-niederosterreich-226</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/landesliga-oberosterreich-227</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/landesliga-salzburg-228</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/landesliga-steiermark-229</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/landesliga-tirol-230</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/landesliga-vorarlbergliga-231</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/landesliga-wien-232</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/lao-league-647</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/league-387</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/league-1-ontario-923</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/league-one-170</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/league-one-183</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/league-two-929</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/league-two-184</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/lfa-first-division-760</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-1-395</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-1-274</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-1-feminin-728</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-2-275</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-3-1104</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-3-865</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-alef-496</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-de-ascenso-163</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-de-expansion-mx-263</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-femenina-712</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-ii-284</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-iii-play-offs-1009</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-iii-serie-1-784</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-iii-serie-10-793</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-iii-serie-2-785</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-iii-serie-3-786</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-iii-serie-4-787</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-iii-serie-5-788</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-iii-serie-6-789</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-iii-serie-7-790</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-iii-serie-8-791</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-iii-serie-9-792</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-leumit-382</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-mayor-759</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-mx-femenil-673</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-nacional-339</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-panamena-de-futbol-304</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-premier-serie-a-722</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-premier-serie-b-872</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-primera-u20-565</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-pro-242</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-pro-serie-b-243</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/liga-revelacao-u23-701</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/ligat-haal-383</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/ligi-kuu-bara-567</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/ligue-1-424</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/ligue-1-403</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/ligue-1-378</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/ligue-1-386</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/ligue-1-844</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/ligue-1-423</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/ligue-1-202</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/ligue-1-186</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/ligue-2-828</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/ligue-2-187</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/ligue-a-566</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/ligue-haitienne-379</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/maranhense-608</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/maranhense-2-1148</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/matogrossense-630</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/matogrossense-2-1096</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/mauritian-league-763</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/meistaradeildin-367</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/meistriliiga-329</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/mineiro-1-629</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/mineiro-2-619</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/mineiro-3-1142</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/mineiro-u20-1107</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/mls-next-pro-909</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/nacional-b-710</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-1-63</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-2-group-a-67</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-2-group-b-68</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-2-group-c-69</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-2-group-d-70</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-3-group-a-461</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-3-group-b-462</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-3-group-c-463</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-3-group-d-464</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-3-group-e-465</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-3-group-f-466</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-3-group-g-1029</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-3-group-h-467</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-3-group-i-468</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-3-group-j-469</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-3-group-k-470</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-3-group-l-471</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-3-group-m-472</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-division-261</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-football-league-376</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-league-588</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-league-central-954</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-league-championship-final-1056</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-league-national-955</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-league-north-50</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-league-north-play-offs-984</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-league-northern-956</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-league-play-offs-49</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-league-south-51</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-league-south-play-offs-985</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-league-southern-957</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/national-soccer-league-405</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/nb-i-271</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/nb-ii-272</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/nb-iii-northeast-633</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/nb-iii-northwest-635</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/nb-iii-promotion-play-offs-1111</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/nb-iii-southeast-1023</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/nb-iii-southwest-634</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/new-south-wales-npl-192</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/new-south-wales-npl-2-835</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/nisa-523</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/nnsw-league-1-1090</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/non-league-div-one-isthmian-north-52</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/non-league-div-one-isthmian-south-central-53</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/non-league-div-one-isthmian-south-east-57</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/non-league-div-one-northern-east-932</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/non-league-div-one-northern-midlands-55</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/non-league-div-one-northern-west-54</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/non-league-div-one-play-offs-986</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/non-league-div-one-southern-central-933</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/non-league-div-one-southern-south-56</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/non-league-premier-isthmian-58</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/non-league-premier-isthmian-play-offs-993</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/non-league-premier-northern-59</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/non-league-premier-northern-play-offs-994</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/non-league-premier-southern-central-931</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/non-league-premier-southern-central-play-offs-996</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/non-league-premier-southern-south-60</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/non-league-premier-southern-south-play-offs-995</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/northern-nsw-npl-481</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/northern-super-league-1182</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/northern-territory-premier-league-193</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/npfl-399</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/npsl-1118</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/nwsl-liga-mxf-summer-cup-1119</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/nwsl-women-254</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/oberliga-baden-wurttemberg-753</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/oberliga-bayern-nord-938</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/oberliga-bayern-sud-939</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/oberliga-bremen-749</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/oberliga-hamburg-745</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/oberliga-hessen-750</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/oberliga-mittelrhein-746</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/oberliga-niederrhein-751</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/oberliga-niedersachsen-748</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/oberliga-nordost-nord-754</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/oberliga-nordost-sud-755</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/oberliga-promotion-round-988</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/oberliga-relegation-round-989</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/oberliga-rheinland-pfalz-saar-752</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/oberliga-schleswig-holstein-744</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/oberliga-westfalen-747</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/pacific-coast-soccer-league-260</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/paraense-627</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/paraense-b1-1145</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/paraense-b2-1115</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/paraense-u20-1157</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/paraibano-603</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/paraibano-2-1037</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/paraibano-u20-1120</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/paranaense-1-606</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/paranaense-2-614</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/paranaense-3-1138</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/paranaense-u20-1071</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/paulista-a1-475</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/paulista-a2-476</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/paulista-a3-605</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/paulista-a4-1062</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/paulista-u20-1086</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/paulista-serie-b-1098</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/pernambucano-1-622</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/pernambucano-2-1125</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/pernambucano-3-1151</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/pernambucano-u20-1088</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/persha-liga-334</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/persian-gulf-pro-league-290</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/pfl-765</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/piauiense-621</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/potiguar-616</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/potiguar-2-1149</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/potiguar-u20-1139</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-division-1048</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-division-758</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-division-357</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-division-1080</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-intermediate-league-561</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-409</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-868</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-279</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-870</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-416</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-585</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-412</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-762</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-363</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-425</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-847</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-414</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-584</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-422</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-330</loc>
+      <lastmod>2025-09-18T15:44:09.563Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-322</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-390</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-380</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-417</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-962</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-570</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-764</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-398</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-389</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-116</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-569</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-1031</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-333</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-393</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-110</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-342</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-368</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-summer-series-1022</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-league-2-division-one-702</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premier-soccer-league-401</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premiere-division-598</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premiership-280</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premiership-408</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premiership-women-1103</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premijer-liga-315</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/premyer-liqa-419</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/primeira-divisao-969</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/primera-b-240</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/primera-b-266</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/primera-b-metropolitana-131</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/primera-c-132</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/primera-d-133</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/primera-division-338</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/primera-division-907</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/primera-division-370</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/primera-division-396</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/primera-division-281</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/primera-division-299</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/primera-division-265</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/primera-division-344</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/primera-division-162</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/primera-division-apertura-268</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/primera-division-clausura-270</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/primera-division-femenina-142</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/primera-division-rfef-group-1-435</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/primera-division-rfef-group-2-436</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/primera-division-rfef-group-3-437</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/primera-division-rfef-group-4-438</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/primera-division-rfef-group-5-692</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/primera-division-rfef-play-offs-1006</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/primera-nacional-129</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/pro-league-591</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/pro-league-301</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/pro-league-a-1075</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/professional-development-league-703</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/professional-league-406</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/provincial-antwerpen-153</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/provincial-brabant-acff-691</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/provincial-brabant-vfv-154</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/provincial-hainaut-155</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/provincial-liege-156</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/provincial-limburg-157</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/provincial-luxembourg-158</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/provincial-namur-159</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/provincial-oost-vlaanderen-160</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/provincial-play-offs-acff-980</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/provincial-play-offs-vv-979</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/provincial-west-vlaanderen-161</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/prva-liga-287</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/queensland-npl-482</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/queensland-premier-league-833</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/regionalliga-bayern-83</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/regionalliga-mitte-222</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/regionalliga-nord-84</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/regionalliga-nordost-85</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/regionalliga-ost-221</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/regionalliga-promotion-play-offs-1002</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/regionalliga-relegation-round-1003</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/regionalliga-salzburg-688</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/regionalliga-sudwest-86</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/regionalliga-tirol-687</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/regionalliga-west-223</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/regionalliga-west-87</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/reserve-league-883</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/reserve-league-562</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/reserve-league-906</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/reserve-pro-league-518</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/rondoniense-615</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/roraimense-607</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/second-amateur-division-acff-148</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/second-amateur-division-play-offs-1011</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/second-amateur-division-vfv-a-149</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/second-amateur-division-vfv-b-150</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/second-division-306</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/second-league-887</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/second-league-372</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/second-league-356</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/second-league-173</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/second-league-group-1-651</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/second-league-group-2-652</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/second-league-group-3-650</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/second-league-group-4-653</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/second-league-group-b-888</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/second-league-group-c-889</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/second-league-play-offs-1014</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/second-league-a-fall-season-gold-1025</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/second-league-a-fall-season-silver-1026</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/second-league-a-promotion-play-offs-1121</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/second-league-a-spring-season-gold-1061</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/second-league-a-spring-season-silver-1064</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/second-nl-946</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/segunda-division-711</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/segunda-division-269</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/segunda-division-282</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/segunda-division-300</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/segunda-division-rfef-group-1-875</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/segunda-division-rfef-group-2-876</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/segunda-division-rfef-group-3-877</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/segunda-division-rfef-group-4-878</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/segunda-division-rfef-group-5-879</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/segunda-division-rfef-play-offs-1000</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/segunda-liga-95</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/sergipano-626</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/sergipano-2-1135</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/sergipano-u20-1108</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/serie-a-women-139</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/serie-b-72</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/serie-c-75</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/serie-c-girone-a-138</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/serie-c-girone-b-942</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/serie-c-girone-c-943</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/serie-c-promotion-play-offs-976</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/serie-c-relegation-play-offs-975</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/serie-c-supercoppa-lega-finals-974</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/serie-d-76</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/serie-d-championship-round-999</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/serie-d-girone-a-426</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/serie-d-girone-b-427</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/serie-d-girone-c-428</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/serie-d-girone-d-429</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/serie-d-girone-e-430</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/serie-d-girone-f-431</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/serie-d-girone-g-432</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/serie-d-girone-h-433</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/serie-d-girone-i-434</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/serie-d-promotion-play-offs-997</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/serie-d-relegation-play-offs-998</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/somali-premier-league-846</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/south-australia-npl-194</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/south-australia-state-league-1-834</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/srpska-liga-belgrade-572</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/srpska-liga-east-574</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/srpska-liga-vojvodina-573</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/srpska-liga-west-575</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/stars-league-305</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/sudani-premier-league-402</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/sul-matogrossense-623</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/super-cup-1131</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/super-league-277</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/super-league-169</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/super-league-369</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/super-league-413</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/super-league-391</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/super-league-278</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/super-league-400</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/super-league-2-494</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/super-league-women-146</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/super-liga-394</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/super-liga-332</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/supercup-der-frauen-1137</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/superettan-114</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/superliga-310</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/superliga-664</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/supreme-division-women-649</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/taiwan-football-premier-league-589</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/tasmania-northern-championship-1091</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/tasmania-npl-648</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/tasmania-southern-championship-1093</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/tercera-division-rfef-group-1-439</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/tercera-division-rfef-group-10-448</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/tercera-division-rfef-group-11-449</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/tercera-division-rfef-group-12-450</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/tercera-division-rfef-group-13-451</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/tercera-division-rfef-group-14-452</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/tercera-division-rfef-group-15-453</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/tercera-division-rfef-group-16-454</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/tercera-division-rfef-group-17-455</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/tercera-division-rfef-group-18-456</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/tercera-division-rfef-group-2-440</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/tercera-division-rfef-group-3-441</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/tercera-division-rfef-group-4-442</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/tercera-division-rfef-group-5-443</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/tercera-division-rfef-group-6-444</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/tercera-division-rfef-group-7-445</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/tercera-division-rfef-group-8-446</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/tercera-division-rfef-group-9-447</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/tercera-division-rfef-promotion-play-offs-977</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/thai-league-1-296</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/thai-league-2-297</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/third-amateur-division-acff-a-689</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/third-amateur-division-acff-b-690</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/third-amateur-division-play-offs-981</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/third-amateur-division-vfv-a-151</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/third-amateur-division-vfv-b-152</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/third-league-northeast-175</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/third-league-northwest-176</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/third-league-southeast-177</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/third-league-southwest-178</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/third-nl-istok-213</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/third-nl-jug-214</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/third-nl-sjever-215</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/third-nl-sredite-216</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/third-nl-zapad-217</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/tocantinense-631</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/toppserien-725</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/torneo-federal-a-134</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/torneo-promocional-amateur-1067</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/tweede-divisie-492</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/u18-divisie-1-724</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/u18-premier-league-championship-987</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/u18-premier-league-north-695</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/u18-premier-league-south-696</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/u19-bundesliga-488</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/u19-divisie-1-1152</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/u19-league-1065</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/u20-league-861</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/u21-divisie-1-675</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/u21-league-679</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/u21-league-1-515</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/u23-league-1017</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/uefa-youth-league-14</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/urvalsdeild-164</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/urvalsdeild-women-671</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/usl-championship-255</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/usl-league-one-489</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/usl-league-one-cup-1095</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/usl-league-two-256</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/usl-super-league-1130</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/usl-w-league-1117</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/vleague-1-340</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/vleague-2-637</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/veikkausliiga-244</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/victoria-npl-195</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/victoria-npl-2-836</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/virsliga-365</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/vysshaya-liga-571</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/we-league-854</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/west-bank-premier-league-586</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/western-australia-npl-196</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/western-australia-state-league-1-1094</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/wk-league-660</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/womens-championship-699</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/wpsl-1116</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/yemeni-league-1079</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/ykkonen-245</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/ykkosliiga-1087</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/yokary-liga-636</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/youth-championship-238</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/fr/football/standings/youth-league-829</loc>
+      <lastmod>2025-09-18T15:44:09.564Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.8</priority>
+    </url>
+  </urlset>

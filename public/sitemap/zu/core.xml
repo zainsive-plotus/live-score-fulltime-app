@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+      <loc>http://localhost:3000/zu</loc>
+      <lastmod>2025-09-18T15:44:14.849Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>1</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/zu/football/news</loc>
+      <lastmod>2025-09-18T15:44:14.849Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>1</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/zu/news</loc>
+      <lastmod>2025-09-18T15:44:14.849Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>1</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/zu/football/leagues</loc>
+      <lastmod>2025-09-18T15:44:14.849Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>1</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/zu/football/teams</loc>
+      <lastmod>2025-09-18T15:44:14.849Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>1</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/zu/contact-us</loc>
+      <lastmod>2025-09-18T15:44:14.849Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>1</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/zu/faq</loc>
+      <lastmod>2025-09-18T15:44:14.849Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>1</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/zu/author</loc>
+      <lastmod>2025-09-18T15:44:14.849Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>1</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/zu/privacy-policy</loc>
+      <lastmod>2025-09-18T15:44:14.849Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>1</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/zu/terms-and-conditions</loc>
+      <lastmod>2025-09-18T15:44:14.849Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>1</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/zu/gdpr</loc>
+      <lastmod>2025-09-18T15:44:14.849Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>1</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/zu/predictions</loc>
+      <lastmod>2025-09-18T15:44:14.849Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>1</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/zu/highlights</loc>
+      <lastmod>2025-09-18T15:44:14.849Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>1</priority>
+    </url>
+  </urlset>

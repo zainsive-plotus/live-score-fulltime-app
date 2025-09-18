@@ -1,3 +1,4 @@
+// ===== src/components/admin/AdminSidebar.tsx =====
 "use client";
 
 import { useState, useEffect } from "react";
@@ -30,11 +31,11 @@ import {
   Send,
   FilePenLine,
   Share2,
-  Server, // <-- 1. IMPORT THE NEW ICON
+  Server,
+  Map, // --- IMPORT THE NEW ICON ---
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 
-// SubNavItem component remains the same...
 const SubNavItem = ({
   href,
   name,
@@ -99,6 +100,7 @@ export default function AdminSidebar() {
     setIsLocalizationOpen(isLocalizationSectionActive);
   }, [isLocalizationSectionActive]);
 
+  // --- UPDATED NAVIGATION ITEMS ARRAY ---
   const navItems = [
     { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
     { name: "News", href: "/admin/news", icon: Newspaper },
@@ -115,11 +117,11 @@ export default function AdminSidebar() {
     { name: "Link Tracker", href: "/admin/link-tracker", icon: LinkIcon },
     { name: "Referrer Tracker", href: "/admin/referrer-tracker", icon: Send },
     { name: "Social Links", href: "/admin/social-links", icon: Share2 },
-    // VVVV 2. ADD THE NEW NAV ITEM HERE VVVV
     { name: "Cache Management", href: "/admin/cache-management", icon: Server },
+    // --- ADDED THE NEW SITEMAP LINK HERE ---
+    { name: "Sitemap Generation", href: "/admin/sitemaps", icon: Map },
   ];
 
-  // The rest of the file remains the same...
   const localizationSubNav = [
     { name: "Languages", href: "/admin/languages", icon: Languages },
     { name: "Translations", href: "/admin/translations", icon: FileJson },
@@ -182,6 +184,7 @@ export default function AdminSidebar() {
             );
           })}
 
+          {/* ... (collapsible sections remain the same) ... */}
           <div>
             <button
               onClick={() => setIsLocalizationOpen(!isLocalizationOpen)}
@@ -222,7 +225,6 @@ export default function AdminSidebar() {
               </ul>
             </div>
           </div>
-
           <div>
             <button
               onClick={() => setIsAiOpen(!isAiOpen)}
@@ -263,7 +265,6 @@ export default function AdminSidebar() {
               </ul>
             </div>
           </div>
-
           <div>
             <button
               onClick={() => setIsPagesOpen(!isPagesOpen)}
@@ -306,7 +307,6 @@ export default function AdminSidebar() {
           </div>
         </nav>
       </div>
-
       <div className="border-t border-gray-700 pt-4">
         {session?.user && (
           <div className="mb-4 text-brand-muted text-sm px-3">

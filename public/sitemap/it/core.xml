@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+      <loc>http://localhost:3000/it</loc>
+      <lastmod>2025-09-18T15:44:18.391Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>1</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/it/football/news</loc>
+      <lastmod>2025-09-18T15:44:18.391Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>1</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/it/news</loc>
+      <lastmod>2025-09-18T15:44:18.391Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>1</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/it/football/leagues</loc>
+      <lastmod>2025-09-18T15:44:18.391Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>1</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/it/football/teams</loc>
+      <lastmod>2025-09-18T15:44:18.391Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>1</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/it/contact-us</loc>
+      <lastmod>2025-09-18T15:44:18.391Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>1</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/it/faq</loc>
+      <lastmod>2025-09-18T15:44:18.391Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>1</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/it/author</loc>
+      <lastmod>2025-09-18T15:44:18.391Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>1</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/it/privacy-policy</loc>
+      <lastmod>2025-09-18T15:44:18.391Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>1</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/it/terms-and-conditions</loc>
+      <lastmod>2025-09-18T15:44:18.391Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>1</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/it/gdpr</loc>
+      <lastmod>2025-09-18T15:44:18.391Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>1</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/it/predictions</loc>
+      <lastmod>2025-09-18T15:44:18.391Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>1</priority>
+    </url>
+  
+    <url>
+      <loc>http://localhost:3000/it/highlights</loc>
+      <lastmod>2025-09-18T15:44:18.391Z</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>1</priority>
+    </url>
+  </urlset>
