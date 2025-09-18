@@ -5,7 +5,6 @@ import Script from "next/script";
 import { WithContext, Person, BreadcrumbList } from "schema-dts";
 import { getI18n } from "@/lib/i18n/server";
 import { getPlayerPageData, getPlayerSeasons } from "@/lib/data/player";
-import { generateHreflangTags } from "@/lib/hreflang";
 import Header from "@/components/Header";
 import PlayerDetailView from "@/components/player/PlayerDetailView";
 import AdSlotWidget from "@/components/AdSlotWidget";
