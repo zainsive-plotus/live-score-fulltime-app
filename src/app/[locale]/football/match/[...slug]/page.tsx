@@ -79,20 +79,18 @@ export async function generateMetadata({
 }: {
   params: { slug: string[]; locale: string };
 }): Promise<Metadata> {
-  if (!params.slug || !Array.isArray(params.slug) || params.slug.length === 0) {
+  const { slug, locale } = params;
+
+  const fixtureId = getFixtureIdFromSlug(slug[0]);
+  if (!fixtureId) {
     return { title: "Not Found", robots: { index: false } };
   }
 
-  const { slug, locale } = params;
+  // --- MODIFICATION START ---
+  // We need to fetch the fixture data here to build the social tags.
+  // Next.js de-duplicates fetch requests, so this is efficient.
+  const fixtureData = await getFixture(fixtureId);
   const t = await getI18n(locale);
-
-  const matchInfo = parseMatchSlugForMeta(slug[0]);
-
-  // const hreflangAlternates = await generateHreflangTags(
-  //   "/football/match",
-  //   slug.join("/"),
-  //   locale
-  // );
 
   const path = `/football/match/${slug.join("/")}`;
   const canonicalUrl =
@@ -100,32 +98,61 @@ export async function generateMetadata({
       ? `${BASE_URL}${path}`
       : `${BASE_URL}/${locale}${path}`;
 
-  if (!matchInfo) {
+  if (!fixtureData) {
     return {
       title: t("not_found_title"),
       alternates: { canonical: canonicalUrl },
     };
   }
 
-  // --- REFACTORED LOGIC ---
-  // Use the t() function directly for a cleaner implementation.
+  const { teams, league } = fixtureData;
+
   const title = t("match_page_title", {
-    homeTeam: matchInfo.homeTeam,
-    awayTeam: matchInfo.awayTeam,
+    homeTeam: teams.home.name,
+    awayTeam: teams.away.name,
   });
 
   const description = t("match_page_description", {
-    homeTeam: matchInfo.homeTeam,
-    awayTeam: matchInfo.awayTeam,
+    homeTeam: teams.home.name,
+    awayTeam: teams.away.name,
   });
+
+  // Create the dynamic URL for our OG image
+  const ogImageUrl = new URL(`${BASE_URL}/api/og/match`);
+  ogImageUrl.searchParams.set("homeTeamName", teams.home.name);
+  ogImageUrl.searchParams.set("homeTeamLogo", teams.home.logo);
+  ogImageUrl.searchParams.set("awayTeamName", teams.away.name);
+  ogImageUrl.searchParams.set("awayTeamLogo", teams.away.logo);
+  ogImageUrl.searchParams.set("leagueName", league.name);
 
   return {
     title,
     description,
     alternates: { canonical: canonicalUrl },
+    // --- ADDED SOCIAL TAGS ---
+    openGraph: {
+      title: title,
+      description: description,
+      url: canonicalUrl,
+      siteName: "Fanskor",
+      type: "article",
+      images: [
+        {
+          url: ogImageUrl.toString(),
+          width: 1200,
+          height: 630,
+          alt: `Match preview for ${teams.home.name} vs ${teams.away.name}`,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: title,
+      description: description,
+      images: [ogImageUrl.toString()],
+    },
   };
 }
-
 const SidebarSkeleton = () => (
   <div className="space-y-6">
     <RecentNewsWidgetSkeleton />
@@ -230,6 +257,16 @@ export default async function MatchDetailPage({
     statusMap[fixtureDetails.status.short] || "EventScheduled";
 
   const pageUrl = `${BASE_URL}/${locale}/football/match/${slug.join("/")}`;
+  const leagueUrl = `${BASE_URL}/${locale}${generateLeagueSlug(
+    league.name,
+    league.id
+  )}`;
+
+  // Calculate a reasonable end date (e.g., 2 hours after start)
+  const endDate = new Date(
+    new Date(fixtureDetails.date).getTime() + 2 * 60 * 60 * 1000
+  ).toISOString();
+
   const jsonLd: WithContext<SportsEvent | BreadcrumbList>[] = [
     {
       "@context": "https://schema.org",
@@ -237,11 +274,54 @@ export default async function MatchDetailPage({
       name: `${teams.home.name} vs ${teams.away.name} - ${league.name}`,
       description: pageDescription,
       startDate: new Date(fixtureDetails.date).toISOString(),
+      endDate: endDate, // Added: Provides a duration for the event.
       eventStatus: schemaEventStatus,
       sport: "Soccer",
-      homeTeam: { "@type": "SportsTeam", name: teams.home.name },
-      awayTeam: { "@type": "SportsTeam", name: teams.away.name },
+      // Added: Crucial for local SEO and disambiguation.
+      location: {
+        "@type": "Place",
+        name: fixtureDetails.venue.name,
+        address: {
+          "@type": "PostalAddress",
+          addressLocality: fixtureDetails.venue.city,
+          addressCountry: league.country,
+        },
+      },
+      // Enhanced: Now includes logos.
+      homeTeam: {
+        "@type": "SportsTeam",
+        name: teams.home.name,
+        logo: teams.home.logo,
+      },
+      awayTeam: {
+        "@type": "SportsTeam",
+        name: teams.away.name,
+        logo: teams.away.logo,
+      },
+      // Added: Explicitly defines who is competing.
+      performer: [
+        {
+          "@type": "SportsTeam",
+          name: teams.home.name,
+          logo: teams.home.logo,
+        },
+        {
+          "@type": "SportsTeam",
+          name: teams.away.name,
+          logo: teams.away.logo,
+        },
+      ],
+      // Added: Identifies the league as the event organizer.
+      organizer: {
+        "@type": "SportsOrganization",
+        name: league.name,
+        logo: league.logo,
+        url: leagueUrl,
+      },
+      // Added: Provides images for the event, crucial for rich snippets.
+      image: [teams.home.logo, teams.away.logo],
     },
+    // Your breadcrumbs should be corrected as per the previous answer
     {
       "@context": "https://schema.org",
       "@type": "BreadcrumbList",
@@ -256,16 +336,13 @@ export default async function MatchDetailPage({
           "@type": "ListItem",
           position: 2,
           name: league.name,
-          item: `${BASE_URL}/${locale}${generateLeagueSlug(
-            league.name,
-            league.id
-          )}`,
+          item: leagueUrl,
         },
         {
           "@type": "ListItem",
           position: 3,
           name: `${teams.home.name} vs ${teams.away.name}`,
-          item: pageUrl, // Add the URL for the current page
+          item: pageUrl,
         },
       ],
     },
