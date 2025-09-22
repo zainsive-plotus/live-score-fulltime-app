@@ -3,10 +3,8 @@ import OpenAI from "openai";
 import "dotenv/config";
 
 // --- CONFIGURATION: REPLACE WITH YOUR ACTUAL CREDENTIALS ---
-// const MONGO_URI =
-//   "mongodb+srv://malikseo856:Djr9jOgdoMQ862xG@cluster0.pu5jzdv.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
-// const OPENAI_API_KEY =
-//   "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";
+const MONGO_URI = "";
+const OPENAI_API_KEY = "";
 // ---------------------------------------------------------
 
 // --- TARGET DATA ---
