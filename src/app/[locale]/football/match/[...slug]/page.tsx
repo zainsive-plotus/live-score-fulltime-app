@@ -79,18 +79,20 @@ export async function generateMetadata({
 }: {
   params: { slug: string[]; locale: string };
 }): Promise<Metadata> {
-  const { slug, locale } = params;
-
-  const fixtureId = getFixtureIdFromSlug(slug[0]);
-  if (!fixtureId) {
+  if (!params.slug || !Array.isArray(params.slug) || params.slug.length === 0) {
     return { title: "Not Found", robots: { index: false } };
   }
 
-  // --- MODIFICATION START ---
-  // We need to fetch the fixture data here to build the social tags.
-  // Next.js de-duplicates fetch requests, so this is efficient.
-  const fixtureData = await getFixture(fixtureId);
+  const { slug, locale } = params;
   const t = await getI18n(locale);
+
+  const matchInfo = parseMatchSlugForMeta(slug[0]);
+
+  // const hreflangAlternates = await generateHreflangTags(
+  //   "/football/match",
+  //   slug.join("/"),
+  //   locale
+  // );
 
   const path = `/football/match/${slug.join("/")}`;
   const canonicalUrl =
@@ -98,61 +100,32 @@ export async function generateMetadata({
       ? `${BASE_URL}${path}`
       : `${BASE_URL}/${locale}${path}`;
 
-  if (!fixtureData) {
+  if (!matchInfo) {
     return {
       title: t("not_found_title"),
       alternates: { canonical: canonicalUrl },
     };
   }
 
-  const { teams, league } = fixtureData;
-
+  // --- REFACTORED LOGIC ---
+  // Use the t() function directly for a cleaner implementation.
   const title = t("match_page_title", {
-    homeTeam: teams.home.name,
-    awayTeam: teams.away.name,
+    homeTeam: matchInfo.homeTeam,
+    awayTeam: matchInfo.awayTeam,
   });
 
   const description = t("match_page_description", {
-    homeTeam: teams.home.name,
-    awayTeam: teams.away.name,
+    homeTeam: matchInfo.homeTeam,
+    awayTeam: matchInfo.awayTeam,
   });
-
-  // Create the dynamic URL for our OG image
-  const ogImageUrl = new URL(`${BASE_URL}/api/og/match`);
-  ogImageUrl.searchParams.set("homeTeamName", teams.home.name);
-  ogImageUrl.searchParams.set("homeTeamLogo", teams.home.logo);
-  ogImageUrl.searchParams.set("awayTeamName", teams.away.name);
-  ogImageUrl.searchParams.set("awayTeamLogo", teams.away.logo);
-  ogImageUrl.searchParams.set("leagueName", league.name);
 
   return {
     title,
     description,
     alternates: { canonical: canonicalUrl },
-    // --- ADDED SOCIAL TAGS ---
-    openGraph: {
-      title: title,
-      description: description,
-      url: canonicalUrl,
-      siteName: "Fanskor",
-      type: "article",
-      images: [
-        {
-          url: ogImageUrl.toString(),
-          width: 1200,
-          height: 630,
-          alt: `Match preview for ${teams.home.name} vs ${teams.away.name}`,
-        },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: title,
-      description: description,
-      images: [ogImageUrl.toString()],
-    },
   };
 }
+
 const SidebarSkeleton = () => (
   <div className="space-y-6">
     <RecentNewsWidgetSkeleton />
