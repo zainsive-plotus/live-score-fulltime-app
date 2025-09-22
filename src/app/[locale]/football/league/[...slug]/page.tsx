@@ -163,7 +163,7 @@ export default async function LeaguePage({
       endMonth: format(new Date(currentSeason.end), "MMMM"),
     })}</p>
   `;
-
+  const pageUrl = `${BASE_URL}/${locale}/football/league/${slug.join("/")}`;
   const jsonLd: WithContext<SportsEvent | BreadcrumbList>[] = [
     {
       "@context": "https://schema.org",
@@ -194,7 +194,12 @@ export default async function LeaguePage({
           name: t("leagues"),
           item: `${BASE_URL}/${locale}/football/leagues`,
         },
-        { "@type": "ListItem", position: 3, name: league.name },
+        {
+          "@type": "ListItem",
+          position: 3,
+          name: league.name,
+          item: pageUrl, // Add the URL for the current page
+        },
       ],
     },
   ];

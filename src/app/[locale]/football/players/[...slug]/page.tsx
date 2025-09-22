@@ -111,6 +111,7 @@ export default async function PlayerPage({
   const { player, statistics } = playerData.stats;
   const currentTeam = statistics?.[0]?.team;
 
+  const pageUrl = `${BASE_URL}/${locale}/football/players/${slug.join("/")}`;
   const jsonLd: WithContext<Person | BreadcrumbList>[] = [
     {
       /* ... Person schema remains the same ... */
@@ -127,7 +128,6 @@ export default async function PlayerPage({
         : undefined,
     },
     {
-      // --- UPDATED BREADCRUMBS ---
       "@context": "https://schema.org",
       "@type": "BreadcrumbList",
       itemListElement: [
@@ -137,19 +137,20 @@ export default async function PlayerPage({
           name: t("homepage"),
           item: `${BASE_URL}/${locale}`,
         },
+        // It's better to have a generic /football page if it exists
+        // If not, this can be omitted. Assuming it does not exist for now.
         {
           "@type": "ListItem",
           position: 2,
-          name: t("football"),
-          item: `${BASE_URL}/${locale}/football`,
-        }, // Assuming you have a general football page or hub
-        {
-          "@type": "ListItem",
-          position: 3,
           name: t("players"),
           item: `${BASE_URL}/${locale}/football/players`,
         },
-        { "@type": "ListItem", position: 4, name: player.name },
+        {
+          "@type": "ListItem",
+          position: 3,
+          name: player.name,
+          item: pageUrl, // Add the URL for the current page
+        },
       ],
     },
   ];

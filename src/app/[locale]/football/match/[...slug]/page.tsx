@@ -228,6 +228,8 @@ export default async function MatchDetailPage({
   };
   const schemaEventStatus =
     statusMap[fixtureDetails.status.short] || "EventScheduled";
+
+  const pageUrl = `${BASE_URL}/${locale}/football/match/${slug.join("/")}`;
   const jsonLd: WithContext<SportsEvent | BreadcrumbList>[] = [
     {
       "@context": "https://schema.org",
@@ -263,6 +265,7 @@ export default async function MatchDetailPage({
           "@type": "ListItem",
           position: 3,
           name: `${teams.home.name} vs ${teams.away.name}`,
+          item: pageUrl, // Add the URL for the current page
         },
       ],
     },

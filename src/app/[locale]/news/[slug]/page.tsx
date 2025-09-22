@@ -157,6 +157,7 @@ export default async function GeneralNewsArticlePage({
     post.content.replace(/<[^>]*>?/gm, "").substring(0, 160);
   const imageUrl = post.featuredImage || `${BASE_URL}/og-image.jpg`;
 
+  const pageUrl = `${BASE_URL}/${locale}/news/${slug}`;
   const jsonLd: WithContext<NewsArticle | BreadcrumbList>[] = [
     {
       "@context": "https://schema.org",
@@ -186,9 +187,14 @@ export default async function GeneralNewsArticlePage({
           "@type": "ListItem",
           position: 1,
           name: t("news"),
-          item: `${BASE_URL}/${locale === DEFAULT_LOCALE ? "" : locale}/news`,
+          item: `${BASE_URL}/${locale}/news`,
         },
-        { "@type": "ListItem", position: 2, name: post.title },
+        {
+          "@type": "ListItem",
+          position: 2,
+          name: post.title,
+          item: pageUrl, // Add the URL for the current page
+        },
       ],
     },
   ];

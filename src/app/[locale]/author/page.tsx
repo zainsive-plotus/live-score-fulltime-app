@@ -61,6 +61,7 @@ export default async function AuthorPage({
     notFound();
   }
 
+  const pageUrl = `${BASE_URL}/${locale}${PAGE_PATH}`;
   const pageDescription = t("author_default_page_description");
 
   // --- ENHANCED JSON-LD STRUCTURED DATA ---
@@ -76,7 +77,7 @@ export default async function AuthorPage({
       },
       name: pageContent.title,
       description: pageDescription,
-      url: `${BASE_URL}/${locale}${PAGE_PATH}`,
+      url: pageUrl,
     },
     {
       "@context": "https://schema.org",
@@ -92,6 +93,7 @@ export default async function AuthorPage({
           "@type": "ListItem",
           position: 2,
           name: pageContent.title,
+          item: pageUrl,
         },
       ],
     },
