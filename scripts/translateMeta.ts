@@ -5,7 +5,6 @@ import "dotenv/config";
 // --- CONFIGURATION: REPLACE WITH YOUR ACTUAL CREDENTIALS ---
 const MONGO_URI = "";
 const OPENAI_API_KEY = "";
-
 // ---------------------------------------------------------
 
 // --- TARGET DATA ---
