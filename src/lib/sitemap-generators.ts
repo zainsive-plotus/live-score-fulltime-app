@@ -2,7 +2,7 @@
 import "server-only";
 import mongoose from "mongoose";
 import dbConnect from "@/lib/dbConnect";
-import Post from "@/models/Post";
+import Post, { IPost } from "@/models/Post";
 import Team from "@/models/Team";
 import League from "@/models/League";
 // import Player from "@/models/Player"; // Ensure the Player model is imported
@@ -71,16 +71,50 @@ export async function generateCoreSitemap(locale: string) {
   return generateXml(entries, "daily", 1.0);
 }
 
-export async function generateNewsSitemap(locale: string) {
+export async function generateNewsSitemap(locale: string): Promise<string> {
   await dbConnect();
-  const posts = await Post.find({ language: locale, status: "published" })
-    .select("slug updatedAt")
-    .lean();
-  const entries = posts.map((post) => ({
-    url: getUrl(`/news/${post.slug}`, locale),
-    lastModified: post.updatedAt,
-  }));
-  return generateXml(entries, "weekly", 0.8);
+  // 1. Fetch ALL published posts to build translation relationships.
+  const allPosts: IPost[] = await Post.find({ status: "published" }).lean();
+
+  // 2. Group all posts by their translationGroupId.
+  const groupedPosts = allPosts.reduce((acc, post) => {
+    const groupId = post.translationGroupId.toString();
+    if (!acc[groupId]) {
+      acc[groupId] = [];
+    }
+    acc[groupId].push(post);
+    return acc;
+  }, {} as Record<string, IPost[]>);
+
+  // 3. Create sitemap entries ONLY for the requested locale.
+  const sitemapEntries: any[] = Object.values(groupedPosts)
+    .map((group) => {
+      // Find the specific post that matches the current sitemap's language.
+      const postForCurrentLocale = group.find((p) => p.language === locale);
+
+      // If no version exists for this locale, skip this group.
+      if (!postForCurrentLocale) {
+        return null;
+      }
+
+      // 4. For each entry, create <xhtml:link> alternates for ALL other languages in its group.
+      const alternates = group.map((p) => ({
+        lang: p.language,
+        href: getUrl(`/news/${p.slug}`, p.language),
+      }));
+
+      return {
+        url: getUrl(
+          `/news/${postForCurrentLocale.slug}`,
+          postForCurrentLocale.language
+        ),
+        lastModified: postForCurrentLocale.updatedAt,
+        alternates,
+      };
+    })
+    .filter((entry): entry is any => entry !== null); // Filter out null entries
+
+  return generateXml(sitemapEntries, "weekly", 0.8);
 }
 
 export async function generateLeaguesSitemap(locale: string) {

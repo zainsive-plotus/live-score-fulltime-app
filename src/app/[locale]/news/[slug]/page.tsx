@@ -22,7 +22,6 @@ import Header from "@/components/Header";
 import SocialShareButtons from "@/components/SocialShareButtons";
 import NewsSidebar from "@/components/NewsSidebar";
 import StyledLink from "@/components/StyledLink";
-import TableOfContents from "@/components/TableOfContents";
 
 // --- ISR Configuration ---
 export const revalidate = 3600; // Revalidate pages at most once per hour
@@ -47,128 +46,76 @@ export async function generateStaticParams() {
 }
 
 // --- Data Fetching for Metadata (Redis-First) ---
-async function getPostMetadata(slug: string, locale: string) {
-  const cacheKey = `post:meta:${locale}:${slug}`;
-  try {
-    const cachedData = await redis.get(cacheKey);
-    if (cachedData) {
-      return JSON.parse(cachedData);
-    }
-  } catch (e) {
-    console.error(`[Metadata/Redis] Cache read failed for slug "${slug}":`, e);
-  }
-
-  // Fallback to database if Redis fails or misses
-  await dbConnect();
-  const postFromDb = await Post.findOne({
-    slug,
-    language: locale,
-    status: "published",
-  }).lean();
-  if (!postFromDb) return null;
-
-  // Re-populate the cache for the next request
-  const cacheData = {
-    _id: postFromDb._id.toString(),
-    // title: postFromDb.title,
-    metaTitle: postFromDb.metaTitle,
-    metaDescription: postFromDb.metaDescription,
-    // featuredImage: postFromDb.featuredImage,
-    // featuredImageAltText: postFromDb.featuredImageAltText,
-    // createdAt: postFromDb.createdAt.toISOString(),
-    // updatedAt: postFromDb.updatedAt.toISOString(),
-    // author: postFromDb.author,
-    // language: postFromDb.language,
-    // slug: postFromDb.slug,
-    // translationGroupId: postFromDb.translationGroupId.toString(),
-  };
-  // Use a longer TTL since this data rarely changes
-  await redis.set(cacheKey, JSON.stringify(cacheData), "EX", 60 * 60 * 24 * 7);
-  return cacheData;
-}
-
-// --- Data Fetching for Page Component (DB Only) ---
-// Fetches full Mongoose document to use methods like .getTranslations()
 async function getPostDataForPage(
   slug: string,
   locale: string
 ): Promise<IPostWithTranslations | null> {
   await dbConnect();
+  // Ensure the model is correctly cast to include the method
   const post = await Post.findOne({
     slug,
     language: locale,
     status: "published",
   }).lean();
   if (!post) return null;
+  // Re-instantiate as a Mongoose document to access methods
   return new Post(post);
 }
 
-// --- Robust Metadata Generation Function ---
 export async function generateMetadata({
   params,
 }: {
   params: { slug: string; locale: string };
 }): Promise<Metadata> {
   const { slug, locale } = params;
-  const postMeta = await getPostMetadata(slug, locale);
+  const post = await getPostDataForPage(slug, locale);
 
   const path = `/news/${slug}`;
-  const canonicalUrl =
-    locale === DEFAULT_LOCALE
-      ? `${BASE_URL}${path}`
-      : `${BASE_URL}/${locale}${path}`;
-  if (!postMeta) {
+
+  if (!post) {
+    const canonicalUrl =
+      locale === DEFAULT_LOCALE
+        ? `${BASE_URL}${path}`
+        : `${BASE_URL}/${locale}${path}`;
     return {
       title: "Not Found",
       robots: { index: false },
+      alternates: { canonical: canonicalUrl },
     };
   }
 
-  // let hreflangAlternates;
-  // try {
-  //   await dbConnect();
-  // const allTranslations = (await Post.find({
-  //   translationGroupId: postMeta.translationGroupId,
-  //   status: "published",
-  // })
-  //   .select("slug language")
-  //   .lean()) as TranslationInfo[];
+  // NEW: Fetch all translations for hreflang
+  const allTranslations = (await post.getTranslations()) as TranslationInfo[];
+  const hreflangAlternates = await generateHreflangTags(
+    "/news",
+    slug,
+    locale,
+    allTranslations
+  );
 
-  // hreflangAlternates = await generateHreflangTags(
-  //   "/news",
-  //   slug,
-  //   locale,
-  //   allTranslations
-  // );
-  // } catch (error) {
-  //   console.error(`[Metadata/Hreflang] Failed for slug "${slug}":`, error);
-
-  //   hreflangAlternates = { canonical: canonicalUrl };
-  // }
-
-  const title = postMeta.metaTitle || postMeta.title;
+  const title = post.metaTitle || post.title;
   const description =
-    postMeta.metaDescription || "Read the latest news on Fanskor.";
-  const imageUrl = postMeta.featuredImage || `${BASE_URL}/og-image.jpg`;
+    post.metaDescription || "Read the latest news on Fanskor.";
+  const imageUrl = post.featuredImage || `${BASE_URL}/og-image.jpg`;
 
   return {
     title,
     description,
-    alternates: { canonical: canonicalUrl },
+    alternates: hreflangAlternates, // USE THE GENERATED HREFLANG OBJECT
     openGraph: {
       title,
       description,
-      url: canonicalUrl,
+      url: hreflangAlternates.canonical, // Use the canonical URL from the helper
       type: "article",
-      publishedTime: postMeta.createdAt,
-      modifiedTime: postMeta.updatedAt,
-      authors: [postMeta.author],
+      publishedTime: post.createdAt.toString(),
+      modifiedTime: post.updatedAt.toString(),
+      authors: [post.author],
       images: [
         {
           url: imageUrl,
           width: 1200,
           height: 630,
-          alt: postMeta.featuredImageAltText || title,
+          alt: post.featuredImageAltText || title,
         },
       ],
     },

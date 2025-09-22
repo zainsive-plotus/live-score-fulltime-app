@@ -455,10 +455,11 @@ import LeagueSeoWidget from "@/components/league-detail-view/LeagueSeoWidget";
 
 import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
-import { getLeaguesStaticData } from "@/lib/data/league-static";
+import { getLeagueStaticData } from "@/lib/data/league-static";
 import { getLeaguePageData } from "@/lib/data/league";
 import { getNews } from "@/lib/data/news";
 import { getHighlightsForLeague } from "@/lib/data/highlightly";
+import { DEFAULT_LOCALE } from "@/lib/i18n/config";
 
 export const revalidate = 3600;
 
@@ -472,47 +473,71 @@ const getLeagueIdFromSlug = (slug: string): string | null => {
   return /^\d+$/.test(lastPart) ? lastPart : null;
 };
 
+const parseLeagueSlug = (slug: string): { id: string; name: string } | null => {
+  if (!slug) return null;
+
+  const parts = slug.split("-");
+  const lastPart = parts[parts.length - 1];
+
+  if (!/^\d+$/.test(lastPart)) {
+    return null;
+  }
+
+  const id = lastPart;
+  const nameParts = parts.slice(0, -1);
+
+  const name = nameParts
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+
+  return { id, name };
+};
+
 export async function generateMetadata({
   params,
 }: {
   params: { slug: string[]; locale: string };
 }): Promise<Metadata> {
+
+  if (!params.slug || !Array.isArray(params.slug) || params.slug.length === 0) {
+    return { title: "Not Found", robots: { index: false, follow: false } };
+  }
+
   const { slug, locale } = params;
   const t = await getI18n(locale);
-  const leagueId = getLeagueIdFromSlug(slug[0]);
-  const hreflangAlternates = await generateHreflangTags(
-    "/football/league",
-    slug.join("/"),
-    locale
-  );
 
-  if (!leagueId) {
-    return { title: t("not_found_title"), alternates: hreflangAlternates };
-  }
-  const allLeagues = await getLeaguesStaticData();
-  const leagueInfo = allLeagues.find((l) => l.id.toString() === leagueId);
+  const leagueInfoFromSlug = parseLeagueSlug(slug[0]);
 
-  if (!leagueInfo) {
+  const path = `/football/league/${slug.join("/")}`;
+  const canonicalUrl =
+    locale === DEFAULT_LOCALE
+      ? `${BASE_URL}${path}`
+      : `${BASE_URL}/${locale}${path}`;
+
+  if (!leagueInfoFromSlug) {
     return {
       title: t("not_found_title"),
-      alternates: hreflangAlternates,
-      robots: { index: false, follow: false },
+      alternates: {
+        canonical: canonicalUrl,
+      },
     };
   }
 
+  const title = t("league_page_title", {
+    leagueName: leagueInfoFromSlug.name,
+  });
+  const description = t("league_page_description", {
+    leagueName: leagueInfoFromSlug.name,
+  });
+
   return {
-    title: t("league_page_title", {
-      leagueName: leagueInfo.name,
-      countryName: leagueInfo.countryName,
-    }),
-    description: t("league_page_description", {
-      leagueName: leagueInfo.name,
-      countryName: leagueInfo.countryName,
-    }),
-    alternates: hreflangAlternates,
+    title,
+    description,
+    alternates: {
+      canonical: canonicalUrl,
+    },
   };
 }
-
 export default async function LeaguePage({
   params,
 }: {
@@ -523,14 +548,16 @@ export default async function LeaguePage({
   const leagueId = getLeagueIdFromSlug(slug[0]);
   if (!leagueId) notFound();
 
-  const allLeagues = await getLeaguesStaticData();
-  const staticLeagueInfo = allLeagues.find((l) => l.id.toString() === leagueId);
+  const staticLeagueInfo: any = await getLeagueStaticData(leagueId);
+
   if (!staticLeagueInfo) notFound();
+
+  const leagueName = staticLeagueInfo.league.name;
 
   const [dynamicLeagueData, newsData, highlightsData] = await Promise.all([
     getLeaguePageData(leagueId),
     getNews({ locale, linkedLeagueId: parseInt(leagueId), limit: 12 }),
-    getHighlightsForLeague(staticLeagueInfo.name),
+    getHighlightsForLeague(leagueName),
   ]);
 
   if (!dynamicLeagueData) notFound();
@@ -848,8 +875,10 @@ import {
   AdSlotWidgetSkeleton,
   RecentNewsWidgetSkeleton,
 } from "@/components/skeletons/WidgetSkeletons";
+import { generateDynamicMeta } from "@/lib/meta-generator";
+import { DEFAULT_LOCALE } from "@/lib/i18n/config";
 
-export const revalidate = 3600;
+export const revalidate = 604800;
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
@@ -861,64 +890,70 @@ const getFixtureIdFromSlug = (slug: string): string | null => {
   return /^\d+$/.test(lastPart) ? lastPart : null;
 };
 
+const parseMatchSlugForMeta = (
+  slug: string
+): { id: string; homeTeam: string; awayTeam: string } | null => {
+  if (!slug) return null;
+
+  const id = getFixtureIdFromSlug(slug);
+  if (!id) return null;
+
+  const slugWithoutId = slug.substring(0, slug.lastIndexOf(`-${id}`));
+  const teams = slugWithoutId.split("-vs-");
+
+  if (teams.length !== 2) return null;
+
+  const formatName = (nameSlug: string) =>
+    nameSlug.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+
+  return {
+    id,
+    homeTeam: formatName(teams[0]),
+    awayTeam: formatName(teams[1]),
+  };
+};
+
 export async function generateMetadata({
   params,
 }: {
   params: { slug: string[]; locale: string };
 }): Promise<Metadata> {
-  const { slug, locale } = params;
-  const t = await getI18n(locale);
-  const fixtureId = getFixtureIdFromSlug(slug[0]);
-  const hreflangAlternates = await generateHreflangTags(
-    "/football/match",
-    slug.join("/"),
-    locale
-  );
-
-  if (!fixtureId) {
-    return { title: t("not_found_title"), alternates: hreflangAlternates };
+  if (!params.slug || !Array.isArray(params.slug) || params.slug.length === 0) {
+    return { title: "Not Found", robots: { index: false } };
   }
 
-  const headersList = await headers();
-  const metadataContext: RequestContext = {
-    source: "server",
-    pagePath: `/football/match/${slug[0]}`,
-    callerName: "generateMetadata",
-    ip: headersList.get("x-forwarded-for") ?? "unknown",
-    userAgent: headersList.get("user-agent") ?? "unknown",
-    geo: {
-      city: headersList.get("x-vercel-ip-city") ?? undefined,
-      country: headersList.get("x-vercel-ip-country") ?? undefined,
-      region: headersList.get("x-vercel-ip-country-region") ?? undefined,
-    },
-  };
+  const { slug, locale } = params;
+  const t = await getI18n(locale);
 
-  const fixtureData = await getFixture(fixtureId, metadataContext);
+  const matchInfo = parseMatchSlugForMeta(slug[0]);
 
-  if (!fixtureData) {
+  const path = `/football/match/${slug.join("/")}`;
+  const canonicalUrl =
+    locale === DEFAULT_LOCALE
+      ? `${BASE_URL}${path}`
+      : `${BASE_URL}/${locale}${path}`;
+
+  if (!matchInfo) {
     return {
       title: t("not_found_title"),
-      alternates: hreflangAlternates,
-      robots: { index: false, follow: false },
+      alternates: { canonical: canonicalUrl },
     };
   }
 
-  const { teams, league } = fixtureData;
-  const pageTitle = t("match_page_title", {
-    homeTeam: teams.home.name,
-    awayTeam: teams.away.name,
-    leagueName: league.name,
+  const title = t("match_page_title", {
+    homeTeam: matchInfo.homeTeam,
+    awayTeam: matchInfo.awayTeam,
   });
-  const pageDescription = t("match_page_description", {
-    homeTeam: teams.home.name,
-    awayTeam: teams.away.name,
-    leagueName: league.name,
+
+  const description = t("match_page_description", {
+    homeTeam: matchInfo.homeTeam,
+    awayTeam: matchInfo.awayTeam,
   });
 
   return {
-    title: pageTitle,
-    description: pageDescription,
-    alternates: hreflangAlternates,
+    title,
+    description,
+    alternates: { canonical: canonicalUrl },
   };
 }
 
@@ -975,8 +1010,6 @@ export default async function MatchDetailPage({
   );
   const isFinished = ["FT", "AET", "PEN"].includes(
     fixtureDetails?.status?.short
-  );
-
   );
 
   const homeTeamStats = statistics?.find((s) => s.team.id === teams.home.id);
@@ -1345,6 +1378,185 @@ export default async function FootballNewsPage({
   );
 }
 
+// ===== src/app/[locale]/football/players/[...slug]/page.tsx =====
+
+import { notFound } from "next/navigation";
+import type { Metadata } from "next";
+import Script from "next/script";
+import { WithContext, Person, BreadcrumbList } from "schema-dts";
+import { getI18n } from "@/lib/i18n/server";
+import { getPlayerPageData, getPlayerSeasons } from "@/lib/data/player";
+import Header from "@/components/Header";
+import PlayerDetailView from "@/components/player/PlayerDetailView";
+import AdSlotWidget from "@/components/AdSlotWidget";
+import RecentNewsWidget from "@/components/RecentNewsWidget";
+import PlayerSeoWidget from "@/components/player/PlayerSeoWidget";
+import PlayerSidebar from "@/components/player/PlayerSidebar";
+import { DEFAULT_LOCALE } from "@/lib/i18n/config";
+
+export const revalidate = 86400;
+
+const BASE_URL =
+  process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
+
+const parsePlayerSlug = (
+  slug: string[]
+): { id: string; name: string } | null => {
+  if (!slug || slug.length < 2) return null;
+  const [id, ...nameParts] = slug;
+  if (!/^\d+$/.test(id)) return null;
+  return { id, name: nameParts.join("-") };
+};
+
+export async function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: { slug: string[]; locale: string };
+  searchParams: { [key: string]: string | string[] | undefined };
+}): Promise<Metadata> {
+  const { slug, locale } = params;
+  const t = await getI18n(locale);
+  const slugInfo = parsePlayerSlug(slug);
+
+  if (!slugInfo) {
+    return { title: t("not_found_title"), robots: { index: false } };
+  }
+
+  const playerName = slugInfo.name
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+  const title = t("player_page_meta_title", { playerName });
+  const description = t("player_page_meta_description", { playerName });
+
+  const path = `/football/players/${slug.join("/")}`;
+
+  const season = searchParams?.season as string | undefined;
+  const pathWithQuery = season ? `${path}?season=${season}` : path;
+
+  let canonicalUrl =
+    locale === DEFAULT_LOCALE
+      ? `${BASE_URL}${pathWithQuery}`
+      : `${BASE_URL}/${locale}${pathWithQuery}`;
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: canonicalUrl,
+    },
+    openGraph: {
+      title,
+      description,
+      url: canonicalUrl,
+      siteName: "Fanskor",
+      type: "profile",
+    },
+  };
+}
+
+export default async function PlayerPage({
+  params,
+  searchParams,
+}: {
+  params: { slug: string[]; locale: string };
+  searchParams: { [key: string]: string | string[] | undefined };
+}) {
+  const { slug, locale } = params;
+  const t = await getI18n(locale);
+  const slugInfo = parsePlayerSlug(slug);
+
+  if (!slugInfo) notFound();
+
+  const availableSeasons = await getPlayerSeasons(slugInfo.id);
+  if (availableSeasons.length === 0) notFound();
+
+  const selectedSeason = searchParams.season
+    ? parseInt(searchParams.season as string)
+    : availableSeasons[0];
+
+  const playerData = await getPlayerPageData(
+    slugInfo.id,
+    selectedSeason.toString()
+  );
+  if (!playerData) notFound();
+
+  const { player, statistics } = playerData.stats;
+  const currentTeam = statistics?.[0]?.team;
+
+  const jsonLd: WithContext<Person | BreadcrumbList>[] = [
+    {
+
+      "@context": "https://schema.org",
+      "@type": "Person",
+      name: player.name,
+      image: player.photo,
+      nationality: player.nationality,
+      birthDate: player.birth.date,
+      height: player.height,
+      weight: player.weight,
+      affiliation: currentTeam
+        ? { "@type": "SportsTeam", name: currentTeam.name }
+        : undefined,
+    },
+    {
+
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        {
+          "@type": "ListItem",
+          position: 1,
+          name: t("homepage"),
+          item: `${BASE_URL}/${locale}`,
+        },
+        {
+          "@type": "ListItem",
+          position: 2,
+          name: t("football"),
+          item: `${BASE_URL}/${locale}/football`,
+        },
+        {
+          "@type": "ListItem",
+          position: 3,
+          name: t("players"),
+          item: `${BASE_URL}/${locale}/football/players`,
+        },
+        { "@type": "ListItem", position: 4, name: player.name },
+      ],
+    },
+  ];
+
+  return (
+    <>
+      <Script
+        id="player-page-jsonld"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <div className="container mx-auto flex-1 w-full lg:grid lg:grid-cols-[1fr_320px] lg:gap-8 lg:items-start p-4 lg:py-6">
+          <main className="min-w-0 space-y-8">
+            <PlayerDetailView
+              playerData={playerData}
+              availableSeasons={availableSeasons}
+              selectedSeason={selectedSeason}
+            />
+          </main>
+          <aside className="hidden lg:block space-y-8 min-w-0 sticky top-6">
+            <PlayerSidebar team={currentTeam} />
+            <PlayerSeoWidget locale={locale} playerName={player.name} />
+            <RecentNewsWidget />
+            <AdSlotWidget location="player_sidebar" />
+          </aside>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ===== src/app/[locale]/football/standings/[...slug]/StandingsPageClient.tsx =====
 
 "use client";
@@ -1480,9 +1692,10 @@ import StandingsPageClient from "./StandingsPageClient";
 
 import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
-import { getLeaguesStaticData } from "@/lib/data/league-static";
+import { getLeagueStaticData } from "@/lib/data/league-static";
 import { getSeoOverride } from "@/lib/data/seo";
 import { getInitialStandingsData } from "@/lib/data/standings";
+import { DEFAULT_LOCALE } from "@/lib/i18n/config";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
@@ -1494,6 +1707,26 @@ const getLeagueIdFromSlug = (slug: string): string | null => {
   return /^\d+$/.test(lastPart) ? lastPart : null;
 };
 
+const parseLeagueSlugForMeta = (
+  slug: string
+): { id: string; name: string } | null => {
+  if (!slug) return null;
+
+  const parts = slug.split("-");
+  const lastPart = parts[parts.length - 1];
+
+  if (!/^\d+$/.test(lastPart)) {
+    return null;
+  }
+
+  const id = lastPart;
+  const nameParts = parts.slice(0, -1);
+  const name = nameParts
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+
+  return { id, name };
+};
 export async function generateMetadata({
   params,
   searchParams,
@@ -1501,48 +1734,51 @@ export async function generateMetadata({
   params: { slug: string[]; locale: string };
   searchParams: { [key: string]: string | string[] | undefined };
 }): Promise<Metadata> {
+
+  if (!params.slug || !Array.isArray(params.slug) || params.slug.length === 0) {
+    return { title: "Not Found", robots: { index: false, follow: false } };
+  }
+
   const { slug, locale } = params;
   const t = await getI18n(locale);
-  const leagueId = getLeagueIdFromSlug(slug[0]);
 
-  if (!leagueId) {
-    return { title: t("not_found_title") };
-  }
-
-  const allLeagues = await getLeaguesStaticData();
-  const leagueInfo = allLeagues.find((l) => l.id.toString() === leagueId);
-
-  if (!leagueInfo) {
-    return { title: t("not_found_title") };
-  }
-
+  const leagueInfoFromSlug = parseLeagueSlugForMeta(slug[0]);
   const season =
     (searchParams?.season as string) || new Date().getFullYear().toString();
-  const seoOverride = await getSeoOverride(
-    "league-standings",
-    leagueId,
-    locale
-  );
-  const hreflangAlternates = await generateHreflangTags(
-    "/football/standings",
-    slug.join("/"),
-    locale
-  );
 
-  const pageTitle =
-    seoOverride?.metaTitle ||
-    t("standings_detail_page_title", {
-      leagueName: leagueInfo.name,
-      season: season,
-    });
-  const pageDescription =
-    seoOverride?.metaDescription ||
-    t("standings_detail_page_description", { leagueName: leagueInfo.name });
+  const path = `/football/standings/${slug.join("/")}`;
+  let canonicalUrl =
+    locale === DEFAULT_LOCALE
+      ? `${BASE_URL}${path}`
+      : `${BASE_URL}/${locale}${path}`;
+
+  if (season) {
+    canonicalUrl += `?season=${season}`;
+  }
+
+  if (!leagueInfoFromSlug) {
+    return {
+      title: t("not_found_title"),
+      alternates: {
+        canonical: canonicalUrl,
+      },
+    };
+  }
+
+  const pageTitle = t("standings_detail_page_title", {
+    leagueName: leagueInfoFromSlug.name,
+    season: season,
+  });
+  const pageDescription = t("standings_detail_page_description", {
+    leagueName: leagueInfoFromSlug.name,
+  });
 
   return {
     title: pageTitle,
     description: pageDescription,
-    alternates: hreflangAlternates,
+    alternates: {
+      canonical: canonicalUrl,
+    },
   };
 }
 
@@ -1561,12 +1797,13 @@ export default async function LeagueStandingsPage({
     notFound();
   }
 
-  const allLeagues = await getLeaguesStaticData();
-  const leagueInfo = allLeagues.find((l) => l.id.toString() === leagueId);
+  const leagueInfo = await getLeagueStaticData(leagueId);
 
   if (!leagueInfo) {
     notFound();
   }
+  const leagueName = leagueInfo.league.name;
+  const countryName = leagueInfo.country.name;
 
   const season =
     (searchParams?.season as string) || new Date().getFullYear().toString();
@@ -1593,11 +1830,11 @@ export default async function LeagueStandingsPage({
 
     return `
           <h3>${t("league_seo_fallback_about_title", {
-            leagueName: leagueInfo.name,
+            leagueName: leagueName,
           })}</h3>
           <p>${t("league_seo_fallback_about_text", {
-            leagueName: leagueInfo.name,
-            country: leagueInfo.countryName,
+            leagueName: leagueName,
+            country: countryName,
             clubCount: standings?.[0]?.length || "many",
             clubExample1: clubExamples[0] || "top clubs",
             clubExample2: clubExamples[1] || "",
@@ -1607,7 +1844,7 @@ export default async function LeagueStandingsPage({
           })}</p>
           <h3>${t("league_seo_fallback_format_title")}</h3>
           <p>${t("league_seo_fallback_format_text", {
-            leagueName: leagueInfo.name,
+            leagueName: leagueName,
             clubCount: standings?.[0]?.length || "numerous",
           })}</p>
           <h3>${t("league_seo_fallback_scorers_title")}</h3>
@@ -1623,15 +1860,15 @@ export default async function LeagueStandingsPage({
   const finalSeoText = seoOverride?.seoText || generateDefaultSeoText();
   const pageDescription =
     seoOverride?.metaDescription ||
-    t("standings_detail_page_description", { leagueName: leagueInfo.name });
+    t("standings_detail_page_description", { leagueName: leagueName });
 
   const jsonLd: WithContext<SportsEvent | BreadcrumbList>[] = [
     {
       "@context": "https://schema.org",
       "@type": "SportsEvent",
-      name: `${leagueInfo.name} ${season}`,
+      name: `${leagueName} ${season}`,
       sport: "Soccer",
-      location: { "@type": "Country", name: leagueInfo.countryName },
+      location: { "@type": "Country", name: countryName },
       description: pageDescription,
     },
     {
@@ -1650,7 +1887,7 @@ export default async function LeagueStandingsPage({
           name: t("standings_hub_title"),
           item: `${BASE_URL}/${locale}/football/standings`,
         },
-        { "@type": "ListItem", position: 3, name: leagueInfo.name },
+        { "@type": "ListItem", position: 3, name: leagueName },
       ],
     },
   ];
@@ -1668,13 +1905,13 @@ export default async function LeagueStandingsPage({
           <Sidebar />
           <div>
             <StandingsPageClient
-              staticLeagueInfo={leagueInfo}
+              staticLeagueInfo={dynamicLeague}
               initialSeason={season}
             />
             <LeagueStandingsSeoWidget
               locale={locale}
-              leagueId={leagueInfo.id}
-              leagueName={leagueInfo.name}
+              leagueId={leagueInfo.league.id}
+              leagueName={leagueName}
               season={parseInt(season)}
               seoText={finalSeoText}
             />
@@ -1705,7 +1942,6 @@ import Sidebar from "@/components/Sidebar";
 import { ListOrdered } from "lucide-react";
 import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags } from "@/lib/hreflang";
-import axios from "axios";
 import StandingsHubClient from "@/components/directory/StandingsHubClient";
 import { Suspense } from "react";
 import { FeaturedLeagueCardSkeleton } from "@/components/directory/FeaturedLeagueCard";
@@ -1714,36 +1950,17 @@ import AdSlotWidget from "@/components/AdSlotWidget";
 import Script from "next/script";
 import { WithContext, CollectionPage, BreadcrumbList } from "schema-dts";
 import StandingsSeoWidget from "@/components/directory/StandingsSeoWidget";
+import { getStandingsLeagues } from "@/lib/data/directory";
 
 const PAGE_PATH = "/football/standings";
-const BASE_URL =
-  process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
-
-async function getInitialStandingsLeagues() {
-  try {
-    const { data } = await axios.get(
-      `${BASE_URL}/api/directory/standings-leagues?page=1&limit=18`
-    );
-    return data;
-  } catch (error) {
-    console.error(
-      "[Standings Hub Page] Failed to fetch initial leagues:",
-      error
-    );
-    return {
-      leagues: [],
-      pagination: { currentPage: 1, totalPages: 0, totalCount: 0 },
-    };
-  }
-}
+const BASE_URL = process.env.APP_URL || "http://localhost:3000";
 
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ locale: string }>;
+  params: { locale: string };
 }): Promise<Metadata> {
-  const { locale } = await params;
-
+  const { locale } = params;
   const t = await getI18n(locale);
   const hreflangAlternates = await generateHreflangTags(PAGE_PATH, "", locale);
   const pageTitle = t("standings_hub_page_title");
@@ -1770,11 +1987,12 @@ const StandingsPageSkeleton = () => (
 export default async function FootballStandingsHubPage({
   params,
 }: {
-  params: Promise<{ locale: string }>;
+  params: { locale: string };
 }) {
-  const { locale } = await params;
+  const { locale } = params;
   const t = await getI18n(locale);
-  const initialData = await getInitialStandingsLeagues();
+
+  const initialData = await getStandingsLeagues({ page: 1, limit: 18 });
 
   const jsonLd: WithContext<CollectionPage | BreadcrumbList>[] = [
     {
@@ -1826,6 +2044,7 @@ export default async function FootballStandingsHubPage({
             </div>
 
             <Suspense fallback={<StandingsPageSkeleton />}>
+              {}
               <StandingsHubClient
                 initialLeagues={initialData.leagues}
                 initialPagination={initialData.pagination}
@@ -1870,8 +2089,9 @@ import TeamTrophiesWidget from "@/components/team/TeamTrophiesWidget";
 import TeamFormWidgetSidebar from "@/components/team/TeamFormWidgetSidebar";
 import TeamSeoWidget from "@/components/team/TeamSeoWidget";
 import AdSlotWidget from "@/components/AdSlotWidget";
+import { DEFAULT_LOCALE } from "@/lib/i18n/config";
 
-export const revalidate = 3600;
+export const revalidate = 604800;
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
@@ -1883,49 +2103,75 @@ const getTeamIdFromSlug = (slug: string): string | null => {
   return /^\d+$/.test(lastPart) ? lastPart : null;
 };
 
+const parseTeamSlug = (slug: string): { id: string; name: string } | null => {
+  if (!slug) return null;
+
+  const parts = slug.split("-");
+  const lastPart = parts[parts.length - 1];
+
+  if (!/^\d+$/.test(lastPart)) {
+
+    return null;
+  }
+
+  const id = lastPart;
+
+  const nameParts = parts.slice(0, -1);
+
+  const name = nameParts
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+
+  return { id, name };
+};
+
 export async function generateMetadata({
   params,
 }: {
   params: { slug: string[]; locale: string };
 }): Promise<Metadata> {
-  const { slug, locale } = params;
-  const teamId = getTeamIdFromSlug(slug[0]);
-  const t = await getI18n(locale);
-  const hreflangAlternates = await generateHreflangTags(
-    "/football/team",
-    slug.join("/"),
-    locale
-  );
 
-  if (!teamId) {
-    return { title: t("meta_not_found_title"), alternates: hreflangAlternates };
-  }
-
-  const allTeamData = await getTeamStaticData();
-  const teamInfo = allTeamData[teamId];
-
-  if (!teamInfo) {
+  if (!params.slug || !Array.isArray(params.slug) || params.slug.length === 0) {
     return {
-      title: t("not_found_title"),
-      alternates: hreflangAlternates,
+      title: "Not Found",
       robots: { index: false, follow: false },
     };
   }
 
-  const { team } = teamInfo;
+  const { slug, locale } = params;
+  const t = await getI18n(locale);
+
+  const teamInfoFromSlug = parseTeamSlug(slug[0]);
+
+  const path = `/football/team/${slug.join("/")}`;
+  const canonicalUrl =
+    locale === DEFAULT_LOCALE
+      ? `${BASE_URL}${path}`
+      : `${BASE_URL}/${locale}${path}`;
+
+  if (!teamInfoFromSlug) {
+    return {
+      title: t("meta_not_found_title"),
+      alternates: {
+        canonical: canonicalUrl,
+      },
+    };
+  }
+
   const pageTitle = t("team_page_meta_title", {
-    teamName: team.name,
-    country: team.country,
+    teamName: teamInfoFromSlug.name,
   });
   const pageDescription = t("team_page_meta_description", {
-    teamName: team.name,
-    country: team.country,
+    teamName: teamInfoFromSlug.name,
   });
 
   return {
     title: pageTitle,
     description: pageDescription,
-    alternates: hreflangAlternates,
+    alternates: {
+      canonical: canonicalUrl,
+    },
+
   };
 }
 
@@ -1940,8 +2186,7 @@ export default async function TeamPage({
 
   if (!teamId) notFound();
 
-  const allTeamData = await getTeamStaticData();
-  const teamInfo = allTeamData[teamId];
+  const teamInfo = await getTeamStaticData(teamId);
   if (!teamInfo) notFound();
 
   const { team, venue } = teamInfo;
@@ -2147,7 +2392,6 @@ export default async function TeamsByCountryPage({
 // ===== src/app/[locale]/football/teams/page.tsx =====
 
 import type { Metadata } from "next";
-import axios from "axios";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import TeamListClient from "@/components/TeamListClient";
@@ -2159,28 +2403,11 @@ import { generateHreflangTags } from "@/lib/hreflang";
 import Script from "next/script";
 import { WithContext, CollectionPage, BreadcrumbList } from "schema-dts";
 import TeamsSeoWidget from "@/components/directory/TeamsSeoWidget";
+import { getPaginatedTeams } from "@/lib/data/team";
 
 const PAGE_PATH = "/football/teams";
-const BASE_URL =
-  process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
+const BASE_URL = process.env.APP_URL || "http://localhost:3000";
 const ITEMS_PER_PAGE = 21;
-
-const fetchInitialTeams = async () => {
-  const apiUrl = `${BASE_URL}/api/teams/paginated?page=1&limit=${ITEMS_PER_PAGE}`;
-  try {
-    const { data } = await axios.get(apiUrl, { timeout: 15000 });
-    return data;
-  } catch (error: any) {
-    console.error(
-      `[Teams Page Server] Failed to fetch initial teams:`,
-      error.message
-    );
-    return {
-      teams: [],
-      pagination: { currentPage: 1, totalPages: 0, totalCount: 0 },
-    };
-  }
-};
 
 export async function generateMetadata({
   params,
@@ -2207,7 +2434,11 @@ export default async function TeamsPage({
   const { locale } = params;
   const t = await getI18n(locale);
 
-  const initialData = await fetchInitialTeams();
+  const initialData = await getPaginatedTeams({
+    page: 1,
+    limit: ITEMS_PER_PAGE,
+    searchQuery: "",
+  });
 
   const jsonLd: WithContext<CollectionPage | BreadcrumbList>[] = [
     {
@@ -2260,6 +2491,7 @@ export default async function TeamsPage({
               </div>
             </div>
 
+            {}
             <TeamListClient initialData={initialData} />
 
             <TeamsSeoWidget locale={locale} />
@@ -2604,41 +2836,7 @@ import { inter } from "../fonts";
 
 import { SUPPORTED_LOCALES } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
-import ReferrerRule from "@/models/ReferrerRule";
-import { headers } from "next/headers";
-
-async function handleReferrerTracking() {
-  try {
-    const headersList = headers();
-    const referrer = (await headersList).get("referer");
-    const host = (await headersList).get("host");
-    const pathname = (await headersList).get("x-next-pathname") || "/";
-
-    if (!referrer || new URL(referrer).hostname.includes(host || "")) {
-      return;
-    }
-
-    const internalApiUrl = new URL("/api/track/referrer-hit", `http://${host}`);
-
-    fetch(internalApiUrl.toString(), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-
-        "x-forwarded-for": (await headersList).get("x-forwarded-for") || "",
-        "user-agent": (await headersList).get("user-agent") || "",
-      },
-      body: JSON.stringify({
-        sourceUrl: referrer,
-        landingPage: pathname,
-      }),
-    }).catch((err) => {
-
-    });
-  } catch (error) {
-
-  }
-}
+import ReferrerTracker from "@/components/ReferrerTracker";
 
 export async function generateStaticParams() {
   return SUPPORTED_LOCALES.map((locale) => ({
@@ -2653,8 +2851,6 @@ export default async function LocaleLayout({
   children: React.ReactNode;
   params: { locale: string };
 }) {
-
-  handleReferrerTracking();
   const { locale } = await params;
   const t = await getI18n(locale);
   const translations = (await i18nCache.getTranslations(locale)) || {};
@@ -2709,6 +2905,7 @@ export default async function LocaleLayout({
         {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
           <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
         )}
+        <ReferrerTracker />
       </body>
     </html>
   );
@@ -2914,70 +3111,90 @@ export default function NewsPageClient({
 
 // ===== src/app/[locale]/news/[slug]/page.tsx =====
 
-import { notFound, redirect } from "next/navigation";
-import dbConnect from "@/lib/dbConnect";
-import Post, { IPost, IPostWithTranslations } from "@/models/Post";
+import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { format } from "date-fns";
-import Header from "@/components/Header";
+import Script from "next/script";
 import Image from "next/image";
+import { ExternalLink } from "lucide-react";
+import { WithContext, NewsArticle, BreadcrumbList } from "schema-dts";
+
+import dbConnect from "@/lib/dbConnect";
+import Post, { IPostWithTranslations } from "@/models/Post";
+import redis from "@/lib/redis";
+import { getI18n } from "@/lib/i18n/server";
+import { generateHreflangTags, TranslationInfo } from "@/lib/hreflang";
+import { generateTableOfContents } from "@/lib/toc";
+import { DEFAULT_LOCALE } from "@/lib/i18n/config";
+
+import Header from "@/components/Header";
 import SocialShareButtons from "@/components/SocialShareButtons";
 import NewsSidebar from "@/components/NewsSidebar";
-import type { Metadata } from "next";
-import { getI18n } from "@/lib/i18n/server";
-import { proxyImageUrl } from "@/lib/image-proxy";
-import Script from "next/script";
-import { generateHreflangTags } from "@/lib/hreflang";
-import { generateTableOfContents } from "@/lib/toc";
-import TableOfContents from "@/components/TableOfContents";
-import { WithContext, NewsArticle, BreadcrumbList } from "schema-dts";
 import StyledLink from "@/components/StyledLink";
-import { ExternalLink } from "lucide-react";
+import TableOfContents from "@/components/TableOfContents";
 
 export const revalidate = 3600;
 
-const DEFAULT_LOCALE = "tr";
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
-async function getPostAndHandleRedirects(
+export async function generateStaticParams() {
+  await dbConnect();
+  const recentPosts = await Post.find({ status: "published" })
+    .sort({ createdAt: -1 })
+    .limit(20)
+    .select("slug language")
+    .lean();
+
+  return recentPosts.map((post) => ({
+    locale: post.language,
+    slug: post.slug,
+  }));
+}
+
+async function getPostMetadata(slug: string, locale: string) {
+  const cacheKey = `post:meta:${locale}:${slug}`;
+  try {
+    const cachedData = await redis.get(cacheKey);
+    if (cachedData) {
+      return JSON.parse(cachedData);
+    }
+  } catch (e) {
+
+  }
+
+  await dbConnect();
+  const postFromDb = await Post.findOne({
+    slug,
+    language: locale,
+    status: "published",
+  }).lean();
+  if (!postFromDb) return null;
+
+  const cacheData = {
+    _id: postFromDb._id.toString(),
+
+    metaTitle: postFromDb.metaTitle,
+    metaDescription: postFromDb.metaDescription,
+
+  };
+
+  await redis.set(cacheKey, JSON.stringify(cacheData), "EX", 60 * 60 * 24 * 7);
+  return cacheData;
+}
+
+async function getPostDataForPage(
   slug: string,
   locale: string
 ): Promise<IPostWithTranslations | null> {
   await dbConnect();
-
-  const postInAnyLanguage = await Post.findOne({
+  const post = await Post.findOne({
     slug,
+    language: locale,
     status: "published",
-  }).exec();
-
-  if (!postInAnyLanguage) {
-    return null;
-  }
-
-  if (postInAnyLanguage.language !== locale) {
-    const allTranslations = await postInAnyLanguage.getTranslations();
-    const correctVersionForLocale = allTranslations.find(
-      (p) => p.language === locale
-    );
-
-    let redirectUrl = "";
-    if (correctVersionForLocale) {
-      const path = `/news/${correctVersionForLocale.slug}`;
-      redirectUrl = `/${locale}${path}`;
-    } else {
-      const defaultVersion =
-        allTranslations.find((p) => p.language === DEFAULT_LOCALE) ||
-        allTranslations[0];
-      const path = `/news/${defaultVersion.slug}`;
-      redirectUrl =
-        defaultVersion.language === DEFAULT_LOCALE
-          ? path
-          : `/${defaultVersion.language}${path}`;
-    }
-    redirect(redirectUrl);
-  }
-
-  return postInAnyLanguage;
+  }).lean();
+  if (!post) return null;
+  return new Post(post);
 }
 
 export async function generateMetadata({
@@ -2986,39 +3203,51 @@ export async function generateMetadata({
   params: { slug: string; locale: string };
 }): Promise<Metadata> {
   const { slug, locale } = params;
-  const post = await getPostAndHandleRedirects(slug, locale);
+  const postMeta = await getPostMetadata(slug, locale);
 
-  if (!post) {
-    return { title: "Not Found", robots: { index: false, follow: false } };
+  const path = `/news/${slug}`;
+  const canonicalUrl =
+    locale === DEFAULT_LOCALE
+      ? `${BASE_URL}${path}`
+      : `${BASE_URL}/${locale}${path}`;
+  if (!postMeta) {
+    return {
+      title: "Not Found",
+      robots: { index: false },
+    };
   }
 
-  const allTranslations = await post.getTranslations();
-  const hreflangAlternates = await generateHreflangTags(
-    "/news",
-    slug,
-    locale,
-    allTranslations
-  );
+  const title = postMeta.metaTitle || postMeta.title;
   const description =
-    post.metaDescription ||
-    post.content.replace(/<[^>]*>?/gm, "").substring(0, 160);
-  const imageUrl = post.featuredImage
-    ? proxyImageUrl(post.featuredImage)
-    : `${BASE_URL}/og-image.jpg`;
+    postMeta.metaDescription || "Read the latest news on Fanskor.";
+  const imageUrl = postMeta.featuredImage || `${BASE_URL}/og-image.jpg`;
 
   return {
-    title: post.metaTitle || `${post.title}`,
-    description: description,
-    alternates: hreflangAlternates,
+    title,
+    description,
+    alternates: { canonical: canonicalUrl },
     openGraph: {
-      title: post.metaTitle || post.title,
-      description: description,
-      url: hreflangAlternates.canonical,
+      title,
+      description,
+      url: canonicalUrl,
       type: "article",
-      publishedTime: new Date(post.createdAt).toISOString(),
-      modifiedTime: new Date(post.updatedAt).toISOString(),
-      authors: [post.author || "Fanskor"],
-      images: [{ url: imageUrl, width: 1200, height: 630, alt: post.title }],
+      publishedTime: postMeta.createdAt,
+      modifiedTime: postMeta.updatedAt,
+      authors: [postMeta.author],
+      images: [
+        {
+          url: imageUrl,
+          width: 1200,
+          height: 630,
+          alt: postMeta.featuredImageAltText || title,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [imageUrl],
     },
   };
 }
@@ -3029,7 +3258,7 @@ export default async function GeneralNewsArticlePage({
   params: { slug: string; locale: string };
 }) {
   const { slug, locale } = params;
-  const post = await getPostAndHandleRedirects(slug, locale);
+  const post = await getPostDataForPage(slug, locale);
 
   if (!post) {
     notFound();
@@ -3037,13 +3266,14 @@ export default async function GeneralNewsArticlePage({
 
   const t = await getI18n(locale);
   const { processedHtml, toc } = generateTableOfContents(post.content);
-  const allTranslations = await post.getTranslations();
+  const allTranslations = (await post.getTranslations()) as TranslationInfo[];
   const hreflangAlternates = await generateHreflangTags(
     "/news",
     slug,
     locale,
     allTranslations
   );
+
   const postUrl = hreflangAlternates.canonical;
   const description =
     post.metaDescription ||
@@ -3104,7 +3334,7 @@ export default async function GeneralNewsArticlePage({
                     src={post.featuredImage}
                     alt={post.featuredImageAltText || post.title}
                     title={post.featuredImageTitle || post.title}
-                    layout="fill"
+                    fill
                     objectFit="cover"
                     priority
                   />
@@ -3123,7 +3353,8 @@ export default async function GeneralNewsArticlePage({
                 {post.originalSourceUrl && (
                   <StyledLink
                     href={post.originalSourceUrl}
-                    isExternal={true}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow"
                     className="inline-flex items-center gap-2 bg-brand-purple text-white font-bold py-3 px-6 rounded-lg hover:opacity-90 transition-opacity my-4"
                   >
                     <ExternalLink size={18} />
@@ -3679,9 +3910,9 @@ import { SidebarSkeleton } from "@/components/LayoutSkeletons";
 import { generateHreflangTags } from "@/lib/hreflang";
 import { getI18n } from "@/lib/i18n/server";
 
-export const dynamic = "force-dynamic";
-
 import homepageMeta from "public/data/homepage-meta.json";
+
+const SUPPORTED_LOCALES = ["tr", "en", "fr", "es", "zu", "it"];
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
@@ -3692,6 +3923,12 @@ interface HomePageProps {
   params: {
     locale: string;
   };
+}
+
+export async function generateStaticParams() {
+  return SUPPORTED_LOCALES.map((locale) => ({
+    locale,
+  }));
 }
 
 export async function generateMetadata({
@@ -3734,6 +3971,7 @@ export async function generateMetadata({
           width: 1200,
           height: 630,
           alt: t("og_image_alt_text"),
+
         },
       ],
       locale: locale,
@@ -5713,6 +5951,140 @@ export default function AdminBannersPage() {
         onClose={() => setIsModalOpen(false)}
         banner={editingBanner}
       />
+    </div>
+  );
+}
+
+// ===== src/app/admin/(protected)/cache-management/CacheManagementClient.tsx =====
+
+"use client";
+
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import axios from "axios";
+import toast from "react-hot-toast";
+import { Play, Loader2, Server, Clock } from "lucide-react";
+
+export default function CacheManagementClient() {
+  const [statusMessage, setStatusMessage] = useState("");
+
+  const warmCacheMutation = useMutation({
+    mutationFn: () => axios.post("/api/admin/warm-all-caches"),
+    onSuccess: (data) => {
+      toast.success("Successfully started the cache warming process.");
+      setStatusMessage(data.data.message);
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || "Failed to start the process.");
+      setStatusMessage("");
+    },
+  });
+
+  const handleWarmCache = () => {
+    if (
+      window.confirm(
+        "This will start pre-building all pages from your sitemaps. It can take a long time and will cause a spike in server usage. Are you sure you want to proceed?"
+      )
+    ) {
+      setStatusMessage("Initiating...");
+      warmCacheMutation.mutate();
+    }
+  };
+
+  return (
+    <div className="bg-brand-secondary p-6 rounded-lg shadow-xl">
+      <div className="flex items-start gap-4">
+        <div className="flex-shrink-0 bg-brand-purple/20 text-brand-purple p-3 rounded-lg">
+          <Server size={24} />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold text-white">Pre-build Site Cache</h2>
+          <p className="text-brand-muted text-sm mt-1">
+            Trigger a process to pre-build static HTML for every page listed in
+            your sitemaps. This ensures the fastest possible experience for all
+            visitors.
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-6 flex flex-col sm:flex-row items-center gap-4 p-4 bg-brand-dark/50 rounded-lg">
+        <button
+          onClick={handleWarmCache}
+          disabled={warmCacheMutation.isPending}
+          className="w-full sm:w-auto flex items-center justify-center gap-2 bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-wait"
+        >
+          {warmCacheMutation.isPending ? (
+            <Loader2 size={20} className="animate-spin" />
+          ) : (
+            <Play size={20} />
+          )}
+          <span>
+            {warmCacheMutation.isPending
+              ? "Initiating..."
+              : "Start Pre-building All Pages"}
+          </span>
+        </button>
+        {statusMessage && (
+          <div className="flex items-center gap-2 text-sm text-yellow-300">
+            <Clock size={16} />
+            <p className="flex-1">{statusMessage}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ===== src/app/admin/(protected)/cache-management/page.tsx =====
+
+import { Server } from "lucide-react";
+import CacheManagementClient from "./CacheManagementClient";
+
+export default function CacheManagementPage() {
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-white flex items-center gap-2">
+          <Server size={28} /> Cache Management
+        </h1>
+      </div>
+
+      <CacheManagementClient />
+
+      <div className="mt-8 bg-brand-secondary p-6 rounded-lg">
+        <h3 className="text-xl font-bold text-white mb-2">How It Works</h3>
+        <div className="prose prose-sm prose-invert max-w-none text-text-secondary">
+          <p>
+            This tool helps ensure your site is as fast as possible by
+            pre-building all public pages into static HTML files.
+          </p>
+          <ul>
+            <li>
+              <strong>Step 1:</strong> When you click "Start Pre-building", the
+              system reads all the URLs from your live <code>sitemap.xml</code>{" "}
+              files.
+            </li>
+            <li>
+              <strong>Step 2:</strong> It then begins a background process on
+              the server to "visit" each URL one by one.
+            </li>
+            <li>
+              <strong>Step 3:</strong> This visit triggers Next.js to generate a
+              static version of the page and store it in its cache.
+            </li>
+            <li>
+              <strong>Step 4:</strong> Subsequent real visitors will be served
+              this super-fast, pre-built static page directly from the
+              cache/CDN.
+            </li>
+          </ul>
+          <p>
+            The process runs in the background, and you can monitor its progress
+            by checking the server logs. It is safe to navigate away from this
+            page after starting the process.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -12993,6 +13365,126 @@ export default async function SeoTextRunnerPage() {
   );
 }
 
+// ===== src/app/admin/(protected)/sitemaps/page.tsx =====
+
+"use client";
+
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import axios from "axios";
+import toast from "react-hot-toast";
+import { Map, Loader2, Play, CheckCircle, AlertTriangle } from "lucide-react";
+import Link from "next/link";
+
+export default function SitemapsPage() {
+  const [generatedFiles, setGeneratedFiles] = useState<string[]>([]);
+  const [failedFiles, setFailedFiles] = useState<string[]>([]);
+
+  const generateSitemapsMutation = useMutation({
+    mutationFn: () => axios.post("/api/admin/sitemaps/generate"),
+    onSuccess: (response) => {
+      toast.success(response.data.message);
+      setGeneratedFiles(response.data.generatedFiles || []);
+      setFailedFiles(response.data.failedFiles || []);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || "Sitemap generation failed.");
+      setGeneratedFiles([]);
+      setFailedFiles([]);
+    },
+  });
+
+  const handleGenerate = () => {
+    if (
+      window.confirm(
+        "This may take several minutes and will overwrite existing sitemap files. Are you sure?"
+      )
+    ) {
+      setGeneratedFiles([]);
+      setFailedFiles([]);
+      generateSitemapsMutation.mutate();
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold text-white flex items-center gap-2">
+          <Map size={28} /> Sitemap Generation
+        </h1>
+      </div>
+
+      <div className="bg-brand-secondary p-6 rounded-lg shadow-xl">
+        <h2 className="text-xl font-bold text-white">
+          Generate Static Sitemaps
+        </h2>
+        <p className="text-brand-muted text-sm mt-1 mb-4">
+          Click the button below to generate all sitemap files for all active
+          languages. The generated files will be saved in the `/public/sitemap`
+          directory and served statically. You can view the main sitemap index
+          at{" "}
+          <Link
+            href="/sitemap.xml"
+            target="_blank"
+            className="text-brand-purple hover:underline"
+          >
+            /sitemap.xml
+          </Link>
+          .
+        </p>
+        <button
+          onClick={handleGenerate}
+          disabled={generateSitemapsMutation.isPending}
+          className="inline-flex items-center gap-2 bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-wait"
+        >
+          {generateSitemapsMutation.isPending ? (
+            <Loader2 size={20} className="animate-spin" />
+          ) : (
+            <Play size={20} />
+          )}
+          <span>
+            {generateSitemapsMutation.isPending
+              ? "Generating..."
+              : "Generate All Sitemaps Now"}
+          </span>
+        </button>
+      </div>
+
+      {(generatedFiles.length > 0 || failedFiles.length > 0) && (
+        <div className="bg-brand-secondary p-6 rounded-lg shadow-xl">
+          <h3 className="text-lg font-semibold text-white mb-3">
+            Generation Report
+          </h3>
+          {generatedFiles.length > 0 && (
+            <div>
+              <h4 className="flex items-center gap-2 text-green-400 font-bold mb-2">
+                <CheckCircle size={18} /> Succeeded:
+              </h4>
+              <ul className="text-sm text-brand-light font-mono list-disc list-inside max-h-48 overflow-y-auto custom-scrollbar bg-brand-dark/30 p-2 rounded">
+                {generatedFiles.map((file) => (
+                  <li key={file}>{file}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {failedFiles.length > 0 && (
+            <div className="mt-4">
+              <h4 className="flex items-center gap-2 text-red-400 font-bold mb-2">
+                <AlertTriangle size={18} /> Failed:
+              </h4>
+              <ul className="text-sm text-red-300 font-mono list-disc list-inside bg-brand-dark/30 p-2 rounded">
+                {failedFiles.map((file) => (
+                  <li key={file}>{file}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ===== src/app/admin/(protected)/social-links/page.tsx =====
 
 "use client";
@@ -17215,6 +17707,41 @@ const postHandler = async (request: NextRequest) => {
 export const GET = getHandler;
 export const POST = postHandler;
 
+// ===== src/app/api/admin/revalidate/route.ts =====
+
+import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+
+export async function POST(request: Request) {
+
+  const session = await getServerSession(authOptions);
+  if (session?.user?.role !== "admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const secret = request.headers.get("x-revalidate-secret");
+  if (secret !== process.env.REVALIDATE_SECRET_TOKEN) {
+    return NextResponse.json(
+      { error: "Invalid secret token" },
+      { status: 401 }
+    );
+  }
+
+  const { tag } = await request.json();
+  if (!tag) {
+    return NextResponse.json({ error: "Tag is required" }, { status: 400 });
+  }
+
+  try {
+    revalidateTag(tag);
+    return NextResponse.json({ revalidated: true, tag: tag, now: Date.now() });
+  } catch (error) {
+    return NextResponse.json({ error: "Error revalidating" }, { status: 500 });
+  }
+}
+
 // ===== src/app/api/admin/seo-content/paginated/route.ts =====
 
 import { NextResponse } from "next/server";
@@ -18943,6 +19470,94 @@ export async function POST(request: Request) {
   }
 }
 
+// ===== src/app/api/admin/sitemaps/generate/route.ts =====
+
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import path from "path";
+import fs from "fs/promises";
+import { SUPPORTED_LOCALES } from "@/lib/i18n/config";
+import {
+  generateCoreSitemap,
+  generateNewsSitemap,
+  generateLeaguesSitemap,
+  generateTeamsSitemap,
+
+  generateMatchesSitemap,
+  generateStandingsSitemap,
+} from "@/lib/sitemap-generators";
+
+const SITEMAP_DIR = path.join(process.cwd(), "public", "sitemap");
+
+const SITEMAP_TYPES = [
+  "core",
+  "news",
+  "leagues",
+  "teams",
+  "players",
+  "matches",
+  "standings",
+];
+
+export async function POST(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (session?.user?.role !== "admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  try {
+    const generatedFiles: string[] = [];
+    const failedFiles: string[] = [];
+
+    await fs.mkdir(SITEMAP_DIR, { recursive: true });
+
+    for (const locale of SUPPORTED_LOCALES) {
+      const localeDir = path.join(SITEMAP_DIR, locale);
+      await fs.mkdir(localeDir, { recursive: true });
+
+      for (const type of SITEMAP_TYPES) {
+        const filePath = path.join(localeDir, `${type}.xml`);
+        try {
+          const generatorMap: {
+            [key: string]: (locale: string) => Promise<string>;
+          } = {
+            core: generateCoreSitemap,
+            news: generateNewsSitemap,
+            leagues: generateLeaguesSitemap,
+            teams: generateTeamsSitemap,
+
+            matches: generateMatchesSitemap,
+            standings: generateStandingsSitemap,
+          };
+
+          const xmlContent = await generatorMap[type](locale);
+          await fs.writeFile(filePath, xmlContent, "utf-8");
+          generatedFiles.push(`/sitemap/${locale}/${type}.xml`);
+        } catch (error) {
+          console.error(
+            `[Sitemap Generation] Failed to generate ${filePath}:`,
+            error
+          );
+          failedFiles.push(`/sitemap/${locale}/${type}.xml`);
+        }
+      }
+    }
+
+    return NextResponse.json({
+      message: `Sitemap generation complete. ${generatedFiles.length} files created, ${failedFiles.length} failed.`,
+      generatedFiles,
+      failedFiles,
+    });
+  } catch (error: any) {
+
+    return NextResponse.json(
+      { error: "Failed to generate sitemaps.", details: error.message },
+      { status: 500 }
+    );
+  }
+}
+
 // ===== src/app/api/admin/social-links/[id]/route.ts =====
 
 import { NextResponse } from "next/server";
@@ -20599,6 +21214,110 @@ export async function GET(request: Request) {
   }
 }
 
+// ===== src/app/api/admin/warm-all-caches/route.ts =====
+
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getAllUrlsFromSitemaps } from "@/lib/sitemap-parser";
+import redis from "@/lib/redis";
+
+const BATCH_SIZE = 10;
+const BATCH_DELAY_MS = 1000;
+
+async function initiateCacheWarming() {
+
+  try {
+    const urls = await getAllUrlsFromSitemaps();
+    if (urls.length === 0) {
+      console.log(
+        "[Cache Warmer] No URLs found in sitemaps. Process finished."
+      );
+      return;
+    }
+
+    let successCount = 0;
+    let failureCount = 0;
+    const totalBatches = Math.ceil(urls.length / BATCH_SIZE);
+
+    for (let i = 0; i < urls.length; i += BATCH_SIZE) {
+      const batch = urls.slice(i, i + BATCH_SIZE);
+      const batchNumber = i / BATCH_SIZE + 1;
+      console.log(
+        `[Cache Warmer] Processing batch ${batchNumber} of ${totalBatches}...`
+      );
+
+      const promises = batch.map((url) =>
+        fetch(url, { headers: { "User-Agent": "FanskorCacheWarmer/1.0" } })
+          .then((res) => {
+            if (res.ok) {
+              successCount++;
+            } else {
+              failureCount++;
+              console.warn(
+                `[Cache Warmer] Failed to warm ${url}. Status: ${res.status}`
+              );
+            }
+          })
+          .catch((err) => {
+            failureCount++;
+
+          })
+      );
+
+      await Promise.all(promises);
+
+      if (i + BATCH_SIZE < urls.length) {
+        await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
+      }
+    }
+
+    console.log(
+      `[Cache Warmer] Process finished. Success: ${successCount}, Failed: ${failureCount}.`
+    );
+  } catch (error) {
+    console.error(
+      "[Cache Warmer] A critical error occurred during the background process:",
+      error
+    );
+  }
+}
+
+export async function POST(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (session?.user?.role !== "admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  try {
+
+    const keys = await redis.keys("i18n:*");
+    if (keys.length > 0) {
+      await redis.del(keys);
+      console.log(
+        `[Cache Warmer] Successfully deleted ${keys.length} stale i18n cache keys.`
+      );
+    } else {
+
+    }
+  } catch (error) {
+    console.error(
+      "[Cache Warmer] CRITICAL: Failed to clear Redis cache. The process may fail.",
+      error
+    );
+  }
+
+  initiateCacheWarming();
+
+  return NextResponse.json(
+    {
+      status: "pending",
+      message: `Cache warming process initiated for all sitemap URLs. This will run in the background and may take several minutes. Check server logs for progress.`,
+    },
+    { status: 202 }
+  );
+}
+
 // ===== src/app/api/auth/[...nextauth]/route.ts =====
 
 import NextAuth, { NextAuthOptions } from "next-auth";
@@ -21489,70 +22208,7 @@ export async function GET(request: NextRequest) {
 // ===== src/app/api/directory/standings-leagues/route.ts =====
 
 import { NextResponse } from "next/server";
-import redis from "@/lib/redis";
-import { generateStandingsSlug } from "@/lib/generate-standings-slug";
-import axios from "axios";
-import { League } from "@/types/api-football";
-import { topLeaguesConfig } from "@/config/topLeaguesConfig";
-
-const FULL_LIST_CACHE_KEY_PREFIX = `leagues:directory:standings-full-list-v4`;
-
-const CACHE_TTL_SECONDS = 60 * 60 * 24 * 3;
-
-const fetchAndCacheFullLeagueList = async (): Promise<League[]> => {
-  console.log(
-    "[API/standings-leagues] Cache MISS. Fetching full list from external API."
-  );
-
-  const response = await axios.get(
-    `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/leagues`,
-    {
-      params: { current: "true" },
-      headers: { "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
-    }
-  );
-
-  const allLeagues = response.data.response;
-  const standingsLeagues = allLeagues.filter(
-    (item: any) => item.league.type === "League"
-  );
-
-  const transformedData: League[] = standingsLeagues.map((item: any) => ({
-    id: item.league.id,
-    name: item.league.name,
-    logoUrl: item.league.logo,
-    countryName: item.country.name,
-    countryFlagUrl: item.country.flag,
-    type: item.league.type,
-    href: `/football/standings/${generateStandingsSlug(
-      item.league.name,
-      item.league.id
-    )}`,
-  }));
-
-  const popularLeagueIds = new Set(
-    topLeaguesConfig.map((l) => parseInt(l.leagueId))
-  );
-  transformedData.sort((a, b) => {
-    const isAPopular = popularLeagueIds.has(a.id);
-    const isBPopular = popularLeagueIds.has(b.id);
-    const aHasImage = !!a.logoUrl;
-    const bHasImage = !!b.logoUrl;
-    if (isAPopular !== isBPopular) return isAPopular ? -1 : 1;
-    if (aHasImage !== bHasImage) return aHasImage ? -1 : 1;
-    return a.name.localeCompare(b.name);
-  });
-
-  if (transformedData.length > 0) {
-    await redis.set(
-      `${FULL_LIST_CACHE_KEY_PREFIX}:all`,
-      JSON.stringify(transformedData),
-      "EX",
-      CACHE_TTL_SECONDS
-    );
-  }
-  return transformedData;
-};
+import { getStandingsLeagues } from "@/lib/data/directory";
 
 export async function GET(request: Request) {
   try {
@@ -21560,45 +22216,10 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "18");
     const searchQuery = searchParams.get("search") || "";
-    const skip = (page - 1) * limit;
 
-    let allLeagues: League[] | null = null;
-    const cacheKey = `${FULL_LIST_CACHE_KEY_PREFIX}:all`;
-    const cachedData = await redis.get(cacheKey);
+    const data = await getStandingsLeagues({ page, limit, searchQuery });
 
-    if (cachedData) {
-      allLeagues = JSON.parse(cachedData);
-    } else {
-      allLeagues = await fetchAndCacheFullLeagueList();
-    }
-
-    if (!allLeagues) {
-      return NextResponse.json(
-        { error: "Could not retrieve league list." },
-        { status: 500 }
-      );
-    }
-
-    const filteredLeagues = searchQuery
-      ? allLeagues.filter(
-          (league) =>
-            league.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            league.countryName.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-      : allLeagues;
-
-    const paginatedLeagues = filteredLeagues.slice(skip, skip + limit);
-    const totalCount = filteredLeagues.length;
-    const totalPages = Math.ceil(totalCount / limit);
-
-    return NextResponse.json({
-      leagues: paginatedLeagues,
-      pagination: {
-        currentPage: page,
-        totalPages,
-        totalCount,
-      },
-    });
+    return NextResponse.json(data);
   } catch (error) {
     console.error(
       "[API/standings-leagues] Error fetching paginated directory:",
@@ -22096,12 +22717,18 @@ import { getLatestPopularHighlights } from "@/lib/data/highlightly";
 
 export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const limitParam = searchParams.get("limit");
 
-    const validHighlights = await getLatestPopularHighlights();
+    const limit = limitParam ? parseInt(limitParam, 10) : 40;
 
-    if (!validHighlights || validHighlights.length === 0) {
+    const allHighlights = await getLatestPopularHighlights();
+
+    if (!allHighlights || allHighlights.length === 0) {
       return NextResponse.json({ highlights: [] }, { status: 200 });
     }
+
+    const limitedHighlights = allHighlights.slice(0, limit);
 
     const headers = new Headers();
     headers.set(
@@ -22110,7 +22737,7 @@ export async function GET(request: Request) {
     );
 
     return NextResponse.json(
-      { highlights: validHighlights },
+      { highlights: limitedHighlights },
       { status: 200, headers }
     );
   } catch (error: any) {
@@ -23187,6 +23814,44 @@ export async function DELETE(request: Request, { params }: Params) {
   }
 }
 
+// ===== src/app/api/posts/by-slug/route.ts =====
+
+import { NextResponse } from "next/server";
+import dbConnect from "@/lib/dbConnect";
+import Post from "@/models/Post";
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const slug = searchParams.get("slug");
+  const locale = searchParams.get("locale");
+
+  if (!slug || !locale) {
+    return NextResponse.json(
+      { error: "Slug and locale are required" },
+      { status: 400 }
+    );
+  }
+
+  try {
+    await dbConnect();
+    const post = await Post.findOne({
+      slug,
+      language: locale,
+      status: "published",
+    }).lean();
+
+    if (!post) {
+      return NextResponse.json({ error: "Post not found" }, { status: 404 });
+    }
+
+    const serializablePost = JSON.parse(JSON.stringify(post));
+
+    return NextResponse.json(serializablePost);
+  } catch (error) {
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
+}
+
 // ===== src/app/api/posts/route.ts =====
 
 import { NextResponse } from "next/server";
@@ -24141,6 +24806,37 @@ export async function GET(request: Request) {
   }
 }
 
+// ===== src/app/api/team-squad/route.ts =====
+
+import { NextResponse } from "next/server";
+import { getTeamSquad } from "@/lib/data/player";
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const teamId = searchParams.get("teamId");
+
+  if (!teamId) {
+    return NextResponse.json({ error: "Team ID is required" }, { status: 400 });
+  }
+
+  try {
+    const squadData = await getTeamSquad(parseInt(teamId));
+    if (!squadData) {
+      return NextResponse.json(null, { status: 404 });
+    }
+    return NextResponse.json(squadData[0]?.players || []);
+  } catch (error) {
+    console.error(
+      `[API/team-squad] Failed to get squad for team ${teamId}:`,
+      error
+    );
+    return NextResponse.json(
+      { error: "Failed to fetch team squad." },
+      { status: 500 }
+    );
+  }
+}
+
 // ===== src/app/api/team-trophies/route.ts =====
 
 import { NextResponse } from "next/server";
@@ -24182,135 +24878,18 @@ export async function GET(request: Request) {
 // ===== src/app/api/teams/paginated/route.ts =====
 
 import { NextResponse } from "next/server";
-import dbConnect from "@/lib/dbConnect";
-import Team from "@/models/Team";
-import { topLeaguesConfig } from "@/config/topLeaguesConfig";
-import axios from "axios";
-
-const BASE_URL =
-  process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
-
-const getPopularTeams = async () => {
-  try {
-    const season = new Date().getFullYear();
-    const popularLeagueIds = topLeaguesConfig
-      .sort((a, b) => a.priority - b.priority)
-      .slice(0, 6)
-      .map((l) => l.leagueId);
-
-    const teamPromises = popularLeagueIds.map((leagueId) =>
-      axios.get(`${BASE_URL}/api/teams?league=${leagueId}&season=${season}`)
-    );
-
-    const responses = await Promise.allSettled(teamPromises);
-
-    const allTeams = responses
-      .filter((res) => res.status === "fulfilled" && res.value.data)
-      .flatMap((res) => (res as PromiseFulfilledResult<any>).value.data);
-
-    return Array.from(
-      new Map(allTeams.map((item) => [item.team.id, item])).values()
-    );
-  } catch (error) {
-    console.error(
-      "[API/teams/paginated] Failed to fetch popular teams:",
-      error
-    );
-    return [];
-  }
-};
-
-const formatTeamsForResponse = (teams: any[]) => {
-  return teams.map((teamData) => {
-
-    const team = teamData.team || teamData;
-    const venue = teamData.venue || team;
-    return {
-      team: {
-        id: team.teamId || team.id,
-        name: team.name,
-        logo: team.logoUrl || team.logo,
-        country: team.country,
-        founded: team.founded,
-      },
-      venue: {
-        name: venue.venueName || venue.name,
-        city: venue.venueCity || venue.city,
-      },
-    };
-  });
-};
+import { getPaginatedTeams } from "@/lib/data/team";
 
 export async function GET(request: Request) {
   try {
-    await dbConnect();
-
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "21");
     const searchQuery = searchParams.get("search") || "";
 
-    const skip = (page - 1) * limit;
+    const data = await getPaginatedTeams({ page, limit, searchQuery });
 
-    let teams = [];
-    let totalCount = 0;
-
-    const searchFilter =
-      searchQuery.length >= 3
-        ? {
-            $or: [
-              { name: { $regex: new RegExp(searchQuery, "i") } },
-              { country: { $regex: new RegExp(searchQuery, "i") } },
-            ],
-          }
-        : {};
-
-    if (page === 1 && !searchQuery) {
-
-      const popularTeams = await getPopularTeams();
-      const popularTeamIds = new Set(popularTeams.map((t) => t.team.id));
-
-      const neededRegularTeams = limit - popularTeams.length;
-
-      const regularTeams =
-        neededRegularTeams > 0
-          ? await Team.find({
-              teamId: { $nin: Array.from(popularTeamIds) },
-            })
-              .sort({ name: 1 })
-              .limit(neededRegularTeams)
-              .lean()
-          : [];
-
-      const combinedList = [...popularTeams, ...regularTeams];
-      combinedList.sort((a, b) => {
-        const aHasImage = !!(a.team?.logo || a.logoUrl);
-        const bHasImage = !!(b.team?.logo || b.logoUrl);
-        if (aHasImage !== bHasImage) return aHasImage ? -1 : 1;
-        return 0;
-      });
-
-      teams = combinedList.slice(0, limit);
-      totalCount = await Team.countDocuments({});
-    } else {
-
-      [teams, totalCount] = await Promise.all([
-        Team.find(searchFilter)
-          .sort({ country: 1, name: 1 })
-          .skip(skip)
-          .limit(limit)
-          .lean(),
-        Team.countDocuments(searchFilter),
-      ]);
-    }
-
-    const formattedTeams = formatTeamsForResponse(teams);
-    const totalPages = Math.ceil(totalCount / limit);
-
-    return NextResponse.json({
-      teams: formattedTeams,
-      pagination: { currentPage: page, totalPages, totalCount },
-    });
+    return NextResponse.json(data);
   } catch (error: any) {
 
     return NextResponse.json(
@@ -24632,7 +25211,7 @@ export async function POST(request: NextRequest) {
     await dbConnect();
 
     const headersList = headers();
-    const ip = headersList.get("x-forwarded-for") || "unknown";
+    const ip = (await headersList).get("x-forwarded-for") || "unknown";
     const ipHash = crypto.createHash("sha256").update(ip).digest("hex");
 
     const result = await ReferrerRule.updateOne(
@@ -24648,7 +25227,7 @@ export async function POST(request: NextRequest) {
             $each: [
               {
                 ipHash,
-                userAgent: headersList.get("user-agent") || "unknown",
+                userAgent: (await headersList).get("user-agent") || "unknown",
                 landingPage: landingPage,
                 timestamp: new Date(),
               },
@@ -26026,44 +26605,47 @@ export async function GET() {
 
 // ===== src/app/sitemap.xml/route.ts =====
 
+import { SUPPORTED_LOCALES } from "@/lib/i18n/config";
+
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
-const generateSitemapIndexXml = () => {
-  const sitemaps = [
-    "sitemap-static.xml",
-    "sitemap-news.xml",
-    "sitemap-leagues.xml",
-    "sitemap-teams.xml",
-    "sitemap-matches.xml",
-
-    "sitemap-standings.xml",
+export async function GET() {
+  const contentTypes = [
+    "core",
+    "news",
+    "leagues",
+    "teams",
+    "players",
+    "matches",
+    "standings",
   ];
 
-  const sitemapEntries = sitemaps
-    .map(
-      (route) => `
+  let sitemapEntries = "";
+
+  SUPPORTED_LOCALES.forEach((locale) => {
+    contentTypes.forEach((type) => {
+
+      sitemapEntries += `
     <sitemap>
-      <loc>${BASE_URL}/${route}</loc>
+      <loc>${BASE_URL}/sitemap/${locale}/${type}.xml</loc>
       <lastmod>${new Date().toISOString()}</lastmod>
     </sitemap>
-  `
-    )
-    .join("");
+  `;
+    });
+  });
 
-  return `<?xml version="1.0" encoding="UTF-8"?>
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
     <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
       ${sitemapEntries}
     </sitemapindex>
   `;
-};
-
-export async function GET() {
-  const xml = generateSitemapIndexXml();
 
   return new Response(xml, {
+    status: 200,
     headers: {
       "Content-Type": "application/xml",
+      "Cache-Control": "s-maxage=86400, stale-while-revalidate",
     },
   });
 }
@@ -26930,9 +27512,17 @@ export default function DesktopMatchListItem({
   match,
   isLive,
 }: DesktopMatchListItemProps) {
-  const { fixture, teams, goals } = match;
+  const { fixture, teams, goals, league } = match;
   const { t } = useTranslation();
   const [elapsedTime, setElapsedTime] = useState(fixture.status.elapsed);
+
+  const queryParams = new URLSearchParams({
+    home: teams.home.name,
+    away: teams.away.name,
+    league: league.name,
+  }).toString();
+
+  const slug = generateMatchSlug(teams.home, teams.away, fixture.id);
 
   useEffect(() => {
 
@@ -26943,14 +27533,13 @@ export default function DesktopMatchListItem({
       !["FT", "AET", "PEN", "HT"].includes(match.fixture.status.short)
     ) {
       const interval = setInterval(() => {
-        setElapsedTime((prevTime) => (prevTime ? prevTime + 1 : 1));
+        setElapsedTime((prevTime: any) => (prevTime ? prevTime + 1 : 1));
       }, 60000);
 
       return () => clearInterval(interval);
     }
   }, [match, isLive]);
 
-  const slug = generateMatchSlug(teams.home, teams.away, fixture.id);
   const isFinished = ["FT", "AET", "PEN"].includes(fixture.status.short);
   const [showResult, setShowResult] = useState(false);
 
@@ -27747,7 +28336,7 @@ export default async function FooterAboutSection({
         </h2>
         <div className="prose prose-sm prose-invert max-w-none text-text-secondary leading-relaxed space-y-4">
           {paragraphs.map((p, index) => (
-            <p key={index}>{p}</p>
+            <div key={index} dangerouslySetInnerHTML={{ __html: p }}></div>
           ))}
         </div>
       </div>
@@ -28578,21 +29167,27 @@ export default function HighlightCard({ highlight }: { highlight: Highlight }) {
   const matchDate = match?.date ? new Date(match.date) : null;
   const isDateValid = matchDate && isValid(matchDate);
 
-  const thumbnailUrl =
-    proxyImageUrl(highlight.imgUrl) ||
-    proxyImageUrl(league?.logo) ||
-    "/images/placeholder-logo.svg";
+  const thumbnailUrl = useMemo(() => {
+
+    if (highlight.imgUrl && highlight.imgUrl.startsWith("http")) {
+      return proxyImageUrl(highlight.imgUrl);
+    }
+
+    if (league?.logo && league.logo.startsWith("http")) {
+      return proxyImageUrl(league.logo);
+    }
+
+    return "/images/placeholder-logo.svg";
+  }, [highlight.imgUrl, league?.logo]);
 
   const embedUrl = useMemo(() => {
     if (highlight.url && highlight.url.includes("streamain.com")) {
       const parts = highlight.url.split("/");
-
       const videoId = parts[parts.length - 2];
       if (videoId) {
         return `https://streamain.com/embed/${videoId}`;
       }
     }
-
     return null;
   }, [highlight.url]);
 
@@ -28685,7 +29280,6 @@ export default function HighlightCard({ highlight }: { highlight: Highlight }) {
         </div>
       </div>
 
-      {}
       {isModalOpen && embedUrl && (
         <div
           className="fixed inset-0 z-[101] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
@@ -28902,93 +29496,85 @@ export default function LanguageDropdown({
 
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import Slider from "react-slick";
-import HighlightSlide from "./HighlightSlide";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Film, ArrowRight } from "lucide-react";
+import HighlightCard, { HighlightCardSkeleton } from "./HighlightCard";
+import { useTranslation } from "@/hooks/useTranslation";
+import StyledLink from "./StyledLink";
 
 interface Highlight {
   id: string;
   embedUrl: string;
   title: string;
+
+  [key: string]: any;
 }
 
 const fetchLatestHighlights = async (): Promise<Highlight[] | null> => {
   try {
-    const { data } = await axios.get("/api/highlights/latest");
+
+    const { data } = await axios.get("/api/highlights/latest?limit=6");
     return data?.highlights || null;
   } catch (error) {
-
+    console.error(
+      "[LatestHighlightsWidget] Failed to fetch highlights:",
+      error
+    );
     return null;
   }
 };
 
-const SliderSkeleton = () => (
-  <div className="aspect-video w-full bg-brand-dark rounded-lg animate-pulse"></div>
-);
-
-const NextArrow = ({ onClick }: { onClick?: () => void }) => (
-  <button
-    onClick={onClick}
-    className="absolute top-4 right-4 z-10 p-2 bg-black/40 text-white rounded-full hover:bg-black/70 transition-colors"
-    aria-label="Next slide"
-  >
-    <ChevronRight size={20} />
-  </button>
-);
-
-const PrevArrow = ({ onClick }: { onClick?: () => void }) => (
-  <button
-    onClick={onClick}
-    className="absolute top-4 right-16 z-10 p-2 bg-black/40 text-white rounded-full hover:bg-black/70 transition-colors"
-    aria-label="Previous slide"
-  >
-    <ChevronLeft size={20} />
-  </button>
+const WidgetSkeleton = () => (
+  <div>
+    <div className="h-8 w-2/3 bg-gray-700 rounded-md mb-4 animate-pulse"></div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <HighlightCardSkeleton key={i} />
+      ))}
+    </div>
+  </div>
 );
 
 export default function LatestHighlightsWidget() {
+  const { t } = useTranslation();
   const {
     data: highlights,
     isLoading,
     isError,
   } = useQuery<Highlight[] | null>({
-    queryKey: ["latestHighlightsWidget"],
+    queryKey: ["latestHighlightsWidgetGrid"],
     queryFn: fetchLatestHighlights,
     staleTime: 1000 * 60 * 10,
   });
-
-  const sliderSettings = {
-    dots: false,
-    infinite: true,
-    speed: 500,
-    slidesToShow: 1,
-    slidesToScroll: 1,
-    arrows: true,
-    nextArrow: <NextArrow />,
-    prevArrow: <PrevArrow />,
-    autoplay: true,
-    autoplaySpeed: 8000,
-    pauseOnHover: true,
-  };
 
   if (isError || (!isLoading && (!highlights || highlights.length === 0))) {
     return null;
   }
 
   return (
-    <section className="bg-brand-secondary rounded-lg shadow-lg overflow-hidden">
-      {}
-      <div className="relative w-full">
-        {isLoading ? (
-          <SliderSkeleton />
-        ) : (
-          <Slider {...sliderSettings}>
-            {highlights?.map((highlight) => (
-              <HighlightSlide key={highlight.id} highlight={highlight} />
-            ))}
-          </Slider>
-        )}
+    <section>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+          <Film size={22} className="text-brand-purple" />
+          {t("recent_highlights")}
+        </h2>
+        <StyledLink
+          href="/highlights"
+          className="flex items-center gap-1 text-sm font-semibold text-text-muted transition-colors hover:text-white"
+        >
+          {t("view_more")}
+          <ArrowRight size={14} />
+        </StyledLink>
       </div>
+
+      {isLoading ? (
+        <WidgetSkeleton />
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {highlights?.map((highlight) => (
+            <HighlightCard key={highlight.id} highlight={highlight} />
+          ))}
+        </div>
+      )}
     </section>
   );
 }
@@ -30873,9 +31459,8 @@ const TeamRow = ({
 );
 
 export default function MobileMatchListItem({ match }: { match: any }) {
-  const { fixture, teams, goals } = match;
+  const { fixture, teams, goals, league } = match;
   const { t } = useTranslation();
-  const slug = generateMatchSlug(teams.home, teams.away, fixture.id);
   const [isExpanded, setIsExpanded] = useState(false);
 
   const isLive = ["1H", "HT", "2H", "ET", "P", "LIVE"].includes(
@@ -30885,6 +31470,14 @@ export default function MobileMatchListItem({ match }: { match: any }) {
 
   const [elapsedTime, setElapsedTime] = useState(fixture.status.elapsed);
 
+  const queryParams = new URLSearchParams({
+    home: teams.home.name,
+    away: teams.away.name,
+    league: league.name,
+  }).toString();
+
+  const slug = generateMatchSlug(teams.home, teams.away, fixture.id);
+
   useEffect(() => {
     setElapsedTime(match.fixture.status.elapsed);
     if (
@@ -30892,7 +31485,7 @@ export default function MobileMatchListItem({ match }: { match: any }) {
       !["FT", "AET", "PEN", "HT"].includes(match.fixture.status.short)
     ) {
       const interval = setInterval(() => {
-        setElapsedTime((prevTime) => (prevTime ? prevTime + 1 : 1));
+        setElapsedTime((prevTime: any) => (prevTime ? prevTime + 1 : 1));
       }, 60000);
       return () => clearInterval(interval);
     }
@@ -32649,6 +33242,49 @@ export default function RecentNewsWidget({ limit = 4 }: RecentNewsWidgetProps) {
   );
 }
 
+// ===== src/components/ReferrerTracker.tsx =====
+
+"use client";
+
+import { useEffect } from "react";
+
+const sendReferrerData = async () => {
+
+  if (
+    typeof window === "undefined" ||
+    !document.referrer ||
+    document.referrer.startsWith(window.location.origin)
+  ) {
+    return;
+  }
+
+  try {
+
+    await fetch("/api/track/referrer-hit", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        sourceUrl: document.referrer,
+        landingPage: window.location.pathname + window.location.search,
+      }),
+      keepalive: true,
+    });
+  } catch (error) {
+
+  }
+};
+
+export default function ReferrerTracker() {
+  useEffect(() => {
+
+    sendReferrerData();
+  }, []);
+
+  return null;
+}
+
 // ===== src/components/Sidebar.tsx =====
 
 import { Suspense } from "react";
@@ -33829,12 +34465,20 @@ export default function TableOfContents({ toc }: TableOfContentsProps) {
 
 "use client";
 
-import { useState, useMemo, Suspense } from "react";
+import { useState, useMemo, Suspense, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useTranslation } from "@/hooks/useTranslation";
 import { generateLeagueSlug } from "@/lib/generate-league-slug";
 import TeamHeader from "./team/TeamHeader";
-import { CalendarClock, Users, ListOrdered, Repeat, Film } from "lucide-react";
+import {
+  CalendarClock,
+  Users,
+  ListOrdered,
+  Repeat,
+  Film,
+  Newspaper,
+} from "lucide-react";
 
 const TeamSquadWidget = dynamic(() => import("./team/TeamSquadWidget"));
 const TeamFixturesWidget = dynamic(() => import("./team/TeamFixturesWidget"));
@@ -33843,10 +34487,15 @@ const LeagueStandingsWidget = dynamic(
 );
 const TeamTransfersTab = dynamic(() => import("./team/TeamTransfersTab"));
 const TeamHighlightsTab = dynamic(() => import("./team/TeamHighlightsTab"));
+const TeamNewsTab = dynamic(() => import("./team/TeamNewsTab"));
+
+const DEFAULT_TAB = "Fixtures";
 
 export default function TeamDetailView({ teamData }: { teamData: any }) {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState("Fixtures");
+  const pathname = usePathname();
+
+  const [activeTab, setActiveTab] = useState(DEFAULT_TAB);
 
   const { teamInfo, squad, fixtures, standings, transfers, highlights } =
     teamData;
@@ -33860,13 +34509,42 @@ export default function TeamDetailView({ teamData }: { teamData: any }) {
       : null;
   }, [standings]);
 
-  const TABS = [
-    { name: "Fixtures", icon: CalendarClock },
-    { name: "Squad", icon: Users },
-    ...(primaryLeague ? [{ name: "Standings", icon: ListOrdered }] : []),
-    { name: "Transfers", icon: Repeat },
-    { name: "Highlights", icon: Film },
-  ];
+  const TABS = useMemo(
+    () => [
+      { name: "Fixtures", icon: CalendarClock },
+      { name: "News", icon: Newspaper },
+      { name: "Squad", icon: Users },
+      ...(primaryLeague ? [{ name: "Standings", icon: ListOrdered }] : []),
+      { name: "Transfers", icon: Repeat },
+      { name: "Highlights", icon: Film },
+    ],
+    [primaryLeague]
+  );
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace("#", "");
+      const tabFromHash = hash.charAt(0).toUpperCase() + hash.slice(1);
+
+      const isValidTab = TABS.some(
+        (tab) => tab.name.toLowerCase() === hash.toLowerCase()
+      );
+
+      setActiveTab(isValidTab ? tabFromHash : DEFAULT_TAB);
+    };
+
+    handleHashChange();
+
+    window.addEventListener("hashchange", handleHashChange);
+    return () => {
+      window.removeEventListener("hashchange", handleHashChange);
+    };
+  }, [pathname, TABS]);
+
+  const handleTabClick = (tabName: string) => {
+
+    window.location.hash = tabName.toLowerCase();
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -33887,7 +34565,14 @@ export default function TeamDetailView({ teamData }: { teamData: any }) {
       case "Transfers":
         return <TeamTransfersTab transfers={transfers} currentTeam={team} />;
       case "Highlights":
-        return <TeamHighlightsTab highlights={highlights} />;
+        return (
+          <TeamHighlightsTab
+            initialHighlights={highlights}
+            teamName={team.name}
+          />
+        );
+      case "News":
+        return <TeamNewsTab teamId={team.id} />;
       case "Fixtures":
       default:
         return <TeamFixturesWidget fixtures={fixtures} />;
@@ -33902,13 +34587,11 @@ export default function TeamDetailView({ teamData }: { teamData: any }) {
         foundedText={t("founded_in", { year: team.founded })}
       />
 
-      {}
-      <div className="bg-brand-secondary rounded-lg p-2 flex items-center space-x-2 top-[88px] z-30 overflow-x-auto scrollbar-hide">
+      <div className="bg-brand-secondary rounded-lg p-2 flex items-center space-x-2 sticky top-[88px] z-30 overflow-x-auto scrollbar-hide">
         {TABS.map((tab) => (
           <button
             key={tab.name}
-            onClick={() => setActiveTab(tab.name)}
-
+            onClick={() => handleTabClick(tab.name)}
             className={`flex-shrink-0 flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-semibold transition-colors ${
               activeTab === tab.name
                 ? "bg-[var(--brand-accent)] text-white shadow-md"
@@ -34910,6 +35593,8 @@ import {
   Send,
   FilePenLine,
   Share2,
+  Server,
+  Map,
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 
@@ -34992,8 +35677,10 @@ export default function AdminSidebar() {
     { name: "Banners", href: "/admin/banners", icon: ImageIcon },
     { name: "Link Tracker", href: "/admin/link-tracker", icon: LinkIcon },
     { name: "Referrer Tracker", href: "/admin/referrer-tracker", icon: Send },
-
     { name: "Social Links", href: "/admin/social-links", icon: Share2 },
+    { name: "Cache Management", href: "/admin/cache-management", icon: Server },
+
+    { name: "Sitemap Generation", href: "/admin/sitemaps", icon: Map },
   ];
 
   const localizationSubNav = [
@@ -35058,6 +35745,7 @@ export default function AdminSidebar() {
             );
           })}
 
+          {}
           <div>
             <button
               onClick={() => setIsLocalizationOpen(!isLocalizationOpen)}
@@ -35098,7 +35786,6 @@ export default function AdminSidebar() {
               </ul>
             </div>
           </div>
-
           <div>
             <button
               onClick={() => setIsAiOpen(!isAiOpen)}
@@ -35139,7 +35826,6 @@ export default function AdminSidebar() {
               </ul>
             </div>
           </div>
-
           <div>
             <button
               onClick={() => setIsPagesOpen(!isPagesOpen)}
@@ -35182,7 +35868,6 @@ export default function AdminSidebar() {
           </div>
         </nav>
       </div>
-
       <div className="border-t border-gray-700 pt-4">
         {session?.user && (
           <div className="mb-4 text-brand-muted text-sm px-3">
@@ -40481,7 +41166,8 @@ export default function TeamCard({
 
 "use client";
 
-import { useState, useMemo, Suspense } from "react";
+import { useState, useMemo, Suspense, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
@@ -40521,32 +41207,7 @@ const LeagueTopScorersWidget = dynamic(
 const LeagueNewsTab = dynamic(() => import("./LeagueNewsTab"));
 const LeagueHighlightsTab = dynamic(() => import("./LeagueHighlightsTab"));
 
-const LeagueOverviewTab = ({
-  leagueData,
-  onSeasonChange,
-  selectedSeason,
-  availableSeasons,
-  isLoading,
-}: any) => {
-  const { league, seasons, standings, topScorer } = leagueData;
-
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 p-1">
-      {league.type === "League" && standings.length > 0 && (
-        <LeagueStandingsWidget
-          initialStandings={standings}
-          leagueSeasons={availableSeasons}
-          currentSeason={selectedSeason}
-          isLoading={isLoading}
-          leagueId={league.id}
-          leagueSlug={generateStandingsSlug(league.name, league.id)}
-          onSeasonChange={onSeasonChange}
-        />
-      )}
-      <LeagueTopScorersWidget leagueId={league.id} season={selectedSeason} />
-    </div>
-  );
-};
+const DEFAULT_TAB = "teams";
 
 export default function LeagueDetailView({
   leagueData: initialLeagueData,
@@ -40554,7 +41215,15 @@ export default function LeagueDetailView({
   leagueData: any;
 }) {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState("teams");
+  const pathname = usePathname();
+
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== "undefined") {
+      const hash = window.location.hash.replace("#", "");
+      return hash || DEFAULT_TAB;
+    }
+    return DEFAULT_TAB;
+  });
 
   const initialSeason = useMemo(() => {
     return (
@@ -40580,7 +41249,6 @@ export default function LeagueDetailView({
   const { league, country, seasons, standings, topScorer, news, highlights } =
     displayData;
   const availableSeasons = useMemo(
-
     () =>
       initialLeagueData.seasons
         .map((s: any) => s.year)
@@ -40588,16 +41256,40 @@ export default function LeagueDetailView({
     [initialLeagueData.seasons]
   );
 
-  const TABS = [
-    { key: "teams", name: t("teams"), icon: Users },
-    { key: "top_scorers", name: t("top_scorers"), icon: Trophy },
-    { key: "fixtures", name: t("fixtures"), icon: CalendarClock },
-    ...(league.type === "League"
-      ? [{ key: "standings", name: t("standings"), icon: ListOrdered }]
-      : []),
-    { key: "news", name: t("news"), icon: Newspaper },
-    { key: "highlights", name: t("highlights"), icon: Film },
-  ];
+  const TABS = useMemo(
+    () => [
+      { key: "teams", name: t("teams"), icon: Users },
+      { key: "top_scorers", name: t("top_scorers"), icon: Trophy },
+      { key: "fixtures", name: t("fixtures"), icon: CalendarClock },
+      ...(league.type === "League"
+        ? [{ key: "standings", name: t("standings"), icon: ListOrdered }]
+        : []),
+      { key: "news", name: t("news"), icon: Newspaper },
+      { key: "highlights", name: t("highlights"), icon: Film },
+    ],
+    [league.type, t]
+  );
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace("#", "");
+      const isValidTab = TABS.some(
+        (tab) => tab.key.toLowerCase() === hash.toLowerCase()
+      );
+      setActiveTab(isValidTab ? hash : DEFAULT_TAB);
+    };
+
+    handleHashChange();
+
+    window.addEventListener("hashchange", handleHashChange);
+    return () => {
+      window.removeEventListener("hashchange", handleHashChange);
+    };
+  }, [pathname, TABS]);
+
+  const handleTabClick = (tabKey: string) => {
+    window.location.hash = tabKey.toLowerCase();
+  };
 
   const renderTabContent = () => {
     if (isLoading) {
@@ -40672,7 +41364,7 @@ export default function LeagueDetailView({
         {TABS.map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => handleTabClick(tab.key)}
             className={`flex-shrink-0 flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-semibold transition-colors ${
               activeTab === tab.key
                 ? "bg-[var(--brand-accent)] text-white shadow-md"
@@ -41971,6 +42663,7 @@ export default function MatchDetailView({ matchData }: { matchData: any }) {
   const renderTabContent = () => {
     switch (activeTab) {
       case "Timeline":
+      default:
         return (
           <MatchActivityWidget
             fixtureId={fixtureId}
@@ -41999,9 +42692,6 @@ export default function MatchDetailView({ matchData }: { matchData: any }) {
             awayTeamId={teams.away.id}
           />
         ) : null;
-      case "Info":
-      default:
-        return <MatchInfoTab matchData={matchData} />;
     }
   };
 
@@ -42009,7 +42699,7 @@ export default function MatchDetailView({ matchData }: { matchData: any }) {
     <div className="space-y-6">
       <MatchHeader fixture={fixtureData} />
 
-      <div className="bg-brand-secondary rounded-lg p-2 flex items-center space-x-2 sticky top-[88px] z-30 overflow-x-auto scrollbar-hide">
+      <div className="bg-brand-secondary rounded-lg p-2 flex items-center space-x-2 top-[88px] z-30 overflow-x-auto scrollbar-hide">
         {TABS.map((tab) => (
           <button
             key={tab.name}
@@ -42038,15 +42728,16 @@ export default function MatchDetailView({ matchData }: { matchData: any }) {
 
 // ===== src/components/match/MatchFormationWidget.tsx =====
 
-"use client";
-
 import { memo } from "react";
 import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { proxyImageUrl } from "@/lib/image-proxy";
-import { Shirt, Users, UserSquare } from "lucide-react";
+import { Users, UserSquare } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
+
+import { generatePlayerSlug } from "@/lib/generate-player-slug";
+import StyledLink from "../StyledLink";
 
 const fetchLineups = async (fixtureId: string) => {
   const { data } = await axios.get(`/api/lineups?fixtureId=${fixtureId}`);
@@ -42112,11 +42803,14 @@ const mapFormationToPositions = (
 
 const Player = memo(
   ({ player, colorClass }: { player: any; colorClass: string }) => {
-
     const playerPhotoUrl = `https://media.api-sports.io/football/players/${player.id}.png`;
 
+    const playerHref = generatePlayerSlug(player.name, player.id);
+
     return (
-      <div
+
+      <StyledLink
+        href={playerHref}
         className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 group cursor-pointer"
         style={{ top: `${player.pos.y}%`, left: `${player.pos.x}%` }}
         title={player.name}
@@ -42139,7 +42833,7 @@ const Player = memo(
         <span className="text-xs font-semibold text-white bg-black/60 px-2 py-0.5 rounded-md whitespace-nowrap shadow-lg">
           {player.name.split(" ").slice(-1)[0]}
         </span>
-      </div>
+      </StyledLink>
     );
   }
 );
@@ -43986,6 +44680,1056 @@ const WinProbability = memo(function WinProbability({ home, draw, away }: { home
 });
 export default WinProbability;
 
+// ===== src/components/player/PlayerDetailView.tsx =====
+
+"use client";
+
+import { useState, useMemo, Suspense, useEffect } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
+import { useTranslation } from "@/hooks/useTranslation";
+import { BarChart3, Repeat, Trophy, UserCircle } from "lucide-react";
+import PlayerHeader from "./PlayerHeader";
+
+const PlayerStatsWidget = dynamic(() => import("./PlayerStatsWidget"));
+const PlayerTransfersWidget = dynamic(() => import("./PlayerTransfersWidget"));
+const PlayerTrophiesWidget = dynamic(() => import("./PlayerTrophiesWidget"));
+const PlayerProfileWidget = dynamic(() => import("./PlayerProfileWidget"));
+const LatestHighlightsWidget = dynamic(
+  () => import("@/components/LatestHighlightsWidget")
+);
+
+const HighlightsSkeleton = () => (
+  <div className="aspect-video w-full bg-brand-secondary rounded-lg animate-pulse"></div>
+);
+const TabButton = ({ name, icon: Icon, isActive, onClick }: any) => (
+  <button
+    onClick={onClick}
+    className={`flex-shrink-0 flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-semibold transition-colors ${
+      isActive
+        ? "bg-[var(--brand-accent)] text-white shadow-md"
+        : "text-brand-muted hover:bg-white/5 hover:text-white"
+    }`}
+  >
+    <Icon size={16} />
+    {name}
+  </button>
+);
+
+const DEFAULT_TAB = "profile";
+
+export default function PlayerDetailView({
+  playerData,
+  availableSeasons,
+  selectedSeason,
+}: {
+  playerData: any;
+  availableSeasons: number[];
+  selectedSeason: number;
+}) {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const [activeTab, setActiveTab] = useState(DEFAULT_TAB);
+  const { stats, transfers, trophies } = playerData;
+
+  const TABS = useMemo(
+    () => [
+      { name: t("profile"), key: "profile", icon: UserCircle },
+      { name: t("stats"), key: "stats", icon: BarChart3 },
+      ...(transfers && transfers.length > 0
+        ? [{ name: t("transfers"), key: "transfers", icon: Repeat }]
+        : []),
+      ...(trophies && trophies.length > 0
+        ? [{ name: t("honours"), key: "honours", icon: Trophy }]
+        : []),
+    ],
+    [t, transfers, trophies]
+  );
+
+  useEffect(() => {
+    const handleStateUpdate = () => {
+      const hash = window.location.hash.replace("#", "").toLowerCase();
+      const initialTab = hash
+        ? TABS.some((tab) => tab.key === hash)
+          ? hash
+          : DEFAULT_TAB
+        : DEFAULT_TAB;
+      setActiveTab(initialTab);
+    };
+    handleStateUpdate();
+    window.addEventListener("hashchange", handleStateUpdate);
+    return () => window.removeEventListener("hashchange", handleStateUpdate);
+  }, [pathname, searchParams, TABS]);
+
+  const handleSeasonChange = (newSeason: number) => {
+    const currentParams = new URLSearchParams(
+      Array.from(searchParams.entries())
+    );
+    currentParams.set("season", newSeason.toString());
+    const newUrl = `${pathname}?${currentParams.toString()}`;
+    router.push(newUrl + window.location.hash, { scroll: false });
+  };
+
+  const handleTabClick = (tabKey: string) => {
+    const currentParams = new URLSearchParams(
+      Array.from(searchParams.entries())
+    );
+
+    if (tabKey !== "stats") {
+      currentParams.delete("league");
+    }
+
+    const queryString = currentParams.toString();
+    const newUrl = queryString ? `${pathname}?${queryString}` : pathname;
+
+    router.push(newUrl + `#${tabKey}`, { scroll: false });
+  };
+
+  const renderTabContent = () => {
+
+    switch (activeTab) {
+      case "profile":
+        return <PlayerProfileWidget player={stats.player} />;
+      case "transfers":
+        return <PlayerTransfersWidget transfers={transfers} />;
+      case "honours":
+        return <PlayerTrophiesWidget trophies={trophies} />;
+      case "stats":
+      default:
+        return <PlayerStatsWidget stats={stats.statistics} />;
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <PlayerHeader
+        player={stats.player}
+        statistics={stats.statistics[0]}
+        availableSeasons={availableSeasons}
+        selectedSeason={selectedSeason}
+        onSeasonChange={handleSeasonChange}
+      />
+      <div className="bg-brand-secondary rounded-lg p-2 flex items-center space-x-2 top-[88px] z-30 overflow-x-auto scrollbar-hide">
+        {TABS.map((tab) => (
+          <TabButton
+            key={tab.key}
+            name={tab.name}
+            icon={tab.icon}
+            isActive={activeTab === tab.key}
+            onClick={() => handleTabClick(tab.key)}
+          />
+        ))}
+      </div>
+      <div className="min-h-[400px]">
+        <Suspense
+          fallback={
+            <div className="w-full h-96 bg-brand-secondary rounded-lg animate-pulse"></div>
+          }
+        >
+          {renderTabContent()}
+        </Suspense>
+      </div>
+      <div className="pt-4">
+        <Suspense fallback={<HighlightsSkeleton />}>
+          <LatestHighlightsWidget />
+        </Suspense>
+      </div>
+    </div>
+  );
+}
+
+// ===== src/components/player/PlayerHeader.tsx =====
+
+"use client";
+
+import Image from "next/image";
+import { proxyImageUrl } from "@/lib/image-proxy";
+import { Calendar, Flag, Shield } from "lucide-react";
+import { useTeamColor } from "@/lib/color-extractor";
+
+export default function PlayerHeader({
+  player,
+  statistics,
+  availableSeasons,
+  selectedSeason,
+  onSeasonChange,
+}: {
+  player: any;
+  statistics: any;
+  availableSeasons: number[];
+  selectedSeason: number;
+  onSeasonChange: (season: number) => void;
+}) {
+  const team = statistics?.team;
+  const teamLogoUrl = team?.logo;
+
+  const { games } = statistics || {};
+
+  const dominantColor = useTeamColor(teamLogoUrl);
+
+  const InfoPill = ({ icon: Icon, value }: any) => (
+    <div className="flex items-center gap-2 bg-black/20 text-text-secondary text-sm font-semibold px-3 py-1.5 rounded-full backdrop-blur-sm">
+      <Icon size={16} />
+      <span>{value}</span>
+    </div>
+  );
+
+  return (
+    <div
+      className="relative p-6 rounded-lg overflow-hidden border border-gray-700/50"
+      style={{
+        background: `radial-gradient(circle at 30% 50%, ${dominantColor}30, transparent 40%), radial-gradient(circle at 80% 60%, #8b5cf615, transparent 50%), var(--brand-secondary)`,
+      }}
+    >
+      {teamLogoUrl && (
+        <Image
+          src={proxyImageUrl(teamLogoUrl)}
+          alt={`${team.name} watermark`}
+          width={250}
+          height={250}
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[3%] pointer-events-none"
+        />
+      )}
+
+      <div className="relative z-10 flex flex-col md:flex-row items-center gap-6">
+        <div className="relative flex-shrink-0">
+          <Image
+            src={proxyImageUrl(player.photo)}
+            alt={player.name}
+            width={128}
+            height={128}
+            className="rounded-full border-4 border-brand-secondary/50 shadow-2xl shadow-black/50"
+            priority
+          />
+          {teamLogoUrl && (
+            <Image
+              src={proxyImageUrl(teamLogoUrl)}
+              alt={team.name}
+              width={48}
+              height={48}
+              className="rounded-full absolute -bottom-2 -right-2 border-4 border-brand-secondary bg-white p-1"
+            />
+          )}
+        </div>
+
+        <div className="flex-1 text-center md:text-left">
+          <h1
+            className="text-4xl md:text-5xl font-extrabold text-white"
+            style={{ textShadow: "0 2px 10px rgba(0,0,0,0.5)" }}
+          >
+            {player.name}
+          </h1>
+          <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 mt-4">
+            <InfoPill icon={Flag} value={player.nationality} />
+            <InfoPill icon={Calendar} value={`${player.age} years old`} />
+            <InfoPill icon={Shield} value={games?.position} />
+
+            {availableSeasons && availableSeasons.length > 1 && (
+              <select
+                value={selectedSeason}
+                onChange={(e) => onSeasonChange(Number(e.target.value))}
+                aria-label="Select season"
+                className="bg-black/20 text-text-secondary text-sm font-semibold pl-3 pr-8 py-1.5 rounded-full backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-brand-purple appearance-none"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239e9e9e' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
+                  backgroundPosition: "right 0.5rem center",
+                  backgroundRepeat: "no-repeat",
+                  backgroundSize: "1.25em",
+                }}
+              >
+                {availableSeasons.map((season) => (
+                  <option key={season} value={season}>
+                    Season {season}/{season + 1}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ===== src/components/player/PlayerProfileWidget.tsx =====
+
+"use client";
+
+import { useTranslation } from "@/hooks/useTranslation";
+import {
+  UserCircle,
+  Flag,
+  Calendar,
+  GitCommitHorizontal,
+  Maximize,
+  Weight,
+} from "lucide-react";
+import { format } from "date-fns";
+
+const InfoRow = ({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string;
+  value: string | number | undefined;
+  icon: React.ElementType;
+}) => {
+  if (!value) return null;
+  return (
+    <div className="flex items-center justify-between py-3 border-b border-gray-700/50 last:border-b-0">
+      <div className="flex items-center gap-3 text-sm text-brand-muted">
+        <Icon size={16} />
+        <span>{label}</span>
+      </div>
+      <span className="font-bold text-white text-sm">{value}</span>
+    </div>
+  );
+};
+
+export default function PlayerProfileWidget({ player }: { player: any }) {
+  const { t } = useTranslation();
+
+  if (!player) {
+    return <p>{t("player_info_unavailable")}</p>;
+  }
+
+  const birthDate = player.birth?.date
+    ? format(new Date(player.birth.date), "MMMM dd, yyyy")
+    : t("not_available_short");
+
+  return (
+    <div className="bg-brand-secondary rounded-xl p-4 md:p-6">
+      <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+        <UserCircle size={22} /> {t("player_profile")}
+      </h2>
+      <div className="space-y-1">
+        <InfoRow label={t("full_name")} value={player.name} icon={UserCircle} />
+        <InfoRow
+          label={t("nationality")}
+          value={player.nationality}
+          icon={Flag}
+        />
+        <InfoRow label={t("date_of_birth")} value={birthDate} icon={Calendar} />
+        <InfoRow
+          label={t("age")}
+          value={player.age ? `${player.age} ${t("years_old")}` : undefined}
+          icon={GitCommitHorizontal}
+        />
+        <InfoRow label={t("height")} value={player.height} icon={Maximize} />
+        <InfoRow label={t("weight")} value={player.weight} icon={Weight} />
+      </div>
+    </div>
+  );
+}
+
+// ===== src/components/player/PlayerSeoWidget.tsx =====
+
+import { getI18n } from "@/lib/i18n/server";
+import { BookOpenText } from "lucide-react";
+
+interface PlayerSeoWidgetProps {
+  locale: string;
+  playerName: string;
+}
+
+export default async function PlayerSeoWidget({
+  locale,
+  playerName,
+}: PlayerSeoWidgetProps) {
+  const t = await getI18n(locale);
+
+  const seoTitle = t("player_seo_widget_title", { playerName });
+  const seoText = t("player_seo_widget_text", { playerName });
+
+  if (!seoText || seoText === `player_seo_widget_text`) {
+    return null;
+  }
+
+  return (
+    <section className="bg-brand-secondary p-4 rounded-lg">
+      <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
+        <BookOpenText size={18} className="text-[var(--brand-accent)]" />
+        {seoTitle}
+      </h3>
+      <div
+        className="prose prose-sm prose-invert max-w-none text-text-secondary leading-relaxed"
+        dangerouslySetInnerHTML={{ __html: seoText }}
+      />
+    </section>
+  );
+}
+
+// ===== src/components/player/PlayerSidebar.tsx =====
+
+"use client";
+
+import dynamic from "next/dynamic";
+import {
+  AdSlotWidgetSkeleton,
+  RecentNewsWidgetSkeleton,
+} from "@/components/skeletons/WidgetSkeletons";
+
+import PlayerSquadSidebarWidget from "./PlayerSquadSidebarWidget";
+
+const AdSlotWidget = dynamic(() => import("@/components/AdSlotWidget"), {
+  loading: () => <AdSlotWidgetSkeleton />,
+  ssr: false,
+});
+const RecentNewsWidget = dynamic(
+  () => import("@/components/RecentNewsWidget"),
+  {
+    loading: () => <RecentNewsWidgetSkeleton />,
+  }
+);
+
+export default function PlayerSidebar({ team }: { team: any }) {
+  return (
+    <>
+      <PlayerSquadSidebarWidget team={team} />
+      <RecentNewsWidget />
+      <AdSlotWidget location="player_sidebar" />
+    </>
+  );
+}
+
+// ===== src/components/player/PlayerSquadSidebarWidget.tsx =====
+
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "@/hooks/useTranslation";
+import Image from "next/image";
+import StyledLink from "../StyledLink";
+import { generatePlayerSlug } from "@/lib/generate-player-slug";
+import { proxyImageUrl } from "@/lib/image-proxy";
+import axios from "axios";
+
+const fetchTeamSquad = async (teamId: number) => {
+
+  const { data } = await axios.get(`/api/team-squad?teamId=${teamId}`);
+  return data;
+};
+
+const PlayerRow = ({ player }: { player: any }) => (
+  <StyledLink
+    href={generatePlayerSlug(player.name, player.id)}
+    className="flex items-center gap-3 p-2 rounded-lg hover:bg-brand-dark transition-colors group"
+  >
+    <Image
+      src={proxyImageUrl(
+        `https://media.api-sports.io/football/players/${player.id}.png`
+      )}
+      alt={player.name}
+      width={32}
+      height={32}
+      className="rounded-full bg-gray-700"
+    />
+    <div className="min-w-0">
+      <p className="font-semibold text-sm text-white truncate group-hover:text-brand-purple">
+        {player.name}
+      </p>
+      <p className="text-xs text-brand-muted">{player.position}</p>
+    </div>
+    <span className="ml-auto text-lg font-black text-brand-muted">
+      #{player.number}
+    </span>
+  </StyledLink>
+);
+
+const WidgetSkeleton = () => (
+  <div className="bg-brand-secondary rounded-lg p-4 animate-pulse">
+    <div className="h-6 w-3/4 bg-gray-700 rounded mb-4"></div>
+    <div className="space-y-2">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-3 p-2">
+          <div className="w-8 h-8 rounded-full bg-gray-600"></div>
+          <div className="flex-1 space-y-1.5">
+            <div className="h-4 w-full bg-gray-600 rounded"></div>
+            <div className="h-3 w-1/2 bg-gray-600 rounded"></div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+export default function PlayerSquadSidebarWidget({ team }: { team: any }) {
+  const { t } = useTranslation();
+
+  const {
+    data: squad,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["teamSquad", team.id],
+    queryFn: () => fetchTeamSquad(team.id),
+    staleTime: 1000 * 60 * 60,
+    enabled: !!team?.id,
+  });
+
+  if (isLoading) return <WidgetSkeleton />;
+  if (isError || !squad || squad.length === 0) return null;
+
+  return (
+    <div className="bg-brand-secondary rounded-lg">
+      <div className="p-4 border-b border-gray-700/50">
+        <h3 className="font-bold text-lg text-white flex items-center gap-3">
+          <Image
+            src={proxyImageUrl(team.logo)}
+            alt={team.name}
+            width={24}
+            height={24}
+          />
+          <span className="truncate">
+            {team.name} {t("squad")}
+          </span>
+        </h3>
+      </div>
+      <div className="p-2 space-y-1 max-h-96 overflow-y-auto custom-scrollbar">
+        {squad.map((player: any) => (
+          <PlayerRow key={player.id} player={player} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ===== src/components/player/PlayerStatsWidget.tsx =====
+
+"use client";
+
+import { useState, useEffect } from "react";
+import { useTranslation } from "@/hooks/useTranslation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import {
+  BarChart3,
+  Goal,
+  Shield,
+  Zap,
+  Target,
+  Star,
+  Info,
+  Footprints,
+  ShieldCheck,
+  HeartPulse,
+} from "lucide-react";
+import StatBar from "./StatBar";
+import Image from "next/image";
+import { proxyImageUrl } from "@/lib/image-proxy";
+import slugify from "slugify";
+
+const StatCard = ({ label, value, icon: Icon, color }: any) => (
+  <div
+    className={`p-4 rounded-lg flex items-center gap-4 border border-gray-700/50 bg-gradient-to-br from-brand-dark to-brand-secondary`}
+  >
+    <div
+      className={`flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-black/20 ${color}/20`}
+    >
+      <Icon size={24} className={color} />
+    </div>
+    <div>
+      <p className="text-3xl font-black text-white">{value ?? "-"}</p>
+      <p className="text-xs text-brand-muted font-semibold uppercase tracking-wider">
+        {label}
+      </p>
+    </div>
+  </div>
+);
+
+const StatGroup = ({
+  title,
+  icon: Icon,
+  children,
+  hasData,
+}: {
+  title: string;
+  icon: any;
+  children: React.ReactNode;
+  hasData: boolean;
+}) => {
+  if (!hasData) return null;
+  return (
+    <div className="bg-brand-dark/30 p-4 rounded-lg">
+      <h3 className="font-bold text-white mb-4 flex items-center gap-2.5 text-lg">
+        <Icon size={20} className="text-brand-muted" />
+        <span>{title}</span>
+      </h3>
+      <div className="space-y-4">{children}</div>
+    </div>
+  );
+};
+
+export default function PlayerStatsWidget({ stats }: { stats: any[] }) {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => {
+    const leagueSlugFromQuery = searchParams.get("league");
+    if (leagueSlugFromQuery) {
+      const indexFromQuery = stats.findIndex(
+        (stat) =>
+          slugify(stat.league.name, { lower: true, strict: true }) ===
+          leagueSlugFromQuery
+      );
+      if (indexFromQuery !== -1) {
+        setActiveIndex(indexFromQuery);
+      }
+    } else {
+      setActiveIndex(0);
+    }
+  }, [searchParams, stats]);
+
+  const handleTabClick = (index: number, leagueName: string) => {
+    const newLeagueSlug = slugify(leagueName, { lower: true, strict: true });
+
+    const currentParams = new URLSearchParams(
+      Array.from(searchParams.entries())
+    );
+    currentParams.set("league", newLeagueSlug);
+
+    const newUrl = `${pathname}?${currentParams.toString()}#stats`;
+    router.push(newUrl, { scroll: false });
+  };
+
+  if (!stats || stats.length === 0) {
+
+    return (
+      <div className="bg-brand-secondary rounded-lg p-8 text-center text-brand-muted">
+        <Info size={32} className="mx-auto mb-3" />
+        <p className="font-semibold">{t("no_stats_for_season")}</p>
+      </div>
+    );
+  }
+
+  const activeStats = stats[activeIndex];
+
+  const { games, goals, cards, passes, shots, dribbles, tackles, duels } =
+    activeStats;
+
+  const shotAccuracy =
+    shots?.total && shots.total > 0
+      ? Math.round((shots.on / shots.total) * 100)
+      : 0;
+  const dribbleSuccess =
+    dribbles?.attempts && dribbles.attempts > 0
+      ? Math.round((dribbles.success / dribbles.attempts) * 100)
+      : 0;
+  const duelsWon =
+    duels?.total && duels.total > 0
+      ? Math.round((duels.won / duels.total) * 100)
+      : 0;
+  const goalsPerMatch =
+    games?.appearences && games.appearences > 0
+      ? (goals?.total / games.appearences).toFixed(2)
+      : "0.00";
+
+  const hasAttackingData = (goals?.total ?? 0) > 0 || (shots?.total ?? 0) > 0;
+  const hasPlaymakingData = (passes?.total ?? 0) > 0 || (duels?.total ?? 0) > 0;
+  const hasDefendingData = (tackles?.total ?? 0) > 0;
+
+  return (
+    <div className="bg-brand-secondary rounded-xl overflow-hidden">
+      <div className="p-4 md:p-6 border-b border-gray-700/50">
+        <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-3">
+          <BarChart3 size={24} /> {t("season_statistics")}
+        </h2>
+        <div className="flex items-center gap-2 p-1 rounded-lg bg-[var(--color-primary)] overflow-x-auto scrollbar-hide">
+          {stats.map((stat, index) => (
+            <button
+              key={stat.league.id}
+              onClick={() => handleTabClick(index, stat.league.name)}
+              className={`flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold transition-all duration-200 ${
+                activeIndex === index
+                  ? "bg-brand-dark shadow-inner shadow-black/50 text-white"
+                  : "text-text-muted hover:bg-gray-700/50"
+              }`}
+            >
+              {stat.league.logo && (
+                <Image
+                  src={proxyImageUrl(stat.league.logo)}
+                  alt={stat.league.name}
+                  width={24}
+                  height={24}
+                  className="flex-shrink-0"
+                />
+              )}
+              <span className="truncate">{stat.league.name}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="p-4 md:p-6 space-y-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            label={t("appearances")}
+            value={games.appearences ?? 0}
+            icon={Footprints}
+            color="text-teal-400"
+          />
+          <StatCard
+            label={t("goals")}
+            value={goals.total ?? 0}
+            icon={Goal}
+            color="text-green-400"
+          />
+          <StatCard
+            label={t("assists")}
+            value={goals.assists ?? 0}
+            icon={Shield}
+            color="text-sky-400"
+          />
+          <StatCard
+            label={t("rating")}
+            value={games.rating ? parseFloat(games.rating).toFixed(1) : "-"}
+            icon={Star}
+            color="text-amber-400"
+          />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+          <StatGroup
+            title={t("attacking")}
+            icon={Zap}
+            hasData={hasAttackingData}
+          >
+            <StatBar
+              label={t("goals_per_match")}
+              value={goalsPerMatch}
+              percent={parseFloat(goalsPerMatch) * 40}
+            />
+            <StatBar
+              label={t("shots_on_target")}
+              value={`${shots?.on ?? 0} / ${shots?.total ?? 0}`}
+              percent={shotAccuracy}
+            />
+            <StatBar
+              label={t("dribble_success")}
+              value={`${dribbleSuccess}%`}
+              percent={dribbleSuccess}
+            />
+          </StatGroup>
+          <StatGroup
+            title={t("playmaking")}
+            icon={Target}
+            hasData={hasPlaymakingData}
+          >
+            <StatBar
+              label={t("pass_accuracy")}
+              value={`${passes?.accuracy ?? 0}%`}
+              percent={passes?.accuracy ?? 0}
+            />
+            <StatBar
+              label={t("key_passes")}
+              value={passes?.key ?? 0}
+              percent={((passes?.key ?? 0) / (games?.appearences || 1)) * 30}
+            />
+            <StatBar
+              label={t("duels_won")}
+              value={`${duelsWon}%`}
+              percent={duelsWon}
+            />
+          </StatGroup>
+          <StatGroup
+            title={t("defending")}
+            icon={ShieldCheck}
+            hasData={hasDefendingData}
+          >
+            <StatBar
+              label={t("tackles")}
+              value={tackles?.total ?? 0}
+              percent={((tackles?.total ?? 0) / (games?.appearences || 1)) * 30}
+            />
+            <StatBar
+              label={t("interceptions")}
+              value={tackles?.interceptions ?? 0}
+              percent={
+                ((tackles?.interceptions ?? 0) / (games?.appearences || 1)) * 40
+              }
+            />
+            <StatBar
+              label={t("blocks")}
+              value={tackles?.blocks ?? 0}
+              percent={
+                ((tackles?.blocks ?? 0) / (games?.appearences || 1)) * 50
+              }
+            />
+          </StatGroup>
+          <StatGroup title={t("discipline")} icon={HeartPulse} hasData={true}>
+            <StatBar
+              label={t("yellow_cards")}
+              value={cards?.yellow ?? 0}
+              percent={100 - (cards?.yellow ?? 0) * 10}
+            />
+            <StatBar
+              label={t("red_cards")}
+              value={cards?.red ?? 0}
+              percent={100 - (cards?.red ?? 0) * 50}
+            />
+            <StatBar
+              label={t("fouls_committed")}
+              value={duels?.committed ?? 0}
+              percent={
+                100 - ((duels?.committed ?? 0) / (games?.appearences || 1)) * 25
+              }
+            />
+          </StatGroup>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ===== src/components/player/PlayerTransfersWidget.tsx =====
+
+"use client";
+
+import Image from "next/image";
+import { format } from "date-fns";
+import { ArrowLeft, ArrowRight, Info, Repeat } from "lucide-react";
+import { useTranslation } from "@/hooks/useTranslation";
+import { proxyImageUrl } from "@/lib/image-proxy";
+import StyledLink from "../StyledLink";
+import { generateTeamSlug } from "@/lib/generate-team-slug";
+
+const TransferRow = ({ transfer }: { transfer: any }) => {
+  return (
+    <div className="flex items-center gap-4 p-3 bg-brand-dark/50 rounded-lg">
+      <span className="font-semibold text-sm text-brand-muted w-24">
+        {format(new Date(transfer.date), "dd MMM yyyy")}
+      </span>
+      <div className="flex items-center gap-2">
+        <Image
+          src={proxyImageUrl(transfer.teams.out.logo)}
+          alt={transfer.teams.out.name}
+          width={24}
+          height={24}
+        />
+        <span className="font-semibold text-xs text-brand-light truncate">
+          {transfer.teams.out.name}
+        </span>
+      </div>
+      <ArrowRight size={16} className="text-brand-purple flex-shrink-0" />
+      <div className="flex items-center gap-2">
+        <Image
+          src={proxyImageUrl(transfer.teams.in.logo)}
+          alt={transfer.teams.in.name}
+          width={24}
+          height={24}
+        />
+        <span className="font-semibold text-xs text-brand-light truncate">
+          {transfer.teams.in.name}
+        </span>
+      </div>
+      <span className="ml-auto text-xs text-brand-muted capitalize">
+        {transfer.type}
+      </span>
+    </div>
+  );
+};
+
+export default function PlayerTransfersWidget({
+  transfers,
+}: {
+  transfers: any[];
+}) {
+  const { t } = useTranslation();
+
+  if (!transfers || transfers.length === 0) {
+    return (
+      <div className="p-8 text-center text-brand-muted bg-brand-secondary rounded-lg">
+        <Info size={32} className="mx-auto mb-3" />
+        <p className="font-semibold">{t("no_transfers_found")}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-brand-secondary rounded-xl p-4">
+      <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+        <Repeat size={22} /> Transfer History
+      </h2>
+      <div className="space-y-2 max-h-[600px] overflow-y-auto custom-scrollbar pr-1">
+        {transfers[0].transfers.map((t: any, index: number) => (
+          <TransferRow key={index} transfer={t} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ===== src/components/player/PlayerTrophiesWidget.tsx =====
+
+"use client";
+
+import { Trophy, Info, Medal } from "lucide-react";
+import { useTranslation } from "@/hooks/useTranslation";
+import { useMemo } from "react";
+
+const TrophyCard = ({
+  name,
+  seasons,
+  place,
+}: {
+  name: string;
+  seasons: string[];
+  place: string;
+}) => {
+  const isWinner = place === "Winner";
+  const colorClasses = isWinner
+    ? {
+        bg: "bg-amber-500/10",
+        border: "border-amber-500/50",
+        iconText: "text-amber-400",
+        text: "text-white",
+      }
+    : {
+        bg: "bg-gray-500/10",
+        border: "border-gray-500/50",
+        iconText: "text-gray-400",
+        text: "text-text-secondary",
+      };
+
+  return (
+    <div
+      className={`flex items-center gap-4 p-4 rounded-lg border ${colorClasses.border} ${colorClasses.bg}`}
+    >
+      <div className="flex-shrink-0">
+        {isWinner ? (
+          <Trophy size={32} className={colorClasses.iconText} />
+        ) : (
+          <Medal size={32} className={colorClasses.iconText} />
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className={`font-bold text-base ${colorClasses.text}`}>{name}</p>
+        <p
+          className="text-xs text-brand-muted truncate"
+          title={seasons.join(", ")}
+        >
+          <span className="font-semibold">{seasons.length}x</span>{" "}
+          {isWinner ? "Winner" : "Runner-up"} ({seasons.join(", ")})
+        </p>
+      </div>
+    </div>
+  );
+};
+
+export default function PlayerTrophiesWidget({
+  trophies,
+}: {
+  trophies: any[];
+}) {
+  const { t } = useTranslation();
+
+  const groupedTrophies = useMemo(() => {
+    if (!trophies || trophies.length === 0) return [];
+
+    const groups: {
+      [key: string]: { name: string; seasons: string[]; place: string };
+    } = {};
+
+    trophies.forEach((trophy) => {
+      const key = `${trophy.league}-${trophy.place}`;
+      if (!groups[key]) {
+        groups[key] = {
+          name: trophy.league,
+          seasons: [],
+          place: trophy.place,
+        };
+      }
+      groups[key].seasons.push(trophy.season);
+    });
+
+    Object.values(groups).forEach((group) => {
+      group.seasons.sort(
+        (a, b) => parseInt(b.split("-")[0]) - parseInt(a.split("-")[0])
+      );
+    });
+
+    return Object.values(groups).sort((a, b) => {
+      if (a.place === "Winner" && b.place !== "Winner") return -1;
+      if (a.place !== "Winner" && b.place === "Winner") return 1;
+      const latestSeasonA = parseInt(a.seasons[0].split("-")[0]);
+      const latestSeasonB = parseInt(b.seasons[0].split("-")[0]);
+      return latestSeasonB - latestSeasonA;
+    });
+  }, [trophies]);
+
+  if (!groupedTrophies || groupedTrophies.length === 0) {
+    return (
+      <div className="p-8 text-center text-brand-muted bg-brand-secondary rounded-lg">
+        <Info size={32} className="mx-auto mb-3" />
+        <p className="font-semibold">{t("no_honours_found")}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-brand-secondary rounded-xl p-4 md:p-6">
+      <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+        <Trophy size={22} /> {t("honours")}
+      </h2>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {groupedTrophies.map((group) => (
+          <TrophyCard
+            key={`${group.name}-${group.place}`}
+            name={group.name}
+            seasons={group.seasons}
+            place={group.place}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ===== src/components/player/StatBar.tsx =====
+
+"use client";
+
+import { memo } from "react";
+
+interface StatBarProps {
+  label: string;
+  value: string | number;
+  percent: number;
+}
+
+const StatBar = memo(function StatBar({ label, value, percent }: StatBarProps) {
+
+  const gradient = `linear-gradient(90deg, #38b2ac 0%, #38a169 50%, #f59e0b 85%, #e53e3e 100%)`;
+
+  return (
+    <div>
+      <div className="flex justify-between items-center text-sm mb-1.5">
+        <span className="text-text-muted font-medium">{label}</span>
+        <span className="font-bold text-white">{value}</span>
+      </div>
+      <div className="w-full bg-gray-700/50 rounded-full h-2 relative overflow-hidden">
+        {}
+        <div
+          className="h-full rounded-full"
+          style={{
+            width: `${Math.max(0, Math.min(100, percent))}%`,
+            background: gradient,
+            transition: "width 0.5s ease-in-out",
+          }}
+        ></div>
+      </div>
+    </div>
+  );
+});
+
+export default StatBar;
+
 // ===== src/components/predictions/PredictionCard.tsx =====
 
 "use client";
@@ -44597,22 +46341,81 @@ export default function TeamHeader({
 
 "use client";
 
+import { useEffect, Fragment } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import axios from "axios";
+import { useInView } from "react-intersection-observer";
 import { useTranslation } from "@/hooks/useTranslation";
 import HighlightCard, {
   HighlightCardSkeleton,
 } from "@/components/HighlightCard";
-import { Info } from "lucide-react";
+import { Info, Loader2 } from "lucide-react";
+
+interface Highlight {
+  id: number;
+  [key: string]: any;
+}
+
+interface HighlightsApiResponse {
+  highlights: Highlight[];
+  nextPage: number | null;
+}
+
+const fetchTeamHighlights = async (
+  teamName: string,
+  pageParam = 1
+): Promise<HighlightsApiResponse> => {
+  const params = new URLSearchParams({
+    teamName,
+    page: pageParam.toString(),
+    limit: "9",
+  });
+  const { data } = await axios.get(
+    `/api/highlights/aggregate?${params.toString()}`
+  );
+  return data;
+};
 
 interface TeamHighlightsTabProps {
-  highlights: any[] | null;
-  isLoading?: boolean;
+  initialHighlights: Highlight[] | null;
+  teamName: string;
 }
 
 export default function TeamHighlightsTab({
-  highlights,
-  isLoading,
+  initialHighlights,
+  teamName,
 }: TeamHighlightsTabProps) {
   const { t } = useTranslation();
+  const { ref, inView } = useInView({ threshold: 0.5 });
+
+  const {
+    data,
+    isLoading,
+    isError,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ["teamHighlights", teamName],
+    queryFn: ({ pageParam = 1 }) => fetchTeamHighlights(teamName, pageParam),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => lastPage.nextPage,
+    initialData: () => {
+      if (initialHighlights && initialHighlights.length > 0) {
+
+        return {
+          pages: [{ highlights: initialHighlights, nextPage: 2 }],
+          pageParams: [1],
+        };
+      }
+    },
+  });
+
+  useEffect(() => {
+    if (inView && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   if (isLoading) {
     return (
@@ -44624,7 +46427,7 @@ export default function TeamHighlightsTab({
     );
   }
 
-  if (!highlights) {
+  if (isError) {
     return (
       <div className="p-8 text-center text-red-400 bg-brand-secondary rounded-lg">
         <Info size={32} className="mx-auto mb-3" />
@@ -44633,7 +46436,9 @@ export default function TeamHighlightsTab({
     );
   }
 
-  if (highlights.length === 0) {
+  const allHighlights = data?.pages.flatMap((page) => page.highlights);
+
+  if (!allHighlights || allHighlights.length === 0) {
     return (
       <div className="p-8 text-center text-brand-muted bg-brand-secondary rounded-lg">
         <Info size={32} className="mx-auto mb-3" />
@@ -44643,10 +46448,23 @@ export default function TeamHighlightsTab({
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-1">
-      {highlights.map((highlight) => (
-        <HighlightCard key={highlight.id} highlight={highlight} />
-      ))}
+    <div className="p-1">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {allHighlights.map((highlight) => (
+          <HighlightCard key={highlight.id} highlight={highlight} />
+        ))}
+      </div>
+
+      <div ref={ref} className="h-20 flex items-center justify-center">
+        {isFetchingNextPage ? (
+          <div className="flex items-center gap-2 text-brand-muted">
+            <Loader2 size={24} className="animate-spin" />
+            <span>{t("loading_more")}...</span>
+          </div>
+        ) : !hasNextPage ? (
+          <p className="text-brand-muted text-sm">{t("no_more_highlights")}</p>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -44705,6 +46523,93 @@ export default function TeamInfoWidget({ venue }: { venue: any }) {
   );
 }
 
+// ===== src/components/team/TeamNewsTab.tsx =====
+
+"use client";
+
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import { IPost } from "@/models/Post";
+import NewsListItemCompact, {
+  NewsListItemCompactSkeleton,
+} from "@/components/NewsListItemCompact";
+import Pagination from "@/components/Pagination";
+import { Info } from "lucide-react";
+import { useTranslation } from "@/hooks/useTranslation";
+
+interface TeamNewsTabProps {
+  teamId: number;
+}
+
+const ITEMS_PER_PAGE = 10;
+
+const fetchTeamNews = async (teamId: number, page: number, locale: string) => {
+  const params = new URLSearchParams({
+    linkedTeamId: teamId.toString(),
+    page: page.toString(),
+    limit: ITEMS_PER_PAGE.toString(),
+    language: locale,
+  });
+  const { data } = await axios.get(`/api/posts?${params.toString()}`);
+  return data as { posts: IPost[]; pagination: { totalPages: number } };
+};
+
+export default function TeamNewsTab({ teamId }: TeamNewsTabProps) {
+  const { t, locale } = useTranslation();
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["teamNews", teamId, currentPage, locale],
+    queryFn: () => fetchTeamNews(teamId, currentPage, locale!),
+    enabled: !!locale,
+    keepPreviousData: true,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4 p-1">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <NewsListItemCompactSkeleton key={i} />
+        ))}
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="p-8 text-center text-red-400 bg-brand-secondary rounded-lg">
+        <Info size={32} className="mx-auto mb-3" />
+        <p className="font-semibold">{t("error_loading_news")}</p>
+      </div>
+    );
+  }
+
+  if (!data || data.posts.length === 0) {
+    return (
+      <div className="p-8 text-center text-brand-muted bg-brand-secondary rounded-lg">
+        <Info size={32} className="mx-auto mb-3" />
+        <p className="font-semibold">{t("no_news_for_team")}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 p-1">
+      {data.posts.map((post) => (
+        <NewsListItemCompact key={post._id as string} post={post} />
+      ))}
+      {data.pagination.totalPages > 1 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={data.pagination.totalPages}
+          onPageChange={setCurrentPage}
+        />
+      )}
+    </div>
+  );
+}
+
 // ===== src/components/team/TeamSeoWidget.tsx =====
 
 import { BookOpen } from "lucide-react";
@@ -44741,6 +46646,8 @@ import Image from "next/image";
 import { proxyImageUrl } from "@/lib/image-proxy";
 import { Users, Shield, Zap, Goal, UserCircle } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
+import { generatePlayerSlug } from "@/lib/generate-player-slug";
+import StyledLink from "../StyledLink";
 
 const positionStyles: {
   [key: string]: { bg: string; text: string; border: string };
@@ -44773,36 +46680,39 @@ const PlayerRow = ({ player }: { player: any }) => {
     text: "text-gray-400",
     border: "border-gray-500/50",
   };
+  const playerHref = generatePlayerSlug(player.name, player.id);
 
   return (
-    <div
-      className={`flex items-center gap-3 p-2.5 rounded-lg border-l-4 transition-all duration-200 hover:bg-white/5 ${style.border}`}
-    >
-      <div className="relative flex-shrink-0">
-        <Image
-          src={proxyImageUrl(player.photo)}
-          alt={player.name}
-          width={40}
-          height={40}
-          className="rounded-full bg-gray-800"
-        />
-        <span
-          className={`absolute -bottom-1 -right-1 w-5 h-5 flex items-center justify-center rounded-full text-xs font-bold text-white ${style.bg} border-2 border-brand-secondary`}
-        >
-          {player.number || "?"}
-        </span>
+    <StyledLink href={playerHref}>
+      <div
+        className={`flex items-center gap-3 p-2.5 rounded-lg border-l-4 transition-all duration-200 hover:bg-white/5 ${style.border}`}
+      >
+        <div className="relative flex-shrink-0">
+          <Image
+            src={proxyImageUrl(player.photo)}
+            alt={player.name}
+            width={40}
+            height={40}
+            className="rounded-full bg-gray-800"
+          />
+          <span
+            className={`absolute -bottom-1 -right-1 w-5 h-5 flex items-center justify-center rounded-full text-xs font-bold text-white ${style.bg} border-2 border-brand-secondary`}
+          >
+            {player.number || "?"}
+          </span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-white truncate text-sm">{player.name}</p>
+          <p className={`text-xs font-semibold ${style.text}`}>
+            {player.position}
+          </p>
+        </div>
+        <div className="flex-shrink-0 text-right">
+          <p className="font-semibold text-white text-sm">{player.age}</p>
+          <p className="text-xs text-brand-muted">{player.nationality}</p>
+        </div>
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="font-bold text-white truncate text-sm">{player.name}</p>
-        <p className={`text-xs font-semibold ${style.text}`}>
-          {player.position}
-        </p>
-      </div>
-      <div className="flex-shrink-0 text-right">
-        <p className="font-semibold text-white text-sm">{player.age}</p>
-        <p className="text-xs text-brand-muted">{player.nationality}</p>
-      </div>
-    </div>
+    </StyledLink>
   );
 };
 
@@ -44911,6 +46821,43 @@ interface TeamTransfersTabProps {
   currentTeam: { id: number; name: string; logo: string };
 }
 
+const TeamLink = ({
+  team,
+}: {
+  team: { id?: number; name?: string; logo?: string } | null;
+}) => {
+  const { t } = useTranslation();
+
+  if (!team || !team.id || !team.name) {
+    return (
+      <div className="flex items-center gap-2 min-w-0">
+        <div className="w-7 h-7 rounded-full bg-gray-800 flex-shrink-0"></div>
+        <span className="font-semibold text-xs text-brand-muted truncate hidden sm:block">
+          {t("unknown_club", { defaultValue: "Unknown Club" })}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <StyledLink
+      href={generateTeamSlug(team.name, team.id)}
+      className="flex items-center gap-2 hover:opacity-80 transition-opacity min-w-0"
+    >
+      <span className="font-semibold text-xs text-brand-light truncate hidden sm:block">
+        {team.name}
+      </span>
+      <Image
+        src={proxyImageUrl(team.logo)}
+        alt={team.name}
+        width={28}
+        height={28}
+        className="rounded-full bg-gray-800 flex-shrink-0"
+      />
+    </StyledLink>
+  );
+};
+
 const TransferRow = ({
   transfer,
   currentTeam,
@@ -44918,15 +46865,10 @@ const TransferRow = ({
   transfer: CleanedTransfer;
   currentTeam: { id: number; name: string; logo: string };
 }) => {
-  const { t } = useTranslation();
   const isArrival = transfer.teamIn.id === currentTeam.id;
-  const otherTeam = isArrival ? transfer.teamOut : transfer.teamIn;
 
-  const fromTeam = isArrival ? otherTeam : currentTeam;
-  const toTeam = isArrival ? currentTeam : otherTeam;
-
-  const fromTeamName = isArrival ? otherTeam.name : currentTeam.name;
-  const toTeamName = isArrival ? currentTeam.name : otherTeam.name;
+  const fromTeam = isArrival ? transfer.teamOut : currentTeam;
+  const toTeam = isArrival ? currentTeam : transfer.teamIn;
 
   return (
     <div className="flex items-center gap-4 p-3 bg-brand-dark/50 rounded-lg border-b border-gray-700/50">
@@ -44949,42 +46891,18 @@ const TransferRow = ({
       </div>
 
       <div className="w-3/5 flex items-center justify-end gap-2">
-        <StyledLink
-          href={generateTeamSlug(fromTeam.name, fromTeam.id)}
-          className="flex items-center gap-2 text-right hover:opacity-80 transition-opacity min-w-0"
-        >
-          <span className="font-semibold text-xs text-brand-light truncate hidden sm:block">
-            {fromTeamName}
-          </span>
-          <Image
-            src={proxyImageUrl(fromTeam.logo)}
-            alt={fromTeam.name}
-            width={28}
-            height={28}
-            className="rounded-full bg-gray-800"
-          />
-        </StyledLink>
+        <div className="flex justify-end text-right">
+          <TeamLink team={fromTeam} />
+        </div>
 
         <ArrowRight
           size={20}
           className={isArrival ? "text-green-400" : "text-red-400"}
         />
 
-        <StyledLink
-          href={generateTeamSlug(toTeam.name, toTeam.id)}
-          className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity min-w-0"
-        >
-          <Image
-            src={proxyImageUrl(toTeam.logo)}
-            alt={toTeam.name}
-            width={28}
-            height={28}
-            className="rounded-full bg-gray-800"
-          />
-          <span className="font-semibold text-xs text-brand-light truncate hidden sm:block">
-            {toTeamName}
-          </span>
-        </StyledLink>
+        <div className="flex justify-start text-left">
+          <TeamLink team={toTeam} />
+        </div>
       </div>
     </div>
   );
@@ -45019,9 +46937,7 @@ export default function TeamTransfersTab({
 
   return (
     <div className="bg-brand-secondary rounded-xl p-4">
-      {}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {}
         <div>
           <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-3">
             <ArrowRight className="text-green-400 bg-green-500/10 p-1.5 rounded-full w-8 h-8" />
@@ -45047,7 +46963,6 @@ export default function TeamTransfersTab({
           </div>
         </div>
 
-        {}
         <div>
           <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-3">
             <ArrowLeft className="text-red-400 bg-red-500/10 p-1.5 rounded-full w-8 h-8" />
@@ -45145,65 +47060,153 @@ export default function TeamTrophiesWidget({ teamId }: { teamId: number }) {
 
 "use client";
 
-import { useState } from "react";
-import AdSlotWidget from "@/components/AdSlotWidget";
-
+import { useState, useMemo, Suspense, useEffect } from "react";
+import { usePathname } from "next/navigation";
+import dynamic from "next/dynamic";
+import { useTranslation } from "@/hooks/useTranslation";
+import { generateLeagueSlug } from "@/lib/generate-league-slug";
 import TeamHeader from "./TeamHeader";
-import TeamInfoWidget from "./TeamInfoWidget";
-import TeamTrophiesWidget from "./TeamTrophiesWidget";
-import TeamSquadTab from "./TeamSquadWidget";
+import {
+  CalendarClock,
+  Users,
+  ListOrdered,
+  Repeat,
+  Film,
+  Newspaper,
+} from "lucide-react";
 
-import LeagueFixturesWidget from "@/components/league-detail-view/LeagueFixturesWidget";
+const TeamSquadWidget = dynamic(() => import("./TeamSquadWidget"));
+const TeamFixturesWidget = dynamic(() => import("./TeamFixturesWidget"));
+const LeagueStandingsWidget = dynamic(
+  () => import("@/components/league-detail-view/LeagueStandingsWidget")
+);
+const TeamTransfersTab = dynamic(() => import("./TeamTransfersTab"));
+const TeamHighlightsTab = dynamic(() => import("./TeamHighlightsTab"));
+const TeamNewsTab = dynamic(() => import("./TeamNewsTab"));
 
-const TABS = ["Squad", "Fixtures", "Standings"];
+const DEFAULT_TAB = "Fixtures";
 
 export default function TeamDetailView({ teamData }: { teamData: any }) {
-  const [activeTab, setActiveTab] = useState(TABS[0]);
+  const { t } = useTranslation();
+  const pathname = usePathname();
 
-  const { teamInfo, squad, fixtures } = teamData;
-  const { team, venue } = teamInfo;
+  const [activeTab, setActiveTab] = useState(DEFAULT_TAB);
+
+  const { teamInfo, squad, fixtures, standings, transfers, highlights } =
+    teamData;
+  const { team } = teamInfo;
+
+  const primaryLeague = useMemo(() => {
+    if (!standings || standings.length === 0) return null;
+    const league = standings[0]?.league;
+    return league
+      ? { ...league, href: generateLeagueSlug(league.name, league.id) }
+      : null;
+  }, [standings]);
+
+  const TABS = useMemo(
+    () => [
+      { name: "Fixtures", icon: CalendarClock },
+      { name: "News", icon: Newspaper },
+      { name: "Squad", icon: Users },
+      ...(primaryLeague ? [{ name: "Standings", icon: ListOrdered }] : []),
+      { name: "Transfers", icon: Repeat },
+      { name: "Highlights", icon: Film },
+    ],
+    [primaryLeague]
+  );
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace("#", "");
+      const tabFromHash = hash.charAt(0).toUpperCase() + hash.slice(1);
+
+      const isValidTab = TABS.some(
+        (tab) => tab.name.toLowerCase() === hash.toLowerCase()
+      );
+
+      setActiveTab(isValidTab ? tabFromHash : DEFAULT_TAB);
+    };
+
+    handleHashChange();
+
+    window.addEventListener("hashchange", handleHashChange);
+    return () => {
+      window.removeEventListener("hashchange", handleHashChange);
+    };
+  }, [pathname, TABS]);
+
+  const handleTabClick = (tabName: string) => {
+
+    window.location.hash = tabName.toLowerCase();
+  };
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case "Squad":
+        return <TeamSquadWidget squad={squad} />;
+      case "Standings":
+        return primaryLeague ? (
+          <LeagueStandingsWidget
+            initialStandings={standings[0].league.standings}
+            leagueSeasons={[]}
+            currentSeason={primaryLeague.season}
+            isLoading={false}
+            hideSeasonDropdown={true}
+            leagueId={primaryLeague.id}
+            leagueSlug={primaryLeague.href.split("/").pop()}
+          />
+        ) : null;
+      case "Transfers":
+        return <TeamTransfersTab transfers={transfers} currentTeam={team} />;
+      case "Highlights":
+        return (
+          <TeamHighlightsTab
+            initialHighlights={highlights}
+            teamName={team.name}
+          />
+        );
+      case "News":
+        return <TeamNewsTab teamId={team.id} />;
+      case "Fixtures":
+      default:
+        return <TeamFixturesWidget fixtures={fixtures} />;
+    }
+  };
 
   return (
-    <div>
-      <TeamHeader team={team} countryFlag={fixtures?.[0]?.league?.flag || ""} />
+    <div className="space-y-6">
+      <TeamHeader
+        team={team}
+        countryFlag={fixtures?.[0]?.league?.flag || ""}
+        foundedText={t("founded_in", { year: team.founded })}
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-brand-secondary rounded-lg p-2 flex items-center space-x-2">
-            {TABS.map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-colors ${
-                  activeTab === tab
-                    ? "bg-brand-purple text-white"
-                    : "text-brand-muted hover:bg-gray-700/50"
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
+      <div className="bg-brand-secondary rounded-lg p-2 flex items-center space-x-2 sticky top-[88px] z-30 overflow-x-auto scrollbar-hide">
+        {TABS.map((tab) => (
+          <button
+            key={tab.name}
+            onClick={() => handleTabClick(tab.name)}
+            className={`flex-shrink-0 flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-semibold transition-colors ${
+              activeTab === tab.name
+                ? "bg-[var(--brand-accent)] text-white shadow-md"
+                : "text-brand-muted hover:bg-white/5 hover:text-white"
+            }`}
+          >
+            <tab.icon size={16} />
+            {t(tab.name.toLowerCase())}
+          </button>
+        ))}
+      </div>
 
-          <div>
-            {activeTab === "Squad" && <TeamSquadTab squad={squad} />}
-            {activeTab === "Fixtures" && (
-
-              <LeagueFixturesWidget leagueId={fixtures?.[0]?.league?.id} />
-            )}
-            {activeTab === "Standings" && (
-              <div className="bg-brand-secondary p-8 rounded-lg text-center">
-                <p>Team Standings Tab - Coming Soon!</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <aside className="lg:col-span-1 space-y-6">
-          <TeamInfoWidget venue={venue} />
-          <TeamTrophiesWidget teamId={team.id} />
-          <AdSlotWidget />
-        </aside>
+      <div className="min-h-[400px]">
+        <Suspense
+          fallback={
+            <div className="w-full h-96 bg-brand-secondary rounded-lg animate-pulse"></div>
+          }
+        >
+          {renderTabContent()}
+        </Suspense>
       </div>
     </div>
   );
@@ -46150,59 +48153,150 @@ export const sendGAEvent = (action: string, params: { [key: string]: any }) => {
   }
 };
 
+// ===== src/lib/color-extractor.ts =====
+
+"use client";
+
+import { useColor } from "color-thief-react";
+import { proxyImageUrl } from "./image-proxy";
+
+export const useTeamColor = (logoUrl: string) => {
+  const proxiedUrl = proxyImageUrl(logoUrl);
+
+  const {
+    data: dominantColor,
+    loading,
+    error,
+  } = useColor(proxiedUrl, "hex", {
+    crossOrigin: "anonymous",
+    quality: 10,
+  });
+
+  if (loading || error || !dominantColor) {
+
+    return "#4a5568";
+  }
+
+  return dominantColor;
+};
+
 // ===== src/lib/data/directory.ts =====
 
 import "server-only";
+import redis from "@/lib/redis";
+import { generateStandingsSlug } from "@/lib/generate-standings-slug";
 import axios from "axios";
-import { generateStandingsSlug } from "../generate-standings-slug";
+import { League } from "@/types/api-football";
+import { topLeaguesConfig } from "@/config/topLeaguesConfig";
 
-const STANDINGS_LEAGUE_IDS = new Set([
-  39, 140, 135, 78, 61, 2, 3, 848, 88, 94, 203, 144, 179, 218, 207, 253, 262,
-  71, 128, 239, 265, 130, 98, 307, 20,
-]);
+const FULL_LIST_CACHE_KEY = `leagues:directory:standings-full-list-v4`;
+const CACHE_TTL_SECONDS = 60 * 60 * 24 * 3;
 
-async function apiRequest(endpoint: string, params: object) {
-  const options = {
-    method: "GET",
-    url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/${endpoint}`,
-    params,
-    headers: { "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
-    timeout: 10000,
+const fetchAndCacheFullLeagueList = async (): Promise<League[]> => {
+  console.log(
+    "[data/directory] Cache MISS for standings leagues. Fetching from external API."
+  );
+
+  const response = await axios.get(
+    `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/leagues`,
+    {
+      params: { current: "true" },
+      headers: { "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
+    }
+  );
+
+  const allLeagues = response.data.response;
+  const standingsLeagues = allLeagues.filter(
+    (item: any) => item.league.type === "League"
+  );
+
+  const transformedData: League[] = standingsLeagues.map((item: any) => ({
+    id: item.league.id,
+    name: item.league.name,
+    logoUrl: item.league.logo,
+    countryName: item.country.name,
+    countryFlagUrl: item.country.flag,
+    type: item.league.type,
+    href: `/football/standings/${generateStandingsSlug(
+      item.league.name,
+      item.league.id
+    )}`,
+  }));
+
+  const popularLeagueIds = new Set(
+    topLeaguesConfig.map((l) => parseInt(l.leagueId))
+  );
+  transformedData.sort((a, b) => {
+    const isAPopular = popularLeagueIds.has(a.id);
+    const isBPopular = popularLeagueIds.has(b.id);
+    const aHasImage = !!a.logoUrl;
+    const bHasImage = !!b.logoUrl;
+    if (isAPopular !== isBPopular) return isAPopular ? -1 : 1;
+    if (aHasImage !== bHasImage) return aHasImage ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  if (transformedData.length > 0) {
+    await redis.set(
+      FULL_LIST_CACHE_KEY,
+      JSON.stringify(transformedData),
+      "EX",
+      CACHE_TTL_SECONDS
+    );
+  }
+  return transformedData;
+};
+
+interface GetStandingsLeaguesParams {
+  page?: number;
+  limit?: number;
+  searchQuery?: string;
+}
+
+export const getStandingsLeagues = async ({
+  page = 1,
+  limit = 18,
+  searchQuery = "",
+}: GetStandingsLeaguesParams) => {
+  let allLeagues: League[] | null = null;
+  try {
+    const cachedData = await redis.get(FULL_LIST_CACHE_KEY);
+    if (cachedData) {
+      allLeagues = JSON.parse(cachedData);
+    }
+  } catch (e) {
+    console.error(
+      "[data/directory] Redis GET failed for standings leagues:",
+      e
+    );
+  }
+
+  if (!allLeagues) {
+    allLeagues = await fetchAndCacheFullLeagueList();
+  }
+
+  const filteredLeagues = searchQuery
+    ? allLeagues.filter(
+        (league) =>
+          league.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          league.countryName.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : allLeagues;
+
+  const skip = (page - 1) * limit;
+  const paginatedLeagues = filteredLeagues.slice(skip, skip + limit);
+  const totalCount = filteredLeagues.length;
+  const totalPages = Math.ceil(totalCount / limit);
+
+  return {
+    leagues: paginatedLeagues,
+    pagination: {
+      currentPage: page,
+      totalPages,
+      totalCount,
+    },
   };
-  try {
-    const response = await axios.request(options);
-    return response.data.response;
-  } catch (error) {
-    console.error(
-      `[data/directory] API request failed for ${endpoint}:`,
-      error
-    );
-    return [];
-  }
-}
-
-export async function getLeaguesForStandingsSitemap() {
-  try {
-    const leagues = await apiRequest("leagues", { current: "true" });
-
-    const popularLeagues = leagues.filter(
-      (item: any) =>
-        STANDINGS_LEAGUE_IDS.has(item.league.id) &&
-        item.league.type === "League"
-    );
-
-    return popularLeagues.map((item: any) => ({
-      id: item.league.id,
-      name: item.league.name,
-    }));
-  } catch (error) {
-    console.error(
-      "[data/directory] Failed to fetch leagues for standings sitemap:",
-      error
-    );
-    return [];
-  }
-}
+};
 
 // ===== src/lib/data/fixtures.ts =====
 
@@ -46535,48 +48629,65 @@ export async function getHighlightsForLeague(
 // ===== src/lib/data/league-static.ts =====
 
 import "server-only";
-import fs from "fs/promises";
-import path from "path";
 import { cache } from "react";
+import redis from "@/lib/redis";
+import axios from "axios";
 
 export interface StaticLeague {
-  id: number;
-  name: string;
-  logoUrl: string;
-  countryName: string;
-  countryFlagUrl: string | null;
-  type: string;
-  href: string;
+  league: any;
+  country: any;
+  seasons: any[];
 }
 
-let leagueDataCache: StaticLeague[] | null = null;
+export const getLeagueStaticData = cache(
+  async (leagueId: string): Promise<StaticLeague | null> => {
+    const cacheKey = `league:static:${leagueId}`;
 
-export const getLeaguesStaticData = cache(async (): Promise<StaticLeague[]> => {
+    try {
+      const cachedData = await redis.get(cacheKey);
+      if (cachedData) {
+        return JSON.parse(cachedData);
+      }
+    } catch (e) {
+      console.error(
+        `[data/league-static] Redis GET failed for key ${cacheKey}:`,
+        e
+      );
+    }
 
-  if (leagueDataCache) {
-    return leagueDataCache;
-  }
-
-  try {
-    const filePath = path.join(
-      process.cwd(),
-      "public/data/leagues-static.json"
+    console.warn(
+      `[data/league-static] Cache MISS for league ${leagueId}. Fetching from API...`
     );
-    const fileContent = await fs.readFile(filePath, "utf-8");
-    const data: StaticLeague[] = JSON.parse(fileContent);
+    try {
+      const response = await axios.get<{ response: StaticLeague[] }>(
+        `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/leagues`,
+        {
+          params: { id: leagueId },
+          headers: {
+            "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY,
+          },
+        }
+      );
 
-    leagueDataCache = data;
-
-    return data;
-  } catch (error) {
-    console.error(
-      "Error reading static league data file. This is critical for directory pages.",
-      error
-    );
-
-    return [];
+      const leagueData = response.data.response?.[0];
+      if (leagueData) {
+        await redis.set(
+          cacheKey,
+          JSON.stringify(leagueData),
+          "EX",
+          60 * 60 * 24 * 7
+        );
+      }
+      return leagueData || null;
+    } catch (error) {
+      console.error(
+        `[data/league-static] API fallback failed for league ${leagueId}:`,
+        error
+      );
+      return null;
+    }
   }
-});
+);
 
 // ===== src/lib/data/league.ts =====
 
@@ -46711,7 +48822,6 @@ import axios from "axios";
 import "server-only";
 import redis from "@/lib/redis";
 import { logApiRequest, RequestContext } from "@/lib/logging";
-import { calculateCustomPrediction } from "@/lib/prediction-engine";
 import { getNews } from "@/lib/data/news";
 import { getMatchHighlights as fetchHighlights } from "@/lib/data/highlightly";
 
@@ -46723,17 +48833,18 @@ const apiRequest = async <T>(
   params: object,
   cacheKey: string,
   ttl: number,
-  context: RequestContext
+  context?: RequestContext
 ): Promise<T | null> => {
   try {
     const cachedData = await redis.get(cacheKey);
     if (cachedData) {
-
       return JSON.parse(cachedData);
     }
+  } catch (e) {
 
-    logApiRequest(endpoint, params, context);
+  }
 
+  try {
     const options = {
       method: "GET",
       url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/${endpoint}`,
@@ -46752,6 +48863,7 @@ const apiRequest = async <T>(
     console.error(
       `[data/match.ts] API request for ${endpoint} with key ${cacheKey} failed: ${error.message}. Attempting to serve from cache.`
     );
+
     try {
       const cachedData = await redis.get(cacheKey);
       if (cachedData) {
@@ -46772,7 +48884,7 @@ const apiRequest = async <T>(
 
 export const getFixture = async (
   fixtureId: string,
-  context: RequestContext
+  context?: RequestContext
 ) => {
   const cacheKey = `fixture:${fixtureId}`;
   const fixtureResponse = await apiRequest<any[]>(
@@ -46788,7 +48900,7 @@ export const getFixture = async (
 
 export const getStatistics = async (
   fixtureId: string,
-  context: RequestContext
+  context?: RequestContext
 ) => {
   const cacheKey = `statistics:${fixtureId}`;
   return await apiRequest<any[]>(
@@ -46803,7 +48915,7 @@ export const getStatistics = async (
 export const getH2H = async (
   homeTeamId: number,
   awayTeamId: number,
-  context: RequestContext
+  context?: RequestContext
 ) => {
   const sortedIds = [homeTeamId, awayTeamId].sort();
   const cacheKey = `h2h:${sortedIds[0]}-${sortedIds[1]}`;
@@ -46820,7 +48932,7 @@ export const getTeamStats = async (
   leagueId: number,
   season: number,
   teamId: number,
-  context: RequestContext
+  context?: RequestContext
 ) => {
   const cacheKey = `team-stats:${teamId}:${leagueId}:${season}`;
   return await apiRequest<any>(
@@ -46835,7 +48947,7 @@ export const getTeamStats = async (
 export const getStandings = async (
   leagueId: number,
   season: number,
-  context: RequestContext
+  context?: RequestContext
 ) => {
   const cacheKey = `standings:${leagueId}:${season}`;
   return await apiRequest<any[]>(
@@ -46849,7 +48961,7 @@ export const getStandings = async (
 
 export const getBookmakerOdds = async (
   fixtureId: string,
-  context: RequestContext
+  context?: RequestContext
 ) => {
   const cacheKey = `odds:${fixtureId}`;
   const response = await apiRequest<any[]>(
@@ -47006,6 +49118,109 @@ export async function getNews(params: GetNewsParams): Promise<{
   }
 }
 
+// ===== src/lib/data/player.ts =====
+
+"use server-only";
+import axios from "axios";
+import redis from "@/lib/redis";
+
+const API_HOST = process.env.NEXT_PUBLIC_API_FOOTBALL_HOST;
+const API_KEY = process.env.NEXT_PUBLIC_API_FOOTBALL_KEY;
+const CACHE_TTL = 60 * 60 * 24;
+
+const apiRequest = async <T>(
+  endpoint: string,
+  params: object,
+  cacheKey: string
+): Promise<T | null> => {
+  try {
+    const cachedData = await redis.get(cacheKey);
+    if (cachedData) {
+      return JSON.parse(cachedData);
+    }
+  } catch (e) {
+
+  }
+
+  try {
+    const response = await axios.get<{ response: T }>(
+      `${API_HOST}/${endpoint}`,
+      {
+        params,
+        headers: { "x-apisports-key": API_KEY },
+        timeout: 8000,
+      }
+    );
+    const data = response.data.response;
+    if (data && (!Array.isArray(data) || data.length > 0)) {
+      await redis.set(cacheKey, JSON.stringify(data), "EX", CACHE_TTL);
+    }
+    return data;
+  } catch (error) {
+    console.error(
+      `[data/player] API fetch failed for ${endpoint} with key ${cacheKey}:`,
+      error
+    );
+    return null;
+  }
+};
+
+export const getPlayerSeasons = async (playerId: string): Promise<number[]> => {
+  const seasonsData = await apiRequest<number[]>(
+    "players/seasons",
+    { player: playerId },
+    `player:seasons:${playerId}`
+  );
+
+  if (!seasonsData || seasonsData.length === 0) {
+    return [];
+  }
+
+  return seasonsData.sort((a, b) => b - a);
+};
+
+export const getPlayerStats = (playerId: string, season: string) =>
+  apiRequest<any[]>(
+    "players",
+    { id: playerId, season },
+    `player:stats:${playerId}:${season}`
+  );
+
+export const getPlayerTransfers = (playerId: string) =>
+  apiRequest<any[]>(
+    "transfers",
+    { player: playerId },
+    `player:transfers:${playerId}`
+  );
+
+export const getPlayerTrophies = (playerId: string) =>
+  apiRequest<any[]>(
+    "trophies",
+    { player: playerId },
+    `player:trophies:${playerId}`
+  );
+
+export const getTeamSquad = (teamId: number) =>
+  apiRequest<any[]>("players/squads", { team: teamId }, `team:squad:${teamId}`);
+
+export const getPlayerPageData = async (playerId: string, season: string) => {
+  const [stats, transfers, trophies] = await Promise.all([
+    getPlayerStats(playerId, season),
+    getPlayerTransfers(playerId),
+    getPlayerTrophies(playerId),
+  ]);
+
+  if (!stats || stats.length === 0) {
+    return null;
+  }
+
+  return {
+    stats: stats[0],
+    transfers,
+    trophies,
+  };
+};
+
 // ===== src/lib/data/seo.ts =====
 
 import "server-only";
@@ -47060,38 +49275,65 @@ export async function getInitialStandingsData(
 // ===== src/lib/data/team-static.ts =====
 
 import "server-only";
-import fs from "fs/promises";
-import path from "path";
 import { cache } from "react";
+import redis from "@/lib/redis";
+import axios from "axios";
 
 interface TeamStaticData {
-  [key: string]: {
-    team: any;
-    venue: any;
-  };
+  team: any;
+  venue: any;
 }
 
-let teamDataCache: TeamStaticData | null = null;
+export const getTeamStaticData = cache(
+  async (teamId: string): Promise<TeamStaticData | null> => {
+    const cacheKey = `team:static:${teamId}`;
 
-export const getTeamStaticData = cache(async (): Promise<TeamStaticData> => {
-  if (teamDataCache) {
-    return teamDataCache;
-  }
+    try {
+      const cachedData = await redis.get(cacheKey);
+      if (cachedData) {
+        return JSON.parse(cachedData);
+      }
+    } catch (e) {
+      console.error(
+        `[data/team-static] Redis GET failed for key ${cacheKey}:`,
+        e
+      );
+    }
 
-  try {
-    const filePath = path.join(process.cwd(), "public/data/teams-static.json");
-    const fileContent = await fs.readFile(filePath, "utf-8");
-    teamDataCache = JSON.parse(fileContent);
-    return teamDataCache!;
-  } catch (error) {
-    console.error(
-      "Error reading static team data file. Returning empty object.",
-      error
+    console.warn(
+      `[data/team-static] Cache MISS for team ${teamId}. Fetching from API...`
     );
+    try {
+      const response = await axios.get<{ response: TeamStaticData[] }>(
+        `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/teams`,
+        {
+          params: { id: teamId },
+          headers: {
+            "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY,
+          },
+        }
+      );
 
-    return {};
+      const teamData = response.data.response?.[0];
+      if (teamData) {
+
+        await redis.set(
+          cacheKey,
+          JSON.stringify(teamData),
+          "EX",
+          60 * 60 * 24 * 7
+        );
+      }
+      return teamData || null;
+    } catch (error) {
+      console.error(
+        `[data/team-static] API fallback failed for team ${teamId}:`,
+        error
+      );
+      return null;
+    }
   }
-});
+);
 
 // ===== src/lib/data/team.ts =====
 
@@ -47099,9 +49341,132 @@ import axios from "axios";
 import redis from "@/lib/redis";
 import "server-only";
 import { cache } from "react";
+import Team from "@/models/Team";
+import { topLeaguesConfig } from "@/config/topLeaguesConfig";
+import dbConnect from "@/lib/dbConnect";
+
+const BASE_URL = process.env.APP_URL || "http://localhost:3000";
 
 const STATIC_CACHE_TTL = 60 * 60 * 24;
 const DYNAMIC_CACHE_TTL = 60 * 60 * 6;
+
+const getPopularTeams = async () => {
+  try {
+    const season = new Date().getFullYear();
+    const popularLeagueIds = topLeaguesConfig
+      .sort((a, b) => a.priority - b.priority)
+      .slice(0, 6)
+      .map((l) => l.leagueId);
+
+    const teamPromises = popularLeagueIds.map((leagueId) =>
+      axios.get(`${BASE_URL}/api/teams?league=${leagueId}&season=${season}`)
+    );
+
+    const responses = await Promise.allSettled(teamPromises);
+    const allTeams = responses
+      .filter((res) => res.status === "fulfilled" && res.value.data)
+      .flatMap((res) => (res as PromiseFulfilledResult<any>).value.data);
+
+    return Array.from(
+      new Map(allTeams.map((item) => [item.team.id, item])).values()
+    );
+  } catch (error) {
+
+    return [];
+  }
+};
+
+const formatTeamsForResponse = (teams: any[]) => {
+  return teams.map((teamData) => {
+    const team = teamData.team || teamData;
+    const venue = teamData.venue || team;
+    return {
+      team: {
+        id: team.teamId || team.id,
+        name: team.name,
+        logo: team.logoUrl || team.logo,
+        country: team.country,
+        founded: team.founded,
+      },
+      venue: {
+        name: venue.venueName || venue.name,
+        city: venue.venueCity || venue.city,
+      },
+    };
+  });
+};
+
+interface GetPaginatedTeamsParams {
+  page?: number;
+  limit?: number;
+  searchQuery?: string;
+}
+
+export const getPaginatedTeams = async ({
+  page = 1,
+  limit = 21,
+  searchQuery = "",
+}: GetPaginatedTeamsParams) => {
+  await dbConnect();
+  const skip = (page - 1) * limit;
+
+  let teams = [];
+  let totalCount = 0;
+
+  const searchFilter =
+    searchQuery.length >= 3
+      ? {
+          $or: [
+            { name: { $regex: new RegExp(searchQuery, "i") } },
+            { country: { $regex: new RegExp(searchQuery, "i") } },
+          ],
+        }
+      : {};
+
+  if (page === 1 && !searchQuery) {
+
+    const popularTeams = await getPopularTeams();
+    const popularTeamIds = new Set(popularTeams.map((t) => t.team.id));
+    const neededRegularTeams = limit - popularTeams.length;
+
+    const regularTeams =
+      neededRegularTeams > 0
+        ? await Team.find({ teamId: { $nin: Array.from(popularTeamIds) } })
+            .sort({ name: 1 })
+            .limit(neededRegularTeams)
+            .lean()
+        : [];
+
+    const combinedList = [...popularTeams, ...regularTeams];
+    combinedList.sort((a, b) => {
+      const aHasImage = !!(a.team?.logo || a.logoUrl);
+      const bHasImage = !!(b.team?.logo || b.logoUrl);
+      if (aHasImage !== bHasImage) return aHasImage ? -1 : 1;
+      return 0;
+    });
+
+    teams = combinedList.slice(0, limit);
+    totalCount = await Team.countDocuments({});
+  } else {
+
+    [teams, totalCount] = await Promise.all([
+      Team.find(searchFilter)
+        .sort({ country: 1, name: 1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Team.countDocuments(searchFilter),
+    ]);
+  }
+
+  const formattedTeams = formatTeamsForResponse(teams);
+  const totalPages = Math.ceil(totalCount / limit);
+
+  return {
+    teams: formattedTeams,
+    pagination: { currentPage: page, totalPages, totalCount },
+  };
+};
 
 const apiRequest = async <T>(
   endpoint: string,
@@ -47112,13 +49477,13 @@ const apiRequest = async <T>(
   try {
     const cachedData = await redis.get(cacheKey);
     if (cachedData) {
-
       return JSON.parse(cachedData);
     }
-    console.log(
-      `[data/team] Cache MISS for key: ${cacheKey}. Fetching from API...`
-    );
+  } catch (e) {
 
+  }
+
+  try {
     const options = {
       method: "GET",
       url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/${endpoint}`,
@@ -47141,9 +49506,7 @@ const apiRequest = async <T>(
     try {
       const cachedData = await redis.get(cacheKey);
       if (cachedData) {
-        console.log(
-          `[data/team] ✓ Successfully served STALE data for key: ${cacheKey}`
-        );
+
         return JSON.parse(cachedData);
       }
     } catch (cacheError) {
@@ -47173,6 +49536,7 @@ export const getTeamSquad = cache(async (teamId: string) => {
     `team:squad:${teamId}`,
     STATIC_CACHE_TTL
   );
+
   return data?.[0]?.players ?? [];
 });
 
@@ -47192,7 +49556,6 @@ export const getTeamStandings = cache(async (teamId: string) => {
   try {
     const cachedData = await redis.get(cacheKey);
     if (cachedData) {
-
       return JSON.parse(cachedData);
     }
 
@@ -47215,7 +49578,6 @@ export const getTeamStandings = cache(async (teamId: string) => {
           item.league.type === "League" &&
           item.seasons.some((s: any) => s.year.toString() === season)
       )
-
       .sort((a, b) => a.league.id - b.league.id)[0];
 
     if (!primaryLeagueInfo) {
@@ -47227,9 +49589,6 @@ export const getTeamStandings = cache(async (teamId: string) => {
 
     const { league } = primaryLeagueInfo;
 
-    console.log(
-      `[data/team] Found primary league ${league.name} (${league.id}) for team ${teamId}. Fetching standings...`
-    );
     const standingsData = await apiRequest<any[]>(
       "standings",
       { league: league.id, season: season },
@@ -47243,26 +49602,21 @@ export const getTeamStandings = cache(async (teamId: string) => {
       "EX",
       DYNAMIC_CACHE_TTL
     );
-
     return standingsData;
   } catch (error) {
     console.error(
       `[data/team] CRITICAL: Failed to execute getTeamStandings for team ${teamId}`,
       error
     );
-
     try {
       const cachedData = await redis.get(cacheKey);
       if (cachedData) return JSON.parse(cachedData);
-    } catch (e) {
-
-    }
+    } catch (e) {}
     return null;
   }
 });
 
 export async function getTeamPageData(teamId: string) {
-
   const [teamInfo, squad, fixtures, standings] = await Promise.all([
     getTeamInfo(teamId),
     getTeamSquad(teamId),
@@ -47634,6 +49988,23 @@ export function generateMatchSlug(
   return `/football/match/${homeSlug}-vs-${awaySlug}-${fixtureId}`;
 }
 
+// ===== src/lib/generate-player-slug.ts =====
+
+import slugify from "slugify";
+
+export const generatePlayerSlug = (
+  playerName: string,
+  playerId: number
+): string => {
+  const nameSlug = slugify(playerName, {
+    lower: true,
+    strict: true,
+    remove: /[*+~.()'"!:@]/g,
+  });
+
+  return `/football/players/${playerId}/${nameSlug}`;
+};
+
 // ===== src/lib/generate-standings-slug.ts =====
 
 import slugify from "slugify";
@@ -47940,6 +50311,7 @@ export class I18nCache {
       let foundDefault = false;
 
       if (activeLanguages.length === 0) {
+
         this.isInitialized = !isProduction;
         return;
       }
@@ -47971,13 +50343,15 @@ export class I18nCache {
 
       if (isProduction) {
         const redisPipeline = redis.pipeline();
-        redisPipeline.hset(
+
+        redisPipeline.set(
           CACHE_KEYS.LOCALES,
           JSON.stringify(Array.from(newCache.keys()))
         );
-        redisPipeline.hset(CACHE_KEYS.DEFAULT_LOCALE, this.defaultLocale);
+        redisPipeline.set(CACHE_KEYS.DEFAULT_LOCALE, this.defaultLocale);
         for (const [locale, data] of newCache.entries()) {
-          redisPipeline.hset(
+
+          redisPipeline.set(
             `${CACHE_KEYS.TRANSLATIONS_PREFIX}${locale}`,
             JSON.stringify(data),
             "EX",
@@ -48055,8 +50429,9 @@ import "server-only";
 import { i18nCache } from "./i18n.cache";
 
 export async function getI18n(localeFromParams?: string) {
-  const supportedLocales = await i18nCache.getLocales();
-  const defaultLocale = await i18nCache.getDefaultLocale();
+  const supportedLocales = ["tr", "en", "fr", "es", "zu", "it"];
+
+  const defaultLocale = "tr";
 
   const validatedLocale =
     localeFromParams && supportedLocales.includes(localeFromParams)
@@ -48326,12 +50701,44 @@ export function logApiRequest(
 
 }
 
+// ===== src/lib/meta-generator.ts =====
+
+import metaTemplates from "public/data/dynamic-meta.json";
+
+type PageType = "team" | "match";
+type PlaceholderValues = { [key: string]: string | number };
+
+export function generateDynamicMeta(
+  pageType: PageType,
+  locale: string,
+  values: PlaceholderValues
+): { title: string; description: string } {
+  const templates = (metaTemplates as any)[pageType];
+  if (!templates) {
+    return { title: "Fanskor", description: "Live football scores and news." };
+  }
+
+  const template = templates[locale] || templates.en;
+
+  let { title, description } = template;
+
+  for (const key in values) {
+    const regex = new RegExp(`{${key}}`, "g");
+    title = title.replace(regex, values[key]);
+    description = description.replace(regex, values[key]);
+  }
+
+  return { title, description };
+}
+
 // ===== src/lib/mongoClient.ts =====
 
 import { MongoClient } from "mongodb";
 
 if (!process.env.NEXT_PUBLIC_MONGODB_URI) {
-  throw new Error('Invalid/Missing environment variable: "NEXT_PUBLIC_MONGODB_URI"');
+  throw new Error(
+    'Invalid/Missing environment variable: "NEXT_PUBLIC_MONGODB_URI"'
+  );
 }
 
 const uri = process.env.NEXT_PUBLIC_MONGODB_URI;
@@ -49238,6 +51645,200 @@ export async function runSeoGenerationForEntity(
     } languages for entity ${entityId}.`,
     processedCount: successfulOps.length + 1,
   };
+}
+
+// ===== src/lib/sitemap-generators.ts =====
+
+import "server-only";
+import mongoose from "mongoose";
+import dbConnect from "@/lib/dbConnect";
+import Post from "@/models/Post";
+import Team from "@/models/Team";
+import League from "@/models/League";
+
+import { getFixturesByDateRange } from "@/lib/data/fixtures";
+import { generatePlayerSlug } from "@/lib/generate-player-slug";
+import { generateLeagueSlug } from "@/lib/generate-league-slug";
+import { generateTeamSlug } from "@/lib/generate-team-slug";
+import { generateMatchSlug } from "@/lib/generate-match-slug";
+import { DEFAULT_LOCALE } from "@/lib/i18n/config";
+import { format, subDays, addDays } from "date-fns";
+import axios from "axios";
+
+const BASE_URL =
+  process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
+
+type SitemapEntry = { url: string; lastModified?: string | Date };
+
+const generateXml = (
+  entries: SitemapEntry[],
+  changeFrequency: string,
+  priority: number
+): string => {
+  const urls = entries
+    .map(
+      (entry) => `
+    <url>
+      <loc>${entry.url}</loc>
+      <lastmod>${new Date(
+        entry.lastModified || new Date()
+      ).toISOString()}</lastmod>
+      <changefreq>${changeFrequency}</changefreq>
+      <priority>${priority}</priority>
+    </url>
+  `
+    )
+    .join("");
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}</urlset>`;
+};
+
+const getUrl = (path: string, locale: string) => {
+  const localePrefix = locale === DEFAULT_LOCALE ? "" : `/${locale}`;
+  const finalPath = path === "/" ? "" : path;
+  return `${BASE_URL}${localePrefix}${finalPath}`;
+};
+
+export async function generateCoreSitemap(locale: string) {
+  const staticPaths = [
+    "/",
+    "/football/news",
+    "/news",
+    "/football/leagues",
+    "/football/teams",
+    "/contact-us",
+    "/faq",
+    "/author",
+    "/privacy-policy",
+    "/terms-and-conditions",
+    "/gdpr",
+    "/predictions",
+    "/highlights",
+  ];
+  const entries = staticPaths.map((path) => ({ url: getUrl(path, locale) }));
+  return generateXml(entries, "daily", 1.0);
+}
+
+export async function generateNewsSitemap(locale: string) {
+  await dbConnect();
+  const posts = await Post.find({ language: locale, status: "published" })
+    .select("slug updatedAt")
+    .lean();
+  const entries = posts.map((post) => ({
+    url: getUrl(`/news/${post.slug}`, locale),
+    lastModified: post.updatedAt,
+  }));
+  return generateXml(entries, "weekly", 0.8);
+}
+
+export async function generateLeaguesSitemap(locale: string) {
+  await dbConnect();
+  const leagues = await League.find({}).select("name leagueId").lean();
+  const entries = leagues.map((l) => ({
+    url: getUrl(generateLeagueSlug(l.name, l.leagueId), locale),
+  }));
+  return generateXml(entries, "weekly", 0.7);
+}
+
+export async function generateTeamsSitemap(locale: string) {
+  await dbConnect();
+  const teams = await Team.find({}).select("name teamId").lean();
+  const entries = teams.map((t) => ({
+    url: getUrl(generateTeamSlug(t.name, t.teamId), locale),
+  }));
+  return generateXml(entries, "weekly", 0.6);
+}
+
+export async function generateMatchesSitemap(locale: string) {
+  const today = new Date();
+  const fromDate = format(subDays(today, 1), "yyyy-MM-dd");
+  const toDate = format(addDays(today, 2), "yyyy-MM-dd");
+  const matches = await getFixturesByDateRange(fromDate, toDate);
+  const validMatches = matches.filter(
+    (m) => m && m.fixture?.id && m.teams?.home?.name && m.teams?.away?.name
+  );
+  const entries = validMatches.map((m) => ({
+    url: getUrl(
+      generateMatchSlug(m.teams.home, m.teams.away, m.fixture.id),
+      locale
+    ),
+    lastModified: m.fixture.date,
+  }));
+  return generateXml(entries, "daily", 0.9);
+}
+
+export async function generateStandingsSitemap(locale: string) {
+  const { data } = await axios.get(
+    `${BASE_URL}/api/directory/standings-leagues?limit=10000`
+  );
+  const entries = data.leagues.map((l: any) => ({
+    url: getUrl(l.href, locale),
+  }));
+  return generateXml(entries, "daily", 0.8);
+}
+
+// ===== src/lib/sitemap-parser.ts =====
+
+import "server-only";
+import axios from "axios";
+import { XMLParser } from "fast-xml-parser";
+
+const BASE_URL =
+  process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
+
+export async function getAllUrlsFromSitemaps(): Promise<string[]> {
+
+  const parser = new XMLParser();
+  const allUrls = new Set<string>();
+
+  try {
+
+    const sitemapIndexUrl = `${BASE_URL}/sitemap.xml`;
+
+    const indexResponse = await axios.get(sitemapIndexUrl);
+    const sitemapIndex = parser.parse(indexResponse.data);
+
+    if (!sitemapIndex?.sitemapindex?.sitemap) {
+      throw new Error(
+        "Invalid sitemap index format. Expected <sitemapindex> with <sitemap> tags."
+      );
+    }
+
+    const subSitemapUrls: string[] = sitemapIndex.sitemapindex.sitemap.map(
+      (s: any) => s.loc
+    );
+    console.log(
+      `[Sitemap Parser] Found ${subSitemapUrls.length} sub-sitemaps.`
+    );
+
+    for (const subSitemapUrl of subSitemapUrls) {
+      try {
+        const subResponse = await axios.get(subSitemapUrl);
+        const subSitemap = parser.parse(subResponse.data);
+        const urlsFromSitemap =
+          subSitemap?.urlset?.url?.map((u: any) => u.loc) || [];
+        urlsFromSitemap.forEach((url: string) => allUrls.add(url));
+        console.log(
+          `[Sitemap Parser] Parsed ${urlsFromSitemap.length} URLs from ${subSitemapUrl}`
+        );
+      } catch (subError) {
+        console.error(
+          `[Sitemap Parser] Failed to parse sub-sitemap ${subSitemapUrl}`,
+          subError
+        );
+      }
+    }
+
+    console.log(
+      `[Sitemap Parser] Finished. Found a total of ${allUrls.size} unique URLs.`
+    );
+    return Array.from(allUrls);
+  } catch (error) {
+    console.error(
+      "[Sitemap Parser] A critical error occurred while fetching sitemaps:",
+      error
+    );
+    return [];
+  }
 }
 
 // ===== src/lib/toc.ts =====
@@ -50681,8 +53282,6 @@ const TrackedLinkSchema: Schema<ITrackedLink> = new Schema(
     capped: { max: 10000, size: 10485760 },
   }
 );
-
-TrackedLinkSchema.index({ shortCode: 1 });
 
 const TrackedLink: Model<ITrackedLink> =
   mongoose.models.TrackedLink ||
