@@ -29,10 +29,7 @@ export async function GET(req: NextRequest) {
 
   // Fetch fonts (as required by @vercel/og)
   const fontData = await fetch(
-    new URL(
-      "../../../../../public/fonts/inter-v19-latin-800.woff",
-      import.meta.url
-    )
+    new URL("../public/fonts/inter-v19-latin-800.woff", import.meta.url)
   ).then((res) => res.arrayBuffer());
 
   return new ImageResponse(
