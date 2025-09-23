@@ -6,6 +6,7 @@ import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from "./lib/i18n/config";
 const I18N_COOKIE_NAME = "NEXT_LOCALE";
 const NEXT_PUBLIC_APP_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
+const REDIRECT_LOCALES = new Set(["de", "ar"]);
 
 function getLocale(request: NextRequest): string {
   const cookieLocale = request.cookies.get(I18N_COOKIE_NAME)?.value;
@@ -17,6 +18,17 @@ function getLocale(request: NextRequest): string {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  const firstPathSegment = pathname.split("/")[1];
+  if (REDIRECT_LOCALES.has(firstPathSegment)) {
+    // It's a path like /de/some-page or /ar/football/news
+    // We want to redirect it to /some-page (which will be handled by i18n logic)
+    const newPath = pathname.replace(`/${firstPathSegment}`, "");
+    const url = new URL(newPath === "" ? "/" : newPath, request.url);
+
+    // Use a 301 Permanent Redirect for SEO
+    return NextResponse.redirect(url, 301);
+  }
 
   try {
     let pathToCheck = pathname;
