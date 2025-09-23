@@ -8,7 +8,7 @@
     "dev:ws": "ts-node-dev socket-server.ts",
     "build": "next build",
     "start": "npm-run-all --parallel start:next start:ws",
-    "start:next": "next start -p 3001",
+    "start:next": "next start -p 3002",
     "start:ws": "node dist/socket-server.js",
     "lint": "next lint",
     "test-db": "node scripts/test-database.js",
