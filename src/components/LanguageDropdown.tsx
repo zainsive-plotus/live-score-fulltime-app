@@ -23,7 +23,9 @@ export default function LanguageDropdown({
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const pathname = usePathname();
-  const { locale: currentLocale } = useTranslation();
+  let { locale: currentLocale } = useTranslation();
+
+  currentLocale = currentLocale ?? "tr";
 
   const selectedLanguage = languages?.find(
     (lang) => lang.code === currentLocale
