@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from "./lib/i18n/config";
 
 const I18N_COOKIE_NAME = "NEXT_LOCALE";
+const NEXT_PUBLIC_APP_URL =
+  process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
 function getLocale(request: NextRequest): string {
   const cookieLocale = request.cookies.get(I18N_COOKIE_NAME)?.value;
@@ -15,25 +17,29 @@ function getLocale(request: NextRequest): string {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const origin = request.nextUrl.origin;
 
-  // --- MONGO-BASED REDIRECTION LOGIC ---
   try {
-    // 1. Normalize the path to check (remove locale prefix if it exists)
     let pathToCheck = pathname;
     const firstSegment = pathname.split("/")[1];
     if (SUPPORTED_LOCALES.includes(firstSegment)) {
       pathToCheck = pathname.substring(firstSegment.length + 1) || "/";
     }
 
-    // 2. Call our internal API endpoint. This is Edge-compatible.
+    // Use the explicit environment variable for the API call's origin.
     const redirectCheckUrl = new URL(
       `/api/redirects/check?pathname=${encodeURIComponent(pathToCheck)}`,
-      origin
+      NEXT_PUBLIC_APP_URL
     );
-    const redirectResponse = await fetch(redirectCheckUrl);
 
-    // 3. If a redirect is found (200 OK), perform the redirect.
+    // Use the AbortController for a short timeout to prevent middleware delays.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1500); // 1.5 second timeout
+
+    const redirectResponse = await fetch(redirectCheckUrl, {
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
     if (redirectResponse.ok) {
       const { destination, status } = await redirectResponse.json();
       console.log(
@@ -41,11 +47,15 @@ export async function middleware(request: NextRequest) {
       );
       return NextResponse.redirect(new URL(destination, request.url), status);
     }
-  } catch (error) {
-    console.error(
-      "[MIDDLEWARE_REDIRECT] API call for redirects failed:",
-      error
-    );
+  } catch (error: any) {
+    if (error.name === "AbortError") {
+      console.error("[MIDDLEWARE_REDIRECT] API call timed out.");
+    } else {
+      console.error(
+        "[MIDDLEWARE_REDIRECT] API call for redirects failed:",
+        error
+      );
+    }
   }
   // --- END REDIRECTION LOGIC ---
 
