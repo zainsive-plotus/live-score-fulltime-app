@@ -1,16 +1,17 @@
 // ===== src/app/admin/(protected)/news/page.tsx =====
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import Link from "@/components/StyledLink";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Search, SearchX } from "lucide-react"; // Import Search icons
 import { IPost } from "@/models/Post";
 import toast from "react-hot-toast";
 import { ILanguage } from "@/models/Language";
 import TranslationGroupRow from "@/components/admin/TranslationGroupRow";
 import AdminPagination from "@/components/admin/AdminPagination";
+import { useDebounce } from "@/hooks/useDebounce"; // Import the debounce hook
 
 interface PaginatedNewsResponse {
   groups: IPost[][];
@@ -21,10 +22,16 @@ interface PaginatedNewsResponse {
   };
 }
 
+// --- MODIFICATION: Add searchQuery parameter ---
 const fetchAdminPosts = async (
-  page: number
+  page: number,
+  searchQuery: string
 ): Promise<PaginatedNewsResponse> => {
-  const { data } = await axios.get(`/api/admin/posts?page=${page}`);
+  const params = new URLSearchParams({
+    page: page.toString(),
+    search: searchQuery,
+  });
+  const { data } = await axios.get(`/api/admin/posts?${params.toString()}`);
   return data;
 };
 
@@ -36,16 +43,26 @@ const fetchLanguages = async (): Promise<ILanguage[]> => {
 export default function AdminNewsPage() {
   const queryClient = useQueryClient();
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState(""); // State for the search input
+  const debouncedSearchTerm = useDebounce(searchTerm, 500); // Debounce user input
 
   const {
     data: postsData,
     isLoading: isLoadingPosts,
     error: postsError,
   } = useQuery<PaginatedNewsResponse>({
-    queryKey: ["adminPosts", currentPage],
-    queryFn: () => fetchAdminPosts(currentPage),
+    // --- MODIFICATION: Add debounced search term to queryKey ---
+    queryKey: ["adminPosts", currentPage, debouncedSearchTerm],
+    queryFn: () => fetchAdminPosts(currentPage, debouncedSearchTerm),
     keepPreviousData: true,
   });
+
+  // --- NEW: Reset to page 1 when search term changes ---
+  useEffect(() => {
+    if (debouncedSearchTerm) {
+      setCurrentPage(1);
+    }
+  }, [debouncedSearchTerm]);
 
   const { data: languages, isLoading: isLoadingLanguages } = useQuery<
     ILanguage[]
@@ -95,30 +112,57 @@ export default function AdminNewsPage() {
         <h1 className="text-3xl font-bold text-white">Manage News</h1>
         <Link
           href="/admin/news/create"
-          className="flex items-center gap-2 bg-brand-purple text-white font-bold py-2 px-4 rounded-lg hover:opacity-90 transition-opacity"
+          className="flex items-center gap-2 bg-brand-purple text-white font-bold py-2 px-4 rounded-lg hover:opacity-90"
         >
           <PlusCircle size={20} />
           <span>New Post</span>
         </Link>
       </div>
 
-      {/* MODIFIED: Replaced the <table> with a <div> */}
-      <div className="space-y-4">
-        {groupedPosts.map((group) => (
-          <TranslationGroupRow
-            key={
-              group[0].translationGroupId?.toString() || group[0]._id.toString()
-            }
-            group={group}
-            languageMap={languageMap}
-            onDelete={handleDeletePost}
+      {/* --- NEW: Search Bar UI --- */}
+      <div className="bg-brand-secondary p-4 rounded-lg mb-6">
+        <div className="relative">
+          <Search
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-brand-muted"
+            size={20}
           />
-        ))}
+          <input
+            type="text"
+            placeholder="Search by Post Title, Team, or League Name..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-brand-dark border border-gray-600 rounded-lg p-3 pl-12 text-white placeholder:text-brand-muted focus:outline-none focus:ring-2 focus:ring-brand-purple"
+          />
+        </div>
+      </div>
 
-        {groupedPosts.length === 0 && (
+      <div className="space-y-4">
+        {isLoading && !postsData ? (
           <p className="text-center p-8 text-brand-muted bg-brand-secondary rounded-lg">
-            No news posts found.
+            Loading posts...
           </p>
+        ) : groupedPosts.length > 0 ? (
+          groupedPosts.map((group) => (
+            <TranslationGroupRow
+              key={
+                group[0].translationGroupId?.toString() ||
+                group[0]._id.toString()
+              }
+              group={group}
+              languageMap={languageMap}
+              onDelete={handleDeletePost}
+            />
+          ))
+        ) : (
+          <div className="text-center p-8 text-brand-muted bg-brand-secondary rounded-lg">
+            <SearchX size={32} className="mx-auto mb-3" />
+            <p className="font-semibold text-white">No Posts Found</p>
+            {debouncedSearchTerm && (
+              <p>
+                Your search for "{debouncedSearchTerm}" did not match any posts.
+              </p>
+            )}
+          </div>
         )}
       </div>
 

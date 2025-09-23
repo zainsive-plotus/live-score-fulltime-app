@@ -40,6 +40,7 @@ import {
   Database,
   Briefcase,
   Type,
+  Route,
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 
@@ -257,6 +258,7 @@ export default function AdminSidebar() {
       key: "system",
       children: [
         { name: "File Manager", href: "/admin/file-manager", icon: ImageIcon },
+        { name: "URL Redirects", href: "/admin/redirects", icon: Route }, // <-- ADD THIS LINE
         { name: "Sitemap Generation", href: "/admin/sitemaps", icon: Map },
         {
           name: "Cache Management",

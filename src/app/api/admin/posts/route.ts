@@ -1,10 +1,10 @@
-// ===== src/app/api/admin/posts/route.ts =====
+// ===== src/app/api/admin/posts/route.ts (UPDATED for Multilingual Search) =====
 
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import dbConnect from "@/lib/dbConnect";
-import Post, { NewsType } from "@/models/Post";
+import Post from "@/models/Post";
 
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
@@ -16,61 +16,95 @@ export async function GET(request: Request) {
     await dbConnect();
 
     const { searchParams } = new URL(request.url);
-    const newsType = searchParams.get("newsType") as NewsType | null;
     const page = parseInt(searchParams.get("page") || "1");
-    const limit = 10; // Number of translation groups per page
+    const searchQuery = searchParams.get("search") || "";
+    const limit = 10;
     const skip = (page - 1) * limit;
 
-    const matchStage: any = {};
-    if (newsType) {
-      matchStage.newsType = newsType;
+    // --- AGGREGATION PIPELINE REVISED FOR MULTILINGUAL SEARCH ---
+
+    // Initial stage to match any potentially linked documents first
+    const preMatchStage: any = {};
+    if (searchQuery.trim().length > 2) {
+      const regex = new RegExp(searchQuery, "i");
+      preMatchStage.$or = [
+        { title: regex },
+        // Pre-filter by linked IDs if we can, to reduce the lookup set.
+        // This requires an additional lookup first, or assuming names are stored on the Post.
+        // For simplicity and correctness, we will filter after grouping.
+      ];
     }
 
-    // This is a MongoDB Aggregation Pipeline. It's a powerful way to process data on the server.
-    const aggregationPipeline = [
-      // 1. Filter for specific news types if requested
-      ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
-
-      // 2. Sort all posts by date to ensure we can find the "master" post for a group
+    const aggregationPipeline: any[] = [
+      // Sort all posts first
       { $sort: { createdAt: -1 } },
 
-      // 3. Group posts by their translationGroupId
+      // Group all posts by their translation group ID
       {
         $group: {
           _id: { $ifNull: ["$translationGroupId", "$_id"] },
-          // Push all documents of the group into an array
           posts: { $push: "$$ROOT" },
-          // Keep the latest date of the group for sorting
           latestDate: { $first: "$createdAt" },
         },
       },
 
-      // 4. Sort the GROUPS themselves by the latest date
-      { $sort: { latestDate: -1 } },
+      // Now, perform lookups on the grouped documents' content
+      {
+        $lookup: {
+          from: "teams",
+          localField: "posts.linkedTeamId",
+          foreignField: "teamId",
+          as: "linkedTeamInfo",
+        },
+      },
+      {
+        $lookup: {
+          from: "leagues",
+          localField: "posts.linkedLeagueId",
+          foreignField: "leagueId",
+          as: "linkedLeagueInfo",
+        },
+      },
+    ];
 
-      // 5. Use $facet to perform pagination and total count in one go
+    // If a search query exists, apply the match stage *after* grouping and lookups
+    if (searchQuery.trim().length > 2) {
+      const regex = new RegExp(searchQuery, "i");
+      aggregationPipeline.push({
+        $match: {
+          $or: [
+            // Search within the array of post titles
+            { "posts.title": regex },
+            // Search within the names of the looked-up teams and leagues
+            { "linkedTeamInfo.name": regex },
+            { "linkedLeagueInfo.name": regex },
+          ],
+        },
+      });
+    }
+
+    // Finally, add sorting, pagination, and final projection
+    aggregationPipeline.push(
+      { $sort: { latestDate: -1 } },
       {
         $facet: {
           paginatedGroups: [
             { $skip: skip },
             { $limit: limit },
-            // We only need the array of posts from each group
             { $project: { _id: 0, posts: 1 } },
           ],
           totalCount: [{ $count: "count" }],
         },
-      },
-    ];
+      }
+    );
+    // --- END OF REVISED PIPELINE ---
 
     const results = await Post.aggregate(aggregationPipeline);
 
     const paginatedResults = results[0].paginatedGroups;
-    const totalCount = results[0].totalCount[0]
-      ? results[0].totalCount[0].count
-      : 0;
+    const totalCount = results[0].totalCount[0]?.count || 0;
     const totalPages = Math.ceil(totalCount / limit);
 
-    // The final data is an array of arrays (groups of posts)
     const groups = paginatedResults.map((group: any) => group.posts);
 
     return NextResponse.json({

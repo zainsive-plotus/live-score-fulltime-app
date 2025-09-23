@@ -1,9 +1,7 @@
+// ===== src/middleware.ts (FINAL & ROBUST) =====
+
 import { NextRequest, NextResponse } from "next/server";
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from "./lib/i18n/config";
-import redis from "@/lib/redis";
-// Define a constant for our Redis cache key to avoid typos
-export const REFERRER_RULES_CACHE_KEY = "referrer-rules:active-list";
-const REDIRECT_LOCALES = new Set(["de", "ar"]);
 
 const I18N_COOKIE_NAME = "NEXT_LOCALE";
 
@@ -15,18 +13,43 @@ function getLocale(request: NextRequest): string {
   return DEFAULT_LOCALE;
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const origin = request.nextUrl.origin;
 
-  const firstPathSegment = pathname.split("/")[1];
-  if (REDIRECT_LOCALES.has(firstPathSegment)) {
-    // Reconstruct the URL without the unsupported locale prefix
-    const newPath = pathname.replace(`/${firstPathSegment}`, "");
-    const url = new URL(newPath === "" ? "/" : newPath, request.url);
-    // 301 is a permanent redirect, which is good for SEO
-    return NextResponse.redirect(url, 301);
+  // --- MONGO-BASED REDIRECTION LOGIC ---
+  try {
+    // 1. Normalize the path to check (remove locale prefix if it exists)
+    let pathToCheck = pathname;
+    const firstSegment = pathname.split("/")[1];
+    if (SUPPORTED_LOCALES.includes(firstSegment)) {
+      pathToCheck = pathname.substring(firstSegment.length + 1) || "/";
+    }
+
+    // 2. Call our internal API endpoint. This is Edge-compatible.
+    const redirectCheckUrl = new URL(
+      `/api/redirects/check?pathname=${encodeURIComponent(pathToCheck)}`,
+      origin
+    );
+    const redirectResponse = await fetch(redirectCheckUrl);
+
+    // 3. If a redirect is found (200 OK), perform the redirect.
+    if (redirectResponse.ok) {
+      const { destination, status } = await redirectResponse.json();
+      console.log(
+        `[MIDDLEWARE_REDIRECT] Match found! Path: '${pathname}', Destination: '${destination}'`
+      );
+      return NextResponse.redirect(new URL(destination, request.url), status);
+    }
+  } catch (error) {
+    console.error(
+      "[MIDDLEWARE_REDIRECT] API call for redirects failed:",
+      error
+    );
   }
+  // --- END REDIRECTION LOGIC ---
 
+  // --- I18N LOGIC (No changes needed here) ---
   const pathnameHasLocale = SUPPORTED_LOCALES.some(
     (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
   );
@@ -66,7 +89,6 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Add 'login' to the list of paths to ignore in the negative lookahead
-    "/((?!api|_next/static|_next/image|admin|login|favicon.ico|go/.*|.*\\.).*)",
+    "/((?!api/redirects/check|api|_next/static|_next/image|admin|login|favicon.ico|go/.*|.*\\.).*)",
   ],
 };
