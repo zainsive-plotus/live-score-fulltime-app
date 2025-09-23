@@ -42,10 +42,7 @@ export async function generateMetadata({
     return { title: t("not_found_title"), robots: { index: false } };
   }
 
-  const playerName = slugInfo.name
-    .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+  const playerName = slugInfo.name;
   const title = t("player_page_meta_title", { playerName });
   const description = t("player_page_meta_description", { playerName });
 
@@ -71,13 +68,6 @@ export async function generateMetadata({
     description,
     alternates: {
       canonical: canonicalUrl,
-    },
-    openGraph: {
-      title,
-      description,
-      url: canonicalUrl,
-      siteName: "Fanskor",
-      type: "profile",
     },
   };
 }
@@ -114,7 +104,6 @@ export default async function PlayerPage({
   const pageUrl = `${BASE_URL}/${locale}/football/players/${slug.join("/")}`;
   const jsonLd: WithContext<Person | BreadcrumbList>[] = [
     {
-      /* ... Person schema remains the same ... */
       "@context": "https://schema.org",
       "@type": "Person",
       name: player.name,
@@ -137,8 +126,6 @@ export default async function PlayerPage({
           name: t("homepage"),
           item: `${BASE_URL}/${locale}`,
         },
-        // It's better to have a generic /football page if it exists
-        // If not, this can be omitted. Assuming it does not exist for now.
         {
           "@type": "ListItem",
           position: 2,

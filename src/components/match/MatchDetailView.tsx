@@ -1,79 +1,46 @@
-// ===== src/components/match/MatchDetailView.tsx =====
-
+// ===== src/components/match/MatchDetailView.tsx (CORRECTED & FINAL) =====
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, Suspense, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
+import { usePathname } from "next/navigation";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Info, List, BarChart3, Swords, ListOrdered } from "lucide-react";
 
+import { useLiveFixtureUpdates } from "@/hooks/useLiveFixtureUpdates"; // Import the hook
 import { MatchHeader } from "@/components/match/MatchHeader";
 import MatchSeoWidget from "./MatchSeoWidget";
 
-// Skeletons for suspense fallbacks provide a better loading experience
-const TeamFormContentSkeleton = () => (
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-    <div className="bg-brand-secondary rounded-lg h-[400px] animate-pulse p-4"></div>
-    <div className="bg-brand-secondary rounded-lg h-[400px] animate-pulse p-4"></div>
-  </div>
-);
-const FormationSkeleton = () => (
-  <div className="bg-brand-secondary rounded-lg p-4 md:p-6 animate-pulse h-[600px]"></div>
-);
-const H2HContentSkeleton = () => (
-  <div className="bg-brand-secondary rounded-lg h-[450px] animate-pulse p-6"></div>
-);
-
-// Dynamically import child components for better performance
-const TeamFormWidget = dynamic(
-  () => import("@/components/match/TeamFormWidget")
-);
-const MatchFormationWidget = dynamic(
-  () => import("@/components/match/MatchFormationWidget")
-);
-const MatchH2HWidget = dynamic(
-  () => import("@/components/match/MatchH2HWidget")
+// --- Dynamic Imports for Tab Content ---
+const MatchActivityWidget = dynamic(
+  () => import("@/components/match/MatchActivityWidget")
 );
 const MatchStatsWidget = dynamic(
   () => import("@/components/match/MatchStatsWidget")
 );
-const MatchActivityWidget = dynamic(
-  () => import("@/components/match/MatchActivityWidget")
+const MatchH2HWidget = dynamic(
+  () => import("@/components/match/MatchH2HWidget")
 );
 const StandingsWidget = dynamic(() => import("@/components/StandingsWidget"));
 
-// The "Info" tab component, which groups Form and Formation widgets
-const MatchInfoTab = ({ matchData }: { matchData: any }) => {
-  const { fixtureData, fixtureId, homeTeamStats, awayTeamStats } = matchData;
-  const { teams } = fixtureData;
-  return (
-    <div className="space-y-6">
-      <Suspense fallback={<TeamFormContentSkeleton />}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <TeamFormWidget
-            team={teams.home}
-            location="Home"
-            teamStats={homeTeamStats}
-          />
-          <TeamFormWidget
-            team={teams.away}
-            location="Away"
-            teamStats={awayTeamStats}
-          />
-        </div>
-      </Suspense>
-      <Suspense fallback={<FormationSkeleton />}>
-        <MatchFormationWidget fixtureId={fixtureId} />
-      </Suspense>
-    </div>
-  );
-};
+const H2HContentSkeleton = () => (
+  <div className="bg-brand-secondary rounded-lg h-[450px] animate-pulse p-6"></div>
+);
+const DEFAULT_TAB = "Timeline";
 
-// Main View Component
-export default function MatchDetailView({ matchData }: { matchData: any }) {
+export default function MatchDetailView({
+  matchData: initialMatchData,
+}: {
+  matchData: any;
+}) {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState("Info");
+  const pathname = usePathname();
+  const [activeTab, setActiveTab] = useState(DEFAULT_TAB);
 
+  // Use the hook to get initial data and subscribe to live updates via WebSocket
+  const liveMatchData = useLiveFixtureUpdates(initialMatchData);
+
+  // Destructure from the live data source for re-rendering
   const {
     fixtureData,
     statistics,
@@ -83,32 +50,56 @@ export default function MatchDetailView({ matchData }: { matchData: any }) {
     isFinished,
     seoWidgetData,
     standingsResponse,
-  } = matchData;
+  } = liveMatchData;
+
   const { teams, league } = fixtureData;
 
   const hasStandings =
     league.type === "League" && standingsResponse?.[0]?.league?.standings?.[0];
 
-  const TABS = [
-    { name: "Info", icon: Info },
-    { name: "Timeline", icon: List },
-    ...(isLive || isFinished ? [{ name: "Stats", icon: BarChart3 }] : []),
-    { name: "H2H", icon: Swords },
-    ...(hasStandings ? [{ name: "Standings", icon: ListOrdered }] : []),
-  ];
+  const TABS = useMemo(
+    () => [
+      { name: "Timeline", icon: List },
+      ...(isLive || isFinished ? [{ name: "Stats", icon: BarChart3 }] : []),
+      { name: "H2H", icon: Swords },
+      ...(hasStandings ? [{ name: "Standings", icon: ListOrdered }] : []),
+    ],
+    [isLive, isFinished, hasStandings]
+  );
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace("#", "");
+      const tabFromHash = hash.charAt(0).toUpperCase() + hash.slice(1);
+      const isValidTab = TABS.some(
+        (tab) => tab.name.toLowerCase() === hash.toLowerCase()
+      );
+      setActiveTab(isValidTab ? tabFromHash : DEFAULT_TAB);
+    };
+
+    handleHashChange();
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, [pathname, TABS]);
+
+  const handleTabClick = (tabName: string) => {
+    window.location.hash = tabName.toLowerCase();
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {
       case "Timeline":
-      default:
         return (
           <MatchActivityWidget
             fixtureId={fixtureId}
             isLive={isLive}
             homeTeamId={teams.home.id}
+            // Pass the live events down as a prop
+            liveEvents={fixtureData.events}
           />
         );
       case "Stats":
+        // Pass the live statistics down as a prop
         return <MatchStatsWidget statistics={statistics || []} teams={teams} />;
       case "H2H":
         return (
@@ -129,6 +120,15 @@ export default function MatchDetailView({ matchData }: { matchData: any }) {
             awayTeamId={teams.away.id}
           />
         ) : null;
+      default:
+        return (
+          <MatchActivityWidget
+            fixtureId={fixtureId}
+            isLive={isLive}
+            homeTeamId={teams.home.id}
+            liveEvents={fixtureData.events}
+          />
+        );
     }
   };
 
@@ -140,7 +140,7 @@ export default function MatchDetailView({ matchData }: { matchData: any }) {
         {TABS.map((tab) => (
           <button
             key={tab.name}
-            onClick={() => setActiveTab(tab.name)}
+            onClick={() => handleTabClick(tab.name)}
             className={`flex-shrink-0 flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-semibold transition-colors ${
               activeTab === tab.name
                 ? "bg-[var(--brand-accent)] text-white shadow-md"

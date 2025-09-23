@@ -70,15 +70,56 @@ export const getFixture = async (
   context?: RequestContext
 ) => {
   const cacheKey = `fixture:${fixtureId}`;
-  const fixtureResponse = await apiRequest<any[]>(
-    "fixtures",
-    { id: fixtureId },
-    cacheKey,
-    STALE_CACHE_TTL_SECONDS,
-    context
-  );
-  if (!fixtureResponse || fixtureResponse.length === 0) return null;
-  return fixtureResponse[0];
+
+  // 1. Try to get from cache first for finished matches
+  try {
+    const cachedData = await redis.get(cacheKey);
+    if (cachedData) {
+      const parsedData = JSON.parse(cachedData);
+      // If it's a finished match, we can return the cached version.
+      if (["FT", "AET", "PEN"].includes(parsedData?.fixture?.status?.short)) {
+        return parsedData;
+      }
+    }
+  } catch (e) {
+    console.error(`[data/match] Redis GET failed for key ${cacheKey}:`, e);
+  }
+
+  // 2. If not in cache, or if it's not a finished match, fetch from API
+  try {
+    const options = {
+      method: "GET",
+      url: `${process.env.NEXT_PUBLIC_API_FOOTBALL_HOST}/fixtures`,
+      params: { id: fixtureId },
+      headers: { "x-apisports-key": process.env.NEXT_PUBLIC_API_FOOTBALL_KEY },
+      timeout: 8000,
+    };
+    const response = await axios.request(options);
+    const fixtureResponse = response.data.response;
+
+    if (!fixtureResponse || fixtureResponse.length === 0) return null;
+
+    const fixtureData = fixtureResponse[0];
+    const status = fixtureData.fixture.status.short;
+
+    // 3. Set cache TTL based on match status
+    let ttl = 0; // Default to no cache for upcoming/live
+    if (["FT", "AET", "PEN"].includes(status)) {
+      ttl = STALE_CACHE_TTL_SECONDS; // Long cache for finished matches
+    }
+
+    if (ttl > 0) {
+      await redis.set(cacheKey, JSON.stringify(fixtureData), "EX", ttl);
+    }
+
+    return fixtureData;
+  } catch (error) {
+    console.error(
+      `[data/match] API fetch failed for fixture ${fixtureId}. No cache available.`,
+      error
+    );
+    return null;
+  }
 };
 
 export const getStatistics = async (

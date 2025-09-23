@@ -3,9 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "npm-run-all --parallel dev:next dev:ws",
+    "dev:next": "next dev",
+    "dev:ws": "ts-node-dev socket-server.ts",
     "build": "next build",
-    "start": "next start -p 3002",
+    "start": "npm-run-all --parallel start:next start:ws",
+    "start:next": "next start",
+    "start:ws": "node dist/socket-server.js",
     "lint": "next lint",
     "test-db": "node scripts/test-database.js",
     "db:seed-lang": "node scripts/seedLanguages.js",
@@ -71,7 +75,9 @@
     "schema-dts": "^1.1.5",
     "sharp": "^0.34.2",
     "slick-carousel": "^1.8.1",
-    "slugify": "^1.6.6"
+    "slugify": "^1.6.6",
+    "ts-node-dev": "^2.0.0",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -85,8 +91,10 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/react-slick": "^0.23.13",
+    "@types/ws": "^8.18.1",
     "eslint": "^9",
     "eslint-config-next": "15.3.3",
+    "npm-run-all": "^4.1.5",
     "tailwind-scrollbar": "^4.0.2",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
