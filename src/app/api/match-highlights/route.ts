@@ -53,9 +53,6 @@ export async function GET(request: Request) {
       `[API/match-highlights] Failed to get highlights:`,
       error.message
     );
-    return NextResponse.json(
-      { error: "Failed to fetch highlights from the provider." },
-      { status: 502 }
-    );
+    return NextResponse.json([]);
   }
 }
