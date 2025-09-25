@@ -11,7 +11,6 @@ import { WithContext, NewsArticle, BreadcrumbList } from "schema-dts";
 // Local Application Imports
 import dbConnect from "@/lib/dbConnect";
 import Post, { IPostWithTranslations } from "@/models/Post";
-import redis from "@/lib/redis";
 import { getI18n } from "@/lib/i18n/server";
 import { generateHreflangTags, TranslationInfo } from "@/lib/hreflang";
 import { generateTableOfContents } from "@/lib/toc";
@@ -23,26 +22,35 @@ import SocialShareButtons from "@/components/SocialShareButtons";
 import NewsSidebar from "@/components/NewsSidebar";
 import StyledLink from "@/components/StyledLink";
 
-// --- ISR Configuration ---
-export const revalidate = 3600; // Revalidate pages at most once per hour
+// --- NEW: Incremental Static Regeneration (ISR) ---
+// This tells Next.js to re-generate the page on-demand, at most once every hour.
+// 3600 seconds = 1 hour. Adjust as needed.
+export const revalidate = 3600;
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_PUBLIC_APP_URL || "http://localhost:3000";
 
-// --- Build-Time Optimization ---
-// Pre-builds the 20 most recent articles for instant access.
+// --- NEW: generateStaticParams for SSG ---
+// This function runs at build time to tell Next.js which pages to pre-render.
 export async function generateStaticParams() {
-  await dbConnect();
-  const recentPosts = await Post.find({ status: "published" })
-    .sort({ createdAt: -1 })
-    .limit(20)
-    .select("slug language")
-    .lean();
+  try {
+    await dbConnect();
+    const posts = await Post.find({ status: "published" })
+      .select("slug language")
+      .lean();
 
-  return recentPosts.map((post) => ({
-    locale: post.language,
-    slug: post.slug,
-  }));
+    // We need to return an array of objects with `locale` and `slug` params
+    return posts.map((post) => ({
+      locale: post.language,
+      slug: post.slug,
+    }));
+  } catch (error) {
+    console.error(
+      "[generateStaticParams] Failed to fetch posts for static generation:",
+      error
+    );
+    return []; // Return an empty array on error to prevent build failure
+  }
 }
 
 // --- Data Fetching for Metadata (Redis-First) ---

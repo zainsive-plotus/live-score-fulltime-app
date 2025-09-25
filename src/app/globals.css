@@ -140,6 +140,18 @@ body {
   line-height: 1.4;
 }
 
+.prose p + p {
+  margin-top: 1.25em; /* You can adjust this value (e.g., 1em, 1.5em) to your liking */
+}
+
+/* 
+  OPTIONAL: To render empty paragraphs as a line break,
+  give them a minimum height. This simulates a double line break.
+*/
+.prose p:empty {
+  min-height: 1rem;
+}
+
 .prose strong {
   color: #ffffff;
 }
@@ -149,6 +161,7 @@ body {
 .prose ul,
 .prose ol {
   list-style-position: outside;
+  list-style: circle;
   padding-left: 1.5em;
 }
 .prose ul > li,
@@ -157,20 +170,16 @@ body {
   margin-top: 0.75em;
 }
 .prose ul > li::marker {
-  color: var(--brand-accent);
+  color: #ed5c19;
 }
 .prose a {
-  color: var(--brand-accent);
+  color: #ed5c19;
   text-decoration: none;
   transition: all 0.2s ease-in-out;
   font-weight: 500;
 }
 .prose a:hover {
   text-decoration: underline;
-  color: #ffffff;
-  background-color: var(--brand-accent);
-  padding: 0.1em 0.2em;
-  border-radius: 0.25rem;
 }
 
 /* Enhanced Blockquote Styling */
